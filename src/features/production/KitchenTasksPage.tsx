@@ -25,7 +25,7 @@ import {
 
 export const KitchenTasksPage: React.FC = () => {
   const { kitchenTasks, updateTaskStatus, createKitchenTask } = useSmokeyOps()
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'ongoing' | 'completed'>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newTask, setNewTask] = useState({
     title: '',
@@ -41,11 +41,14 @@ export const KitchenTasksPage: React.FC = () => {
   const pendingCount = kitchenTasks.filter(t => t.status === 'pending').length
   const completedCount = kitchenTasks.filter(t => t.status === 'done').length
 
-  const pendingTasks = kitchenTasks.filter(t => t.status !== 'done')
+  const pendingTasks = kitchenTasks.filter(t => t.status === 'pending')
+  const ongoingTasks = kitchenTasks.filter(t => t.status === 'in_progress')
   const completedTasks = kitchenTasks.filter(t => t.status === 'done')
 
   const displayedTasks = activeTab === 'pending' 
     ? pendingTasks 
+    : activeTab === 'ongoing'
+    ? ongoingTasks
     : activeTab === 'completed' 
     ? completedTasks 
     : kitchenTasks
@@ -114,7 +117,7 @@ export const KitchenTasksPage: React.FC = () => {
       accessor: (t) => {
         const statusMap = {
           pending: { status: 'pending' as const, label: 'PENDING' },
-          in_progress: { status: 'in_production' as const, label: 'IN PROGRESS' },
+          in_progress: { status: 'in_production' as const, label: 'ON-GOING' },
           done: { status: 'active' as const, label: 'COMPLETED' },
         }
         const s = statusMap[t.status]
@@ -194,7 +197,7 @@ export const KitchenTasksPage: React.FC = () => {
           icon={<CheckSquare className="w-4 h-4 text-primary" />}
         />
         <MetricCard
-          title="Active In Progress"
+          title="On-going Tasks"
           value={inProgressCount}
           description="Currently being worked"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
@@ -221,6 +224,7 @@ export const KitchenTasksPage: React.FC = () => {
           tabs={[
             { id: 'all', label: 'All Tasks', badge: kitchenTasks.length },
             { id: 'pending', label: 'Pending', badge: pendingTasks.length },
+            { id: 'ongoing', label: 'On-going', badge: ongoingTasks.length },
             { id: 'completed', label: 'Completed', badge: completedTasks.length },
           ]}
         />
@@ -232,7 +236,15 @@ export const KitchenTasksPage: React.FC = () => {
         columns={columns}
         searchable={true}
         searchPlaceholder="Search task title or assignee..."
-        title={activeTab === 'all' ? 'All Kitchen Tasks' : activeTab === 'pending' ? 'Pending Tasks' : 'Completed Tasks'}
+        title={
+          activeTab === 'all' 
+            ? 'All Kitchen Tasks' 
+            : activeTab === 'pending' 
+            ? 'Pending Tasks' 
+            : activeTab === 'ongoing'
+            ? 'On-going Tasks'
+            : 'Completed Tasks'
+        }
         exportFilename={`smokey-kitchen-tasks-${activeTab}`}
       />
 
