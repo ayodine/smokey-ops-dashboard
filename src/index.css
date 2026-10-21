@@ -126,16 +126,55 @@
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.01em;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+    letter-spacing: normal;
   }
 
-  /* SF Pro Display strictly for Headings, Titles, Modals, KPI values */
+  /* SF Pro Display strictly for Headings, Titles, Modals, KPI values with Optical Kerning & Balanced Tracking */
   h1, h2, h3, h4, h5, h6,
   .font-display,
   [data-font="display"],
   .metric-value {
-    font-family: var(--font-sf-display) !important;
-    letter-spacing: -0.025em;
+    font-family: var(--font-sf-display);
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  /* Optical Heading Scale: Proportional tracking based on size, preventing tight/cramped headers */
+  h1, .heading-1, [data-typography="h1"] {
+    letter-spacing: -0.012em;
+    font-weight: 700;
+  }
+
+  h2, .heading-2, [data-typography="h2"] {
+    letter-spacing: -0.009em;
+    font-weight: 700;
+  }
+
+  h3, .heading-3, [data-typography="h3"] {
+    letter-spacing: -0.005em;
+    font-weight: 600;
+  }
+
+  h4, h5, h6, .heading-4, [data-typography="h4"] {
+    letter-spacing: normal;
+    font-weight: 600;
+  }
+
+  /* Optically balanced Subheadings & Descriptions with comfortable leading */
+  .subheading,
+  .page-subtitle,
+  [data-kumo-component="Subheading"] {
+    letter-spacing: normal;
+    line-height: 1.5;
+  }
+
+  .metric-value {
+    letter-spacing: -0.012em;
+    font-feature-settings: "kern" 1, "tnum" 1;
   }
 
   /* SF Pro Text strictly for Tables, Buttons, Labels, Tooltips, KPI titles, Forms, Dropdowns, Inputs, Badges */

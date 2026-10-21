@@ -68,7 +68,7 @@ export default function AuthSectionThree() {
           <div className="mx-auto w-full max-w-[460px]">
             {/* Header */}
             <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-black dark:text-white">
+              <h1 className="text-2xl font-bold tracking-[-0.012em] sm:text-3xl text-black dark:text-white font-display">
                 {authMode === 'login' ? "Sign in to your account" : "Create an account"}
               </h1>
               <p className="mt-1.5 text-xs text-black/55 dark:text-white/55 leading-relaxed">
@@ -328,7 +328,7 @@ export default function AuthSectionThree() {
                   delay: 0.12,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="mt-7 text-2xl font-light leading-snug tracking-tight text-white/95 sm:text-3xl"
+                className="mt-7 text-2xl font-light leading-snug tracking-normal text-white/95 sm:text-3xl font-display"
               >
                 “Everything we need to track our meat stock, kitchen cooking batches, and delivery drivers is right here in one place.”
               </motion.blockquote>

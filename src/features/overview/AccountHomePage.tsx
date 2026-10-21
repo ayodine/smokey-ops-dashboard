@@ -4,6 +4,7 @@ import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { formatNaira, formatQuantity, formatDate } from '@/lib/utils'
 import {
   Boxes,
@@ -481,39 +482,33 @@ export const AccountHomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Title & Action Bar (Consistent with Raw Ingredients & other inventory pages) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Home overview
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            {totalItemCount} stock items · {lowStockCount} running low · {expiringCount} expiring within 30 days
-          </p>
-        </div>
-
-        {/* Header Action Buttons (Consistent size, font, and positioning with Raw Ingredients page) */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/inventory/raw')}
-            leftIcon={<Boxes className="w-4 h-4 text-primary" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Inventory management
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsAddStockModalOpen(true)}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Add stock
-          </Button>
-        </div>
-      </div>
+      {/* Page Title & Action Bar (Using Design System PageHeader) */}
+      <PageHeader
+        title="Home overview"
+        subtitle={`${totalItemCount} stock items · ${lowStockCount} running low · ${expiringCount} expiring within 30 days`}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/inventory/raw')}
+              leftIcon={<Boxes className="w-4 h-4 text-primary" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Inventory management
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAddStockModalOpen(true)}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Add stock
+            </Button>
+          </>
+        }
+      />
 
       {/* 4 Metric KPI Cards in Plain English */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -528,7 +523,7 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
+            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {formatNaira(totalValuation)}
             </span>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
@@ -548,7 +543,7 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
+            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {lowStockCount}
             </span>
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
@@ -568,7 +563,7 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
+            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {expiringCount}
             </span>
             <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
@@ -588,7 +583,7 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
+            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {outOfStockCount}
             </span>
             <span className="text-xs font-medium text-kumo-subtle">

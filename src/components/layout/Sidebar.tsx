@@ -354,7 +354,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 
                 {!isCollapsed && (
                   <>
-                    <span className="truncate flex-1 tracking-tight uppercase text-xs font-bold">
+                    <span className="truncate flex-1 tracking-wider uppercase text-[11px] font-bold">
                       {section.title}
                     </span>
                     <ChevronDown
