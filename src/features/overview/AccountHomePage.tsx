@@ -461,12 +461,6 @@ export const AccountHomePage: React.FC = () => {
       {/* Page Header (Clean, no redundant masthead labels as requested) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-kumo-line">
         <div>
-          {/* Breadcrumb standardized to Home overview */}
-          <div className="flex items-center gap-1.5 text-xs text-kumo-subtle mb-1">
-            <Link to="/overview" className="hover:text-kumo-strong transition-colors">
-              Home overview
-            </Link>
-          </div>
           <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-kumo-strong">
             Home overview
           </h1>
@@ -868,14 +862,14 @@ export const AccountHomePage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Action Buttons: Consistent Width (w-[80px]), Uniform Design System Color (Red CTA or Outline) */}
+                        {/* Action Buttons: Consistent Width (w-[80px]), View Button Style (Outline) for All Actions */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex justify-end">
                             {item.status === 'critical' || item.status === 'low' || item.status === 'out_of_stock' ? (
                               <button
                                 type="button"
                                 onClick={() => handleOpenAction(item, item.status === 'out_of_stock' ? 'Restock' : 'Reorder')}
-                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
+                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
                               >
                                 {item.status === 'out_of_stock' ? 'Restock' : 'Reorder'}
                               </button>
@@ -883,7 +877,7 @@ export const AccountHomePage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleOpenAction(item, 'Inspect')}
-                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
+                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
                               >
                                 Inspect
                               </button>
@@ -926,10 +920,10 @@ export const AccountHomePage: React.FC = () => {
                   type="button"
                   onClick={() => setCurrentPage(pageNum)}
                   className={cn(
-                    'w-7 h-7 rounded-md text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer',
+                    'w-7 h-7 rounded-md text-xs font-medium flex items-center justify-center transition-colors cursor-pointer',
                     currentPage === pageNum
-                      ? 'bg-[#c0201f] text-white shadow-2xs'
-                      : 'hover:bg-kumo-tint text-kumo-default'
+                      ? 'border border-kumo-line bg-kumo-base text-kumo-strong font-semibold shadow-2xs'
+                      : 'border border-transparent hover:border-kumo-line/50 hover:bg-kumo-tint text-kumo-default'
                   )}
                 >
                   {pageNum}
@@ -1028,7 +1022,7 @@ export const AccountHomePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenAction(entry.item, 'Reorder')}
-                        className="w-[76px] h-6 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
+                        className="w-[76px] h-6 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer shadow-2xs"
                       >
                         Reorder
                       </button>

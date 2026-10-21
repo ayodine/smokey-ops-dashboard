@@ -66,14 +66,8 @@ export default function AuthSectionThree() {
           </button>
 
           <div className="mx-auto w-full max-w-[460px]">
-            {/* Header / Brand */}
+            {/* Header */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#c0201f]" />
-                <span className="text-xs font-semibold tracking-wider uppercase text-black/50 dark:text-white/50">
-                  Smokey Hut Delight
-                </span>
-              </div>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-black dark:text-white">
                 {authMode === 'login' ? "Sign in to your account" : "Create an account"}
               </h1>
@@ -131,7 +125,7 @@ export default function AuthSectionThree() {
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="e.g. Babajide"
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
                     />
                   </div>
 
@@ -145,7 +139,7 @@ export default function AuthSectionThree() {
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder="e.g. Ogundipe"
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
                     />
                   </div>
                 </div>
@@ -162,7 +156,7 @@ export default function AuthSectionThree() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@smokeyhutdelight.com"
-                  className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                  className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
                 />
               </div>
 
@@ -176,7 +170,7 @@ export default function AuthSectionThree() {
                     <button
                       type="button"
                       onClick={() => alert("Password reset link sent to your email.")}
-                      className="text-xs font-medium text-[#c0201f] hover:underline cursor-pointer"
+                      className="text-xs font-medium text-black/80 hover:text-black dark:text-white/80 dark:hover:text-white underline underline-offset-2 cursor-pointer"
                     >
                       Forgot password?
                     </button>
@@ -209,9 +203,9 @@ export default function AuthSectionThree() {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="size-3.5 rounded border border-black/25 accent-[#c0201f]"
+                      className="size-3.5 rounded border border-black/25 accent-black dark:accent-white"
                     />
-                    <span>Remember this device for 30 days</span>
+                    <span>Remember me</span>
                   </label>
                 ) : (
                   <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -219,7 +213,7 @@ export default function AuthSectionThree() {
                       type="checkbox"
                       checked={agreeTerms}
                       onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="mt-0.5 size-3.5 rounded border border-black/25 accent-[#c0201f]"
+                      className="mt-0.5 size-3.5 rounded border border-black/25 accent-black dark:accent-white"
                     />
                     <span>
                       I agree to the Smokey Hut terms of service and operational privacy policy.
@@ -250,7 +244,7 @@ export default function AuthSectionThree() {
                       setAuthMode('signup');
                       setSuccessMessage(null);
                     }}
-                    className="font-semibold text-[#c0201f] hover:underline cursor-pointer ml-1"
+                    className="font-semibold text-black dark:text-white underline underline-offset-2 hover:opacity-80 cursor-pointer ml-1"
                   >
                     Create an account
                   </button>
@@ -264,7 +258,7 @@ export default function AuthSectionThree() {
                       setAuthMode('login');
                       setSuccessMessage(null);
                     }}
-                    className="font-semibold text-[#c0201f] hover:underline cursor-pointer ml-1"
+                    className="font-semibold text-black dark:text-white underline underline-offset-2 hover:opacity-80 cursor-pointer ml-1"
                   >
                     Sign in to your account
                   </button>
@@ -361,11 +355,11 @@ export default function AuthSectionThree() {
                     staging.smokeyhutdelight.com/overview
                   </span>
                 </div>
-                {/* Local Store Inventory Management Stock Image */}
+                {/* Red Abstract Network Background Wallpaper */}
                 <img
-                  src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80"
-                  alt="Local Store Food & Warehouse Inventory Management"
-                  className="h-auto w-full object-cover object-top opacity-95 [filter:brightness(0.95)_contrast(1.05)]"
+                  src="/red-abstract-network.jpg"
+                  alt="Red Abstract Network Background Wallpaper"
+                  className="h-auto w-full object-cover object-center opacity-95 [filter:brightness(0.95)_contrast(1.05)]"
                 />
               </motion.div>
             </div>

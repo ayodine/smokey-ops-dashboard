@@ -2,7 +2,7 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'destructive' | 'brand' | 'outline'
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'destructive' | 'brand' | 'outline' | 'inactive'
   size?: 'xs' | 'sm' | 'md' | 'lg'
   isLoading?: boolean
   leftIcon?: React.ReactNode
@@ -24,9 +24,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    // Cloudflare Kumo button primitives
+    // Cloudflare Kumo button primitives with robust disabled/inactive states
     const baseStyles =
-      'group inline-flex items-center justify-center font-medium select-none border-0 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-kumo-subtle disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand'
+      'group inline-flex items-center justify-center font-medium select-none border-0 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 disabled:bg-kumo-canvas disabled:text-kumo-subtle disabled:ring-1 disabled:ring-kumo-line disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand'
 
     const sizeStyles = {
       xs: 'h-7 px-2 text-xs rounded-lg gap-1',
@@ -36,32 +36,41 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     const variantStyles = {
-      // Cloudflare Action Blue
+      // Primary Action Red (Smokey brand design system)
       primary:
-        'bg-kumo-brand text-white hover:bg-kumo-brand-hover active:opacity-90 shadow-xs',
+        'bg-[#c0201f] text-white hover:bg-[#a01817] active:opacity-90 shadow-xs',
       // Cloudflare Brand Signal Orange
       brand:
         'bg-[#f6821f] text-white hover:bg-[#e56e0d] active:bg-[#cc5c00] shadow-xs',
       // Cloudflare Kumo Base Card Button
       secondary:
-        'bg-kumo-base text-kumo-default ring ring-kumo-line hover:bg-kumo-tint active:bg-kumo-fill shadow-xs',
+        'bg-kumo-base text-kumo-default ring-1 ring-kumo-line hover:bg-kumo-tint active:bg-kumo-fill shadow-xs',
       // Outline Button
       outline:
-        'bg-transparent text-kumo-default ring ring-kumo-line hover:bg-kumo-tint',
+        'bg-transparent text-kumo-default ring-1 ring-kumo-line hover:bg-kumo-tint',
       // Ghost / Tertiary Button
       tertiary:
         'bg-inherit text-kumo-default hover:bg-kumo-tint shadow-none',
       // Destructive Danger Button
       destructive:
-        'bg-kumo-danger text-white hover:opacity-90 active:opacity-80 shadow-xs',
+        'bg-[#c0201f] text-white hover:bg-[#a01817] active:opacity-80 shadow-xs',
+      // Dedicated Inactive / Disabled button for modals or unavailable CTAs
+      inactive:
+        'bg-kumo-canvas text-kumo-subtle ring-1 ring-kumo-line/80 cursor-not-allowed pointer-events-none shadow-none opacity-60',
     }
+
+    const isInactive = disabled || variant === 'inactive'
+    const computedVariantStyles = isInactive
+      ? 'bg-kumo-canvas text-kumo-subtle ring-1 ring-kumo-line/80 cursor-not-allowed pointer-events-none shadow-none opacity-60'
+      : variantStyles[variant]
 
     return (
       <button
         ref={ref}
         data-kumo-component="Button"
-        disabled={disabled || isLoading}
-        className={cn(baseStyles, sizeStyles[size], variantStyles[variant], className)}
+        disabled={isInactive || isLoading}
+        aria-disabled={isInactive || isLoading}
+        className={cn(baseStyles, sizeStyles[size], computedVariantStyles, className)}
         {...props}
       >
         {isLoading ? (
@@ -96,3 +105,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
+
+// Dedicated Inactive / Disabled button component for modals or unavailable CTAs
+export const InactiveButton = React.forwardRef<HTMLButtonElement, Omit<ButtonProps, 'variant'>>(
+  ({ children, className, size = 'md', leftIcon, rightIcon, ...props }, ref) => (
+    <Button
+      ref={ref}
+      variant="inactive"
+      disabled
+      size={size}
+      leftIcon={leftIcon}
+      rightIcon={rightIcon}
+      className={className}
+      {...props}
+    >
+      {children}
+    </Button>
+  )
+)
+
+InactiveButton.displayName = 'InactiveButton'

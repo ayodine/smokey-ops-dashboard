@@ -7,7 +7,7 @@ export const Breadcrumbs: React.FC = () => {
   const pathnames = location.pathname.split('/').filter(x => x)
 
   const labelMap: Record<string, string> = {
-    overview: 'Account overview',
+    overview: 'Home overview',
     inventory: 'Inventory',
     raw: 'Raw ingredients',
     packaging: 'Packaging materials',
