@@ -427,10 +427,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                <ShieldCheck className="w-4 h-4 text-black dark:text-white shrink-0" />
                 <span className="truncate">Sign-in activity</span>
               </div>
-              <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/10 text-primary px-1.5 py-0.2 rounded shrink-0">
+              <span className="text-[9px] uppercase tracking-wider font-bold bg-kumo-tint text-kumo-strong px-1.5 py-0.2 rounded shrink-0">
                 Admin
               </span>
             </button>
@@ -438,9 +438,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
+              className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
             >
-              <LogOut className="w-4 h-4 shrink-0" />
+              <LogOut className="w-4 h-4 text-black dark:text-white shrink-0" />
               <span className="truncate">Sign out</span>
             </button>
           </div>
@@ -449,18 +449,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             <button
               type="button"
               onClick={() => setIsActivityModalOpen(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-primary hover:bg-kumo-tint transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
               title="Sign-in Activity (Admin)"
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 text-black dark:text-white" />
             </button>
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
               title="Sign out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 text-black dark:text-white" />
             </button>
           </div>
         )}

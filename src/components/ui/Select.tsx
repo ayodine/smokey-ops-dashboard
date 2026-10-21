@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useId, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { ChevronDown, Check, Search } from 'lucide-react'
 
@@ -55,31 +56,54 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
     const autoId = useId()
     const generatedId = id || autoId
     const containerRef = useRef<HTMLDivElement>(null)
+    const buttonRef = useRef<HTMLButtonElement>(null)
+    const dropdownRef = useRef<HTMLDivElement>(null)
     const [isOpen, setIsOpen] = useState(false)
-    const [openUpward, setOpenUpward] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [dropdownCoords, setDropdownCoords] = useState<{
+      top: number
+      left: number
+      width: number
+      maxHeight: number
+      openUp: boolean
+    }>({
+      top: 0,
+      left: 0,
+      width: 240,
+      maxHeight: 260,
+      openUp: false,
+    })
 
-    // Automatically check whether dropdown should open upwards to prevent modal overflow
-    useEffect(() => {
-      if (isOpen && containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        const spaceBelow = window.innerHeight - rect.bottom
-        
-        // Check dialog or scrollable parent boundary
-        const dialog = containerRef.current.closest('[role="dialog"]')
-        let parentSpaceBelow = spaceBelow
-        if (dialog) {
-          const dialogRect = dialog.getBoundingClientRect()
-          parentSpaceBelow = Math.min(spaceBelow, dialogRect.bottom - rect.bottom)
-        }
+    // Calculate fixed viewport coordinates for portal dropdown
+    const updateCoords = () => {
+      if (!buttonRef.current) return
+      const rect = buttonRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      const menuHeight = 260
+      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow
 
-        if (parentSpaceBelow < 230 && rect.top > 260 && rect.top > parentSpaceBelow) {
-          setOpenUpward(true)
-        } else {
-          setOpenUpward(false)
-        }
+      const targetWidth = Math.min(Math.max(rect.width, 240), window.innerWidth - 24)
+
+      let left = rect.left
+      if (left + targetWidth > window.innerWidth - 12) {
+        left = Math.max(12, rect.right - targetWidth)
       }
-    }, [isOpen])
+      if (left < 12) left = 12
+
+      const top = openUp ? Math.max(12, rect.top - menuHeight - 4) : rect.bottom + 4
+      const availableHeight = openUp
+        ? Math.min(menuHeight, rect.top - 16)
+        : Math.min(menuHeight, spaceBelow - 16)
+
+      setDropdownCoords({
+        top,
+        left,
+        width: targetWidth,
+        maxHeight: Math.max(140, availableHeight),
+        openUp,
+      })
+    }
 
     // Parse options from either `options` prop or `children` (<option> tags)
     const parsedOptions = useMemo<SelectOption[]>(() => {
@@ -119,35 +143,46 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       opt => String(opt.value) === String(currentValue)
     )
 
-    // Close on click outside
+    // Listen for scroll, resize, escape, outside click when open
     useEffect(() => {
+      if (!isOpen) return
+
+      updateCoords()
+
+      const handleScroll = () => {
+        updateCoords()
+      }
+      const handleResize = () => {
+        updateCoords()
+      }
       const handleOutsideClick = (e: MouseEvent) => {
+        const target = e.target as Node
         if (
           containerRef.current &&
-          !containerRef.current.contains(e.target as Node)
+          !containerRef.current.contains(target) &&
+          dropdownRef.current &&
+          !dropdownRef.current.contains(target)
         ) {
           setIsOpen(false)
+          setSearchQuery('')
         }
       }
-      if (isOpen) {
-        document.addEventListener('mousedown', handleOutsideClick)
-      }
-      return () => {
-        document.removeEventListener('mousedown', handleOutsideClick)
-      }
-    }, [isOpen])
-
-    // Keyboard navigation (Escape to close)
-    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && isOpen) {
+        if (e.key === 'Escape') {
           setIsOpen(false)
+          setSearchQuery('')
         }
       }
-      if (isOpen) {
-        window.addEventListener('keydown', handleKeyDown)
-      }
+
+      window.addEventListener('scroll', handleScroll, true)
+      window.addEventListener('resize', handleResize)
+      document.addEventListener('mousedown', handleOutsideClick)
+      window.addEventListener('keydown', handleKeyDown)
+
       return () => {
+        window.removeEventListener('scroll', handleScroll, true)
+        window.removeEventListener('resize', handleResize)
+        document.removeEventListener('mousedown', handleOutsideClick)
         window.removeEventListener('keydown', handleKeyDown)
       }
     }, [isOpen])
@@ -189,6 +224,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
 
         <div className="relative">
           <button
+            ref={buttonRef}
             type="button"
             id={generatedId}
             disabled={disabled}
@@ -222,66 +258,76 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             />
           </button>
 
-          {isOpen && (
-            <div
-              role="listbox"
-              className={cn(
-                'absolute left-0 z-50 max-h-56 sm:max-h-64 w-full min-w-full sm:min-w-[320px] max-w-[92vw] overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-1.5 shadow-2xl animate-in fade-in zoom-in-95 font-sans [scrollbar-width:thin]',
-                openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5',
-                dropdownClassName
-              )}
-            >
-              {parsedOptions.length >= 4 && (
-                <div className="sticky top-0 z-10 bg-background pb-1.5 mb-1 border-b border-border/60 px-1 pt-0.5">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Search options..."
-                      className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-muted/40 border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground/60"
-                      onClick={e => e.stopPropagation()}
-                    />
+          {isOpen &&
+            createPortal(
+              <div
+                ref={dropdownRef}
+                role="listbox"
+                style={{
+                  position: 'fixed',
+                  top: `${dropdownCoords.top}px`,
+                  left: `${dropdownCoords.left}px`,
+                  width: `${dropdownCoords.width}px`,
+                  maxHeight: `${dropdownCoords.maxHeight}px`,
+                  zIndex: 9999,
+                }}
+                className={cn(
+                  'overflow-y-auto overscroll-contain rounded-lg border border-border bg-background p-1.5 shadow-2xl animate-in fade-in zoom-in-95 font-sans [scrollbar-width:thin]',
+                  dropdownClassName
+                )}
+              >
+                {parsedOptions.length >= 4 && (
+                  <div className="sticky top-0 z-10 bg-background pb-1.5 mb-1 border-b border-border/60 px-1 pt-0.5">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search options..."
+                        className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-muted/40 border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground/60"
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {filteredOptions.length === 0 ? (
-                <div className="px-3 py-3 text-xs text-muted-foreground text-center">
-                  No matching options found
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {filteredOptions.map(opt => {
-                    const isSelected = String(opt.value) === String(currentValue)
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => handleSelect(opt.value)}
-                        className={cn(
-                          'w-full flex items-start justify-between rounded-md px-3 py-2 text-left text-xs sm:text-[13px] leading-snug transition-colors cursor-pointer',
-                          isSelected
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-foreground hover:bg-muted/50 hover:text-foreground'
-                        )}
-                      >
-                        <span className="whitespace-normal break-words flex-1 pr-2">
-                          {opt.label}
-                        </span>
-                        {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5 ml-1" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                {filteredOptions.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+                    No matching options found
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {filteredOptions.map(opt => {
+                      const isSelected = String(opt.value) === String(currentValue)
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelect(opt.value)}
+                          className={cn(
+                            'w-full flex items-start justify-between rounded-md px-3 py-2 text-left text-xs sm:text-[13px] leading-snug transition-colors cursor-pointer',
+                            isSelected
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-foreground hover:bg-muted/50 hover:text-foreground'
+                          )}
+                        >
+                          <span className="whitespace-normal break-words flex-1 pr-2">
+                            {opt.label}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5 ml-1" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>,
+              document.body
+            )}
         </div>
 
         {error ? (

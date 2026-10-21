@@ -24,6 +24,42 @@ import {
   Calendar
 } from 'lucide-react'
 
+export const ALL_INVENTORY_UNITS = [
+  { value: 'PIECES', label: 'Pieces (Birds / Carcasses / Whole Units)' },
+  { value: 'KG', label: 'Kilograms (kg)' },
+  { value: 'GRAMS', label: 'Grams (g)' },
+  { value: 'LITRE', label: 'Litres (L)' },
+  { value: 'ML', label: 'Millilitres (mL)' },
+  { value: 'CL', label: 'Centilitres (cL)' },
+  { value: 'PACK', label: 'Packs / Packets' },
+  { value: 'CARTON', label: 'Cartons / Boxes' },
+  { value: 'BAG_50KG', label: 'Bags (50kg)' },
+  { value: 'BAG_25KG', label: 'Bags (25kg)' },
+  { value: 'BAG', label: 'Bags / Sacks (General)' },
+  { value: 'BUNDLE', label: 'Bundles (Firewood / Smoking Wood / Herbs)' },
+  { value: 'CRATE', label: 'Crates (Drinks / Eggs)' },
+  { value: 'ROLL', label: 'Rolls (Foil / Film / Wrap)' },
+  { value: 'TUB', label: 'Tubs / Buckets' },
+  { value: 'DRUM', label: 'Drums / Kegs (25L/50L Oil/Sauce)' },
+  { value: 'TIN', label: 'Tins / Cans' },
+  { value: 'BOTTLE', label: 'Bottles' },
+  { value: 'BOWL', label: 'Bowls / Portions' },
+  { value: 'CUP', label: 'Cups (Measures)' },
+  { value: 'TBSP', label: 'Tablespoons (tbsp)' },
+  { value: 'TSP', label: 'Teaspoons (tsp)' },
+  { value: 'DOZEN', label: 'Dozens (12 pcs)' },
+  { value: 'PAIRS', label: 'Pairs' },
+  { value: 'LBS', label: 'Pounds (lbs)' },
+  { value: 'OZ', label: 'Ounces (oz)' },
+  { value: 'DERICA', label: 'Derica' },
+  { value: 'KONGO', label: 'Kongo / Paint Rubber (4L)' },
+  { value: 'STICK', label: 'Sticks' },
+  { value: 'BALE', label: 'Bales' },
+  { value: 'SACHET', label: 'Sachets' },
+  { value: 'TRAY', label: 'Trays' },
+  { value: 'CUSTOM', label: '✍️ Custom / Type manual unit...' }
+]
+
 export const RawInventoryPage: React.FC = () => {
   const {
     rawProducts,
@@ -75,6 +111,8 @@ export const RawInventoryPage: React.FC = () => {
     is_perishable: false,
     expiry_date: ''
   })
+  const [isCustomUnitMode, setIsCustomUnitMode] = useState(false)
+  const [customUnitText, setCustomUnitText] = useState('')
 
   // Blind Stocktake Form State (5 Random SKUs)
   const [stocktakeCounts, setStocktakeCounts] = useState<{ [key: number]: number }>({})
@@ -130,6 +168,14 @@ export const RawInventoryPage: React.FC = () => {
   const handleOpenEditProduct = (product?: RawProduct) => {
     if (product) {
       setSelectedProduct(product)
+      const isKnown = ALL_INVENTORY_UNITS.some(u => u.value === product.unit)
+      if (isKnown) {
+        setIsCustomUnitMode(false)
+        setCustomUnitText('')
+      } else {
+        setIsCustomUnitMode(true)
+        setCustomUnitText(product.unit)
+      }
       setProductForm({
         name: product.name,
         sku: product.sku,
@@ -141,6 +187,8 @@ export const RawInventoryPage: React.FC = () => {
       })
     } else {
       setSelectedProduct(null)
+      setIsCustomUnitMode(false)
+      setCustomUnitText('')
       setProductForm({
         name: '',
         sku: `SKU-${String(rawProducts.length + 101).padStart(5, '0')}`,
@@ -962,6 +1010,7 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsProductModalOpen(false)}
         title={selectedProduct ? `Edit Item: ${selectedProduct.name}` : 'Add New Inventory Item'}
         description="Configure unit of measure, unit cost, and reorder alert level."
+        maxWidth="lg"
       >
         <form onSubmit={handleSubmitProduct} className="space-y-4">
           <Input
@@ -972,30 +1021,74 @@ export const RawInventoryPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="SKU Code"
               value={productForm.sku}
               onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
               required
             />
-            <Select
-              label="Unit of Measure"
-              value={productForm.unit}
-              onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
-              options={[
-                { value: 'PIECES', label: 'Pieces (Birds / Carcasses)' },
-                { value: 'KG', label: 'Kilograms (Kg)' },
-                { value: 'PACK', label: 'Packs' },
-                { value: 'CUP', label: 'Cups' },
-                { value: 'LITRE', label: 'Litres' },
-                { value: 'BUNDLE', label: 'Bundles (Wood)' },
-                { value: 'CARTON', label: 'Cartons' }
-              ]}
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-kumo-strong">
+                  Unit of Measure <span className="text-kumo-danger">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCustomUnitMode) {
+                      setIsCustomUnitMode(false)
+                      setProductForm(prev => ({ ...prev, unit: 'PIECES' }))
+                    } else {
+                      setIsCustomUnitMode(true)
+                      setCustomUnitText(productForm.unit || '')
+                    }
+                  }}
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  {isCustomUnitMode ? '← Standard list' : '✍️ Custom label'}
+                </button>
+              </div>
+
+              {isCustomUnitMode ? (
+                <div className="space-y-1">
+                  <Input
+                    placeholder="e.g. Derica, Stick, Kongo, Bale, Sachet..."
+                    value={customUnitText}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setCustomUnitText(val)
+                      setProductForm(prev => ({ ...prev, unit: val }))
+                    }}
+                    autoFocus
+                    required
+                  />
+                  <p className="text-[10px] text-kumo-subtle">
+                    Type any custom measure label (Derica, Kongo, Bale, Sticks, etc.)
+                  </p>
+                </div>
+              ) : (
+                <Select
+                  value={
+                    ALL_INVENTORY_UNITS.some(u => u.value === productForm.unit)
+                      ? productForm.unit
+                      : 'CUSTOM'
+                  }
+                  onChange={(e) => {
+                    if (e.target.value === 'CUSTOM') {
+                      setIsCustomUnitMode(true)
+                      setCustomUnitText('')
+                    } else {
+                      setProductForm(prev => ({ ...prev, unit: e.target.value }))
+                    }
+                  }}
+                  options={ALL_INVENTORY_UNITS}
+                />
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Standard Unit Cost (₦)"
               type="number"

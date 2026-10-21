@@ -154,22 +154,23 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
       onClose={onClose}
       title="Sign-in Activity & Security Log"
       description="Recent account logins, device sessions, and authentication events across your team."
+      maxWidth="5xl"
     >
       <div className="space-y-4 text-xs font-sans">
         {/* Super Admin Notice Pill */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20 text-kumo-strong">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+        <div className="flex items-center justify-between p-3 rounded-lg bg-kumo-surface border border-kumo-line text-kumo-strong">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-black dark:text-white shrink-0" />
             <div>
               <p className="font-semibold text-kumo-strong text-xs">
                 Super Admin Security Audit
               </p>
               <p className="text-[11px] text-kumo-subtle mt-0.5">
-                Full visibility of all user logins. Role-based permissions and granular user management are coming soon.
+                Full visibility of all user logins, device footprints, and authentication sessions across your team.
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary text-white shrink-0">
+          <span className="hidden sm:inline-block px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shrink-0">
             Super Admin
           </span>
         </div>
