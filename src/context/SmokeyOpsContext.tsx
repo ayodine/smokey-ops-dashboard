@@ -164,12 +164,55 @@ export interface AppUserAccount {
   password?: string
   temporary_password?: string
   created_at?: string
+  permissions?: string[]
   // Driver specific KYC fields
   vehicle_type?: string
   plate_number?: string
   license_number?: string
   license_expiry?: string
   cod_limit?: number
+}
+
+export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
+  admin: [
+    'Full Database & Records Access',
+    'User Onboarding & Deletion',
+    'Role & Permission Management',
+    'Finance & Payout Remittances',
+    'Inventory Threshold Overrides',
+    'Logistics Dispatch Controls'
+  ],
+  manager: [
+    'Batch Scheduling & Cook Approvals',
+    'Variance Reconciliation',
+    'Staff Shift Assignments',
+    'Supplier Invoice Verification',
+    'Waste & Spoilage Write-offs'
+  ],
+  kitchen: [
+    'Start & Complete Batches',
+    'Raw Materials Depletion',
+    'Portion Pack-out Logging',
+    'Waste & Spoilage Incident Reports'
+  ],
+  inventory: [
+    'Stock Intake PO Receipts',
+    'Periodic Cycle Counts',
+    'Packaging Unit Transfers',
+    'Lot Expiry Monitoring'
+  ],
+  dispatcher: [
+    'Dispatch Queue Assignment',
+    'Rider Location & Route Tracking',
+    'Third-party Courier Bookings',
+    'COD Cash Remittance Check-in'
+  ],
+  rider: [
+    'Accept & Transit Delivery',
+    'Customer OTP Drop-off Sign-off',
+    'COD Cash Collection',
+    'Wallet & Payout History'
+  ]
 }
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
@@ -185,6 +228,14 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active now',
     created_at: '10 Jan 2026',
+    permissions: [
+      'Full Database & Records Access',
+      'User Onboarding & Deletion',
+      'Role & Permission Management',
+      'Finance & Payout Remittances',
+      'Inventory Threshold Overrides',
+      'Logistics Dispatch Controls'
+    ]
   },
   {
     email: 'ops-team@smokeyhut.com',
@@ -198,6 +249,13 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '14m ago',
     created_at: '15 Jan 2026',
+    permissions: [
+      'Batch Scheduling & Cook Approvals',
+      'Variance Reconciliation',
+      'Staff Shift Assignments',
+      'Supplier Invoice Verification',
+      'Waste & Spoilage Write-offs'
+    ]
   },
   {
     email: 'Ridersmokeyyusuf@gmail.com',
@@ -212,6 +270,12 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '35m ago',
     created_at: '01 Feb 2026',
+    permissions: [
+      'Accept & Transit Delivery',
+      'Customer OTP Drop-off Sign-off',
+      'COD Cash Collection',
+      'Wallet & Payout History'
+    ]
   },
   {
     email: 'chef.amara@smokeyhut.com',
@@ -225,6 +289,12 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '2h ago',
     created_at: '12 Feb 2026',
+    permissions: [
+      'Start & Complete Batches',
+      'Raw Materials Depletion',
+      'Portion Pack-out Logging',
+      'Waste & Spoilage Incident Reports'
+    ]
   },
   {
     email: 'kemi.inv@smokeyhut.com',
@@ -238,6 +308,12 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Yesterday',
     created_at: '20 Feb 2026',
+    permissions: [
+      'Stock Intake PO Receipts',
+      'Periodic Cycle Counts',
+      'Packaging Unit Transfers',
+      'Lot Expiry Monitoring'
+    ]
   },
   {
     email: 'babajide.dispatch@smokeyhut.com',
@@ -251,6 +327,12 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '1d ago',
     created_at: '05 Mar 2026',
+    permissions: [
+      'Dispatch Queue Assignment',
+      'Rider Location & Route Tracking',
+      'Third-party Courier Bookings',
+      'COD Cash Remittance Check-in'
+    ]
   }
 ]
 
@@ -474,19 +556,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     }
 
+    const accountWithPermissions: AppUserAccount = {
+      ...newAcc,
+      permissions: newAcc.permissions || ROLE_DEFAULT_PERMISSIONS[newAcc.role] || [],
+    }
+
     setAccounts(prev => {
-      const exists = prev.some(a => a.email.toLowerCase() === newAcc.email.toLowerCase())
+      const exists = prev.some(a => a.email.toLowerCase() === accountWithPermissions.email.toLowerCase())
       let updated: AppUserAccount[]
       if (exists) {
-        updated = prev.map(a => a.email.toLowerCase() === newAcc.email.toLowerCase() ? { ...a, ...newAcc } : a)
+        updated = prev.map(a => a.email.toLowerCase() === accountWithPermissions.email.toLowerCase() ? { ...a, ...accountWithPermissions } : a)
       } else {
-        updated = [...prev, newAcc]
+        updated = [...prev, accountWithPermissions]
       }
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
       return updated
     })
-    switchAccount(newAcc.email)
-    showToast(`Created ${newAcc.roleLabel} account for ${newAcc.name || newAcc.email}`, 'success')
+    switchAccount(accountWithPermissions.email)
+    showToast(`Created ${accountWithPermissions.roleLabel} account for ${accountWithPermissions.name || accountWithPermissions.email}`, 'success')
   }
 
   const updateAccount = (email: string, updates: Partial<AppUserAccount> & { password?: string }) => {
@@ -494,6 +581,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const updated = prev.map(a => {
         if (a.email.toLowerCase() === email.toLowerCase()) {
           const merged = { ...a, ...updates }
+          if (updates.role && !updates.permissions && updates.role !== a.role) {
+            merged.permissions = ROLE_DEFAULT_PERMISSIONS[updates.role] || []
+          }
           if (updates.email && updates.email !== email) {
             merged.email = updates.email
           }

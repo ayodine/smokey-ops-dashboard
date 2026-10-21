@@ -227,9 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
   const recentNavItems = useMemo(() => {
     if (currentAccount.role === 'rider') {
-      return [
-        { label: 'Rider Portal (My Trips)', href: '/logistics/rider-portal' },
-      ]
+      return []
     }
     return RECENT_NAV_ITEMS
   }, [currentAccount.role])
@@ -440,52 +438,54 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </Link>
           )}
 
-          {/* Recents Collapsible Sub-menu */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setIsRecentsOpen(prev => !prev)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong cursor-pointer transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <History className="w-4 h-4 text-kumo-subtle shrink-0" />
-                <span>Recents</span>
-              </div>
-              <ChevronDown
-                className={cn(
-                  'w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200 shrink-0',
-                  !isRecentsOpen && '-rotate-90'
-                )}
-              />
-            </button>
-
-            {isRecentsOpen && (
-              <div className="relative pl-6 pr-1 py-0.5 space-y-0.5">
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-1 left-[18px] z-10 block w-px bg-kumo-line"
+          {/* Recents Collapsible Sub-menu (Hidden on Rider Portal) */}
+          {currentAccount.role !== 'rider' && location.pathname !== '/logistics/rider-portal' && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsRecentsOpen(prev => !prev)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <History className="w-4 h-4 text-kumo-subtle shrink-0" />
+                  <span>Recents</span>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    'w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200 shrink-0',
+                    !isRecentsOpen && '-rotate-90'
+                  )}
                 />
-                {recentNavItems.map(rec => {
-                  const isActive = location.pathname === rec.href
-                  return (
-                    <Link
-                      key={rec.href}
-                      to={rec.href}
-                      onClick={onCloseMobile}
-                      className={cn(
-                        'block px-2.5 py-1.5 text-[13px] rounded-md transition-colors truncate',
-                        isActive
-                          ? 'text-primary font-semibold bg-primary/5'
-                          : 'text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint font-normal'
-                      )}
-                    >
-                      {rec.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+              </button>
+
+              {isRecentsOpen && (
+                <div className="relative pl-6 pr-1 py-0.5 space-y-0.5">
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-1 left-[18px] z-10 block w-px bg-kumo-line"
+                  />
+                  {recentNavItems.map(rec => {
+                    const isActive = location.pathname === rec.href
+                    return (
+                      <Link
+                        key={rec.href}
+                        to={rec.href}
+                        onClick={onCloseMobile}
+                        className={cn(
+                          'block px-2.5 py-1.5 text-[13px] rounded-md transition-colors truncate',
+                          isActive
+                            ? 'text-primary font-semibold bg-primary/5'
+                            : 'text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint font-normal'
+                        )}
+                      >
+                        {rec.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
