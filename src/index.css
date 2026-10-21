@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *, .dark, .dark *));
+
+@layer base {
+  :root,
+  [data-theme="kumo"],
+  [data-theme="light"] {
+    /* Cloudflare Kumo Primary Typography Tokens */
+    --text-color-kumo-default: oklch(21% .006 285.885);
+    --text-color-kumo-inverse: oklch(97% 0 0);
+    --text-color-kumo-strong: oklch(14.5% 0 0);
+    --text-color-kumo-subtle: oklch(55.6% 0 0);
+    --text-color-kumo-inactive: oklch(87% 0 0);
+    --text-color-kumo-placeholder: oklch(70.8% 0 0);
+    --text-color-kumo-brand: #c0201f;
+    --text-color-kumo-link: #c0201f;
+    --text-color-kumo-info: #c0201f;
+    --text-color-kumo-success: oklch(43.2% .095 166.913);
+    --text-color-kumo-danger: #c0201f;
+    --text-color-kumo-warning: oklch(59.7% .144 57.5);
+
+    /* Cloudflare Kumo Surfaces */
+    --color-kumo-canvas: oklch(98.75% 0 0);
+    --color-kumo-elevated: oklch(98% 0 0);
+    --color-kumo-recessed: oklch(96% 0 0);
+    --color-kumo-base: #ffffff;
+    --color-kumo-tint: oklch(97% 0 0);
+    --color-kumo-contrast: oklch(8.5% 0 0);
+    --color-kumo-overlay: oklch(97.5% 0 0);
+    --color-kumo-control: #ffffff;
+    --color-kumo-interact: oklch(87% 0 0);
+    --color-kumo-fill: oklch(92.2% 0 0);
+    --color-kumo-fill-hover: oklch(96.5% 0 0);
+
+    /* Cloudflare Kumo Brand & Interactive */
+    --color-kumo-brand: #c0201f;
+    --color-kumo-brand-hover: #a01a19;
+    --color-kumo-line: oklch(14.5% 0 0 / .1);
+    --color-kumo-hairline: oklch(93.5% 0 0);
+    --color-kumo-focus: #c0201f;
+
+    /* Cloudflare Kumo Status Badges */
+    --color-kumo-badge-red: #c0201f;
+    --color-kumo-badge-green: oklch(59.6% .145 163.225);
+    --color-kumo-badge-orange: oklch(81.5% .197 76);
+    --color-kumo-badge-purple: oklch(55.8% .288 302.321);
+    --color-kumo-badge-teal: oklch(54.9% .096 184.565);
+    --color-kumo-badge-blue: #c0201f;
+    --color-kumo-badge-neutral: oklch(55.6% 0 0);
+
+    /* Cloudflare Dimensions & Timings */
+    --header-height: 58px;
+    --sidebar-width: 16.25rem;
+    --sidebar-width-icon: 57px;
+    --sidebar-animation-duration: 250ms;
+    --sidebar-easing: cubic-bezier(0.77, 0, 0.175, 1);
+    --sidebar-bg: var(--color-kumo-canvas);
+    --sidebar-active-bg: var(--color-kumo-tint);
+  }
+
+  :root[data-mode="dark"],
+  [data-theme="dark"],
+  [data-mode="dark"] [data-theme="kumo"],
+  [data-theme="kumo"][data-mode="dark"],
+  .dark {
+    /* Dark Mode Cloudflare Kumo Typography */
+    --text-color-kumo-default: oklch(97% 0 0);
+    --text-color-kumo-inverse: oklch(20.5% 0 0);
+    --text-color-kumo-strong: oklch(98.5% 0 0);
+    --text-color-kumo-subtle: oklch(70.8% 0 0);
+    --text-color-kumo-inactive: oklch(43.9% 0 0);
+    --text-color-kumo-placeholder: oklch(55.6% 0 0);
+    --text-color-kumo-brand: #d93837;
+    --text-color-kumo-link: #d93837;
+    --text-color-kumo-info: #d93837;
+    --text-color-kumo-success: oklch(90.5% .093 164.15);
+    --text-color-kumo-danger: #d93837;
+    --text-color-kumo-warning: oklch(75% .183 55.934);
+
+    /* Dark Mode Cloudflare Kumo Surfaces */
+    --color-kumo-canvas: oklch(10% 0 0);
+    --color-kumo-elevated: oklch(12% 0 0);
+    --color-kumo-recessed: oklch(15% 0 0);
+    --color-kumo-base: oklch(17% 0 0);
+    --color-kumo-tint: oklch(26.9% 0 0);
+    --color-kumo-contrast: oklch(98.5% 0 0);
+    --color-kumo-overlay: oklch(26.9% 0 0);
+    --color-kumo-control: oklch(21% .006 285.885);
+    --color-kumo-interact: oklch(37.1% 0 0);
+    --color-kumo-fill: oklch(26.9% 0 0);
+    --color-kumo-fill-hover: oklch(37.1% 0 0);
+
+    /* Dark Mode Brand & Interactive */
+    --color-kumo-brand: #d93837;
+    --color-kumo-brand-hover: #c0201f;
+    --color-kumo-line: oklch(32% 0 0);
+    --color-kumo-hairline: oklch(26.9% 0 0);
+    --color-kumo-focus: #d93837;
+
+    /* Dark Mode Badges */
+    --color-kumo-badge-red: #d93837;
+    --color-kumo-badge-green: oklch(50.8% .118 165.612);
+    --color-kumo-badge-orange: oklch(81.5% .197 76);
+    --color-kumo-badge-purple: oklch(49.6% .265 301.924);
+    --color-kumo-badge-teal: oklch(51.1% .096 186.391);
+    --color-kumo-badge-blue: #d93837;
+    --color-kumo-badge-neutral: oklch(43.9% 0 0);
+
+    --sidebar-bg: var(--color-kumo-canvas);
+    --sidebar-active-bg: var(--color-kumo-tint);
+  }
+
+  :root {
+    --font-sf-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif;
+    --font-sf-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-sf-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  }
+
+  body {
+    background-color: var(--color-kumo-canvas);
+    color: var(--text-color-kumo-default);
+    font-family: var(--font-sf-text);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+
+  /* SF Pro Display strictly for Headings, Titles, Modals, KPI values */
+  h1, h2, h3, h4, h5, h6,
+  .font-display,
+  [data-font="display"],
+  .metric-value {
+    font-family: var(--font-sf-display) !important;
+    letter-spacing: -0.025em;
+  }
+
+  /* SF Pro Text strictly for Tables, Buttons, Labels, Tooltips, KPI titles, Forms, Dropdowns, Inputs, Badges */
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  button,
+  label,
+  input,
+  select,
+  textarea,
+  p,
+  span,
+  div,
+  a,
+  li,
+  ul,
+  ol,
+  .tooltip,
+  [role="tooltip"],
+  [data-kumo-component],
+  .font-sans,
+  .kpi-title,
+  .kpi-description,
+  .form-label {
+    font-family: var(--font-sf-text);
+  }
+
+  /* Table elements strictly use SF Pro Text with consistent weights, removing monospace inside tables */
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  [data-kumo-component="DataTable"],
+  [data-kumo-component="DataTable"] *,
+  [data-kumo-component="DataTable"] .font-mono,
+  table .font-mono {
+    font-family: var(--font-sf-text) !important;
+  }
+
+  /* Code & Monospace numbers outside of tables */
+  code, pre {
+    font-family: var(--font-sf-mono) !important;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-kumo-brand);
+    outline-offset: 2px;
+  }
+}
+
+@theme {
+  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif;
+  --font-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+
+  --color-kumo-canvas: var(--color-kumo-canvas);
+  --color-kumo-base: var(--color-kumo-base);
+  --color-kumo-elevated: var(--color-kumo-elevated);
+  --color-kumo-recessed: var(--color-kumo-recessed);
+  --color-kumo-tint: var(--color-kumo-tint);
+  --color-kumo-contrast: var(--color-kumo-contrast);
+  --color-kumo-control: var(--color-kumo-control);
+  --color-kumo-interact: var(--color-kumo-interact);
+  --color-kumo-fill: var(--color-kumo-fill);
+  --color-kumo-fill-hover: var(--color-kumo-fill-hover);
+
+  --color-kumo-brand: var(--color-kumo-brand);
+  --color-kumo-brand-hover: var(--color-kumo-brand-hover);
+  --color-kumo-line: var(--color-kumo-line);
+  --color-kumo-hairline: var(--color-kumo-hairline);
+  --color-kumo-focus: var(--color-kumo-focus);
+
+  --color-kumo-default: var(--text-color-kumo-default);
+  --color-kumo-strong: var(--text-color-kumo-strong);
+  --color-kumo-subtle: var(--text-color-kumo-subtle);
+  --color-kumo-inactive: var(--text-color-kumo-inactive);
+  --color-kumo-placeholder: var(--text-color-kumo-placeholder);
+  --color-kumo-link: var(--text-color-kumo-link);
+  --color-kumo-info: var(--color-kumo-info);
+  --color-kumo-warning: var(--color-kumo-warning);
+  --color-kumo-danger: var(--color-kumo-danger);
+  --color-kumo-success: var(--color-kumo-success);
+
+  --color-kumo-badge-red: var(--color-kumo-badge-red);
+  --color-kumo-badge-green: var(--color-kumo-badge-green);
+  --color-kumo-badge-orange: var(--color-kumo-badge-orange);
+  --color-kumo-badge-purple: var(--color-kumo-badge-purple);
+  --color-kumo-badge-teal: var(--color-kumo-badge-teal);
+  --color-kumo-badge-blue: var(--color-kumo-badge-blue);
+  --color-kumo-badge-neutral: var(--color-kumo-badge-neutral);
+
+  --color-cf-orange: #f6821f;
+  --color-cf-blue: #c0201f;
+
+  --color-background: var(--color-kumo-base);
+  --color-foreground: var(--text-color-kumo-default);
+  --color-muted: var(--color-kumo-tint);
+  --color-muted-foreground: var(--text-color-kumo-subtle);
+  --color-border: var(--color-kumo-line);
+  --color-primary: #c0201f;
+  --color-primary-foreground: #ffffff;
+
+  --spacing-sidebar-w: 16.25rem;
+  --spacing-sidebar-icon-w: 57px;
+  --spacing-header-h: 58px;
+  --spacing-8-5: 2.125rem;
+}
+
+/* Scrollbar styling matching Cloudflare Kumo */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-kumo-fill);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-kumo-interact);
+}
+
+/* Red pill badge with light red container and red text (Screenshot 2 exact spec) */
+.badge-red-pill,
+[data-badge="critical-low"],
+.badge-critical-low {
+  background-color: #FCE8EC !important;
+  border: 1px solid #F3B0BB !important;
+  color: #C8102E !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-sf-text) !important;
+  font-weight: 600 !important;
+}
+
+.dark .badge-red-pill,
+.dark [data-badge="critical-low"],
+.dark .badge-critical-low,
+[data-theme="dark"] .badge-red-pill {
+  background-color: rgba(200, 16, 47, 0.22) !important;
+  border-color: rgba(243, 176, 187, 0.4) !important;
+  color: #fca5a5 !important;
+}
