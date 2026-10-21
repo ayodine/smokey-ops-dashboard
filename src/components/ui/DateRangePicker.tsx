@@ -255,14 +255,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           onClick={() => setIsOpen(prev => !prev)}
           className={cn(
             'h-10 px-3.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs sm:text-sm font-medium text-kumo-strong flex items-center gap-2 cursor-pointer transition-colors shadow-2xs',
-            isOpen && 'ring-2 ring-red-500/20 border-red-500',
-            activePreset === 'custom' && 'border-red-500/50 bg-red-50/20 dark:bg-red-950/10'
+            isOpen && 'ring-2 ring-black/20 border-black dark:ring-white/20 dark:border-white',
+            activePreset === 'custom' && 'border-black/50 bg-black/5 dark:border-white/50 dark:bg-white/5'
           )}
         >
-          <CalendarIcon className={cn('w-4 h-4 shrink-0', activePreset === 'custom' ? 'text-red-600' : 'text-kumo-subtle')} />
+          <CalendarIcon className={cn('w-4 h-4 shrink-0', activePreset === 'custom' ? 'text-black dark:text-white' : 'text-kumo-subtle')} />
           <span>{displayLabel}</span>
           {activePreset === 'custom' && (
-            <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Custom date range active" />
+            <span className="w-2 h-2 rounded-full bg-black dark:bg-white shrink-0" title="Custom date range active" />
           )}
         </button>
 
@@ -315,13 +315,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     handleSelectPreset(foundPreset.id)
                   }
                 }}
-                className="w-full px-3 py-2 text-xs text-kumo-strong bg-kumo-base border border-kumo-line rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 placeholder:text-kumo-subtle font-sans"
+                className="w-full px-3 py-2 text-xs text-kumo-strong bg-kumo-base border border-kumo-line rounded-lg focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white placeholder:text-kumo-subtle font-sans"
               />
             </div>
 
             {/* Selection Status Prompt */}
             {isSelectingEnd && (
-              <div className="px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-700 dark:text-red-300 font-medium flex items-center justify-between">
+              <div className="px-3 py-1.5 bg-black/5 dark:bg-white/10 border border-black/15 dark:border-white/15 rounded-lg text-xs text-black dark:text-white font-medium flex items-center justify-between">
                 <span>Click a second date on the calendar to set your end date</span>
                 <span className="text-[11px] underline cursor-pointer" onClick={() => setIsSelectingEnd(false)}>Done</span>
               </div>
@@ -397,7 +397,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                             : 'text-kumo-subtle/30',
                           (isStart || isEnd)
                             ? cn(
-                                'bg-red-600 text-white font-semibold shadow-xs',
+                                'bg-black text-white dark:bg-white dark:text-black font-semibold shadow-xs',
                                 isSingleDay 
                                   ? 'rounded-lg' 
                                   : isStart 
@@ -405,7 +405,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                     : 'rounded-r-lg'
                               )
                             : isBetween
-                              ? 'bg-red-50 text-red-900 dark:bg-red-950/50 dark:text-red-200 font-medium rounded-none'
+                              ? 'bg-black/10 text-black dark:bg-white/15 dark:text-white font-medium rounded-none'
                               : 'hover:bg-kumo-tint rounded-lg'
                         )}
                       >
@@ -426,7 +426,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     className={cn(
                       'w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer font-sans',
                       activePreset === p.id
-                        ? 'bg-red-50 text-red-700 font-semibold dark:bg-red-950/40 dark:text-red-300'
+                        ? 'bg-black/10 text-black font-semibold dark:bg-white/15 dark:text-white'
                         : 'text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong'
                     )}
                   >
@@ -441,7 +441,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-kumo-subtle block">Start</label>
                 <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
-                  <CalendarIcon className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <CalendarIcon className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                   <span className="font-mono text-xs">{formatDateTime(startDate)}</span>
                 </div>
               </div>
@@ -449,7 +449,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-kumo-subtle block">End</label>
                 <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
-                  <CalendarIcon className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <CalendarIcon className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
                   <span className="font-mono text-xs">{formatDateTime(endDate)}</span>
                 </div>
               </div>
@@ -470,7 +470,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <button
                 type="button"
                 onClick={handleApply}
-                className="px-6 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-lg shadow-xs cursor-pointer transition-colors"
+                className="px-6 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 active:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
               >
                 Apply
               </button>
