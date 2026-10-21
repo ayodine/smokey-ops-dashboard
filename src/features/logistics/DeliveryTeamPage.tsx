@@ -28,16 +28,36 @@ import {
   MapPin,
   Clock,
   Calendar,
-  Check
+  Check,
+  Plus,
+  UserPlus
 } from 'lucide-react'
 
 export const DeliveryTeamPage: React.FC = () => {
-  const { riders, payAndResetRider, remitCodCash, logisticsDeliveries } = useSmokeyOps()
+  const { riders, payAndResetRider, remitCodCash, logisticsDeliveries, addRiderProfile } = useSmokeyOps()
   const [selectedRider, setSelectedRider] = useState<RiderPayout | null>(null)
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false)
+  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'all' | 'on_trip' | 'active' | 'cash_held'>('all')
   const [modalTab, setModalTab] = useState<'ledger' | 'profile' | 'trips'>('ledger')
+
+  // Driver Onboarding KYC Form State
+  const [newDriverForm, setNewDriverForm] = useState({
+    rider_name: '',
+    phone: '',
+    email: '',
+    vehicle_type: 'Bajaj Boxer 150 Motorcycle',
+    plate_number: '',
+    operating_hub: 'Victoria Island Central Hub',
+    license_number: '',
+    license_expiry: 'Nov 2027',
+    emergency_contact: 'Next of Kin',
+    emergency_phone: '',
+    cod_limit: 50000,
+    national_id_nin: '',
+    status: 'active' as 'active' | 'on_trip' | 'offline'
+  })
 
   // Remittance form state
   const [remitAmount, setRemitAmount] = useState<number>(0)
@@ -105,6 +125,49 @@ export const DeliveryTeamPage: React.FC = () => {
       pending_payout: 0,
       net_balance: -unremitted
     } : null)
+  }
+
+  const handleOnboardDriver = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newDriverForm.rider_name || !newDriverForm.phone) return
+    const riderUserId = Math.floor(100 + Math.random() * 900)
+    addRiderProfile({
+      ...newDriverForm,
+      rider_user_id: riderUserId,
+      rider_name: newDriverForm.rider_name.toUpperCase().startsWith('RIDER ')
+        ? newDriverForm.rider_name.toUpperCase()
+        : `RIDER ${newDriverForm.rider_name.toUpperCase()}`,
+      staff_id: `SHD-FLT-${Math.floor(10 + Math.random() * 90)}`,
+      date_joined: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      rating: 5.0,
+      on_time_rate: 100,
+      active_assignments: 0,
+      today_trips: 0,
+      pending_payout: 0,
+      paid_total: 0,
+      cod_cash_collected: 0,
+      cod_remitted_total: 0,
+      earnings_today: 0,
+      earnings_week: 0,
+      earnings_month: 0,
+      net_balance: 0,
+    })
+    setIsOnboardModalOpen(false)
+    setNewDriverForm({
+      rider_name: '',
+      phone: '',
+      email: '',
+      vehicle_type: 'Bajaj Boxer 150 Motorcycle',
+      plate_number: '',
+      operating_hub: 'Victoria Island Central Hub',
+      license_number: '',
+      license_expiry: 'Nov 2027',
+      emergency_contact: 'Next of Kin',
+      emergency_phone: '',
+      cod_limit: 50000,
+      national_id_nin: '',
+      status: 'active'
+    })
   }
 
   // Get rider's trip history from logistics deliveries
@@ -292,7 +355,15 @@ export const DeliveryTeamPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsOnboardModalOpen(true)}
+            leftIcon={<UserPlus className="w-4 h-4" />}
+          >
+            Onboard Fleet Driver
+          </Button>
           <Link
             to="/logistics/rider-portal"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition"
@@ -371,8 +442,8 @@ export const DeliveryTeamPage: React.FC = () => {
             <KumoTabs
               activeTab={modalTab}
               onChange={(val: string) => setModalTab(val as 'ledger' | 'profile' | 'trips')}
-              size="md"
-              className="w-full flex"
+              size="sm"
+              className="w-auto inline-flex"
               tabs={[
                 { id: 'ledger', label: 'Earnings & Cash Settlement' },
                 { id: 'profile', label: 'Driver Profile & KYC' },
@@ -591,6 +662,10 @@ export const DeliveryTeamPage: React.FC = () => {
                     <span className="text-emerald-600 font-medium">{selectedRider.license_expiry || 'Nov 2027'} (Valid)</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-kumo-subtle">National ID / NIN:</span>
+                    <span className="font-mono font-semibold text-kumo-strong">{selectedRider.national_id_nin || '7829-4821-9921'}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-kumo-subtle">Max Cash Limit:</span>
                     <span className="font-semibold text-kumo-strong">{formatNaira(selectedRider.cod_limit || 50000)}</span>
                   </div>
@@ -741,6 +816,148 @@ export const DeliveryTeamPage: React.FC = () => {
             </Button>
             <Button variant="primary" type="submit">
               Confirm Cash Received
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* ONBOARD NEW FLEET DRIVER (FULL KYC PROFILE MODAL) */}
+      <Dialog
+        isOpen={isOnboardModalOpen}
+        onClose={() => setIsOnboardModalOpen(false)}
+        title="Onboard Fleet Driver (KYC Profile)"
+        description="Provision internal fleet driver credentials, vehicle details, safety checks, and national identity records."
+        maxWidth="2xl"
+      >
+        <form onSubmit={handleOnboardDriver} className="space-y-4 font-sans">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <Input
+              label="Driver Full Name"
+              placeholder="e.g. Yusuf Alabi"
+              value={newDriverForm.rider_name}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, rider_name: e.target.value })}
+              required
+            />
+            <Input
+              label="Phone Number"
+              placeholder="08012345678"
+              value={newDriverForm.phone}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, phone: e.target.value })}
+              required
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="yusuf.courier@smokeyhut.com"
+              value={newDriverForm.email}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, email: e.target.value })}
+            />
+            <Input
+              label="National ID / NIN"
+              placeholder="e.g. 7829-4821-9921"
+              value={newDriverForm.national_id_nin}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, national_id_nin: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="border-t border-kumo-line pt-3.5">
+            <h4 className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <Bike className="w-3.5 h-3.5 text-primary" />
+              <span>Vehicle & Hub Operations</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-medium text-kumo-default mb-1.5">Operating Dispatch Hub</label>
+                <select
+                  value={newDriverForm.operating_hub}
+                  onChange={(e) => setNewDriverForm({ ...newDriverForm, operating_hub: e.target.value })}
+                  className="w-full text-xs rounded-xl border border-kumo-line bg-kumo-surface px-3 py-2 text-kumo-strong focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="Victoria Island Central Hub">Victoria Island Central Hub</option>
+                  <option value="Lekki Phase 1 Hub">Lekki Phase 1 Hub</option>
+                  <option value="Ikeja GRA Kitchen Hub">Ikeja GRA Kitchen Hub</option>
+                  <option value="Yaba Express Hub">Yaba Express Hub</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-kumo-default mb-1.5">Vehicle Model</label>
+                <select
+                  value={newDriverForm.vehicle_type}
+                  onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
+                  className="w-full text-xs rounded-xl border border-kumo-line bg-kumo-surface px-3 py-2 text-kumo-strong focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="Bajaj Boxer 150 Motorcycle">Bajaj Boxer 150 Motorcycle</option>
+                  <option value="TVS HLX 125 Motorcycle">TVS HLX 125 Motorcycle</option>
+                  <option value="Haojue 110 Delivery Bike">Haojue 110 Delivery Bike</option>
+                  <option value="Electric Delivery Scooter">Electric Delivery Scooter</option>
+                </select>
+              </div>
+
+              <Input
+                label="Vehicle Plate Number"
+                placeholder="e.g. LND-482-XA"
+                value={newDriverForm.plate_number}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
+                required
+              />
+
+              <Input
+                label="Max COD Cash Limit (₦)"
+                type="number"
+                min="5000"
+                step="5000"
+                value={newDriverForm.cod_limit}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, cod_limit: Number(e.target.value) })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-kumo-line pt-3.5">
+            <h4 className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>License & Emergency Contact</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <Input
+                label="Driver's License Number"
+                placeholder="e.g. DL-98234-LAG"
+                value={newDriverForm.license_number}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
+                required
+              />
+              <Input
+                label="License Expiry"
+                placeholder="e.g. Dec 2027"
+                value={newDriverForm.license_expiry}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, license_expiry: e.target.value })}
+                required
+              />
+              <Input
+                label="Emergency Contact Relation / Name"
+                placeholder="e.g. Next of Kin / Brother"
+                value={newDriverForm.emergency_contact}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
+                required
+              />
+              <Input
+                label="Emergency Phone"
+                placeholder="08098765432"
+                value={newDriverForm.emergency_phone}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-kumo-line">
+            <Button variant="outline" type="button" onClick={() => setIsOnboardModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" leftIcon={<UserPlus className="w-4 h-4" />}>
+              Save & Onboard Driver
             </Button>
           </div>
         </form>

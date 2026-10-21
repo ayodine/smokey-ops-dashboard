@@ -345,6 +345,7 @@ export interface RiderPayout {
   license_expiry?: string
   emergency_contact?: string
   emergency_phone?: string
+  national_id_nin?: string
   rating?: number
   on_time_rate?: number
   cod_limit?: number

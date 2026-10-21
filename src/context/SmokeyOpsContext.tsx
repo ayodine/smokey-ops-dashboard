@@ -129,6 +129,7 @@ interface SmokeyOpsContextType {
   currentAccount: AppUserAccount
   switchAccount: (email: string) => void
   createAccount: (account: AppUserAccount) => void
+  addRiderProfile: (riderData: Partial<RiderPayout> & { rider_name: string; phone: string }) => RiderPayout
   availableAccounts: AppUserAccount[]
 
   // Feedback, Toasts & Success Confirmation Modals
@@ -139,12 +140,27 @@ interface SmokeyOpsContextType {
   closeSuccessModal: () => void
 }
 
+export type UserRole = 'admin' | 'manager' | 'kitchen' | 'inventory' | 'dispatcher' | 'rider'
+
 export interface AppUserAccount {
   email: string
   name: string
-  role: 'admin' | 'manager' | 'rider'
+  role: UserRole
   roleLabel: string
   rider_user_id?: number
+  phone?: string
+  staff_id?: string
+  department?: string
+  assigned_hub?: string
+  emergency_contact?: string
+  emergency_phone?: string
+  national_id_nin?: string
+  // Driver specific KYC fields
+  vehicle_type?: string
+  plate_number?: string
+  license_number?: string
+  license_expiry?: string
+  cod_limit?: number
 }
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
@@ -237,18 +253,171 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
+  const addRiderProfile = (riderData: Partial<RiderPayout> & { rider_name: string; phone: string }) => {
+    const riderId = riderData.rider_user_id || Date.now()
+    const rawName = riderData.rider_name.trim()
+    const formattedName = rawName.toUpperCase().startsWith('RIDER ')
+      ? rawName
+      : `Rider ${rawName}`
+
+    const newRider: RiderPayout = {
+      rider_user_id: riderId,
+      rider_name: formattedName,
+      phone: riderData.phone.trim(),
+      email: riderData.email?.trim() || `${rawName.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`,
+      staff_id: riderData.staff_id?.trim() || `RDR-${String(riders.length + 1).padStart(3, '0')}`,
+      active_assignments: 0,
+      today_trips: 0,
+      deliveries_today: 0,
+      deliveries_week: 0,
+      deliveries_month: 0,
+      total_completed: 0,
+      earnings_today: 0,
+      earnings_week: 0,
+      earnings_month: 0,
+      pending_payout: 0,
+      cod_cash_collected: 0,
+      cod_remitted_total: 0,
+      net_balance: 0,
+      paid_total: 0,
+      lifetime_earnings: 0,
+      status: riderData.status || 'active',
+      vehicle_type: riderData.vehicle_type?.trim() || 'Bajaj Boxer 150 Motorcycle',
+      plate_number: riderData.plate_number?.trim() || 'LND-482-XA',
+      operating_hub: riderData.operating_hub?.trim() || 'Victoria Island Central Hub',
+      license_number: riderData.license_number?.trim() || 'DL-98234-LAG',
+      license_expiry: riderData.license_expiry?.trim() || 'Nov 2027',
+      emergency_contact: riderData.emergency_contact?.trim() || 'Next of Kin',
+      emergency_phone: riderData.emergency_phone?.trim() || '08023456789',
+      rating: 5.0,
+      on_time_rate: 100,
+      cod_limit: Number(riderData.cod_limit) || 50000,
+      date_joined: riderData.date_joined || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+
+    setRiders(prev => [newRider, ...prev.filter(r => r.rider_user_id !== riderId)])
+
+    // Automatically sync / create an app user account for this driver
+    const riderAccount: AppUserAccount = {
+      email: newRider.email!,
+      name: newRider.rider_name,
+      role: 'rider',
+      roleLabel: 'Delivery Rider',
+      rider_user_id: newRider.rider_user_id,
+      phone: newRider.phone,
+      staff_id: newRider.staff_id,
+      department: 'Logistics & Fleet',
+      assigned_hub: newRider.operating_hub,
+      emergency_contact: newRider.emergency_contact,
+      emergency_phone: newRider.emergency_phone,
+      vehicle_type: newRider.vehicle_type,
+      plate_number: newRider.plate_number,
+      license_number: newRider.license_number,
+      license_expiry: newRider.license_expiry,
+      cod_limit: newRider.cod_limit
+    }
+
+    setAccounts(prev => {
+      const exists = prev.some(a => a.email.toLowerCase() === riderAccount.email.toLowerCase())
+      const updated = exists
+        ? prev.map(a => a.email.toLowerCase() === riderAccount.email.toLowerCase() ? { ...a, ...riderAccount } : a)
+        : [...prev, riderAccount]
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      return updated
+    })
+
+    showToast(`Driver onboarded & KYC profile saved for ${newRider.rider_name}`, 'success')
+    return newRider
+  }
+
   const createAccount = (newAcc: AppUserAccount) => {
+    let riderUserId = newAcc.rider_user_id
+
+    // If account role is rider, automatically provision/update their RiderPayout with KYC data
+    if (newAcc.role === 'rider') {
+      if (!riderUserId) {
+        riderUserId = Date.now()
+        newAcc.rider_user_id = riderUserId
+      }
+
+      const rawName = newAcc.name.trim()
+      const formattedName = rawName.toUpperCase().startsWith('RIDER ')
+        ? rawName
+        : `Rider ${rawName}`
+
+      setRiders(prev => {
+        const existing = prev.find(r => 
+          (r.email && r.email.toLowerCase() === newAcc.email.toLowerCase()) || 
+          r.rider_user_id === riderUserId
+        )
+
+        if (existing) {
+          return prev.map(r => r.rider_user_id === existing.rider_user_id ? {
+            ...r,
+            phone: newAcc.phone || r.phone,
+            vehicle_type: newAcc.vehicle_type || r.vehicle_type,
+            plate_number: newAcc.plate_number || r.plate_number,
+            operating_hub: newAcc.assigned_hub || r.operating_hub,
+            license_number: newAcc.license_number || r.license_number,
+            license_expiry: newAcc.license_expiry || r.license_expiry,
+            emergency_contact: newAcc.emergency_contact || r.emergency_contact,
+            emergency_phone: newAcc.emergency_phone || r.emergency_phone,
+            cod_limit: newAcc.cod_limit || r.cod_limit,
+            staff_id: newAcc.staff_id || r.staff_id,
+          } : r)
+        }
+
+        const newRider: RiderPayout = {
+          rider_user_id: riderUserId!,
+          rider_name: formattedName,
+          phone: newAcc.phone || '08000000000',
+          email: newAcc.email,
+          staff_id: newAcc.staff_id || `RDR-${String(prev.length + 1).padStart(3, '0')}`,
+          active_assignments: 0,
+          today_trips: 0,
+          deliveries_today: 0,
+          deliveries_week: 0,
+          deliveries_month: 0,
+          total_completed: 0,
+          earnings_today: 0,
+          earnings_week: 0,
+          earnings_month: 0,
+          pending_payout: 0,
+          cod_cash_collected: 0,
+          cod_remitted_total: 0,
+          net_balance: 0,
+          paid_total: 0,
+          lifetime_earnings: 0,
+          status: 'active',
+          vehicle_type: newAcc.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
+          plate_number: newAcc.plate_number || 'LND-482-XA',
+          operating_hub: newAcc.assigned_hub || 'Victoria Island Central Hub',
+          license_number: newAcc.license_number || 'DL-98234-LAG',
+          license_expiry: newAcc.license_expiry || 'Nov 2027',
+          emergency_contact: newAcc.emergency_contact || 'Next of Kin',
+          emergency_phone: newAcc.emergency_phone || '08023456789',
+          rating: 5.0,
+          on_time_rate: 100,
+          cod_limit: newAcc.cod_limit || 50000,
+          date_joined: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        }
+        return [newRider, ...prev]
+      })
+    }
+
     setAccounts(prev => {
       const exists = prev.some(a => a.email.toLowerCase() === newAcc.email.toLowerCase())
+      let updated: AppUserAccount[]
       if (exists) {
-        return prev
+        updated = prev.map(a => a.email.toLowerCase() === newAcc.email.toLowerCase() ? { ...a, ...newAcc } : a)
+      } else {
+        updated = [...prev, newAcc]
       }
-      const updated = [...prev, newAcc]
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
       return updated
     })
     switchAccount(newAcc.email)
-    showToast(`Created account for ${newAcc.name || newAcc.email}`, 'success')
+    showToast(`Created ${newAcc.roleLabel} account for ${newAcc.name || newAcc.email}`, 'success')
   }
 
   // Feedback: Toasts & Success Modal
@@ -1352,6 +1521,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentAccount,
         switchAccount,
         createAccount,
+        addRiderProfile,
         availableAccounts: accounts,
         toasts,
         showToast,

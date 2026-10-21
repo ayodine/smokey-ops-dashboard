@@ -4,11 +4,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { FlutedGlass } from "@paper-design/shaders-react";
-import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2, Truck, Bike, ShieldCheck, MapPin, Building, Phone } from "lucide-react";
 import { motion } from "motion/react";
+import { useSmokeyOps, type UserRole } from "@/context/SmokeyOpsContext";
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
+  const { createAccount } = useSmokeyOps();
 
   // Mode: 'login' (Sign in) vs 'signup' (Create account)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -22,6 +24,16 @@ export default function AuthSectionThree() {
   const [rememberMe, setRememberMe] = useState(true);
   const [agreeTerms, setAgreeTerms] = useState(true);
 
+  // Role-based KYC Fields (Sign Up)
+  const [role, setRole] = useState<UserRole>('manager');
+  const [phone, setPhone] = useState('08031234567');
+  const [assignedHub, setAssignedHub] = useState('Victoria Island Central Hub');
+  const [nationalId, setNationalId] = useState('7829-4821-9921');
+  const [vehicleType, setVehicleType] = useState('Bajaj Boxer 150 Motorcycle');
+  const [plateNumber, setPlateNumber] = useState('LND-482-XA');
+  const [licenseNumber, setLicenseNumber] = useState('DL-98234-LAG');
+  const [codLimit, setCodLimit] = useState(50000);
+
   // States
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -31,8 +43,45 @@ export default function AuthSectionThree() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSuccessMessage(authMode === 'login' ? "Signing you in..." : "Account created successfully!");
-    
+
+    if (authMode === 'signup') {
+      const roleLabels: Record<UserRole, string> = {
+        admin: 'Administrator',
+        manager: 'Operations Manager',
+        kitchen: 'Kitchen Chef / Lead',
+        inventory: 'Inventory & Stock Officer',
+        dispatcher: 'Logistics Dispatcher',
+        rider: 'Delivery Fleet Rider',
+      };
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Smokey Staff';
+      createAccount({
+        email: email.trim(),
+        name: fullName,
+        role,
+        roleLabel: roleLabels[role],
+        phone: phone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
+        staff_id: `SHD-${role.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
+        assigned_hub: assignedHub,
+        national_id_nin: nationalId.trim() || '7829-4821-9921',
+        vehicle_type: role === 'rider' ? vehicleType : undefined,
+        plate_number: role === 'rider' ? (plateNumber.trim() || 'LND-482-XA') : undefined,
+        license_number: role === 'rider' ? (licenseNumber.trim() || 'DL-98234-LAG') : undefined,
+        cod_limit: role === 'rider' ? Number(codLimit) : undefined,
+      });
+
+      setSuccessMessage("Account created with verified role profile!");
+      setTimeout(() => {
+        setIsSubmitting(false);
+        if (role === 'rider') {
+          navigate("/logistics/rider-portal");
+        } else {
+          navigate("/overview");
+        }
+      }, 900);
+      return;
+    }
+
+    setSuccessMessage("Signing you in...");
     setTimeout(() => {
       setIsSubmitting(false);
       navigate("/overview");
@@ -159,6 +208,137 @@ export default function AuthSectionThree() {
                   className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
                 />
               </div>
+
+              {/* Role Selection & KYC Fields for Signup */}
+              {authMode === 'signup' && (
+                <div className="space-y-3.5 pt-1">
+                  <div className="space-y-1.5 text-left w-full">
+                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                      Operational Role & Permissions
+                    </label>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as UserRole)}
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
+                    >
+                      <option value="manager">Operations Manager (Kitchen & Logistics)</option>
+                      <option value="admin">Administrator (Full Access)</option>
+                      <option value="kitchen">Kitchen Chef / Prep Lead</option>
+                      <option value="inventory">Inventory & Stock Officer</option>
+                      <option value="dispatcher">Logistics Dispatcher</option>
+                      <option value="rider">Delivery Fleet Rider (Trip Portal & Wallet)</option>
+                    </select>
+                  </div>
+
+                  <div className="grid gap-3.5 sm:grid-cols-2">
+                    <div className="space-y-1.5 text-left w-full">
+                      <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="08012345678"
+                        className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 text-left w-full">
+                      <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                        National ID / NIN
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={nationalId}
+                        onChange={(e) => setNationalId(e.target.value)}
+                        placeholder="7829-4821-9921"
+                        className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-left w-full">
+                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                      Operating Dispatch Hub
+                    </label>
+                    <select
+                      value={assignedHub}
+                      onChange={(e) => setAssignedHub(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
+                    >
+                      <option value="Victoria Island Central Hub">Victoria Island Central Hub</option>
+                      <option value="Lekki Phase 1 Hub">Lekki Phase 1 Hub</option>
+                      <option value="Ikeja GRA Kitchen Hub">Ikeja GRA Kitchen Hub</option>
+                      <option value="Yaba Express Hub">Yaba Express Hub</option>
+                    </select>
+                  </div>
+
+                  {/* Rider Specific KYC Card */}
+                  {role === 'rider' && (
+                    <div className="p-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
+                      <div className="text-xs font-semibold text-black/80 dark:text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-[#c0201f]" />
+                        <span>Driver Fleet KYC Details</span>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1 text-left">
+                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Vehicle Model</label>
+                          <select
+                            value={vehicleType}
+                            onChange={(e) => setVehicleType(e.target.value)}
+                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-xs text-black dark:text-white"
+                          >
+                            <option value="Bajaj Boxer 150 Motorcycle">Bajaj Boxer 150 Motorcycle</option>
+                            <option value="TVS HLX 125 Motorcycle">TVS HLX 125 Motorcycle</option>
+                            <option value="Haojue 110 Delivery Bike">Haojue 110 Delivery Bike</option>
+                            <option value="Electric Delivery Scooter">Electric Delivery Scooter</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Plate Number</label>
+                          <input
+                            type="text"
+                            required
+                            value={plateNumber}
+                            onChange={(e) => setPlateNumber(e.target.value)}
+                            placeholder="LND-482-XA"
+                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
+                          />
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Driver's License No</label>
+                          <input
+                            type="text"
+                            required
+                            value={licenseNumber}
+                            onChange={(e) => setLicenseNumber(e.target.value)}
+                            placeholder="DL-98234-LAG"
+                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
+                          />
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Max Cash Limit (₦)</label>
+                          <input
+                            type="number"
+                            min="5000"
+                            step="5000"
+                            value={codLimit}
+                            onChange={(e) => setCodLimit(Number(e.target.value))}
+                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Password */}
               <div className="space-y-1.5 text-left w-full">

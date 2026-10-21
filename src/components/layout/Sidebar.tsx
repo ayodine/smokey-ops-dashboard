@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps, type UserRole } from '@/context/SmokeyOpsContext'
 import { cn } from '@/lib/utils'
 import {
   Boxes,
@@ -108,7 +108,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
-  const [newRole, setNewRole] = useState<'admin' | 'manager' | 'rider'>('admin')
+  const [newRole, setNewRole] = useState<UserRole>('admin')
+  const [newPhone, setNewPhone] = useState('')
+  const [newStaffId, setNewStaffId] = useState('')
+  const [newAssignedHub, setNewAssignedHub] = useState('Victoria Island Central Hub')
+  const [newNationalId, setNewNationalId] = useState('')
+  const [newVehicleType, setNewVehicleType] = useState('Bajaj Boxer 150 Motorcycle')
+  const [newPlateNumber, setNewPlateNumber] = useState('')
+  const [newLicenseNumber, setNewLicenseNumber] = useState('')
+  const [newCodLimit, setNewCodLimit] = useState(50000)
 
   const filteredAccounts = useMemo(() => {
     if (!accountSearchQuery.trim()) return availableAccounts
@@ -122,19 +130,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   const handleCreateAccount = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newEmail.trim()) return
-    const roleLabels = {
+    const roleLabels: Record<UserRole, string> = {
       admin: 'Administrator',
       manager: 'Operations Manager',
-      rider: 'Delivery Rider',
+      kitchen: 'Kitchen Chef / Lead',
+      inventory: 'Inventory & Stock Officer',
+      dispatcher: 'Logistics Dispatcher',
+      rider: 'Delivery Fleet Rider',
     }
     createAccount({
       email: newEmail.trim(),
       name: newName.trim() || newEmail.split('@')[0],
       role: newRole,
       roleLabel: roleLabels[newRole],
+      phone: newPhone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
+      staff_id: newStaffId.trim() || `SHD-${newRole.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
+      assigned_hub: newAssignedHub,
+      national_id_nin: newNationalId.trim() || '7829-4821-9921',
+      vehicle_type: newRole === 'rider' ? newVehicleType : undefined,
+      plate_number: newRole === 'rider' ? (newPlateNumber.trim() || 'LND-482-XA') : undefined,
+      license_number: newRole === 'rider' ? (newLicenseNumber.trim() || 'DL-98234-LAG') : undefined,
+      cod_limit: newRole === 'rider' ? Number(newCodLimit) : undefined,
     })
     setNewEmail('')
     setNewName('')
+    setNewPhone('')
+    setNewStaffId('')
+    setNewNationalId('')
+    setNewPlateNumber('')
+    setNewLicenseNumber('')
     setIsCreateAccountOpen(false)
   }
 
@@ -582,12 +606,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         onClose={() => setIsActivityModalOpen(false)}
       />
 
-      {/* Create Account Modal */}
+      {/* Create Account Modal with Role-Based KYC */}
       {isCreateAccountOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 w-full max-w-sm shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl space-y-4 [scrollbar-width:thin]">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create Account</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create Staff / Driver Account</h3>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Configure role permissions and operational KYC details</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsCreateAccountOpen(false)}
@@ -599,43 +626,159 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
             <form onSubmit={handleCreateAccount} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
-                <input
-                  type="email"
-                  required
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="e.g. staff@smokeyhut.com"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                />
-              </div>
-
-              <div>
                 <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Role & Permissions</label>
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as 'admin' | 'manager' | 'rider')}
+                  onChange={(e) => setNewRole(e.target.value as UserRole)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                 >
                   <option value="admin">Administrator (Full Access)</option>
                   <option value="manager">Operations Manager (Kitchen & Logistics)</option>
-                  <option value="rider">Delivery Rider (Fleet & Trips)</option>
+                  <option value="kitchen">Kitchen Chef / Prep Lead</option>
+                  <option value="inventory">Inventory & Stock Officer</option>
+                  <option value="dispatcher">Logistics Dispatcher</option>
+                  <option value="rider">Delivery Fleet Rider (Trip Portal & Wallet)</option>
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Yusuf Alabi"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="staff@smokeyhut.com"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    placeholder="08012345678"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Staff / Employee ID</label>
+                  <input
+                    type="text"
+                    value={newStaffId}
+                    onChange={(e) => setNewStaffId(e.target.value)}
+                    placeholder="e.g. SHD-FLT-18"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Operating Dispatch Hub</label>
+                  <select
+                    value={newAssignedHub}
+                    onChange={(e) => setNewAssignedHub(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  >
+                    <option value="Victoria Island Central Hub">Victoria Island Central Hub</option>
+                    <option value="Lekki Phase 1 Hub">Lekki Phase 1 Hub</option>
+                    <option value="Ikeja GRA Kitchen Hub">Ikeja GRA Kitchen Hub</option>
+                    <option value="Yaba Express Hub">Yaba Express Hub</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">National ID / NIN</label>
+                  <input
+                    type="text"
+                    value={newNationalId}
+                    onChange={(e) => setNewNationalId(e.target.value)}
+                    placeholder="7829-4821-9921"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+              </div>
+
+              {/* Rider Specific KYC Details */}
+              {newRole === 'rider' && (
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2.5 animate-in fade-in">
+                  <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-primary" />
+                    <span>Driver Fleet KYC Details</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
+                      <select
+                        value={newVehicleType}
+                        onChange={(e) => setNewVehicleType(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      >
+                        <option value="Bajaj Boxer 150 Motorcycle">Bajaj Boxer 150 Motorcycle</option>
+                        <option value="TVS HLX 125 Motorcycle">TVS HLX 125 Motorcycle</option>
+                        <option value="Haojue 110 Delivery Bike">Haojue 110 Delivery Bike</option>
+                        <option value="Electric Delivery Scooter">Electric Delivery Scooter</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
+                      <input
+                        type="text"
+                        value={newPlateNumber}
+                        onChange={(e) => setNewPlateNumber(e.target.value)}
+                        placeholder="LND-482-XA"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
+                      <input
+                        type="text"
+                        value={newLicenseNumber}
+                        onChange={(e) => setNewLicenseNumber(e.target.value)}
+                        placeholder="DL-98234-LAG"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
+                      <input
+                        type="number"
+                        min="5000"
+                        step="5000"
+                        value={newCodLimit}
+                        onChange={(e) => setNewCodLimit(Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setIsCreateAccountOpen(false)}
