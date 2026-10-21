@@ -28,239 +28,66 @@ import {
   Bell,
   Share2,
   AlertCircle,
-  HelpCircle,
-  Sparkles,
-  RefreshCw,
-  XCircle,
   Archive,
   Ban,
-  Activity
+  Activity,
+  ShoppingBag,
+  ExternalLink
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Data structure for the Mockup SKUs / Items
-interface SkuItem {
+export interface SmokeyInventoryItem {
   id: string
+  originalId: number
+  itemType: 'raw' | 'packaging' | 'sales'
   name: string
   sku: string
-  batch: string
+  batchLot: string
   category: string
   currentStock: number
   maxStock: number
+  reorderLevel: number
   unit: string
+  unitCost: number
   expiryDate: string
   expiryText: string
   daysToExpiry: number
+  isPerishable: boolean
   status: 'critical' | 'low' | 'out_of_stock' | 'expiring' | 'healthy'
   priority: 'urgent' | 'high' | 'normal'
-  isExpiringSoon?: boolean
-  isLowStock?: boolean
+  supplierName?: string
 }
-
-const INITIAL_SKUS: SkuItem[] = [
-  {
-    id: 'sku-1',
-    name: 'Metformin 500mg',
-    sku: 'MET-500-T',
-    batch: 'Batch M2041-A',
-    category: 'Antidiabetic',
-    currentStock: 12,
-    maxStock: 240,
-    unit: 'tabs',
-    expiryDate: 'Jul 2026',
-    expiryText: 'in 62 days',
-    daysToExpiry: 62,
-    status: 'critical',
-    priority: 'urgent',
-    isExpiringSoon: true,
-    isLowStock: true
-  },
-  {
-    id: 'sku-2',
-    name: 'Atorvastatin 20mg',
-    sku: 'ATO-020-T',
-    batch: 'Batch A1108-C',
-    category: 'Statin',
-    currentStock: 18,
-    maxStock: 120,
-    unit: 'tabs',
-    expiryDate: 'Apr 2027',
-    expiryText: 'in 330 days',
-    daysToExpiry: 330,
-    status: 'low',
-    priority: 'high',
-    isLowStock: true
-  },
-  {
-    id: 'sku-3',
-    name: 'Amoxicillin 250mg',
-    sku: 'AMO-250-C',
-    batch: 'Batch AX2207-D',
-    category: 'Antibiotic',
-    currentStock: 0,
-    maxStock: 90,
-    unit: 'caps',
-    expiryDate: '—',
-    expiryText: '—',
-    daysToExpiry: 999,
-    status: 'out_of_stock',
-    priority: 'urgent',
-    isLowStock: true
-  },
-  {
-    id: 'sku-4',
-    name: 'Warfarin 5mg',
-    sku: 'WAR-005-T',
-    batch: 'Batch W4011-B',
-    category: 'Anticoagulant',
-    currentStock: 42,
-    maxStock: 120,
-    unit: 'tabs',
-    expiryDate: 'May 2026',
-    expiryText: 'in 6 days',
-    daysToExpiry: 6,
-    status: 'expiring',
-    priority: 'urgent',
-    isExpiringSoon: true
-  },
-  {
-    id: 'sku-5',
-    name: 'Insulin Glargine',
-    sku: 'INS-GLA-V',
-    batch: 'Batch I9923-A',
-    category: 'Hormone',
-    currentStock: 24,
-    maxStock: 60,
-    unit: 'vials',
-    expiryDate: 'Jun 2026',
-    expiryText: 'in 35 days',
-    daysToExpiry: 35,
-    status: 'low',
-    priority: 'high',
-    isExpiringSoon: true,
-    isLowStock: true
-  },
-  {
-    id: 'sku-6',
-    name: 'Lisinopril 10mg',
-    sku: 'LIS-010-T',
-    batch: 'Batch L8845-B',
-    category: 'ACE inhibitor',
-    currentStock: 215,
-    maxStock: 300,
-    unit: 'tabs',
-    expiryDate: 'Mar 2027',
-    expiryText: 'in 300 days',
-    daysToExpiry: 300,
-    status: 'healthy',
-    priority: 'normal'
-  },
-  {
-    id: 'sku-7',
-    name: 'Sertraline 50mg',
-    sku: 'SER-050-T',
-    batch: 'Batch S2142-D',
-    category: 'Antidepressant',
-    currentStock: 184,
-    maxStock: 240,
-    unit: 'tabs',
-    expiryDate: 'Feb 2027',
-    expiryText: 'in 280 days',
-    daysToExpiry: 280,
-    status: 'healthy',
-    priority: 'normal'
-  },
-  {
-    id: 'sku-8',
-    name: 'Albuterol 90mcg',
-    sku: 'ALB-090-I',
-    batch: 'Batch AL5562-A',
-    category: 'Bronchodilator',
-    currentStock: 31,
-    maxStock: 60,
-    unit: 'inhalers',
-    expiryDate: 'May 2026',
-    expiryText: 'in 14 days',
-    daysToExpiry: 14,
-    status: 'expiring',
-    priority: 'urgent',
-    isExpiringSoon: true
-  },
-  {
-    id: 'sku-9',
-    name: 'Levothyroxine 50mcg',
-    sku: 'LEV-050-T',
-    batch: 'Batch LV1188-B',
-    category: 'Hormone',
-    currentStock: 198,
-    maxStock: 300,
-    unit: 'tabs',
-    expiryDate: 'Nov 2026',
-    expiryText: 'in 185 days',
-    daysToExpiry: 185,
-    status: 'healthy',
-    priority: 'normal'
-  },
-  {
-    id: 'sku-10',
-    name: 'Donepezil 5mg',
-    sku: 'DON-005-T',
-    batch: 'Batch D0204-A',
-    category: 'Cognitive',
-    currentStock: 8,
-    maxStock: 60,
-    unit: 'tabs',
-    expiryDate: 'Sep 2026',
-    expiryText: 'in 120 days',
-    daysToExpiry: 120,
-    status: 'critical',
-    priority: 'urgent',
-    isLowStock: true
-  },
-  {
-    id: 'sku-11',
-    name: 'Pravastatin 40mg',
-    sku: 'PRA-040-T',
-    batch: 'Batch P7021-C',
-    category: 'Statin',
-    currentStock: 96,
-    maxStock: 120,
-    unit: 'tabs',
-    expiryDate: 'Jan 2027',
-    expiryText: 'in 240 days',
-    daysToExpiry: 240,
-    status: 'healthy',
-    priority: 'normal'
-  }
-]
 
 export const AccountHomePage: React.FC = () => {
   const navigate = useNavigate()
   const {
     rawProducts,
     packagingProducts,
+    salesProducts,
+    inventoryLots,
+    suppliers,
+    receiveRawStock,
+    receivePackaging,
+    saveRawProduct,
     productionBatches,
     logisticsDeliveries,
     riders
   } = useSmokeyOps()
 
-  // Tab mode: Default to the exact Mockup SKU & Pharmacy View, with optional Smokey Ops toggle
-  const [activeView, setActiveView] = useState<'pharmacy' | 'ops'>('pharmacy')
-
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 12
 
-  // SKUs state
-  const [skus, setSkus] = useState<SkuItem[]>(INITIAL_SKUS)
-
   // Action Modals State
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false)
-  const [actionItem, setActionItem] = useState<{ item: SkuItem; action: string } | null>(null)
+  const [actionItem, setActionItem] = useState<{ item: SmokeyInventoryItem; action: string } | null>(null)
   const [actionQuantity, setActionQuantity] = useState('50')
+  const [actionSupplierId, setActionSupplierId] = useState<string>('2')
+  const [actionPoRef, setActionPoRef] = useState('')
   const [actionNotes, setActionNotes] = useState('')
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
@@ -269,95 +96,262 @@ export const AccountHomePage: React.FC = () => {
     name: '',
     sku: '',
     batch: '',
-    category: 'Antidiabetic',
-    stock: '100',
-    maxStock: '200',
-    unit: 'tabs',
-    expiryDate: 'Dec 2026'
+    category: 'Raw Proteins',
+    itemType: 'raw' as 'raw' | 'packaging' | 'sales',
+    stock: '50',
+    reorderLevel: '20',
+    unit: 'PIECES',
+    unitCost: '6500',
+    expiryDate: '2026-10-15',
+    supplierId: '2'
   })
 
-  // Filtered SKUs
-  const filteredSkus = useMemo(() => {
-    return skus.filter(item => {
+  // 1. Map all real project inventory into unified SmokeyInventoryItems
+  const allInventoryItems: SmokeyInventoryItem[] = useMemo(() => {
+    const items: SmokeyInventoryItem[] = []
+
+    // Map Raw Ingredients & Meats
+    rawProducts.forEach(raw => {
+      // Find matching FEFO lot if available
+      const matchingLot = inventoryLots.find(lot => lot.product_id === raw.id || lot.sku === raw.sku)
+      
+      let days = 999
+      let expText = '—'
+      let expDateFormatted = 'Non-perishable'
+
+      if (raw.is_perishable || raw.expiry_date || matchingLot) {
+        const expStr = matchingLot?.expiry_date || raw.expiry_date || '2026-10-05'
+        days = matchingLot?.days_to_expiry ?? 14
+        expDateFormatted = formatDate(expStr)
+        expText = days <= 0 ? 'Expired today' : `in ${days} days`
+      }
+
+      // Determine Category
+      let category = 'Raw Ingredients'
+      const n = raw.name.toLowerCase()
+      if (n.includes('guineafowl') || n.includes('chicken') || n.includes('turkey') || n.includes('catfish') || n.includes('beef') || n.includes('goat') || n.includes('gizzard')) {
+        category = 'Raw Proteins'
+      } else if (n.includes('pepper') || n.includes('spicies') || n.includes('cinnamon') || n.includes('clove') || n.includes('seasoning') || n.includes('salt')) {
+        category = 'Spices & Seasoning'
+      } else if (n.includes('firewood') || n.includes('wood chips') || n.includes('charcoal')) {
+        category = 'Fuel & Charcoal'
+      } else if (n.includes('oil')) {
+        category = 'Cooking Oils'
+      }
+
+      // Max capacity reference (typically 2-3x reorder level)
+      const maxStock = Math.max(raw.stock_qty, raw.reorder_level * 2.5, 50)
+
+      // Determine Status
+      let status: SmokeyInventoryItem['status'] = 'healthy'
+      let priority: SmokeyInventoryItem['priority'] = 'normal'
+
+      if (raw.stock_qty <= 0) {
+        status = 'out_of_stock'
+        priority = 'urgent'
+      } else if (days <= 7) {
+        status = 'expiring'
+        priority = 'urgent'
+      } else if (raw.stock_qty <= raw.reorder_level * 0.5) {
+        status = 'critical'
+        priority = 'urgent'
+      } else if (raw.stock_qty <= raw.reorder_level) {
+        status = 'low'
+        priority = 'high'
+      }
+
+      items.push({
+        id: `raw-${raw.id}`,
+        originalId: raw.id,
+        itemType: 'raw',
+        name: raw.name,
+        sku: raw.sku,
+        batchLot: matchingLot?.lot_number || raw.fefo_lot || `LOT-${raw.sku.slice(-4)}`,
+        category,
+        currentStock: raw.stock_qty,
+        maxStock: Math.round(maxStock),
+        reorderLevel: raw.reorder_level,
+        unit: raw.unit,
+        unitCost: raw.unit_cost,
+        expiryDate: expDateFormatted,
+        expiryText: expText,
+        daysToExpiry: days,
+        isPerishable: !!raw.is_perishable,
+        status,
+        priority,
+        supplierName: matchingLot?.supplier_name || 'Madam Poultry Co.'
+      })
+    })
+
+    // Map Packaging Products
+    packagingProducts.forEach(pack => {
+      const maxStock = Math.max(pack.stock_qty, pack.reorder_level * 2, 100)
+      let status: SmokeyInventoryItem['status'] = 'healthy'
+      let priority: SmokeyInventoryItem['priority'] = 'normal'
+
+      if (pack.stock_qty <= 0) {
+        status = 'out_of_stock'
+        priority = 'urgent'
+      } else if (pack.stock_qty <= pack.reorder_level * 0.3) {
+        status = 'critical'
+        priority = 'urgent'
+      } else if (pack.stock_qty <= pack.reorder_level) {
+        status = 'low'
+        priority = 'high'
+      }
+
+      items.push({
+        id: `pack-${pack.id}`,
+        originalId: pack.id,
+        itemType: 'packaging',
+        name: pack.name,
+        sku: pack.sku,
+        batchLot: `LOT-PCK-${pack.sku.slice(-3)}`,
+        category: 'Packaging Materials',
+        currentStock: pack.stock_qty,
+        maxStock: Math.round(maxStock),
+        reorderLevel: pack.reorder_level,
+        unit: pack.unit,
+        unitCost: pack.unit_cost,
+        expiryDate: '—',
+        expiryText: 'Non-perishable',
+        daysToExpiry: 999,
+        isPerishable: false,
+        status,
+        priority,
+        supplierName: 'Prime Packaging Ltd'
+      })
+    })
+
+    // Map Finished Sales Products
+    salesProducts.forEach(sales => {
+      const maxStock = Math.max(sales.stock_qty, sales.reorder_level * 2, 50)
+      let status: SmokeyInventoryItem['status'] = 'healthy'
+      let priority: SmokeyInventoryItem['priority'] = 'normal'
+
+      if (sales.stock_qty <= 0) {
+        status = 'out_of_stock'
+        priority = 'urgent'
+      } else if (sales.stock_qty <= sales.reorder_level * 0.4) {
+        status = 'critical'
+        priority = 'urgent'
+      } else if (sales.stock_qty <= sales.reorder_level) {
+        status = 'low'
+        priority = 'high'
+      }
+
+      items.push({
+        id: `sales-${sales.id}`,
+        originalId: sales.id,
+        itemType: 'sales',
+        name: sales.name,
+        sku: sales.sku,
+        batchLot: `PRD-${sales.sku.slice(4, 10)}`,
+        category: 'Finished Goods',
+        currentStock: sales.stock_qty,
+        maxStock: Math.round(maxStock),
+        reorderLevel: sales.reorder_level,
+        unit: sales.unit,
+        unitCost: sales.unit_cost,
+        expiryDate: 'Daily Prepared',
+        expiryText: 'Fresh batch',
+        daysToExpiry: 1,
+        isPerishable: true,
+        status,
+        priority,
+        supplierName: 'Smokey In-house Kitchen'
+      })
+    })
+
+    return items
+  }, [rawProducts, packagingProducts, salesProducts, inventoryLots])
+
+  // 2. Compute dynamic KPIs
+  const totalSkuCount = allInventoryItems.length
+  const lowStockCount = allInventoryItems.filter(i => i.status === 'low' || i.status === 'critical').length
+  const outOfStockCount = allInventoryItems.filter(i => i.status === 'out_of_stock').length
+  const expiringCount = allInventoryItems.filter(i => i.status === 'expiring' || (i.isPerishable && i.daysToExpiry <= 14)).length
+  const totalValuation = useMemo(() => {
+    const rawVal = rawProducts.reduce((s, p) => s + (p.stock_qty * p.unit_cost), 0)
+    const packVal = packagingProducts.reduce((s, p) => s + (p.stock_qty * p.unit_cost), 0)
+    const salesVal = salesProducts.reduce((s, p) => s + (p.stock_qty * p.unit_cost), 0)
+    return rawVal + packVal + salesVal
+  }, [rawProducts, packagingProducts, salesProducts])
+
+  // 3. Filtered Items
+  const filteredItems = useMemo(() => {
+    return allInventoryItems.filter(item => {
+      const q = searchQuery.toLowerCase().trim()
       const matchesSearch =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.batch.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase())
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.sku.toLowerCase().includes(q) ||
+        item.batchLot.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q)
 
       const matchesStatus =
         statusFilter === 'all' || item.status === statusFilter
 
+      const matchesCategory =
+        categoryFilter === 'all' || item.category === categoryFilter
+
       const matchesPriority =
         priorityFilter === 'all' || item.priority === priorityFilter
 
-      return matchesSearch && matchesStatus && matchesPriority
+      return matchesSearch && matchesStatus && matchesCategory && matchesPriority
     })
-  }, [skus, searchQuery, statusFilter, priorityFilter])
+  }, [allInventoryItems, searchQuery, statusFilter, categoryFilter, priorityFilter])
 
-  // Low stock and Expiring items for the right widgets
+  // 4. Expiring Soon list (FEFO items mapped from real project inventory)
   const expiringSoonList = useMemo(() => {
-    return [
-      {
-        days: 6,
-        badgeBg: 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900',
-        name: 'Warfarin 5mg',
-        sub: 'WAR-005-T · exp May 11, 2026'
-      },
-      {
-        days: 14,
-        badgeBg: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900',
-        name: 'Albuterol 90mcg',
-        sub: 'ALB-090-I · exp May 19, 2026'
-      },
-      {
-        days: 35,
-        badgeBg: 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-900',
-        name: 'Insulin Glargine',
-        sub: 'INS-GLA-V · exp Jun 09, 2026'
-      },
-      {
-        days: 62,
-        badgeBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900',
-        name: 'Metformin 500mg',
-        sub: 'MET-500-T · exp Jul 06, 2026'
-      }
-    ]
-  }, [])
+    const perishables = allInventoryItems
+      .filter(i => i.isPerishable && i.daysToExpiry <= 30 && i.currentStock > 0)
+      .sort((a, b) => a.daysToExpiry - b.daysToExpiry)
 
+    return perishables.slice(0, 4).map(item => {
+      let badgeBg = 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900'
+      if (item.daysToExpiry > 7 && item.daysToExpiry <= 14) {
+        badgeBg = 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900'
+      } else if (item.daysToExpiry > 14) {
+        badgeBg = 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900'
+      }
+
+      return {
+        id: item.id,
+        days: item.daysToExpiry,
+        badgeBg,
+        name: item.name,
+        sub: `${item.sku} · exp ${item.expiryDate}`
+      }
+    })
+  }, [allInventoryItems])
+
+  // 5. Low Stock Alerts list (Real items below reorder level)
   const lowStockAlertsList = useMemo(() => {
-    return [
-      {
-        name: 'Metformin 500mg',
-        sku: 'MET-500-T',
-        stockText: '12 / 240 (5%)',
-        percentage: 5,
-        barColor: 'bg-[#c0201f]',
-        btnVariant: 'danger' as const
-      },
-      {
-        name: 'Donepezil 5mg',
-        sku: 'DON-005-T',
-        stockText: '8 / 60 (13%)',
-        percentage: 13,
-        barColor: 'bg-[#c0201f]',
-        btnVariant: 'danger' as const
-      },
-      {
-        name: 'Atorvastatin 20mg',
-        sku: 'ATO-020-T',
-        stockText: '18 / 120 (15%)',
-        percentage: 15,
-        barColor: 'bg-amber-500',
-        btnVariant: 'dark' as const
-      }
-    ]
-  }, [])
+    const lows = allInventoryItems
+      .filter(i => i.status === 'critical' || i.status === 'low' || i.currentStock <= i.reorderLevel)
+      .sort((a, b) => (a.currentStock / a.maxStock) - (b.currentStock / b.maxStock))
 
-  // Action handlers
-  const handleOpenAction = (item: SkuItem, action: string) => {
+    return lows.slice(0, 4).map(item => {
+      const percentage = Math.round((item.currentStock / item.maxStock) * 100)
+      const isCritical = item.status === 'critical' || percentage <= 15
+      return {
+        item,
+        name: item.name,
+        sku: item.sku,
+        stockText: `${formatQuantity(item.currentStock)} / ${formatQuantity(item.maxStock)} ${item.unit.toLowerCase()} (${percentage}%)`,
+        percentage,
+        barColor: isCritical ? 'bg-[#c0201f]' : 'bg-amber-500',
+        btnVariant: isCritical ? ('danger' as const) : ('dark' as const)
+      }
+    })
+  }, [allInventoryItems])
+
+  // Action Handlers
+  const handleOpenAction = (item: SmokeyInventoryItem, action: string) => {
     setActionItem({ item, action })
-    setActionQuantity(action === 'Reorder' || action === 'Restock' ? '100' : '0')
+    setActionQuantity(action === 'Reorder' || action === 'Restock' ? String(Math.max(item.reorderLevel * 2, 20)) : '0')
+    setActionPoRef(`PO-${new Date().getFullYear()}-${item.sku.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4)}-${Math.floor(100 + Math.random() * 900)}`)
     setActionNotes('')
   }
 
@@ -365,24 +359,26 @@ export const AccountHomePage: React.FC = () => {
     e.preventDefault()
     if (!actionItem) return
 
-    const qty = parseInt(actionQuantity, 10) || 0
+    const qty = parseFloat(actionQuantity) || 0
     if (qty > 0) {
-      setSkus(prev =>
-        prev.map(i => {
-          if (i.id === actionItem.item.id) {
-            const nextStock = Math.min(i.maxStock, i.currentStock + qty)
-            return {
-              ...i,
-              currentStock: nextStock,
-              status: nextStock > i.maxStock * 0.3 ? 'healthy' : i.status
-            }
-          }
-          return i
+      if (actionItem.item.itemType === 'raw') {
+        receiveRawStock({
+          supplierId: parseInt(actionSupplierId, 10) || 2,
+          productId: actionItem.item.originalId,
+          quantity: qty,
+          unitCost: actionItem.item.unitCost,
+          notes: `${actionItem.action} via Account Hub. Ref: ${actionPoRef}. ${actionNotes}`
         })
-      )
+      } else if (actionItem.item.itemType === 'packaging') {
+        receivePackaging({
+          productId: actionItem.item.originalId,
+          quantity: qty,
+          unitCost: actionItem.item.unitCost
+        })
+      }
     }
 
-    setToastMessage(`Successfully processed ${actionItem.action} for ${actionItem.item.name}`)
+    setToastMessage(`Confirmed ${actionItem.action} for ${actionItem.item.name} (${qty} ${actionItem.item.unit})`)
     setTimeout(() => setToastMessage(null), 3500)
     setActionItem(null)
   }
@@ -391,25 +387,23 @@ export const AccountHomePage: React.FC = () => {
     e.preventDefault()
     if (!newStockForm.name.trim()) return
 
-    const newItem: SkuItem = {
-      id: `sku-${Date.now()}`,
-      name: newStockForm.name.trim(),
-      sku: newStockForm.sku.trim() || `SKU-${Date.now().toString().slice(-4)}`,
-      batch: newStockForm.batch.trim() || `Batch B-${Date.now().toString().slice(-3)}`,
-      category: newStockForm.category,
-      currentStock: parseInt(newStockForm.stock, 10) || 50,
-      maxStock: parseInt(newStockForm.maxStock, 10) || 100,
-      unit: newStockForm.unit || 'units',
-      expiryDate: newStockForm.expiryDate || 'Dec 2026',
-      expiryText: 'in 220 days',
-      daysToExpiry: 220,
-      status: 'healthy',
-      priority: 'normal'
-    }
+    const qty = parseFloat(newStockForm.stock) || 0
+    const reorder = parseFloat(newStockForm.reorderLevel) || 10
+    const cost = parseFloat(newStockForm.unitCost) || 5000
 
-    setSkus(prev => [newItem, ...prev])
+    saveRawProduct({
+      name: newStockForm.name.trim(),
+      sku: newStockForm.sku.trim() || `SKU-${Date.now().toString().slice(-5)}`,
+      unit: newStockForm.unit.trim().toUpperCase() || 'PIECES',
+      unit_cost: cost,
+      reorder_level: reorder,
+      stock_qty: qty,
+      is_perishable: newStockForm.category === 'Raw Proteins',
+      expiry_date: newStockForm.expiryDate
+    })
+
     setIsAddStockModalOpen(false)
-    setToastMessage(`Added new stock item: ${newItem.name}`)
+    setToastMessage(`Successfully registered ${newStockForm.name} in inventory`)
     setTimeout(() => setToastMessage(null), 3500)
   }
 
@@ -425,51 +419,27 @@ export const AccountHomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Top Operational Bar: Brand & Shift Info (Matches Mockup Top Header) */}
+      {/* Top Operational Bar: Brand & Shift Info (Remapped to Smokey Operations Hub) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 py-1">
-        {/* Left: RxFlow / Pharmacy or Smokey Ops brand */}
+        {/* Left: Brand & Facility Indicator */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-600 dark:bg-emerald-700 flex items-center justify-center text-white shadow-xs">
-              <span className="font-bold text-sm leading-none">+</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#c0201f] flex items-center justify-center text-white shadow-xs">
+              <Flame className="w-4 h-4 fill-current" />
             </div>
             <div className="flex items-center gap-1.5 text-sm font-semibold tracking-tight text-kumo-strong">
-              <span>RxFlow</span>
+              <span>Smokey Hut</span>
               <span className="text-kumo-subtle font-normal">/</span>
-              <span className="text-kumo-subtle font-normal">Pharmacy</span>
+              <span className="text-kumo-subtle font-normal">Operations & Inventory Hub</span>
             </div>
           </div>
 
-          {/* Quick toggle pill */}
-          <div className="hidden md:flex items-center bg-kumo-tint p-0.5 rounded-lg border border-kumo-line text-[11px]">
-            <button
-              type="button"
-              onClick={() => setActiveView('pharmacy')}
-              className={cn(
-                'px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer',
-                activeView === 'pharmacy'
-                  ? 'bg-kumo-base text-kumo-strong shadow-2xs'
-                  : 'text-kumo-subtle hover:text-kumo-strong'
-              )}
-            >
-              Pharmacy Inventory View
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('ops')}
-              className={cn(
-                'px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer',
-                activeView === 'ops'
-                  ? 'bg-kumo-base text-kumo-strong shadow-2xs'
-                  : 'text-kumo-subtle hover:text-kumo-strong'
-              )}
-            >
-              Smokey Kitchen & Fleet Pulse
-            </button>
-          </div>
+          <span className="hidden md:inline-block px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-primary/10 text-primary border border-primary/20">
+            Lekki Central Depot
+          </span>
         </div>
 
-        {/* Right: Shift Pill, Bell, Share, User Profile */}
+        {/* Right: Operational Shift Pill, Bell, Share, User Profile */}
         <div className="flex items-center gap-2.5 self-end sm:self-auto">
           {/* Shift Pill */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-300 text-xs font-medium">
@@ -480,15 +450,23 @@ export const AccountHomePage: React.FC = () => {
           {/* Icon Button: Bell */}
           <button
             type="button"
-            className="size-8 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
+            onClick={() => setToastMessage(`Active alerts: ${lowStockCount} items below reorder, ${expiringCount} perishable items expiring`)}
+            className="size-8 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer relative"
             title="Operational Notifications"
           >
             <Bell className="w-3.5 h-3.5" />
+            {lowStockCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c0201f] ring-2 ring-kumo-canvas" />
+            )}
           </button>
 
           {/* Icon Button: Share / Copy */}
           <button
             type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(window.location.href)
+              setToastMessage('Copied dashboard link to clipboard!')
+            }}
             className="size-8 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
             title="Share Dashboard"
           >
@@ -498,19 +476,19 @@ export const AccountHomePage: React.FC = () => {
           {/* User Profile Mini Card */}
           <Link
             to="/auth"
-            className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-kumo-line bg-kumo-base hover:bg-kumo-tint transition-colors cursor-pointer"
-            title="Aria Devani · Senior Pharmacist - RPh (Click to view Auth Screen)"
+            className="flex items-center gap-2 pl-2 pr-2 py-1 rounded-full border border-kumo-line bg-kumo-base hover:bg-kumo-tint transition-colors cursor-pointer"
+            title="Pitmaster Babajide · Lead Operations & Kitchen Director (Click for Auth Screen)"
           >
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1594824813589-4a9f390d4023?auto=format&fit=crop&w=80&q=80"
-                alt="Aria Devani"
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80"
+                alt="Babajide Ogundipe"
                 className="w-6 h-6 rounded-full object-cover border border-kumo-line"
               />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-black" />
             </div>
-            <span className="hidden xl:inline text-xs font-semibold text-kumo-strong pr-1">
-              Aria Devani
+            <span className="hidden xl:inline text-xs font-semibold text-kumo-strong">
+              Babajide (Pitmaster)
             </span>
           </Link>
         </div>
@@ -523,11 +501,18 @@ export const AccountHomePage: React.FC = () => {
             Inventory
           </h1>
           <p className="text-xs text-kumo-subtle mt-0.5">
-            1,247 SKUs · 8 below reorder · 12 expiring within 30 days
+            {totalSkuCount} SKUs · {lowStockCount} below reorder · {expiringCount} expiring within 30 days
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/inventory/raw')}
+            className="h-9 px-3 text-xs"
+          >
+            Inventory Management
+          </Button>
           <Button
             variant="primary"
             onClick={() => setIsAddStockModalOpen(true)}
@@ -539,24 +524,24 @@ export const AccountHomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Metric KPI Cards (Exact replica of Mockup) */}
+      {/* 4 Metric KPI Cards (Remapped to Smokey Hut Operations Data) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: TOTAL PRESCRIPTIONS */}
+        {/* Metric 1: TOTAL WORKING INVENTORY */}
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Total Prescriptions
+              Total Inventory Valuation
             </span>
             <div className="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
-              R
+              ₦
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
-              1,247
+              {formatNaira(totalValuation)}
             </span>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              +18 new this week
+              {totalSkuCount} SKUs
             </span>
           </div>
         </div>
@@ -573,19 +558,19 @@ export const AccountHomePage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
-              8
+              {lowStockCount}
             </span>
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-              +2 below reorder point
+              +{lowStockCount} below reorder point
             </span>
           </div>
         </div>
 
-        {/* Metric 3: EXPIRING 30D */}
+        {/* Metric 3: EXPIRING 30D (Perishable FEFO Lots) */}
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Expiring 30D
+              Expiring 30D (FEFO)
             </span>
             <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
@@ -593,10 +578,10 @@ export const AccountHomePage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
-              12
+              {expiringCount}
             </span>
             <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-              3 urgent within 7 days
+              {allInventoryItems.filter(i => i.isPerishable && i.daysToExpiry <= 7).length} urgent within 7 days
             </span>
           </div>
         </div>
@@ -613,10 +598,10 @@ export const AccountHomePage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-tight text-kumo-strong">
-              3
+              {outOfStockCount}
             </span>
             <span className="text-xs font-medium text-kumo-subtle">
-              -1 vs yesterday
+              needs supplier PO
             </span>
           </div>
         </div>
@@ -634,18 +619,18 @@ export const AccountHomePage: React.FC = () => {
                 Stock items
               </span>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
-                11 alerts
+                {lowStockCount + outOfStockCount} alerts
               </span>
             </div>
 
-            {/* Controls: Search input, Status filter, Priority filter, Maximize */}
+            {/* Controls: Search input, Category filter, Status filter, Priority filter, Maximize */}
             <div className="flex items-center flex-wrap gap-2 text-xs">
               {/* Search Bar */}
-              <div className="relative min-w-[200px]">
+              <div className="relative min-w-[190px]">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search drug, SKU, batch..."
+                  placeholder="Search meat, spices, packaging..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
@@ -653,6 +638,27 @@ export const AccountHomePage: React.FC = () => {
                   }}
                   className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
                 />
+              </div>
+
+              {/* Category Select */}
+              <div className="relative">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value)
+                    setCurrentPage(1)
+                  }}
+                  className="h-8 pl-2.5 pr-7 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default appearance-none focus:outline-none cursor-pointer"
+                >
+                  <option value="all">All categories</option>
+                  <option value="Raw Proteins">Raw Proteins</option>
+                  <option value="Spices & Seasoning">Spices & Seasoning</option>
+                  <option value="Fuel & Charcoal">Fuel & Charcoal</option>
+                  <option value="Cooking Oils">Cooking Oils</option>
+                  <option value="Packaging Materials">Packaging</option>
+                  <option value="Finished Goods">Finished Goods</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
               </div>
 
               {/* Status Select */}
@@ -696,8 +702,15 @@ export const AccountHomePage: React.FC = () => {
               {/* Maximize Icon */}
               <button
                 type="button"
+                onClick={() => {
+                  setSearchQuery('')
+                  setStatusFilter('all')
+                  setCategoryFilter('all')
+                  setPriorityFilter('all')
+                  setToastMessage('Filters reset to default')
+                }}
                 className="size-8 rounded-lg border border-kumo-line bg-kumo-canvas hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
-                title="Expand View"
+                title="Reset Filters"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
@@ -709,7 +722,7 @@ export const AccountHomePage: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-kumo-line bg-kumo-canvas/40 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
-                  <th className="py-2.5 px-4 font-semibold">DRUG</th>
+                  <th className="py-2.5 px-4 font-semibold">ITEM / SKU</th>
                   <th className="py-2.5 px-4 font-semibold">CATEGORY</th>
                   <th className="py-2.5 px-4 font-semibold">STOCK</th>
                   <th className="py-2.5 px-4 font-semibold">NEXT EXPIRY</th>
@@ -718,21 +731,21 @@ export const AccountHomePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-kumo-line/60">
-                {filteredSkus.length === 0 ? (
+                {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-kumo-subtle">
+                    <td colSpan={6} className="py-10 text-center text-kumo-subtle">
                       No stock items match your filter criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredSkus.map((item) => {
-                    const percent = Math.round((item.currentStock / item.maxStock) * 100)
+                  filteredItems.map((item) => {
+                    const percent = Math.min(100, Math.round((item.currentStock / item.maxStock) * 100))
                     
                     // Determine stock progress bar color
                     let barColor = 'bg-emerald-500'
-                    if (item.status === 'critical' || percent <= 10) {
+                    if (item.status === 'critical' || percent <= 15) {
                       barColor = 'bg-[#c0201f]'
-                    } else if (item.status === 'low' || percent <= 25) {
+                    } else if (item.status === 'low' || percent <= 30) {
                       barColor = 'bg-amber-500'
                     } else if (item.status === 'expiring') {
                       barColor = 'bg-orange-500'
@@ -745,7 +758,7 @@ export const AccountHomePage: React.FC = () => {
                         key={item.id}
                         className="hover:bg-kumo-tint/40 transition-colors group"
                       >
-                        {/* Drug & SKU/Batch */}
+                        {/* Item Name & SKU / Batch Lot */}
                         <td className="py-3 px-4">
                           <div className={cn(
                             'font-semibold',
@@ -756,7 +769,7 @@ export const AccountHomePage: React.FC = () => {
                             {item.name}
                           </div>
                           <div className="text-[11px] text-kumo-subtle mt-0.5">
-                            {item.sku} · {item.batch}
+                            {item.sku} · {item.batchLot}
                           </div>
                         </td>
 
@@ -768,18 +781,18 @@ export const AccountHomePage: React.FC = () => {
                         {/* Stock with Mini Progress Bar */}
                         <td className="py-3 px-4 min-w-[130px]">
                           <div className="font-medium text-kumo-strong flex items-center gap-1">
-                            <span>{item.currentStock}</span>
-                            <span className="text-kumo-subtle text-[11px]">/ {item.maxStock} {item.unit}</span>
+                            <span>{formatQuantity(item.currentStock)}</span>
+                            <span className="text-kumo-subtle text-[11px]">/ {formatQuantity(item.maxStock)} {item.unit.toLowerCase()}</span>
                           </div>
                           <div className="w-24 h-1.5 rounded-full bg-kumo-line mt-1.5 overflow-hidden">
                             <div
                               className={cn('h-full rounded-full transition-all duration-300', barColor)}
-                              style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+                              style={{ width: `${percent}%` }}
                             />
                           </div>
                         </td>
 
-                        {/* Next Expiry */}
+                        {/* Next Expiry (FEFO countdown) */}
                         <td className="py-3 px-4">
                           <div className="text-kumo-strong font-medium">
                             {item.expiryDate}
@@ -787,7 +800,7 @@ export const AccountHomePage: React.FC = () => {
                           <div className={cn(
                             'text-[11px] mt-0.5',
                             item.daysToExpiry <= 7 ? 'text-rose-600 font-semibold dark:text-rose-400' :
-                            item.daysToExpiry <= 30 ? 'text-amber-600 font-medium dark:text-amber-400' :
+                            item.daysToExpiry <= 14 ? 'text-amber-600 font-medium dark:text-amber-400' :
                             'text-kumo-subtle'
                           )}>
                             {item.expiryText}
@@ -828,7 +841,7 @@ export const AccountHomePage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Action Buttons (Matches Mockup button colors) */}
+                        {/* Action Buttons */}
                         <td className="py-3 px-4 text-right">
                           {item.status === 'critical' ? (
                             <button
@@ -883,7 +896,7 @@ export const AccountHomePage: React.FC = () => {
           {/* Table Footer: Pagination */}
           <div className="p-3 border-t border-kumo-line bg-kumo-canvas/30 flex items-center justify-between text-xs text-kumo-subtle">
             <div>
-              Showing {filteredSkus.length} of 1,247 SKUs
+              Showing {filteredItems.length} of {totalSkuCount} SKUs
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -923,37 +936,41 @@ export const AccountHomePage: React.FC = () => {
 
         {/* Right Column (4 cols ~ 30%): Expiring Soon & Low Stock Alerts */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Widget 1: Expiring Soon */}
+          {/* Widget 1: Expiring Soon (FEFO Lots) */}
           <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
               <h3 className="text-sm font-bold text-kumo-strong">
-                Expiring Soon
+                Expiring Soon (FEFO)
               </h3>
               <span className="text-[11px] text-kumo-subtle font-medium">
-                12 within 30 days
+                {expiringCount} within 30 days
               </span>
             </div>
 
             <div className="space-y-3">
-              {expiringSoonList.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-xs">
-                  {/* Square Days Badge */}
-                  <div className={cn('size-11 rounded-lg flex flex-col items-center justify-center shrink-0 font-bold leading-tight select-none', item.badgeBg)}>
-                    <span className="text-sm font-extrabold">{item.days}</span>
-                    <span className="text-[8px] uppercase tracking-wider font-semibold opacity-90">DAYS</span>
-                  </div>
+              {expiringSoonList.length === 0 ? (
+                <p className="text-xs text-kumo-subtle py-2 text-center">No lots expiring within 30 days.</p>
+              ) : (
+                expiringSoonList.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 text-xs">
+                    {/* Square Days Badge */}
+                    <div className={cn('size-11 rounded-lg flex flex-col items-center justify-center shrink-0 font-bold leading-tight select-none', item.badgeBg)}>
+                      <span className="text-sm font-extrabold">{item.days}</span>
+                      <span className="text-[8px] uppercase tracking-wider font-semibold opacity-90">DAYS</span>
+                    </div>
 
-                  {/* Title & Sub */}
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-kumo-strong truncate">
-                      {item.name}
-                    </div>
-                    <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
-                      {item.sub}
+                    {/* Title & Sub */}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-kumo-strong truncate">
+                        {item.name}
+                      </div>
+                      <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
+                        {item.sub}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="pt-2 border-t border-kumo-line/60">
@@ -961,11 +978,11 @@ export const AccountHomePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setStatusFilter('expiring')
-                  setToastMessage('Filtered table to show all expiring SKUs')
+                  setToastMessage('Filtered table to show expiring FEFO lots')
                 }}
                 className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
-                <span>View all 12 expiring</span>
+                <span>View all expiring lots</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -978,59 +995,49 @@ export const AccountHomePage: React.FC = () => {
                 Low Stock Alerts
               </h3>
               <span className="text-[11px] text-kumo-subtle font-medium">
-                8 below reorder
+                {lowStockCount} below reorder
               </span>
             </div>
 
             <div className="space-y-3.5">
-              {lowStockAlertsList.map((item, idx) => (
-                <div key={idx} className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-kumo-strong">{item.name}</div>
-                      <div className="text-[11px] text-kumo-subtle">{item.sku}</div>
+              {lowStockAlertsList.length === 0 ? (
+                <p className="text-xs text-kumo-subtle py-2 text-center">All inventory above safety buffer.</p>
+              ) : (
+                lowStockAlertsList.map((entry, idx) => (
+                  <div key={idx} className="space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-kumo-strong">{entry.name}</div>
+                        <div className="text-[11px] text-kumo-subtle">{entry.sku}</div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAction(entry.item, 'Reorder')}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer shadow-2xs',
+                          entry.btnVariant === 'danger'
+                            ? 'bg-[#c0201f] text-white hover:bg-[#a01817]'
+                            : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700'
+                        )}
+                      >
+                        Reorder
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenAction({
-                        id: `low-${idx}`,
-                        name: item.name,
-                        sku: item.sku,
-                        batch: 'Immediate',
-                        category: 'Low Buffer',
-                        currentStock: 10,
-                        maxStock: 100,
-                        unit: 'units',
-                        expiryDate: '2026',
-                        expiryText: 'Valid',
-                        daysToExpiry: 180,
-                        status: 'critical',
-                        priority: 'urgent'
-                      }, 'Reorder')}
-                      className={cn(
-                        'px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer shadow-2xs',
-                        item.btnVariant === 'danger'
-                          ? 'bg-[#c0201f] text-white hover:bg-[#a01817]'
-                          : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700'
-                      )}
-                    >
-                      Reorder
-                    </button>
-                  </div>
+                    <div className="flex items-center justify-between text-[11px] text-kumo-subtle font-medium">
+                      <span>{entry.stockText}</span>
+                    </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-kumo-subtle font-medium">
-                    <span>{item.stockText}</span>
+                    <div className="w-full h-1.5 rounded-full bg-kumo-line overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full transition-all duration-300', entry.barColor)}
+                        style={{ width: `${entry.percentage}%` }}
+                      />
+                    </div>
                   </div>
-
-                  <div className="w-full h-1.5 rounded-full bg-kumo-line overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full transition-all duration-300', item.barColor)}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="pt-2 border-t border-kumo-line/60">
@@ -1038,11 +1045,11 @@ export const AccountHomePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setStatusFilter('low')
-                  setToastMessage('Filtered table to show all low stock items')
+                  setToastMessage('Filtered table to show low stock items')
                 }}
                 className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
-                <span>View all 8 low stock</span>
+                <span>View all low stock alerts</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1054,13 +1061,13 @@ export const AccountHomePage: React.FC = () => {
       <Dialog
         isOpen={isAddStockModalOpen}
         onClose={() => setIsAddStockModalOpen(false)}
-        title="Add Stock Item to Inventory"
-        description="Register a new SKU, medication, or operational raw material in this facility."
+        title="Register New Inventory SKU"
+        description="Add a raw protein, spice blend, packaging stock, or fuel material to Smokey Hut."
       >
         <form onSubmit={handleAddStockSubmit} className="space-y-4 text-xs font-sans">
           <Input
-            label="Item / Drug Name"
-            placeholder="e.g. Amoxicillin Clavulanate 625mg"
+            label="Item Description / Material Name"
+            placeholder="e.g. Fresh Quail / Applewood Smoking Chips"
             value={newStockForm.name}
             onChange={(e) => setNewStockForm(prev => ({ ...prev, name: e.target.value }))}
             required
@@ -1069,17 +1076,16 @@ export const AccountHomePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="SKU Code"
-              placeholder="e.g. AMX-625-T"
+              placeholder="e.g. SKU-00045"
               value={newStockForm.sku}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, sku: e.target.value }))}
               required
             />
             <Input
-              label="Batch / Lot Number"
-              placeholder="e.g. Batch B8821"
+              label="FEFO Lot / Consignment #"
+              placeholder="e.g. LOT-QUA-1002"
               value={newStockForm.batch}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, batch: e.target.value }))}
-              required
             />
           </div>
 
@@ -1093,21 +1099,18 @@ export const AccountHomePage: React.FC = () => {
                 onChange={(e) => setNewStockForm(prev => ({ ...prev, category: e.target.value }))}
                 className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none"
               >
-                <option value="Antidiabetic">Antidiabetic</option>
-                <option value="Statin">Statin</option>
-                <option value="Antibiotic">Antibiotic</option>
-                <option value="Anticoagulant">Anticoagulant</option>
-                <option value="Hormone">Hormone</option>
-                <option value="ACE inhibitor">ACE inhibitor</option>
-                <option value="Bronchodilator">Bronchodilator</option>
-                <option value="Raw Protein">Raw Protein (Smokey)</option>
-                <option value="Wood & Fuel">Wood & Fuel (Smokey)</option>
+                <option value="Raw Proteins">Raw Proteins</option>
+                <option value="Spices & Seasoning">Spices & Seasoning</option>
+                <option value="Fuel & Charcoal">Fuel & Charcoal</option>
+                <option value="Cooking Oils">Cooking Oils</option>
+                <option value="Packaging Materials">Packaging Materials</option>
+                <option value="Finished Goods">Finished Goods</option>
               </select>
             </div>
 
             <Input
-              label="Unit Type"
-              placeholder="tabs, caps, vials, kg"
+              label="Unit of Measurement"
+              placeholder="PIECES, KG, BUNDLE, ROLLS"
               value={newStockForm.unit}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, unit: e.target.value }))}
               required
@@ -1116,30 +1119,39 @@ export const AccountHomePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Initial Quantity"
+              label="Initial Quantity On-Hand"
               type="number"
-              placeholder="100"
+              placeholder="50"
               value={newStockForm.stock}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, stock: e.target.value }))}
               required
             />
             <Input
-              label="Max Stock Capacity"
+              label="Reorder Safety Buffer"
               type="number"
-              placeholder="250"
-              value={newStockForm.maxStock}
-              onChange={(e) => setNewStockForm(prev => ({ ...prev, maxStock: e.target.value }))}
+              placeholder="20"
+              value={newStockForm.reorderLevel}
+              onChange={(e) => setNewStockForm(prev => ({ ...prev, reorderLevel: e.target.value }))}
               required
             />
           </div>
 
-          <Input
-            label="Expiry Date"
-            placeholder="e.g. Nov 2026"
-            value={newStockForm.expiryDate}
-            onChange={(e) => setNewStockForm(prev => ({ ...prev, expiryDate: e.target.value }))}
-            required
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Unit Cost (₦)"
+              type="number"
+              placeholder="6500"
+              value={newStockForm.unitCost}
+              onChange={(e) => setNewStockForm(prev => ({ ...prev, unitCost: e.target.value }))}
+              required
+            />
+            <Input
+              label="Expiry Date (if perishable)"
+              type="date"
+              value={newStockForm.expiryDate}
+              onChange={(e) => setNewStockForm(prev => ({ ...prev, expiryDate: e.target.value }))}
+            />
+          </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-kumo-line">
             <Button
@@ -1150,7 +1162,7 @@ export const AccountHomePage: React.FC = () => {
               Cancel
             </Button>
             <Button variant="primary" type="submit">
-              Save & Register Stock
+              Save & Credit Stock
             </Button>
           </div>
         </form>
@@ -1162,32 +1174,42 @@ export const AccountHomePage: React.FC = () => {
           isOpen={true}
           onClose={() => setActionItem(null)}
           title={`${actionItem.action}: ${actionItem.item.name}`}
-          description={`Execute inventory action for ${actionItem.item.sku} (${actionItem.item.batch}).`}
+          description={`Execute inventory action for ${actionItem.item.sku} (${actionItem.item.batchLot}).`}
         >
           <form onSubmit={handleConfirmAction} className="space-y-4 text-xs font-sans">
             <div className="p-3 rounded-lg bg-kumo-canvas border border-kumo-line space-y-1">
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Current Stock:</span>
-                <span className="font-semibold text-kumo-strong">{actionItem.item.currentStock} / {actionItem.item.maxStock} {actionItem.item.unit}</span>
+                <span className="text-kumo-subtle">Current On-Hand:</span>
+                <span className="font-semibold text-kumo-strong">
+                  {formatQuantity(actionItem.item.currentStock)} {actionItem.item.unit.toLowerCase()}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Expiry Status:</span>
-                <span className="font-semibold text-kumo-strong">{actionItem.item.expiryDate} ({actionItem.item.expiryText})</span>
+                <span className="text-kumo-subtle">Reorder Level:</span>
+                <span className="font-semibold text-kumo-strong">
+                  {formatQuantity(actionItem.item.reorderLevel)} {actionItem.item.unit.toLowerCase()}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Category:</span>
-                <span className="font-semibold text-kumo-strong">{actionItem.item.category}</span>
+                <span className="text-kumo-subtle">Expiry / FEFO:</span>
+                <span className="font-semibold text-kumo-strong">
+                  {actionItem.item.expiryDate} ({actionItem.item.expiryText})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Unit Cost:</span>
+                <span className="font-semibold text-kumo-strong">{formatNaira(actionItem.item.unitCost)}</span>
               </div>
             </div>
 
             {actionItem.action === 'Inspect' ? (
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-kumo-strong">
-                  Inspection Notes & Quality Clearance
+                  Quality Clearance & Cold-Chain Storage Notes
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Record batch condition, storage temperature, packaging seal..."
+                  placeholder="Record freezer temperature, marinade vacuum seal, meat color..."
                   value={actionNotes}
                   onChange={(e) => setActionNotes(e.target.value)}
                   className="w-full p-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none"
@@ -1196,25 +1218,55 @@ export const AccountHomePage: React.FC = () => {
               </div>
             ) : actionItem.action === 'View' ? (
               <div className="space-y-2 text-kumo-subtle">
-                <p>This item is currently healthy and within standard operational parameters.</p>
-                <p>Last checked: Today by Aria Devani (Senior Pharmacist · RPh).</p>
+                <p>This inventory material is healthy and within optimal operational thresholds.</p>
+                <p>Managed by: Pitmaster Babajide (Lekki Central Facility).</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label={`Reorder Quantity (${actionItem.item.unit})`}
+                    type="number"
+                    value={actionQuantity}
+                    onChange={(e) => setActionQuantity(e.target.value)}
+                    required
+                  />
+                  <div>
+                    <label className="block text-xs font-semibold text-kumo-strong mb-1.5">
+                      Supplier / Vendor
+                    </label>
+                    <select
+                      value={actionSupplierId}
+                      onChange={(e) => setActionSupplierId(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none"
+                    >
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <Input
-                  label={`Order Quantity (${actionItem.item.unit})`}
-                  type="number"
-                  placeholder="e.g. 100"
-                  value={actionQuantity}
-                  onChange={(e) => setActionQuantity(e.target.value)}
+                  label="Purchase Order Ref / Delivery Waybill"
+                  value={actionPoRef}
+                  onChange={(e) => setActionPoRef(e.target.value)}
                   required
                 />
+
                 <Input
-                  label="Supplier / Purchase Order Ref"
-                  placeholder="e.g. PO-2026-MED-092"
+                  label="Special Receiving Instructions (Optional)"
+                  placeholder="e.g. Weigh on scale upon delivery at back dock"
                   value={actionNotes}
                   onChange={(e) => setActionNotes(e.target.value)}
                 />
+
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-between text-xs">
+                  <span>Estimated Total Invoiced:</span>
+                  <span className="font-bold text-sm">
+                    {formatNaira((parseFloat(actionQuantity) || 0) * actionItem.item.unitCost)}
+                  </span>
+                </div>
               </div>
             )}
 
