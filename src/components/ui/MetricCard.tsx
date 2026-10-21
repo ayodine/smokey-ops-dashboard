@@ -122,10 +122,10 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   const accentBorders = {
     default: '',
-    danger: 'border-l-2 border-l-kumo-danger',
-    warning: 'border-l-2 border-l-kumo-warning',
-    success: 'border-l-2 border-l-kumo-success',
-    info: 'border-l-2 border-l-kumo-brand',
+    danger: '',
+    warning: '',
+    success: '',
+    info: '',
   }
 
   const isNoData = isExplicitNoData

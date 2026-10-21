@@ -884,7 +884,7 @@ export const RawInventoryPage: React.FC = () => {
           value={nearExpiryCount}
           description="Batches expiring within 4 days"
           icon={<Calendar className="w-4 h-4 text-amber-500" />}
-          variant={nearExpiryCount > 0 ? "warning" : "default"}
+          variant="default"
         />
         <MetricCard
           title="Stock Discrepancies"
@@ -1151,16 +1151,16 @@ export const RawInventoryPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
             <Input
               label="SKU Code"
               value={productForm.sku}
               onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
               required
             />
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-kumo-strong">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between leading-4">
+                <label className="block text-xs font-medium text-kumo-strong leading-4">
                   Unit of Measure <span className="text-kumo-danger">*</span>
                 </label>
                 <button
@@ -1174,7 +1174,7 @@ export const RawInventoryPage: React.FC = () => {
                       setCustomUnitText(productForm.unit || '')
                     }
                   }}
-                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-4"
                 >
                   {isCustomUnitMode ? (
                     '← Standard list'
@@ -1206,6 +1206,7 @@ export const RawInventoryPage: React.FC = () => {
                 </div>
               ) : (
                 <Select
+                  size="sm"
                   value={
                     ALL_INVENTORY_UNITS.some(u => u.value === productForm.unit)
                       ? productForm.unit
@@ -1225,7 +1226,7 @@ export const RawInventoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
             <Input
               label="Standard Unit Cost (₦)"
               type="number"

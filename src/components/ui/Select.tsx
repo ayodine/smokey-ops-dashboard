@@ -48,7 +48,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       required = false,
       id,
       name,
-      size = 'md',
+      size = 'sm',
       children,
     },
     ref
@@ -210,12 +210,12 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       <div
         ref={containerRef}
         data-kumo-component="Select"
-        className={cn('w-full space-y-1 select-none relative', className)}
+        className={cn('w-full space-y-1.5 select-none relative', className)}
       >
         {label && (
           <label
             htmlFor={generatedId}
-            className="block text-xs font-medium text-kumo-strong"
+            className="block text-xs font-medium text-kumo-strong leading-4"
           >
             {label}
             {required && <span className="text-kumo-danger ml-0.5">*</span>}
@@ -240,7 +240,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             aria-expanded={isOpen}
             className={cn(
               'flex w-full items-center justify-between rounded-lg bg-background border border-border/80 pl-3.5 pr-3 text-left text-xs sm:text-sm text-foreground shadow-2xs transition-all cursor-pointer select-none',
-              size === 'sm' ? 'h-8.5 py-1 text-xs' : 'h-10 py-2',
+              size === 'sm' ? 'h-9 py-1.5 text-xs' : 'h-9 sm:h-10 py-1.5 sm:py-2 text-xs sm:text-sm',
               'hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary',
               disabled && 'opacity-50 cursor-not-allowed bg-muted/20',
               error && 'border-rose-500 focus:ring-rose-500',

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { useTheme } from '@/context/ThemeContext'
 import {
@@ -24,6 +25,7 @@ interface TopNavProps {
 }
 
 export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenCommandMenu }) => {
+  const navigate = useNavigate()
   const { selectedWarehouse, setSelectedWarehouse, facilities, addFacility } = useWarehouse()
   const { theme, toggleTheme } = useTheme()
   const [isWarehouseDropdownOpen, setIsWarehouseDropdownOpen] = useState(false)
@@ -116,37 +118,90 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
               <div className="absolute right-0 mt-1.5 w-80 rounded-lg border border-kumo-line bg-kumo-base shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans">
                 <div className="px-3.5 py-2.5 border-b border-kumo-line flex items-center justify-between">
                   <span className="text-xs font-semibold text-kumo-strong">
-                    Operational Alerts
+                    Alerts
                   </span>
                   <span className="text-[10px] bg-[#f6821f]/15 text-[#f6821f] px-1.5 py-0.5 rounded-full font-bold">
                     3 Active
                   </span>
                 </div>
-                <div className="divide-y divide-kumo-line text-xs">
-                  <div className="p-3 hover:bg-kumo-tint transition-colors flex gap-2.5">
+                <div className="divide-y divide-kumo-line text-xs max-h-[340px] overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/inventory/raw')
+                      setIsAlertsOpen(false)
+                    }}
+                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
+                  >
                     <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-kumo-strong">
-                        Low Stock Alert: Hardwood Charcoal
-                      </p>
-                      <p className="text-kumo-subtle text-[11px] mt-0.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
+                          Low Stock Alert: Hardwood Charcoal
+                        </p>
+                        <span className="text-[10px] text-kumo-subtle shrink-0">12m ago</span>
+                      </div>
+                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
                         Current: 14 kg. Below safety threshold of 50 kg.
                       </p>
-                      <span className="text-[10px] text-kumo-subtle">12 mins ago</span>
+                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
+                        <span>View raw inventory</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
                     </div>
-                  </div>
-                  <div className="p-3 hover:bg-kumo-tint transition-colors flex gap-2.5">
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/production/batches')
+                      setIsAlertsOpen(false)
+                    }}
+                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
+                  >
                     <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-kumo-strong">
-                        QC Inspection Passed: Batch PRD-2026-081
-                      </p>
-                      <p className="text-kumo-subtle text-[11px] mt-0.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
+                          QC Inspection Passed: Batch PRD-2026-081
+                        </p>
+                        <span className="text-[10px] text-kumo-subtle shrink-0">45m ago</span>
+                      </div>
+                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
                         120 units Whole Smoked Chicken credited to stock.
                       </p>
-                      <span className="text-[10px] text-kumo-subtle">45 mins ago</span>
+                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
+                        <span>View production batches</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
                     </div>
-                  </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/logistics/schedule')
+                      setIsAlertsOpen(false)
+                    }}
+                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
+                  >
+                    <ArrowRight className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
+                          Scheduled Dispatch: Lekki Phase 1
+                        </p>
+                        <span className="text-[10px] text-kumo-subtle shrink-0">1h ago</span>
+                      </div>
+                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
+                        3 scheduled delivery orders awaiting rider assignment.
+                      </p>
+                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
+                        <span>Open delivery schedule</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </button>
                 </div>
               </div>
             </>
@@ -265,7 +320,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     })}
                 </div>
 
-                {/* Action Footer: + Add New Operational Facility */}
+                {/* Action Footer: + Add New Branch/Office */}
                 <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
                   <button
                     type="button"
@@ -273,7 +328,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
                   >
                     <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                    <span>Add New Operational Facility</span>
+                    <span>Add New Branch/Office</span>
                   </button>
                 </div>
               </div>
@@ -282,17 +337,17 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
         </div>
       </div>
 
-      {/* MODAL: Register New Operational Facility */}
+      {/* MODAL: Register New Branch/Office */}
       <Dialog
         isOpen={isAddFacilityModalOpen}
         onClose={() => setIsAddFacilityModalOpen(false)}
-        title="Register New Operational Facility"
-        description="Add a regional fulfillment depot, dark kitchen, or retail collection center."
+        title="Register New Branch/Office"
+        description="Add a regional branch office, fulfillment depot, or dark kitchen."
       >
         <form onSubmit={handleAddFacilitySubmit} className="space-y-4">
           <Input
-            label="Facility Name"
-            placeholder="e.g. Lekki Distribution Depot"
+            label="Branch / Office Name"
+            placeholder="e.g. Lekki Branch Office"
             value={facilityForm.name}
             onChange={(e) => setFacilityForm(prev => ({ ...prev, name: e.target.value }))}
             required
@@ -300,8 +355,8 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Facility Code"
-              placeholder="e.g. DEPOT-LEKKI"
+              label="Branch / Office Code"
+              placeholder="e.g. BR-LEKKI"
               value={facilityForm.code}
               onChange={(e) => setFacilityForm(prev => ({ ...prev, code: e.target.value }))}
               required
@@ -331,7 +386,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
               Cancel
             </Button>
             <Button variant="primary" type="submit">
-              Save & Switch Facility
+              Save & Switch Branch/Office
             </Button>
           </div>
         </form>

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
-import { RiderPayout } from '@/lib/smokeyData'
+import { RiderPayout, LogisticsDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -179,6 +179,182 @@ export const DeliveryTeamPage: React.FC = () => {
   const riderTrips = logisticsDeliveries.filter(d => 
     selectedRider && (d.assigned_rider_id === selectedRider.rider_user_id || d.assigned_rider === selectedRider.rider_name)
   )
+
+  interface DriverKycRow {
+    id: string
+    category: string
+    field: string
+    value: string
+    details: string
+  }
+
+  const kycRows: DriverKycRow[] = useMemo(() => {
+    if (!selectedRider) return []
+    return [
+      {
+        id: '1',
+        category: 'Fleet Asset',
+        field: 'Vehicle Model',
+        value: selectedRider.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
+        details: 'Approved Fleet Dispatch Vehicle',
+      },
+      {
+        id: '2',
+        category: 'Fleet Asset',
+        field: 'Plate Number',
+        value: selectedRider.plate_number || 'LND-482-XA',
+        details: 'Verified Road Registration',
+      },
+      {
+        id: '3',
+        category: 'Operations',
+        field: 'Assigned Hub Station',
+        value: selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
+        details: 'Primary Fulfillment Hub',
+      },
+      {
+        id: '4',
+        category: 'Identity & Legal',
+        field: "Driver's License No.",
+        value: selectedRider.license_number || 'DL-98234-LAG',
+        details: `Valid through ${selectedRider.license_expiry || 'Nov 2027'}`,
+      },
+      {
+        id: '5',
+        category: 'Identity & Legal',
+        field: 'National ID / NIN',
+        value: selectedRider.national_id_nin || '7829-4821-9921',
+        details: 'NIMC Identity Verified',
+      },
+      {
+        id: '6',
+        category: 'Financial Risk',
+        field: 'Max COD Cash Limit',
+        value: formatNaira(selectedRider.cod_limit || 50000),
+        details: 'Maximum cash hold before mandatory remittance',
+      },
+      {
+        id: '7',
+        category: 'Emergency Contact',
+        field: 'Emergency Contact',
+        value: `${selectedRider.emergency_contact || 'Next of Kin'} (${selectedRider.emergency_phone || '08023456789'})`,
+        details: 'Verified Next of Kin on File',
+      },
+      {
+        id: '8',
+        category: 'Operations',
+        field: 'Date Onboarded',
+        value: selectedRider.date_joined || '12 Feb 2025',
+        details: 'Active since onboarding date',
+      },
+    ]
+  }, [selectedRider, selectedWarehouse, facilities])
+
+  const kycColumns: ColumnDef<DriverKycRow>[] = [
+    {
+      key: 'category',
+      header: 'Category',
+      defaultWidth: 140,
+      accessor: (r) => (
+        <span className="text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
+          {r.category}
+        </span>
+      ),
+    },
+    {
+      key: 'field',
+      header: 'Attribute / Document',
+      defaultWidth: 180,
+      accessor: (r) => (
+        <span className="font-semibold text-kumo-strong text-xs">
+          {r.field}
+        </span>
+      ),
+    },
+    {
+      key: 'value',
+      header: 'KYC Record',
+      defaultWidth: 200,
+      accessor: (r) => (
+        <span className="font-mono text-xs text-kumo-strong font-medium bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line inline-block">
+          {r.value}
+        </span>
+      ),
+    },
+    {
+      key: 'details',
+      header: 'Verification & Details',
+      accessor: (r) => (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-kumo-subtle">{r.details}</span>
+          <StatusBadge status="active" label="VERIFIED" size="sm" />
+        </div>
+      ),
+    },
+  ]
+
+  const riderTripColumns: ColumnDef<LogisticsDelivery>[] = [
+    {
+      key: 'order_ref',
+      header: 'Order Ref',
+      defaultWidth: 130,
+      accessor: (t) => (
+        <span className="px-2 py-0.5 bg-kumo-tint text-kumo-strong font-mono font-semibold rounded text-xs border border-kumo-line">
+          {t.order_ref}
+        </span>
+      ),
+    },
+    {
+      key: 'customer',
+      header: 'Customer & Address',
+      defaultWidth: 260,
+      accessor: (t) => (
+        <div className="min-w-0">
+          <div className="font-semibold text-kumo-strong text-xs truncate">{t.customer_name}</div>
+          <div className="text-[11px] text-kumo-subtle truncate mt-0.5">{t.address}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'payment_mode',
+      header: 'Payment Mode',
+      defaultWidth: 150,
+      accessor: (t) => (
+        t.payment_mode === 'cod' ? (
+          <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 rounded">
+            COD Remittance
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 rounded">
+            Prepaid Online
+          </span>
+        )
+      ),
+    },
+    {
+      key: 'delivery_fee',
+      header: 'Delivery Fee',
+      defaultWidth: 130,
+      align: 'right',
+      accessor: (t) => (
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-sans text-xs">
+          +{formatNaira(t.delivery_fee)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Trip Status',
+      defaultWidth: 120,
+      accessor: (t) => (
+        <StatusBadge
+          status={t.status === 'delivered' ? 'active' : 'pending'}
+          label={t.status.toUpperCase()}
+          size="sm"
+        />
+      ),
+    },
+  ]
 
   const columns: ColumnDef<RiderPayout>[] = [
     {
@@ -578,7 +754,7 @@ export const DeliveryTeamPage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: DRIVER PROFILE & KYC (Sections 5.1 & 5.2) */}
+          {/* TAB 2: DRIVER PROFILE & KYC (Using Design System DataTable) */}
           {modalTab === 'profile' && selectedRider && (
             <div className="space-y-4">
               {/* Driver Header Card */}
@@ -619,137 +795,55 @@ export const DeliveryTeamPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Profile Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
-                {/* Vehicle & Hub Station */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5">
-                  <div className="font-semibold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-kumo-line">
-                    <Bike className="w-4 h-4 text-primary" />
-                    <span>Vehicle & Dispatch Hub</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Vehicle Model:</span>
-                    <span className="font-semibold text-kumo-strong">{selectedRider.vehicle_type || 'Bajaj Boxer 150 Motorcycle'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Plate Number:</span>
-                    <span className="font-mono font-semibold text-kumo-strong">{selectedRider.plate_number || 'LND-482-XA'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Operating Hub:</span>
-                    <span className="font-semibold text-kumo-strong">{selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Date Onboarded:</span>
-                    <span className="text-kumo-default">{selectedRider.date_joined || '12 Feb 2025'}</span>
-                  </div>
+              {/* Operational Reliability Matrix */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
+                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">On-Time Delivery</span>
+                  <span className="text-base font-bold text-emerald-600 block mt-0.5">
+                    {selectedRider.on_time_rate || 98.4}%
+                  </span>
                 </div>
-
-                {/* Verification & Safety KYC */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5">
-                  <div className="font-semibold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-kumo-line">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>License & Safety Verification</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Driver's License:</span>
-                    <span className="font-mono font-semibold text-kumo-strong">{selectedRider.license_number || 'DL-98234-LAG'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">License Expiry:</span>
-                    <span className="text-emerald-600 font-medium">{selectedRider.license_expiry || 'Nov 2027'} (Valid)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">National ID / NIN:</span>
-                    <span className="font-mono font-semibold text-kumo-strong">{selectedRider.national_id_nin || '7829-4821-9921'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Max Cash Limit:</span>
-                    <span className="font-semibold text-kumo-strong">{formatNaira(selectedRider.cod_limit || 50000)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-kumo-subtle">Emergency Contact:</span>
-                    <span className="font-medium text-kumo-strong">{selectedRider.emergency_contact || 'Next of Kin'} ({selectedRider.emergency_phone || '08023456789'})</span>
-                  </div>
+                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
+                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Customer Rating</span>
+                  <span className="text-base font-bold text-amber-500 block mt-0.5">
+                    {selectedRider.rating?.toFixed(1) || '4.9'} / 5.0
+                  </span>
+                </div>
+                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
+                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">COD Remittance</span>
+                  <span className="text-base font-bold text-emerald-600 block mt-0.5">
+                    100% Reconciled
+                  </span>
                 </div>
               </div>
 
-              {/* Operational Reliability Matrix */}
-              <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl">
-                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2.5">
-                  Operational Reliability Scores
+              {/* Verified Profile & KYC DataTable */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
+                  Driver Profile & Verified KYC Records
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                    <span className="text-[10px] text-kumo-subtle block">On-Time Delivery</span>
-                    <span className="text-base font-bold text-emerald-600 block mt-0.5">
-                      {selectedRider.on_time_rate || 98.4}%
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                    <span className="text-[10px] text-kumo-subtle block">Customer Rating</span>
-                    <span className="text-base font-bold text-amber-500 block mt-0.5">
-                      {selectedRider.rating?.toFixed(1) || '4.9'} / 5.0
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                    <span className="text-[10px] text-kumo-subtle block">COD Remittance</span>
-                    <span className="text-base font-bold text-emerald-600 block mt-0.5">
-                      100% Reconciled
-                    </span>
-                  </div>
-                </div>
+                <DataTable
+                  data={kycRows}
+                  columns={kycColumns}
+                />
               </div>
             </div>
           )}
 
-          {/* TAB 3: TRIPS HISTORY */}
+          {/* TAB 3: TRIPS HISTORY (Using Design System DataTable) */}
           {modalTab === 'trips' && (
             <div className="space-y-3 font-sans">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
                   Dispatch & Delivery History ({riderTrips.length})
                 </span>
-                <span className="text-[11px] text-kumo-subtle">Recent order runs assigned</span>
+                <span className="text-[11px] text-kumo-subtle">Recent order runs assigned to this rider</span>
               </div>
 
-              <div className="space-y-2">
-                {riderTrips.map((trip) => (
-                  <div
-                    key={trip.id}
-                    className="p-3 bg-kumo-surface border border-kumo-line rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-kumo-line-strong transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="px-2 py-0.5 bg-kumo-tint text-kumo-strong font-semibold rounded text-[11px] border border-kumo-line shrink-0">
-                        {trip.order_ref}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-kumo-strong font-medium truncate">{trip.customer_name}</div>
-                        <div className="text-[11px] text-kumo-subtle truncate max-w-xs">{trip.address}</div>
-                      </div>
-                      {trip.payment_mode === 'cod' && (
-                        <span className="px-1.5 py-0.2 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded">
-                          COD
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        +{formatNaira(trip.delivery_fee)}
-                      </span>
-                      <StatusBadge
-                        status={trip.status === 'delivered' ? 'active' : 'pending'}
-                        label={trip.status.toUpperCase()}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {riderTrips.length === 0 && (
-                  <div className="text-xs text-kumo-subtle italic py-6 text-center border border-dashed border-kumo-line rounded-xl">
-                    No active trip dispatches recorded for this driver today.
-                  </div>
-                )}
-              </div>
+              <DataTable
+                data={riderTrips}
+                columns={riderTripColumns}
+              />
             </div>
           )}
           </div>

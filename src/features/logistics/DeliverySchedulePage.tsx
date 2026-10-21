@@ -119,7 +119,7 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 180,
+      defaultWidth: 230,
       accessor: (o) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-2">
           {o.can_start_schedule ? (
@@ -137,7 +137,7 @@ export const DeliverySchedulePage: React.FC = () => {
             <Tooltip content="Open Kitchen Packaging Execution & Pack Queue table">
               <Link
                 to="/production/packaging"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400 rounded-lg transition-colors group font-sans whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 rounded-lg transition-colors group font-sans whitespace-nowrap shrink-0 shadow-2xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>In Packaging Queue</span>

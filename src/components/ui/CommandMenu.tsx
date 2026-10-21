@@ -140,7 +140,7 @@ const COMMAND_INDEX: CommandItem[] = [
   },
   {
     id: 'page-3pl',
-    title: 'Courier Fees & Delivery',
+    title: 'Third Party Delivery',
     subtitle: 'Third-party dispatch logistics, customer fees vs courier costs',
     category: 'Pages',
     href: '/logistics/third-party',

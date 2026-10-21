@@ -15,11 +15,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const generatedId = id || autoId
 
     return (
-      <div className="w-full space-y-1 select-none">
+      <div className="w-full space-y-1.5 select-none">
         {label && (
           <label
             htmlFor={generatedId}
-            className="block text-xs font-medium text-kumo-default"
+            className="block text-xs font-medium text-kumo-strong leading-4"
           >
             {label}
             {props.required && <span className="text-kumo-danger ml-0.5">*</span>}
@@ -36,7 +36,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             ref={ref}
             className={cn(
-              'block w-full h-8.5 rounded-lg bg-kumo-base ring ring-kumo-line px-3 py-1.5 text-xs text-kumo-default placeholder:text-kumo-placeholder focus:outline-none focus:ring-2 focus:ring-kumo-brand transition-colors',
+              'block w-full h-9 rounded-lg bg-kumo-base ring ring-kumo-line px-3 py-2 text-xs text-kumo-default placeholder:text-kumo-placeholder focus:outline-none focus:ring-2 focus:ring-kumo-brand transition-colors',
               leftIcon && 'pl-8.5',
               rightIcon && 'pr-8.5',
               error && 'ring-kumo-danger focus:ring-kumo-danger',

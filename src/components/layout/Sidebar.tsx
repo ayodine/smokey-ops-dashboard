@@ -20,9 +20,16 @@ import {
   LogOut,
   UserPlus,
   MapPin,
+  Settings,
+  Key,
+  Copy,
+  Eye,
+  EyeOff,
+  RefreshCw,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
+import { Button } from '@/components/ui/Button'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { SignInActivityModal } from './SignInActivityModal'
 
@@ -84,7 +91,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '11' },
       { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '11' },
       { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '11' },
-      { label: 'Courier Fees & Delivery', href: '/logistics/third-party', badge: '12' },
+      { label: 'Third Party Delivery', href: '/logistics/third-party', badge: '12' },
     ],
   },
 ]
@@ -112,9 +119,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [accountSearchQuery, setAccountSearchQuery] = useState('')
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
+  const [isManageAccountOpen, setIsManageAccountOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState<UserRole>('admin')
+  const [newUsername, setNewUsername] = useState('')
+  const [newTempPassword, setNewTempPassword] = useState(() => `Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+  const [showPassword, setShowPassword] = useState(false)
+  const [mustChangePassword, setMustChangePassword] = useState(true)
+  const [copiedTempCreds, setCopiedTempCreds] = useState(false)
+  const [createdAccountSummary, setCreatedAccountSummary] = useState<{
+    name: string
+    email: string
+    username: string
+    tempPass: string
+    role: string
+  } | null>(null)
   const [newPhone, setNewPhone] = useState('')
   const [newStaffId, setNewStaffId] = useState('')
   const [newAssignedHub, setNewAssignedHub] = useState(selectedWarehouse?.name || 'Yaba Head Office')
@@ -144,9 +164,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       dispatcher: 'Logistics Dispatcher',
       rider: 'Delivery Fleet Rider',
     }
+    const derivedUsername = newUsername.trim() || newEmail.split('@')[0].toLowerCase()
+    const finalPassword = newTempPassword.trim() || `Smk@${Math.floor(1000 + Math.random() * 9000)}!`
+    const accName = newName.trim() || newEmail.split('@')[0]
+
     createAccount({
       email: newEmail.trim(),
-      name: newName.trim() || newEmail.split('@')[0],
+      name: accName,
       role: newRole,
       roleLabel: roleLabels[newRole],
       phone: newPhone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
@@ -158,8 +182,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       license_number: newRole === 'rider' ? (newLicenseNumber.trim() || 'DL-98234-LAG') : undefined,
       cod_limit: newRole === 'rider' ? Number(newCodLimit) : undefined,
     })
+
+    setCreatedAccountSummary({
+      name: accName,
+      email: newEmail.trim(),
+      username: derivedUsername,
+      tempPass: finalPassword,
+      role: roleLabels[newRole],
+    })
+
     setNewEmail('')
     setNewName('')
+    setNewUsername('')
+    setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
     setNewPhone('')
     setNewStaffId('')
     setNewNationalId('')
@@ -336,7 +371,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 )}
               </div>
 
-              {/* Action Footer: + Create Account */}
+              {/* Action Footer: + Create Account & Manage Account */}
               <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
                 <button
                   type="button"
@@ -344,10 +379,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                     setIsAccountMenuOpen(false)
                     setIsCreateAccountOpen(true)
                   }}
-                  className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
+                  className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
                 >
                   <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
                   <span>Create Account</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false)
+                    setIsManageAccountOpen(true)
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80 rounded-b-2xl"
+                >
+                  <Settings className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
+                  <span>Manage Account</span>
                 </button>
               </div>
             </div>
@@ -772,6 +818,77 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </div>
           )}
 
+          {/* Temporary Sign-in Credentials Flow */}
+          <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-amber-500" />
+                <span>Temporary Sign-in Credentials</span>
+              </div>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
+                Auto-Provisioned
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                  Sign-in Username / Handle
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newUsername || (newEmail ? newEmail.split('@')[0].toLowerCase() : '')}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="e.g. yusuf.ops"
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    Temporary Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
+                    className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    <span>Regenerate</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={newTempPassword}
+                    onChange={(e) => setNewTempPassword(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 text-xs font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-0.5 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={mustChangePassword}
+                onChange={(e) => setMustChangePassword(e.target.checked)}
+                className="rounded border-zinc-300 text-primary focus:ring-primary w-3.5 h-3.5"
+              />
+              <span>Force password change on first sign-in (Recommended)</span>
+            </label>
+          </div>
+
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
             <button
               type="button"
@@ -789,6 +906,155 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </button>
           </div>
         </form>
+      </Dialog>
+
+      {/* Manage Account Modal */}
+      <Dialog
+        isOpen={isManageAccountOpen}
+        onClose={() => setIsManageAccountOpen(false)}
+        title="Manage Account"
+        description="Active operator credentials, security status, and hub access."
+        maxWidth="md"
+      >
+        <div className="space-y-4 font-sans text-xs">
+          <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-lg flex items-center justify-center shrink-0">
+                {currentAccount.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-sm text-kumo-strong truncate">{currentAccount.name}</h4>
+                  <span className="px-2 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 rounded-md">
+                    {currentAccount.roleLabel}
+                  </span>
+                </div>
+                <p className="text-kumo-subtle text-xs truncate mt-0.5">{currentAccount.email}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2 text-xs">
+            <div className="flex justify-between py-1 border-b border-kumo-line/60">
+              <span className="text-kumo-subtle">Staff / Employee ID:</span>
+              <span className="font-mono font-semibold text-kumo-strong">{currentAccount.staff_id || 'SHD-OPS-001'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-kumo-line/60">
+              <span className="text-kumo-subtle">Assigned Branch / Hub:</span>
+              <span className="font-semibold text-kumo-strong">{currentAccount.assigned_hub || selectedWarehouse?.name || 'Yaba Head Office'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-kumo-line/60">
+              <span className="text-kumo-subtle">Session Authentication:</span>
+              <span className="font-medium text-emerald-600 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Active Verified SSO Session
+              </span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-kumo-subtle">Access Role Scope:</span>
+              <span className="text-kumo-strong uppercase font-bold text-[10px] tracking-wider bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line">
+                {currentAccount.role}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsManageAccountOpen(false)
+                setIsActivityModalOpen(true)
+              }}
+              className="px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>View Sign-in Activity</span>
+            </button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setIsManageAccountOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Temporary Credentials Provisioned Confirmation */}
+      <Dialog
+        isOpen={Boolean(createdAccountSummary)}
+        onClose={() => setCreatedAccountSummary(null)}
+        title="Temporary Credentials Created"
+        description="Provide these temporary access credentials to the newly created operator."
+        maxWidth="md"
+      >
+        {createdAccountSummary && (
+          <div className="space-y-4 font-sans text-xs">
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2 text-amber-900 dark:text-amber-200">
+              <div className="font-semibold text-xs flex items-center gap-1.5">
+                <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Onboarding Credentials for {createdAccountSummary.name}</span>
+              </div>
+              <p className="text-[11px] opacity-90 leading-relaxed">
+                A temporary password has been set. The operator will be prompted to choose a permanent password on first login.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Username:</span>
+                <span className="font-mono font-bold text-kumo-strong text-xs px-2 py-1 bg-kumo-base border border-kumo-line rounded">
+                  {createdAccountSummary.username}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Account Email:</span>
+                <span className="font-mono font-medium text-kumo-strong text-xs">
+                  {createdAccountSummary.email}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Temporary Password:</span>
+                <span className="font-mono font-bold text-emerald-600 text-xs px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
+                  {createdAccountSummary.tempPass}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Role:</span>
+                <span className="font-semibold text-kumo-strong capitalize">
+                  {createdAccountSummary.role}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `Smokey Hut Ops Login\nUsername: ${createdAccountSummary.username}\nEmail: ${createdAccountSummary.email}\nTemp Password: ${createdAccountSummary.tempPass}\nRole: ${createdAccountSummary.role}`
+                  navigator.clipboard.writeText(text)
+                  setCopiedTempCreds(true)
+                  setTimeout(() => setCopiedTempCreds(false), 2000)
+                }}
+                className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-kumo-tint hover:bg-kumo-line border border-kumo-line text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {copiedTempCreds ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedTempCreds ? 'Copied to Clipboard' : 'Copy Credentials'}</span>
+              </button>
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                onClick={() => setCreatedAccountSummary(null)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </>
   )

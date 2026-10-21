@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { KumoTabs } from '@/components/ui/Tabs'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, cn } from '@/lib/utils'
 import { 
   Building, 
   TrendingDown, 
@@ -195,7 +195,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
-        title="Courier Fees & Delivery Audit"
+        title="Third Party Delivery & Invoice Audit"
         subtitle="Monitor delivery charges billed to customers versus actual courier fees invoiced by delivery partners."
       />
 
@@ -270,144 +270,102 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         maxWidth="lg"
       >
         <div className="space-y-4 font-sans">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Provider:</span>
-              <span className="font-semibold text-kumo-strong">{selectedDelivery?.assigned_rider}</span>
+          {/* Unified Invoice Summary Card */}
+          <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3 font-sans">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-kumo-line/60">
+              <div>
+                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Courier Provider</div>
+                <div className="text-sm font-bold text-kumo-strong mt-0.5">{selectedDelivery?.assigned_rider}</div>
+              </div>
+              <div className="text-left sm:text-right">
+                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Destination</div>
+                <div className="text-xs font-medium text-kumo-default truncate max-w-xs mt-0.5">{selectedDelivery?.address}</div>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Destination:</span>
-              <span className="text-kumo-strong font-medium truncate max-w-xs">{selectedDelivery?.address}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Customer Paid:</span>
-              <span className="text-emerald-600 font-semibold font-sans">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Booked / Invoiced Fee:</span>
-              <span className="text-red-600 font-semibold font-sans">{formatNaira(selectedDelivery?.booked_fee || 0)}</span>
-            </div>
-            <div className="flex justify-between items-center pt-1 border-t border-kumo-line/60">
-              <span className="text-kumo-subtle font-medium">Variance:</span>
-              <span className={`font-semibold font-sans ${((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                {((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0
-                  ? `Subsidy Deficit: ${formatNaira(Math.abs((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)))}`
-                  : `Margin Retained: +${formatNaira((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0))}`}
-              </span>
+
+            {/* Financial Metrics Strip */}
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[10px] text-kumo-subtle block font-medium">Customer Paid</span>
+                <span className="text-xs sm:text-sm font-bold text-emerald-600 block mt-0.5">
+                  {formatNaira(selectedDelivery?.delivery_fee || 0)}
+                </span>
+              </div>
+              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[10px] text-kumo-subtle block font-medium">Billed Courier Fee</span>
+                <span className="text-xs sm:text-sm font-bold text-red-600 block mt-0.5">
+                  {formatNaira(selectedDelivery?.booked_fee || 0)}
+                </span>
+              </div>
+              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[10px] text-kumo-subtle block font-medium">Variance</span>
+                <span className={cn(
+                  "text-xs sm:text-sm font-bold block mt-0.5",
+                  ((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0 ? 'text-red-600' : 'text-emerald-600'
+                )}>
+                  {((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0
+                    ? `-${formatNaira(Math.abs((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)))}`
+                    : `+${formatNaira((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0))}`}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Interactive Viewable Waybill Proof of Delivery Slip */}
-          <div className="border border-kumo-line rounded-lg p-3 bg-kumo-surface dark:bg-kumo-surface space-y-2 font-sans">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4" />
+          {/* Clean Waybill Proof Attachment Row */}
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-kumo-base border border-kumo-line text-kumo-strong flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-kumo-subtle" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-kumo-strong truncate">
+                  Waybill Proof of Delivery Slip
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-kumo-strong">Waybill Proof of Delivery Slip</div>
-                  <div className="text-[11px] text-kumo-subtle">
-                    {selectedDelivery?.fee_evidence_path?.startsWith('data:')
-                      ? `Proof attached during courier assignment (${selectedDelivery.assigned_rider})`
-                      : `WB-${selectedDelivery?.order_ref}-POD • Verified GPS Courier Dispatch`}
-                  </div>
+                <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
+                  WB-{selectedDelivery?.order_ref}-POD • Verified GPS Dispatch
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="xs"
-                type="button"
-                onClick={() => setIsSlipViewerOpen(true)}
-                className="shrink-0 flex items-center gap-1.5 cursor-pointer text-xs"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                View Slip
-              </Button>
             </div>
-
-            {/* Clickable Preview Card */}
-            <div
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
               onClick={() => setIsSlipViewerOpen(true)}
-              className="relative group rounded-md border border-kumo-line overflow-hidden bg-kumo-base p-2.5 flex items-center justify-between gap-3 cursor-pointer hover:border-primary/50 transition-colors"
+              className="shrink-0 flex items-center gap-1.5 cursor-pointer text-xs"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                {selectedDelivery?.fee_evidence_path?.startsWith('data:') ? (
-                  <div className="relative w-14 h-14 rounded border border-kumo-line overflow-hidden shrink-0 bg-muted/20">
-                    <img
-                      src={selectedDelivery.fee_evidence_path}
-                      alt="Waybill Proof of Delivery Slip"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Maximize2 className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 rounded border border-kumo-line bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 flex flex-col items-center justify-center shrink-0 text-amber-700 dark:text-amber-400">
-                    <Receipt className="w-5 h-5 mb-0.5" />
-                    <span className="text-[9px] font-bold tracking-wider uppercase">POD SLIP</span>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-kumo-strong truncate">
-                    WB-{selectedDelivery?.order_ref}-POD • {selectedDelivery?.assigned_rider}
-                  </div>
-                  <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
-                    {selectedDelivery?.fee_evidence_path?.startsWith('data:')
-                      ? 'Custom proof image uploaded during courier assignment'
-                      : `Delivery recipient: ${selectedDelivery?.customer_name}`}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                      <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                      Proof Attached
-                    </span>
-                    <span className="text-[10px] text-primary font-medium flex items-center gap-0.5 group-hover:underline">
-                      Click to inspect <ExternalLink className="w-2.5 h-2.5" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+              <Eye className="w-3.5 h-3.5" />
+              <span>Inspect Slip</span>
+            </Button>
           </div>
 
           <Input
             label="Audit Notes (Optional for Flagging)"
-            placeholder="e.g. Courier surcharge exceeded quota by ₦700 due to rain spike"
+            placeholder="e.g. Courier surcharge exceeded quota by ₦700 due to weather surge"
             value={verificationNote}
             onChange={(e) => setVerificationNote(e.target.value)}
           />
 
-          {/* Responsive Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-3 border-t border-kumo-line font-sans w-full">
-            <Button
-              variant="secondary"
-              size="md"
-              type="button"
-              className="w-full sm:w-auto cursor-pointer"
-              onClick={() => setIsEvidenceModalOpen(false)}
-            >
-              Cancel
-            </Button>
+          {/* Action Buttons: Only Flag Overcharge or Approve Invoice, spanning full width */}
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-kumo-line font-sans w-full">
             <Button
               variant="outline"
               size="md"
               type="button"
-              className="w-full sm:w-auto text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40 dark:border-red-800 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40 dark:border-red-800 cursor-pointer flex items-center justify-center gap-1.5"
               onClick={() => handleActionVerify('flagged')}
             >
               <X className="w-4 h-4 shrink-0" />
-              Flag Overcharge
+              <span>Flag Overcharge</span>
             </Button>
             <Button
               variant="primary"
               size="md"
               type="button"
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer flex items-center justify-center gap-1.5"
               onClick={() => handleActionVerify('approved')}
             >
               <Check className="w-4 h-4 shrink-0" />
-              Approve Invoice
+              <span>Approve Invoice</span>
             </Button>
           </div>
         </div>

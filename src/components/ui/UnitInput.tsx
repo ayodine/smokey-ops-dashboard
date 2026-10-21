@@ -128,9 +128,9 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   return (
     <div className={cn('space-y-1.5 font-sans w-full min-w-0', className)}>
       {label && (
-        <label className="block text-xs font-medium text-kumo-strong">
+        <label className="block text-xs font-medium text-kumo-strong leading-4">
           {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <span className="text-kumo-danger ml-0.5">*</span>}
         </label>
       )}
 

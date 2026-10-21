@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useLayoutEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface TooltipProps {
@@ -15,6 +15,35 @@ export const Tooltip: React.FC<TooltipProps> = ({
   className,
 }) => {
   const [isVisible, setIsVisible] = useState(false)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const [clampedStyle, setClampedStyle] = useState<React.CSSProperties>({})
+
+  useLayoutEffect(() => {
+    if (isVisible && tooltipRef.current) {
+      const rect = tooltipRef.current.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const padding = 12 // minimum safe distance from screen edge
+
+      let shiftX = 0
+      if (rect.left < padding) {
+        shiftX = padding - rect.left
+      } else if (rect.right > viewportWidth - padding) {
+        shiftX = (viewportWidth - padding) - rect.right
+      }
+
+      if (shiftX !== 0) {
+        if (position === 'top' || position === 'bottom') {
+          setClampedStyle({
+            transform: `translateX(calc(-50% + ${Math.round(shiftX)}px))`
+          })
+        }
+      } else {
+        setClampedStyle({})
+      }
+    } else {
+      setClampedStyle({})
+    }
+  }, [isVisible, position])
 
   if (!content) return <>{children}</>
 
@@ -37,9 +66,12 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {children}
       {isVisible && (
         <div
+          ref={tooltipRef}
           role="tooltip"
+          style={clampedStyle}
           className={cn(
-            'absolute z-50 px-2 py-1 text-[11px] font-medium text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 rounded-md shadow-lg pointer-events-none whitespace-nowrap transition-all duration-150 font-sans',
+            'absolute z-50 px-2.5 py-1.5 text-[11px] font-medium text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 rounded-lg shadow-lg pointer-events-none transition-opacity duration-150 font-sans',
+            'max-w-[280px] sm:max-w-xs w-max whitespace-normal break-words text-center leading-snug',
             posClasses[position]
           )}
         >
