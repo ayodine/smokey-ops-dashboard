@@ -15,7 +15,7 @@ import {
   Search,
   ChevronsUpDown,
   Check,
-  User,
+  Plus,
   ShieldCheck,
   LogOut,
 } from 'lucide-react'
@@ -97,13 +97,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     return localStorage.getItem('ops_sidebar_collapsed') === 'true'
   })
 
-  const { activeAccountEmail, currentAccount, switchAccount, availableAccounts } = useSmokeyOps()
+  const { activeAccountEmail, currentAccount, switchAccount, availableAccounts, createAccount } = useSmokeyOps()
 
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
 
-  // Account dropdown state
+  // Account dropdown and creation state
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
+  const [accountSearchQuery, setAccountSearchQuery] = useState('')
+  const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newRole, setNewRole] = useState<'admin' | 'manager' | 'rider'>('admin')
+
+  const filteredAccounts = useMemo(() => {
+    if (!accountSearchQuery.trim()) return availableAccounts
+    const q = accountSearchQuery.toLowerCase()
+    return availableAccounts.filter(acc =>
+      acc.email.toLowerCase().includes(q) ||
+      acc.name.toLowerCase().includes(q)
+    )
+  }, [availableAccounts, accountSearchQuery])
+
+  const handleCreateAccount = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEmail.trim()) return
+    const roleLabels = {
+      admin: 'Administrator',
+      manager: 'Operations Manager',
+      rider: 'Delivery Rider',
+    }
+    createAccount({
+      email: newEmail.trim(),
+      name: newName.trim() || newEmail.split('@')[0],
+      role: newRole,
+      roleLabel: roleLabels[newRole],
+    })
+    setNewEmail('')
+    setNewName('')
+    setIsCreateAccountOpen(false)
+  }
 
   // Recents collapsible state
   const [isRecentsOpen, setIsRecentsOpen] = useState(true)
@@ -185,18 +218,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           <div className="flex h-[58px] shrink-0 items-center justify-between px-3">
             <button
               type="button"
-              onClick={() => setIsAccountMenuOpen(prev => !prev)}
-              className="flex items-center gap-2.5 min-w-0 flex-1 text-left hover:bg-kumo-tint py-1.5 px-2 -ml-2 rounded-lg cursor-pointer transition-colors"
+              onClick={() => {
+                setIsAccountMenuOpen(prev => !prev)
+                setAccountSearchQuery('')
+              }}
+              className="flex items-center justify-between gap-1.5 min-w-0 flex-1 max-w-[200px] text-left bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 py-1.5 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer transition-colors shadow-2xs"
             >
-              {/* Person Profile Icon */}
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                <User className="w-3.5 h-3.5" />
-              </div>
-
-              <span className="text-xs font-semibold text-kumo-strong truncate flex-1 tracking-normal">
-                {currentAccount.email.length > 20 ? `${currentAccount.email.slice(0, 16)}...` : currentAccount.email}
+              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                {currentAccount.email.length > 18 ? `${currentAccount.email.slice(0, 16)}...` : currentAccount.email}
               </span>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-kumo-subtle shrink-0 ml-1" />
+              <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
             </button>
 
             {/* Sidebar Collapse Toggle Button */}
@@ -218,24 +249,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               className="fixed inset-0 z-40"
               onClick={() => setIsAccountMenuOpen(false)}
             />
-            <div className="absolute left-2.5 top-[50px] w-60 rounded-lg border border-kumo-line bg-kumo-base shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 text-xs">
-              <div className="px-3 py-2 border-b border-kumo-line">
-                <p className="text-[11px] text-kumo-subtle">Signed in as</p>
-                <p className="font-semibold text-kumo-strong truncate">{currentAccount.name}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className={`inline-block text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                    currentAccount.role === 'rider'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : 'bg-primary/10 text-primary'
-                  }`}>
-                    {currentAccount.roleLabel}
-                  </span>
-                  <span className="text-[10px] text-kumo-subtle truncate">{currentAccount.email}</span>
-                </div>
+            <div className="absolute left-2.5 top-[50px] w-[275px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-xs">
+              {/* Pointer Arrow Notch */}
+              <div className="absolute -top-1.5 left-7 w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200 dark:border-zinc-800 rotate-45 z-10" />
+
+              {/* Search accounts... */}
+              <div className="relative z-20 flex items-center gap-2 px-3.5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 rounded-t-xl bg-white dark:bg-zinc-900">
+                <Search className="w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                <input
+                  type="text"
+                  value={accountSearchQuery}
+                  onChange={(e) => setAccountSearchQuery(e.target.value)}
+                  placeholder="Search accounts..."
+                  autoFocus
+                  className="w-full bg-transparent text-xs text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                />
               </div>
 
-              <div className="py-1">
-                {availableAccounts.map(acc => {
+              {/* Accounts list */}
+              <div className="relative z-20 p-1.5 space-y-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-900">
+                {filteredAccounts.map(acc => {
                   const isSelected = activeAccountEmail.toLowerCase() === acc.email.toLowerCase()
                   return (
                     <button
@@ -250,39 +283,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                           navigate('/overview')
                         }
                       }}
-                      className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-kumo-tint cursor-pointer"
+                      className={cn(
+                        "w-full px-3 py-2.5 rounded-lg text-left text-xs transition-colors cursor-pointer flex items-center justify-between",
+                        isSelected
+                          ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      )}
                     >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <div className="font-semibold text-kumo-strong text-xs truncate">{acc.name}</div>
-                        <div className="text-[11px] text-kumo-subtle flex items-center gap-1.5 truncate">
-                          <span>{acc.email}</span>
-                          <span>•</span>
-                          <span className={acc.role === 'rider' ? 'text-emerald-600 font-medium' : 'text-primary font-medium'}>
-                            {acc.roleLabel}
-                          </span>
-                        </div>
-                      </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      <span className="truncate pr-2">
+                        {acc.email}'s Account
+                      </span>
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 shrink-0" />
+                      )}
                     </button>
                   )
                 })}
+                {filteredAccounts.length === 0 && (
+                  <div className="px-3 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                    No accounts found
+                  </div>
+                )}
               </div>
 
-              <div className="border-t border-kumo-line pt-1">
-                <Link
-                  to="/auth"
-                  onClick={() => setIsAccountMenuOpen(false)}
-                  className="w-full px-3 py-1.5 text-left text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint flex items-center justify-between cursor-pointer"
-                >
-                  <span>Switch Account / Sign In</span>
-                  <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono">/auth</span>
-                </Link>
+              {/* Action Footer: + Create Account */}
+              <div className="relative z-20 border-t border-zinc-100 dark:border-zinc-800 p-1 rounded-b-xl bg-white dark:bg-zinc-900">
                 <button
                   type="button"
-                  onClick={() => setIsAccountMenuOpen(false)}
-                  className="w-full px-3 py-1.5 text-left text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint cursor-pointer"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false)
+                    setIsCreateAccountOpen(true)
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-normal text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-2 cursor-pointer transition-colors"
                 >
-                  Account Settings
+                  <Plus className="w-4 h-4 text-zinc-700 dark:text-zinc-300 shrink-0" />
+                  <span>Create Account</span>
                 </button>
               </div>
             </div>
@@ -546,6 +581,79 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         isOpen={isActivityModalOpen}
         onClose={() => setIsActivityModalOpen(false)}
       />
+
+      {/* Create Account Modal */}
+      {isCreateAccountOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 w-full max-w-sm shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create Account</h3>
+              <button
+                type="button"
+                onClick={() => setIsCreateAccountOpen(false)}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAccount} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
+                <input
+                  type="email"
+                  required
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="e.g. staff@smokeyhut.com"
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Role & Permissions</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as 'admin' | 'manager' | 'rider')}
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                >
+                  <option value="admin">Administrator (Full Access)</option>
+                  <option value="manager">Operations Manager (Kitchen & Logistics)</option>
+                  <option value="rider">Delivery Rider (Fleet & Trips)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateAccountOpen(false)}
+                  className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-lg cursor-pointer shadow-xs"
+                >
+                  Create Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }

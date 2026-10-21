@@ -128,6 +128,7 @@ interface SmokeyOpsContextType {
   activeAccountEmail: string
   currentAccount: AppUserAccount
   switchAccount: (email: string) => void
+  createAccount: (account: AppUserAccount) => void
   availableAccounts: AppUserAccount[]
 
   // Feedback, Toasts & Success Confirmation Modals
@@ -204,23 +205,50 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
 
   // Account / Role Management (RBAC)
+  const [accounts, setAccounts] = useState<AppUserAccount[]>(() => {
+    const saved = localStorage.getItem('smokey_accounts')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      } catch (e) {
+        // fallback
+      }
+    }
+    return APP_ACCOUNTS
+  })
+
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
     return localStorage.getItem('smokey_active_account') || 'Ayodine47@gmail.com'
   })
 
   const currentAccount = useMemo(() => {
-    return APP_ACCOUNTS.find(a => a.email.toLowerCase() === activeAccountEmail.toLowerCase()) || APP_ACCOUNTS[0]
-  }, [activeAccountEmail])
+    return accounts.find(a => a.email.toLowerCase() === activeAccountEmail.toLowerCase()) || accounts[0]
+  }, [accounts, activeAccountEmail])
 
   const switchAccount = (email: string) => {
     setActiveAccountEmail(email)
     localStorage.setItem('smokey_active_account', email)
-    const target = APP_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase())
+    const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
     if (target?.role === 'rider') {
       showToast('Switched to Rider Yusuf profile — restricted to Logistics & Delivery operations', 'info')
     } else {
       showToast(`Switched account to ${target?.name || email} (${target?.roleLabel || 'Staff'})`, 'info')
     }
+  }
+
+  const createAccount = (newAcc: AppUserAccount) => {
+    setAccounts(prev => {
+      const exists = prev.some(a => a.email.toLowerCase() === newAcc.email.toLowerCase())
+      if (exists) {
+        return prev
+      }
+      const updated = [...prev, newAcc]
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      return updated
+    })
+    switchAccount(newAcc.email)
+    showToast(`Created account for ${newAcc.name || newAcc.email}`, 'success')
   }
 
   // Feedback: Toasts & Success Modal
@@ -1305,7 +1333,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeAccountEmail,
         currentAccount,
         switchAccount,
-        availableAccounts: APP_ACCOUNTS,
+        createAccount,
+        availableAccounts: accounts,
         toasts,
         showToast,
         dismissToast,
