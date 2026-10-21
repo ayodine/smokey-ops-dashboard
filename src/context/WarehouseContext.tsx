@@ -13,7 +13,7 @@ export const INITIAL_FACILITY: FacilityOption = {
   id: 'yaba-hq',
   code: 'HQ-YABA',
   name: 'Yaba Head Office',
-  city: 'Yaba, Lagos',
+  city: 'Lagos',
   address: '14 Commercial Avenue, Yaba, Lagos',
   isPrimary: true
 }
@@ -33,7 +33,13 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Normalize legacy 'Yaba, Lagos' redundancy to 'Lagos'
+          return parsed.map((f: FacilityOption) => ({
+            ...f,
+            city: f.city === 'Yaba, Lagos' ? 'Lagos' : f.city
+          }))
+        }
       } catch (err) {
         console.error('Failed to parse facilities', err)
       }
@@ -46,7 +52,12 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        return parsed && parsed.id ? parsed : INITIAL_FACILITY
+        if (parsed && parsed.id) {
+          return {
+            ...parsed,
+            city: parsed.city === 'Yaba, Lagos' ? 'Lagos' : parsed.city
+          }
+        }
       } catch {
         return INITIAL_FACILITY
       }

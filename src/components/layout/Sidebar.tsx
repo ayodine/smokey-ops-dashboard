@@ -22,6 +22,8 @@ import {
   MapPin,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
+import { Dialog } from '@/components/ui/Dialog'
+import { useWarehouse } from '@/context/WarehouseContext'
 import { SignInActivityModal } from './SignInActivityModal'
 
 interface NavItem {
@@ -101,6 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   })
 
   const { activeAccountEmail, currentAccount, switchAccount, availableAccounts, createAccount } = useSmokeyOps()
+  const { facilities, selectedWarehouse } = useWarehouse()
 
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
@@ -114,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   const [newRole, setNewRole] = useState<UserRole>('admin')
   const [newPhone, setNewPhone] = useState('')
   const [newStaffId, setNewStaffId] = useState('')
-  const [newAssignedHub, setNewAssignedHub] = useState('Victoria Island Central Hub')
+  const [newAssignedHub, setNewAssignedHub] = useState(selectedWarehouse?.name || 'Yaba Head Office')
   const [newNationalId, setNewNationalId] = useState('')
   const [newVehicleType, setNewVehicleType] = useState('Bajaj Boxer 150 Motorcycle')
   const [newPlateNumber, setNewPlateNumber] = useState('')
@@ -610,193 +613,183 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       />
 
       {/* Create Account Modal with Role-Based KYC */}
-      {isCreateAccountOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl space-y-4 [scrollbar-width:thin]">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Create Staff / Driver Account</h3>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Configure role permissions and operational KYC details</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateAccountOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-sm cursor-pointer"
-              >
-                ✕
-              </button>
+      <Dialog
+        isOpen={isCreateAccountOpen}
+        onClose={() => setIsCreateAccountOpen(false)}
+        title="Create Staff / Driver Account"
+        description="Configure role permissions and operational KYC details."
+        maxWidth="lg"
+      >
+        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans">
+          <Select
+            label="Role & Permissions"
+            value={newRole}
+            onValueChange={(val) => setNewRole(val as UserRole)}
+            options={[
+              { value: 'admin', label: 'Administrator (Full Access)' },
+              { value: 'manager', label: 'Operations Manager (Kitchen & Logistics)' },
+              { value: 'kitchen', label: 'Kitchen Chef / Prep Lead' },
+              { value: 'inventory', label: 'Inventory & Stock Officer' },
+              { value: 'dispatcher', label: 'Logistics Dispatcher' },
+              { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
+            ]}
+            size="sm"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Yusuf Alabi"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
             </div>
 
-            <form onSubmit={handleCreateAccount} className="space-y-3 font-sans">
-              <Select
-                label="Role & Permissions"
-                value={newRole}
-                onValueChange={(val) => setNewRole(val as UserRole)}
-                options={[
-                  { value: 'admin', label: 'Administrator (Full Access)' },
-                  { value: 'manager', label: 'Operations Manager (Kitchen & Logistics)' },
-                  { value: 'kitchen', label: 'Kitchen Chef / Prep Lead' },
-                  { value: 'inventory', label: 'Inventory & Stock Officer' },
-                  { value: 'dispatcher', label: 'Logistics Dispatcher' },
-                  { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
-                ]}
-                size="sm"
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
+              <input
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="staff@smokeyhut.com"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Yusuf Alabi"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="staff@smokeyhut.com"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    placeholder="08012345678"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Staff / Employee ID</label>
-                  <input
-                    type="text"
-                    value={newStaffId}
-                    onChange={(e) => setNewStaffId(e.target.value)}
-                    placeholder="e.g. SHD-FLT-18"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                    Operating Hub / Office
-                  </label>
-                  <div className="flex items-center justify-between h-8.5 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-xs text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      <span className="font-medium truncate">Victoria Island Central Hub</span>
-                    </div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
-                      Active HQ
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">National ID / NIN</label>
-                  <input
-                    type="text"
-                    value={newNationalId}
-                    onChange={(e) => setNewNationalId(e.target.value)}
-                    placeholder="7829-4821-9921"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-              </div>
-
-              {/* Rider Specific KYC Details */}
-              {newRole === 'rider' && (
-                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2.5 animate-in fade-in">
-                  <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                    <span>Driver Fleet KYC Details</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
-                      <input
-                        type="text"
-                        value={newVehicleType}
-                        onChange={(e) => setNewVehicleType(e.target.value)}
-                        placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
-                      <input
-                        type="text"
-                        value={newPlateNumber}
-                        onChange={(e) => setNewPlateNumber(e.target.value)}
-                        placeholder="LND-482-XA"
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
-                      <input
-                        type="text"
-                        value={newLicenseNumber}
-                        onChange={(e) => setNewLicenseNumber(e.target.value)}
-                        placeholder="DL-98234-LAG"
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
-                      <input
-                        type="number"
-                        min="5000"
-                        step="5000"
-                        value={newCodLimit}
-                        onChange={(e) => setNewCodLimit(Number(e.target.value))}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateAccountOpen(false)}
-                  className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] active:bg-[#8a1413] rounded-lg cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Create Account</span>
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Phone Number</label>
+              <input
+                type="text"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="08012345678"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Staff / Employee ID</label>
+              <input
+                type="text"
+                value={newStaffId}
+                onChange={(e) => setNewStaffId(e.target.value)}
+                placeholder="e.g. SHD-FLT-18"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                Operating Hub / Office
+              </label>
+              <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-xs text-zinc-900 dark:text-zinc-100">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="font-medium truncate">
+                    {selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                  Active HQ
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">National ID / NIN</label>
+              <input
+                type="text"
+                value={newNationalId}
+                onChange={(e) => setNewNationalId(e.target.value)}
+                placeholder="7829-4821-9921"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+          </div>
+
+          {/* Rider Specific KYC Details */}
+          {newRole === 'rider' && (
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2.5 animate-in fade-in">
+              <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                <span>Driver Fleet KYC Details</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
+                  <input
+                    type="text"
+                    value={newVehicleType}
+                    onChange={(e) => setNewVehicleType(e.target.value)}
+                    placeholder="e.g. Bajaj Boxer 150 Motorcycle"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
+                  <input
+                    type="text"
+                    value={newPlateNumber}
+                    onChange={(e) => setNewPlateNumber(e.target.value)}
+                    placeholder="LND-482-XA"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
+                  <input
+                    type="text"
+                    value={newLicenseNumber}
+                    onChange={(e) => setNewLicenseNumber(e.target.value)}
+                    placeholder="DL-98234-LAG"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
+                  <input
+                    type="number"
+                    min="5000"
+                    step="5000"
+                    value={newCodLimit}
+                    onChange={(e) => setNewCodLimit(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setIsCreateAccountOpen(false)}
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] active:bg-[#8a1413] rounded-lg cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Create Account</span>
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </>
   )
 }

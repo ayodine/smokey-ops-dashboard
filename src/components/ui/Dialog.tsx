@@ -10,6 +10,7 @@ export interface DialogProps {
   children: React.ReactNode
   footer?: React.ReactNode
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
+  className?: string
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -20,6 +21,7 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   footer,
   maxWidth = 'md',
+  className,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,7 +67,8 @@ export const Dialog: React.FC<DialogProps> = ({
         aria-labelledby="dialog-title"
         className={cn(
           'relative w-full max-h-[90vh] flex flex-col bg-kumo-base ring ring-kumo-line rounded-xl shadow-2xl transition-all overflow-hidden animate-in zoom-in-95',
-          maxWidthStyles[maxWidth]
+          maxWidthStyles[maxWidth],
+          className
         )}
       >
         {/* Header - strictly 16px text-base font-bold with balanced tracking */}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { useWarehouse } from '@/context/WarehouseContext'
 import { RiderPayout } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
@@ -36,6 +37,7 @@ import {
 
 export const DeliveryTeamPage: React.FC = () => {
   const { riders, payAndResetRider, remitCodCash, logisticsDeliveries, addRiderProfile } = useSmokeyOps()
+  const { facilities, selectedWarehouse } = useWarehouse()
   const [selectedRider, setSelectedRider] = useState<RiderPayout | null>(null)
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false)
@@ -50,7 +52,7 @@ export const DeliveryTeamPage: React.FC = () => {
     email: '',
     vehicle_type: 'Bajaj Boxer 150 Motorcycle',
     plate_number: '',
-    operating_hub: 'Victoria Island Central Hub',
+    operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
     license_number: '',
     license_expiry: 'Nov 2027',
     emergency_contact: 'Next of Kin',
@@ -160,7 +162,7 @@ export const DeliveryTeamPage: React.FC = () => {
       email: '',
       vehicle_type: 'Bajaj Boxer 150 Motorcycle',
       plate_number: '',
-      operating_hub: 'Victoria Island Central Hub',
+      operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
       license_number: '',
       license_expiry: 'Nov 2027',
       emergency_contact: 'Next of Kin',
@@ -640,7 +642,7 @@ export const DeliveryTeamPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-kumo-subtle">Operating Hub:</span>
-                    <span className="font-semibold text-kumo-strong">{selectedRider.operating_hub || 'Victoria Island Central Hub'}</span>
+                    <span className="font-semibold text-kumo-strong">{selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-kumo-subtle">Date Onboarded:</span>
@@ -875,7 +877,7 @@ export const DeliveryTeamPage: React.FC = () => {
                 <div className="flex items-center justify-between h-9 px-3 rounded-xl border border-kumo-line bg-kumo-surface text-xs text-kumo-strong">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="font-medium truncate">Victoria Island Central Hub</span>
+                    <span className="font-medium truncate">{selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
                   </div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
                     Active HQ

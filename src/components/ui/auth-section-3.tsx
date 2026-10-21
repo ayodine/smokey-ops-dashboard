@@ -7,11 +7,13 @@ import { FlutedGlass } from "@paper-design/shaders-react";
 import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2, Truck, Bike, ShieldCheck, MapPin, Building, Phone } from "lucide-react";
 import { motion } from "motion/react";
 import { useSmokeyOps, type UserRole } from "@/context/SmokeyOpsContext";
+import { useWarehouse } from "@/context/WarehouseContext";
 import { Select } from "@/components/ui/Select";
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
   const { createAccount } = useSmokeyOps();
+  const { facilities, selectedWarehouse } = useWarehouse();
 
   // Mode: 'login' (Sign in) vs 'signup' (Create account)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -28,7 +30,7 @@ export default function AuthSectionThree() {
   // Role-based KYC Fields (Sign Up)
   const [role, setRole] = useState<UserRole>('manager');
   const [phone, setPhone] = useState('08031234567');
-  const [assignedHub, setAssignedHub] = useState('Victoria Island Central Hub');
+  const [assignedHub, setAssignedHub] = useState(selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office');
   const [nationalId, setNationalId] = useState('7829-4821-9921');
   const [vehicleType, setVehicleType] = useState('Bajaj Boxer 150 Motorcycle');
   const [plateNumber, setPlateNumber] = useState('LND-482-XA');
@@ -267,7 +269,7 @@ export default function AuthSectionThree() {
                     <div className="flex items-center justify-between h-11 px-3.5 rounded-lg border border-black/15 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03] text-sm text-black dark:text-white">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <span className="font-medium truncate">Victoria Island Central Hub</span>
+                        <span className="font-medium truncate">{selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
                       </div>
                       <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
                         Active HQ
