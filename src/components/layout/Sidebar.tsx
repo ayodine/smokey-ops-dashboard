@@ -197,12 +197,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     <div
       data-kumo-component="Sidebar"
       className={cn(
-        'flex h-full flex-col min-w-0 overflow-hidden whitespace-nowrap bg-kumo-canvas text-kumo-default border-r border-kumo-line select-none transition-[width] duration-250 ease-[cubic-bezier(0.77,0,0.175,1)] font-sans',
-        isCollapsed ? 'w-[57px]' : 'w-[16.25rem]'
+        'flex h-full flex-col min-w-0 whitespace-nowrap bg-kumo-canvas text-kumo-default border-r border-kumo-line select-none transition-[width] duration-250 ease-[cubic-bezier(0.77,0,0.175,1)] font-sans',
+        isCollapsed ? 'w-[57px] overflow-hidden' : 'w-[16.25rem] overflow-visible'
       )}
     >
       {/* 1. Account Dropdown Header with 58px border line matching TopNav */}
-      <div className="relative border-b border-kumo-line">
+      <div className="relative border-b border-kumo-line z-30 overflow-visible">
         {isCollapsed ? (
           <div className="flex h-[58px] shrink-0 items-center justify-center w-full">
             <button
@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 setIsAccountMenuOpen(prev => !prev)
                 setAccountSearchQuery('')
               }}
-              className="flex items-center justify-between gap-1.5 min-w-0 flex-1 max-w-[200px] text-left bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 py-1.5 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer transition-colors shadow-2xs"
+              className="flex items-center justify-between gap-1.5 min-w-0 flex-1 max-w-[200px] text-left bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 py-1.5 px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 cursor-pointer transition-colors shadow-2xs"
             >
               <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                 {currentAccount.email.length > 18 ? `${currentAccount.email.slice(0, 16)}...` : currentAccount.email}
@@ -249,25 +249,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               className="fixed inset-0 z-40"
               onClick={() => setIsAccountMenuOpen(false)}
             />
-            <div className="absolute left-2.5 top-[50px] w-[275px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-xs">
+            <div className="absolute left-2.5 top-[52px] w-[320px] bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-xs">
               {/* Pointer Arrow Notch */}
-              <div className="absolute -top-1.5 left-7 w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200 dark:border-zinc-800 rotate-45 z-10" />
+              <div className="absolute -top-[6px] left-[88px] w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200/90 dark:border-zinc-800 rotate-45 z-30" />
 
               {/* Search accounts... */}
-              <div className="relative z-20 flex items-center gap-2 px-3.5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 rounded-t-xl bg-white dark:bg-zinc-900">
-                <Search className="w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+              <div className="relative z-20 flex items-center gap-3 px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 rounded-t-2xl bg-white dark:bg-zinc-900">
+                <Search className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 stroke-[1.75]" />
                 <input
                   type="text"
                   value={accountSearchQuery}
                   onChange={(e) => setAccountSearchQuery(e.target.value)}
                   placeholder="Search accounts..."
                   autoFocus
-                  className="w-full bg-transparent text-xs text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                  className="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none font-normal"
                 />
               </div>
 
               {/* Accounts list */}
-              <div className="relative z-20 p-1.5 space-y-1 max-h-60 overflow-y-auto bg-white dark:bg-zinc-900">
+              <div className="relative z-20 p-2 space-y-1 max-h-64 overflow-y-auto bg-white dark:bg-zinc-900">
                 {filteredAccounts.map(acc => {
                   const isSelected = activeAccountEmail.toLowerCase() === acc.email.toLowerCase()
                   return (
@@ -284,17 +284,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                         }
                       }}
                       className={cn(
-                        "w-full px-3 py-2.5 rounded-lg text-left text-xs transition-colors cursor-pointer flex items-center justify-between",
+                        "w-full px-3.5 py-2.5 rounded-xl text-left text-sm transition-colors cursor-pointer flex items-center justify-between",
                         isSelected
                           ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
-                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-normal"
                       )}
                     >
-                      <span className="truncate pr-2">
+                      <span className="truncate pr-2 font-sans">
                         {acc.email}'s Account
                       </span>
                       {isSelected && (
-                        <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 shrink-0" />
+                        <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 stroke-[2] shrink-0" />
                       )}
                     </button>
                   )
@@ -307,16 +307,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               </div>
 
               {/* Action Footer: + Create Account */}
-              <div className="relative z-20 border-t border-zinc-100 dark:border-zinc-800 p-1 rounded-b-xl bg-white dark:bg-zinc-900">
+              <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
                 <button
                   type="button"
                   onClick={() => {
                     setIsAccountMenuOpen(false)
                     setIsCreateAccountOpen(true)
                   }}
-                  className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-normal text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-2 cursor-pointer transition-colors"
+                  className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
                 >
-                  <Plus className="w-4 h-4 text-zinc-700 dark:text-zinc-300 shrink-0" />
+                  <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
                   <span>Create Account</span>
                 </button>
               </div>
@@ -557,7 +557,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         data-sidebar="sidebar"
         className={cn(
           'hidden md:block shrink-0 transition-[width] duration-250 ease-[cubic-bezier(0.77,0,0.175,1)] h-screen sticky top-0 z-30',
-          isCollapsed ? 'w-[57px]' : 'w-[16.25rem]'
+          isCollapsed ? 'w-[57px] overflow-hidden' : 'w-[16.25rem] overflow-visible'
         )}
       >
         {sidebarContent}
@@ -570,7 +570,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             className="fixed inset-0 bg-kumo-canvas/80 backdrop-blur-xs"
             onClick={onCloseMobile}
           />
-          <div className="relative w-[16.25rem] max-w-[85vw] h-full shadow-2xl animate-in slide-in-from-left duration-200 z-10">
+          <div className="relative w-[16.25rem] max-w-[85vw] h-full shadow-2xl animate-in slide-in-from-left duration-200 z-10 overflow-visible">
             {sidebarContent}
           </div>
         </div>
