@@ -61,6 +61,25 @@ export interface SmokeyInventoryItem {
 type SortField = 'name' | 'category' | 'currentStock' | 'daysToExpiry' | 'status'
 type SortOrder = 'asc' | 'desc'
 
+const categoryFilterOptions = [
+  { value: 'all', label: 'All categories' },
+  { value: 'Raw Proteins', label: 'Raw Proteins' },
+  { value: 'Spices & Seasoning', label: 'Spices & Seasoning' },
+  { value: 'Fuel & Charcoal', label: 'Fuel & Charcoal' },
+  { value: 'Cooking Oils', label: 'Cooking Oils' },
+  { value: 'Packaging Materials', label: 'Packaging' },
+  { value: 'Finished Goods', label: 'Finished Goods' },
+]
+
+const statusFilterOptions = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'low', label: 'Running low' },
+  { value: 'out_of_stock', label: 'Out of stock' },
+  { value: 'expiring', label: 'Expiring soon' },
+  { value: 'healthy', label: 'Healthy' },
+]
+
 export const AccountHomePage: React.FC = () => {
   const navigate = useNavigate()
   const {
@@ -79,6 +98,10 @@ export const AccountHomePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
+
+  // Custom dropdown open states (In-line custom popovers matching project design system)
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
 
   // Sorting state (Inherited from project table standard)
   const [sortField, setSortField] = useState<SortField>('currentStock')
@@ -605,45 +628,122 @@ export const AccountHomePage: React.FC = () => {
                 />
               </div>
 
-              {/* Category Select */}
+              {/* Custom Category Dropdown */}
               <div className="relative">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => {
-                    setCategoryFilter(e.target.value)
-                    setCurrentPage(1)
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryDropdownOpen(prev => !prev)
+                    setIsStatusDropdownOpen(false)
                   }}
-                  className="h-8 pl-2.5 pr-7 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default appearance-none focus:outline-none cursor-pointer"
+                  className={cn(
+                    "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
+                    categoryFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
+                  )}
                 >
-                  <option value="all">All categories</option>
-                  <option value="Raw Proteins">Raw Proteins</option>
-                  <option value="Spices & Seasoning">Spices & Seasoning</option>
-                  <option value="Fuel & Charcoal">Fuel & Charcoal</option>
-                  <option value="Cooking Oils">Cooking Oils</option>
-                  <option value="Packaging Materials">Packaging</option>
-                  <option value="Finished Goods">Finished Goods</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                  <span className="truncate max-w-[115px]">
+                    {categoryFilterOptions.find(c => c.value === categoryFilter)?.label || 'All categories'}
+                  </span>
+                  <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isCategoryDropdownOpen && "rotate-180 text-kumo-strong")} />
+                </button>
+
+                {isCategoryDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30 cursor-default"
+                      onClick={() => setIsCategoryDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 top-full mt-1.5 w-48 bg-kumo-base border border-kumo-line shadow-xl rounded-lg z-40 py-1 animate-in fade-in zoom-in-95 font-sans">
+                      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
+                        Category filter
+                      </div>
+                      <div className="py-0.5 max-h-56 overflow-y-auto">
+                        {categoryFilterOptions.map(opt => {
+                          const isSelected = categoryFilter === opt.value
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setCategoryFilter(opt.value)
+                                setCurrentPage(1)
+                                setIsCategoryDropdownOpen(false)
+                              }}
+                              className={cn(
+                                "w-full px-3 py-1.5 text-left text-xs hover:bg-kumo-tint flex items-center justify-between cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-kumo-default hover:text-kumo-strong"
+                              )}
+                            >
+                              <span>{opt.label}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Status Select */}
+              {/* Custom Status Dropdown */}
               <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value)
-                    setCurrentPage(1)
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsStatusDropdownOpen(prev => !prev)
+                    setIsCategoryDropdownOpen(false)
                   }}
-                  className="h-8 pl-2.5 pr-7 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default appearance-none focus:outline-none cursor-pointer"
+                  className={cn(
+                    "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
+                    statusFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
+                  )}
                 >
-                  <option value="all">All statuses</option>
-                  <option value="critical">Critical</option>
-                  <option value="low">Running low</option>
-                  <option value="out_of_stock">Out of stock</option>
-                  <option value="expiring">Expiring soon</option>
-                  <option value="healthy">Healthy</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                  <span className="truncate max-w-[115px]">
+                    {statusFilterOptions.find(s => s.value === statusFilter)?.label || 'All statuses'}
+                  </span>
+                  <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isStatusDropdownOpen && "rotate-180 text-kumo-strong")} />
+                </button>
+
+                {isStatusDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30 cursor-default"
+                      onClick={() => setIsStatusDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 top-full mt-1.5 w-44 bg-kumo-base border border-kumo-line shadow-xl rounded-lg z-40 py-1 animate-in fade-in zoom-in-95 font-sans">
+                      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
+                        Status filter
+                      </div>
+                      <div className="py-0.5">
+                        {statusFilterOptions.map(opt => {
+                          const isSelected = statusFilter === opt.value
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setStatusFilter(opt.value)
+                                setCurrentPage(1)
+                                setIsStatusDropdownOpen(false)
+                              }}
+                              className={cn(
+                                "w-full px-3 py-1.5 text-left text-xs hover:bg-kumo-tint flex items-center justify-between cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-kumo-default hover:text-kumo-strong"
+                              )}
+                            >
+                              <span>{opt.label}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Reset Filter Button */}
@@ -657,6 +757,8 @@ export const AccountHomePage: React.FC = () => {
                   setSortField('currentStock')
                   setSortOrder('asc')
                   setCurrentPage(1)
+                  setIsCategoryDropdownOpen(false)
+                  setIsStatusDropdownOpen(false)
                   setToastMessage('Filters reset to default')
                 }}
                 className="size-8 rounded-lg border border-kumo-line bg-kumo-canvas hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
