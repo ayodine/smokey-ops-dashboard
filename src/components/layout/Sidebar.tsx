@@ -57,10 +57,10 @@ const NAV_SECTIONS: NavSection[] = [
     defaultHref: '/inventory/raw',
     items: [
       { label: 'Raw Inventory', href: '/inventory/raw', badge: '13' },
-      { label: 'Packaging Materials', href: '/inventory/packaging', badge: '7' },
-      { label: 'Sales Inventory', href: '/inventory/sales', badge: '7' },
-      { label: 'Stock Movements', href: '/inventory/movements' },
-      { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: '4' },
+      { label: 'Packaging Materials', href: '/inventory/packaging', badge: '14' },
+      { label: 'Sales Inventory', href: '/inventory/sales', badge: '15' },
+      { label: 'Stock Movements', href: '/inventory/movements', badge: '16' },
+      { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: '12' },
     ],
   },
   {
@@ -69,9 +69,9 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Factory,
     defaultHref: '/production/batches',
     items: [
-      { label: 'Production Batches', href: '/production/batches', badge: '3' },
-      { label: 'Packaging Execution', href: '/production/packaging', badge: '3' },
-      { label: 'Kitchen Shift Tasks', href: '/production/tasks', badge: '4' },
+      { label: 'Production Batches', href: '/production/batches', badge: '12' },
+      { label: 'Packaging Execution', href: '/production/packaging', badge: '11' },
+      { label: 'Kitchen Shift Tasks', href: '/production/tasks', badge: '12' },
     ],
   },
   {
@@ -80,11 +80,11 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Truck,
     defaultHref: '/logistics/board',
     items: [
-      { label: 'Dispatch Board', href: '/logistics/board', badge: '5' },
-      { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '3' },
-      { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '4' },
-      { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '2' },
-      { label: 'Courier Fees & Delivery', href: '/logistics/third-party' },
+      { label: 'Dispatch Board', href: '/logistics/board', badge: '12' },
+      { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '11' },
+      { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '11' },
+      { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '11' },
+      { label: 'Courier Fees & Delivery', href: '/logistics/third-party', badge: '12' },
     ],
   },
 ]

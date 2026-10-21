@@ -170,49 +170,71 @@ export const ExecutiveOverview: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-kumo-line/50">
-              <tr className="hover:bg-kumo-tint/50 transition-colors">
-                <td className="py-3 px-5 font-mono text-xs font-medium text-kumo-strong whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <GitCommit className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                    <span>c3945e13</span>
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-kumo-subtle whitespace-nowrap">
-                  2 days ago
-                </td>
-                <td className="py-3 px-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3 min-w-[160px] max-w-[200px]">
-                    <span className="font-mono text-xs text-kumo-strong w-10 shrink-0">100%</span>
-                    <div className="h-1.5 flex-1 bg-kumo-tint rounded-full overflow-hidden">
-                      <div className="h-full bg-kumo-brand rounded-full w-full" />
+              {[
+                { commit: 'c3945e13', when: 'Just now', traffic: '100%', percent: 100, reqSec: '14 req/sec', err: '0%', latency: '347.32 ms', path: 'M 0 14 L 10 12 L 20 18 L 30 8 L 40 15 L 50 11 L 60 17 L 70 5 L 80 14 L 90 9 L 100 12' },
+                { commit: 'b819f4a2', when: '4 hours ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '320.15 ms', path: 'M 0 16 L 10 14 L 20 15 L 30 11 L 40 13 L 50 10 L 60 14 L 70 8 L 80 12 L 90 10 L 100 11' },
+                { commit: 'a712e091', when: 'Yesterday', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '360.40 ms', path: 'M 0 12 L 10 16 L 20 14 L 30 10 L 40 18 L 50 12 L 60 15 L 70 9 L 80 16 L 90 11 L 100 14' },
+                { commit: 'f942d87e', when: '2 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '315.80 ms', path: 'M 0 15 L 10 13 L 20 16 L 30 9 L 40 14 L 50 12 L 60 16 L 70 7 L 80 13 L 90 10 L 100 12' },
+                { commit: 'e631c76a', when: '3 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0.01%', latency: '390.12 ms', path: 'M 0 18 L 10 15 L 20 17 L 30 12 L 40 16 L 50 14 L 60 18 L 70 10 L 80 15 L 90 12 L 100 15' },
+                { commit: 'd520b65f', when: '4 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '335.50 ms', path: 'M 0 13 L 10 11 L 20 15 L 30 8 L 40 12 L 50 10 L 60 13 L 70 6 L 80 11 L 90 9 L 100 10' },
+                { commit: 'c419a54e', when: '5 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '342.20 ms', path: 'M 0 14 L 10 12 L 20 18 L 30 8 L 40 15 L 50 11 L 60 17 L 70 5 L 80 14 L 90 9 L 100 12' },
+                { commit: 'b308943d', when: '6 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '328.90 ms', path: 'M 0 15 L 10 14 L 20 16 L 30 10 L 40 13 L 50 11 L 60 15 L 70 8 L 80 12 L 90 10 L 100 11' },
+                { commit: 'a297832c', when: '1 week ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0.02%', latency: '355.60 ms', path: 'M 0 16 L 10 15 L 20 17 L 30 11 L 40 15 L 50 13 L 60 16 L 70 9 L 80 14 L 90 11 L 100 13' },
+                { commit: '9186721b', when: '10 days ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '310.45 ms', path: 'M 0 14 L 10 12 L 20 14 L 30 9 L 40 12 L 50 10 L 60 13 L 70 7 L 80 11 L 90 8 L 100 10' },
+                { commit: '8075610a', when: '2 weeks ago', traffic: '0%', percent: 0, reqSec: '0 req/sec', err: '0%', latency: '305.20 ms', path: 'M 0 13 L 10 11 L 20 13 L 30 8 L 40 11 L 50 9 L 60 12 L 70 6 L 80 10 L 90 8 L 100 9' },
+              ].map((dep, idx) => (
+                <tr key={dep.commit} className="hover:bg-kumo-tint/50 transition-colors">
+                  <td className="py-3 px-5 font-mono text-xs font-medium text-kumo-strong whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <GitCommit className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+                      <span>{dep.commit}</span>
+                      {idx === 0 && (
+                        <span className="text-[10px] font-sans font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          Active
+                        </span>
+                      )}
                     </div>
-                  </div>
-                </td>
-                <td className="py-3 px-4 font-mono text-kumo-strong whitespace-nowrap">
-                  0 req/sec
-                </td>
-                <td className="py-3 px-4 font-mono text-kumo-strong whitespace-nowrap">
-                  0%
-                </td>
-                <td className="py-3 px-5 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-kumo-strong shrink-0">347.32 ms</span>
-                    <div className="w-28 h-5 flex items-center shrink-0">
-                      <svg className="w-full h-4 overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 24">
-                        <path
-                          d="M 0 14 L 10 12 L 20 18 L 30 8 L 40 15 L 50 11 L 60 17 L 70 5 L 80 14 L 90 9 L 100 12"
-                          fill="none"
-                          stroke="currentColor"
-                          className="text-kumo-brand"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                  </td>
+                  <td className="py-3 px-4 text-kumo-subtle whitespace-nowrap text-xs">
+                    {dep.when}
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3 min-w-[160px] max-w-[200px]">
+                      <span className="font-mono text-xs text-kumo-strong w-10 shrink-0">{dep.traffic}</span>
+                      <div className="h-1.5 flex-1 bg-kumo-tint rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-kumo-brand rounded-full transition-all duration-300"
+                          style={{ width: `${dep.percent}%` }}
                         />
-                      </svg>
+                      </div>
                     </div>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs text-kumo-strong whitespace-nowrap">
+                    {dep.reqSec}
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs text-kumo-strong whitespace-nowrap">
+                    {dep.err}
+                  </td>
+                  <td className="py-3 px-5 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs text-kumo-strong shrink-0">{dep.latency}</span>
+                      <div className="w-28 h-5 flex items-center shrink-0">
+                        <svg className="w-full h-4 overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 24">
+                          <path
+                            d={dep.path}
+                            fill="none"
+                            stroke="currentColor"
+                            className={idx === 0 ? "text-kumo-brand" : "text-kumo-subtle/50"}
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
