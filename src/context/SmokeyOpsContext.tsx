@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useMemo } from 'react'
 import {
   RawProduct,
   RawDelivery,
@@ -124,6 +124,12 @@ interface SmokeyOpsContextType {
   markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string) => void
   verifyThirdPartyFee: (deliveryId: number, status: 'approved' | 'flagged', note?: string) => void
 
+  // Account Profile & RBAC
+  activeAccountEmail: string
+  currentAccount: AppUserAccount
+  switchAccount: (email: string) => void
+  availableAccounts: AppUserAccount[]
+
   // Feedback, Toasts & Success Confirmation Modals
   toasts: ToastMessage[]
   showToast: (message: string, type?: 'success' | 'info' | 'error', title?: string) => void
@@ -131,6 +137,36 @@ interface SmokeyOpsContextType {
   showSuccessModal: (data: { title: string; message: string; details?: Array<{ label: string; value: string }>; actionLabel?: string; onAction?: () => void }) => void
   closeSuccessModal: () => void
 }
+
+export interface AppUserAccount {
+  email: string
+  name: string
+  role: 'admin' | 'manager' | 'rider'
+  roleLabel: string
+  rider_user_id?: number
+}
+
+export const APP_ACCOUNTS: AppUserAccount[] = [
+  {
+    email: 'Ayodine47@gmail.com',
+    name: 'Ayodine Admin',
+    role: 'admin',
+    roleLabel: 'Administrator'
+  },
+  {
+    email: 'ops-team@smokeyhut.com',
+    name: 'Smokey Ops Team',
+    role: 'manager',
+    roleLabel: 'Operations Manager'
+  },
+  {
+    email: 'Ridersmokeyyusuf@gmail.com',
+    name: 'Rider Yusuf',
+    role: 'rider',
+    roleLabel: 'Delivery Rider',
+    rider_user_id: 455
+  }
+]
 
 const SmokeyOpsContext = createContext<SmokeyOpsContextType | undefined>(undefined)
 
@@ -166,6 +202,26 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [riderTasks, setRiderTasks] = useState<RiderTask[]>(SEED_RIDER_TASKS)
   const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(SEED_STORE_PICKUPS)
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
+
+  // Account / Role Management (RBAC)
+  const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
+    return localStorage.getItem('smokey_active_account') || 'Ayodine47@gmail.com'
+  })
+
+  const currentAccount = useMemo(() => {
+    return APP_ACCOUNTS.find(a => a.email.toLowerCase() === activeAccountEmail.toLowerCase()) || APP_ACCOUNTS[0]
+  }, [activeAccountEmail])
+
+  const switchAccount = (email: string) => {
+    setActiveAccountEmail(email)
+    localStorage.setItem('smokey_active_account', email)
+    const target = APP_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase())
+    if (target?.role === 'rider') {
+      showToast('Switched to Rider Yusuf profile — restricted to Logistics & Delivery operations', 'info')
+    } else {
+      showToast(`Switched account to ${target?.name || email} (${target?.roleLabel || 'Staff'})`, 'info')
+    }
+  }
 
   // Feedback: Toasts & Success Modal
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -1246,6 +1302,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         remitCodCash,
         markPickupCollected,
         verifyThirdPartyFee,
+        activeAccountEmail,
+        currentAccount,
+        switchAccount,
+        availableAccounts: APP_ACCOUNTS,
         toasts,
         showToast,
         dismissToast,

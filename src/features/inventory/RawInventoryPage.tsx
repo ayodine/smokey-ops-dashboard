@@ -870,58 +870,6 @@ export const RawInventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Kitchen Urgency Alert Banner (Rendered when any lot is <= 3 days from expiring) */}
-      {criticalExpiringLots.length > 0 && (
-        <div className="rounded-xl border border-[#F3B0BB] dark:border-[#52171E] bg-[#FDF2F4] dark:bg-[#200A0D] p-4 sm:p-5 shadow-2xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="p-2 rounded-lg bg-[#C8102E] text-white shadow-2xs shrink-0 mt-0.5">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#C8102E] text-white">
-                    Kitchen Urgency Alert
-                  </span>
-                  <span className="text-xs font-semibold text-[#C8102E] dark:text-rose-300">
-                    FEFO Expiring Soon ({criticalExpiringLots.length} lot{criticalExpiringLots.length > 1 ? 's' : ''} ≤ 3 Days Left)
-                  </span>
-                </div>
-                <h2 className="text-sm font-bold text-kumo-strong mt-1">
-                  Immediate Smoker Pit Prioritization Required
-                </h2>
-                <p className="text-xs text-kumo-default mt-0.5 max-w-2xl leading-relaxed">
-                  Lot <span className="font-semibold text-kumo-strong font-mono">{criticalExpiringLots[0].lot_number}</span> ({criticalExpiringLots[0].remaining_qty} {criticalExpiringLots[0].unit} of <span className="font-semibold text-kumo-strong">{criticalExpiringLots[0].product_name}</span>) expires on <span className="font-semibold text-[#C8102E] dark:text-rose-400">{criticalExpiringLots[0].expiry_date}</span> ({criticalExpiringLots[0].days_to_expiry} day{criticalExpiringLots[0].days_to_expiry === 1 ? '' : 's'} remaining). Smoke on current shift to avoid <span className="font-semibold text-[#C8102E] dark:text-rose-400">{formatNaira(criticalExpiringLots[0].remaining_qty * criticalExpiringLots[0].unit_cost)}</span> in spoilage shrinkage.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleOpenPrioritize(criticalExpiringLots[0])}
-                leftIcon={<Flame className="w-3.5 h-3.5" />}
-                className="h-9 px-3.5 text-xs font-semibold bg-[#C8102E] hover:bg-[#b00d27] text-white border-transparent shadow-2xs"
-              >
-                Prioritize #{criticalExpiringLots[0].lot_number}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setActiveTab('fefo')
-                  setFefoFilter('near_expiry')
-                }}
-                rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                className="h-9 px-3 text-xs font-medium border-[#F3B0BB] text-[#C8102E] bg-white hover:bg-[#FDF2F4] dark:bg-transparent dark:border-[#52171E] dark:text-rose-300"
-              >
-                View Urgent ({criticalExpiringLots.length})
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { Sidebar } from './Sidebar'
 import { TopNav } from './TopNav'
 import { Breadcrumbs } from './Breadcrumbs'
@@ -8,6 +9,22 @@ import { CommandMenu } from '@/components/ui/CommandMenu'
 export const AppShell: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false)
+  const { currentAccount } = useSmokeyOps()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // RBAC Route Guard: Sandboxes Rider to Logistics & Rider Portal (Spec Section 2.2)
+  useEffect(() => {
+    if (currentAccount.role === 'rider') {
+      const allowedPaths = ['/logistics/rider-portal', '/rider']
+      const isAllowed = allowedPaths.some(
+        p => location.pathname === p || location.pathname.startsWith(`${p}/`)
+      )
+      if (!isAllowed) {
+        navigate('/logistics/rider-portal', { replace: true })
+      }
+    }
+  }, [currentAccount.role, location.pathname, navigate])
 
   // Global Command+K / Ctrl+K keyboard shortcut
   useEffect(() => {
