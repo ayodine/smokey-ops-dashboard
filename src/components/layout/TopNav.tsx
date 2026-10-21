@@ -16,7 +16,13 @@ import {
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/reui/alert'
 import { cn } from '@/lib/utils'
 
 interface TopNavProps {
@@ -30,6 +36,38 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
   const { theme, toggleTheme } = useTheme()
   const [isWarehouseDropdownOpen, setIsWarehouseDropdownOpen] = useState(false)
   const [isAlertsOpen, setIsAlertsOpen] = useState(false)
+  const [alerts, setAlerts] = useState([
+    {
+      id: 'alert-1',
+      variant: 'warning' as const,
+      icon: ShieldAlert,
+      title: 'Low Stock Alert: Hardwood Charcoal',
+      time: '12m ago',
+      desc: 'Current: 14 kg. Below safety threshold of 50 kg.',
+      linkText: 'View raw inventory',
+      linkUrl: '/inventory/raw',
+    },
+    {
+      id: 'alert-2',
+      variant: 'success' as const,
+      icon: Check,
+      title: 'QC Inspection Passed: Batch PRD-2026-081',
+      time: '45m ago',
+      desc: '120 units Whole Smoked Chicken credited to stock.',
+      linkText: 'View production batches',
+      linkUrl: '/production/batches',
+    },
+    {
+      id: 'alert-3',
+      variant: 'info' as const,
+      icon: ArrowRight,
+      title: 'Scheduled Dispatch: Lekki Phase 1',
+      time: '1h ago',
+      desc: '3 scheduled delivery orders awaiting rider assignment.',
+      linkText: 'Open delivery schedule',
+      linkUrl: '/logistics/schedule',
+    },
+  ])
   const [isAddFacilityModalOpen, setIsAddFacilityModalOpen] = useState(false)
   const [facilitySearchQuery, setFacilitySearchQuery] = useState('')
   const [facilityForm, setFacilityForm] = useState({
@@ -109,99 +147,72 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             className="size-8 flex items-center justify-center rounded-lg text-kumo-default hover:bg-kumo-tint transition-colors relative cursor-pointer"
           >
             <Bell className="w-4 h-4 text-kumo-subtle" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f6821f] ring-2 ring-kumo-canvas" />
+            {alerts.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f6821f] ring-2 ring-kumo-canvas" />
+            )}
           </button>
 
           {isAlertsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAlertsOpen(false)} />
-              <div className="absolute right-0 mt-1.5 w-80 rounded-lg border border-kumo-line bg-kumo-base shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans">
+              <div className="absolute right-0 mt-1.5 w-96 rounded-xl border border-kumo-line bg-kumo-base shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden">
                 <div className="px-3.5 py-2.5 border-b border-kumo-line flex items-center justify-between">
                   <span className="text-xs font-semibold text-kumo-strong">
                     Alerts
                   </span>
                   <span className="text-[10px] bg-[#f6821f]/15 text-[#f6821f] px-1.5 py-0.5 rounded-full font-bold">
-                    3 Active
+                    {alerts.length} Active
                   </span>
                 </div>
-                <div className="divide-y divide-kumo-line text-xs max-h-[340px] overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate('/inventory/raw')
-                      setIsAlertsOpen(false)
-                    }}
-                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
-                          Low Stock Alert: Hardwood Charcoal
-                        </p>
-                        <span className="text-[10px] text-kumo-subtle shrink-0">12m ago</span>
-                      </div>
-                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
-                        Current: 14 kg. Below safety threshold of 50 kg.
-                      </p>
-                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
-                        <span>View raw inventory</span>
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </span>
+                <div className="text-xs max-h-[380px] overflow-y-auto p-2 space-y-2">
+                  {alerts.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-kumo-subtle">
+                      No active alerts
                     </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate('/production/batches')
-                      setIsAlertsOpen(false)
-                    }}
-                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
-                  >
-                    <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
-                          QC Inspection Passed: Batch PRD-2026-081
-                        </p>
-                        <span className="text-[10px] text-kumo-subtle shrink-0">45m ago</span>
-                      </div>
-                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
-                        120 units Whole Smoked Chicken credited to stock.
-                      </p>
-                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
-                        <span>View production batches</span>
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate('/logistics/schedule')
-                      setIsAlertsOpen(false)
-                    }}
-                    className="w-full text-left p-3 hover:bg-kumo-tint transition-colors flex gap-2.5 cursor-pointer group"
-                  >
-                    <ArrowRight className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="font-semibold text-kumo-strong group-hover:text-primary transition-colors truncate">
-                          Scheduled Dispatch: Lekki Phase 1
-                        </p>
-                        <span className="text-[10px] text-kumo-subtle shrink-0">1h ago</span>
-                      </div>
-                      <p className="text-kumo-subtle text-[11px] mt-0.5 leading-snug">
-                        3 scheduled delivery orders awaiting rider assignment.
-                      </p>
-                      <span className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-1">
-                        <span>Open delivery schedule</span>
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </span>
-                    </div>
-                  </button>
+                  ) : (
+                    alerts.map((item) => {
+                      const IconComponent = item.icon
+                      return (
+                        <Alert key={item.id} variant={item.variant} className="p-2.5 shadow-none border-kumo-line">
+                          <IconComponent className="w-4 h-4 shrink-0" />
+                          <AlertTitle
+                            className="cursor-pointer hover:underline text-xs"
+                            onClick={() => {
+                              navigate(item.linkUrl)
+                              setIsAlertsOpen(false)
+                            }}
+                          >
+                            {item.title}
+                          </AlertTitle>
+                          <AlertDescription className="text-[11px] gap-1">
+                            <span>{item.desc}</span>
+                            <span
+                              className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-0.5 cursor-pointer hover:underline"
+                              onClick={() => {
+                                navigate(item.linkUrl)
+                                setIsAlertsOpen(false)
+                              }}
+                            >
+                              <span>{item.linkText}</span>
+                              <ArrowRight className="w-2.5 h-2.5" />
+                            </span>
+                          </AlertDescription>
+                          <AlertAction>
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setAlerts((prev) => prev.filter((a) => a.id !== item.id))
+                              }}
+                            >
+                              Dismiss
+                            </Button>
+                          </AlertAction>
+                        </Alert>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </>

@@ -1,13 +1,19 @@
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, ShieldCheckIcon } from 'lucide-react'
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/reui/alert'
+import { Button } from '@/components/ui/button'
 
 export interface ToastMessage {
   id: string
   title?: string
   message: string
-  type?: 'success' | 'info' | 'error'
+  type?: 'success' | 'info' | 'error' | 'warning'
   duration?: number
 }
 
@@ -18,7 +24,7 @@ export interface ToastProps {
 
 export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none font-sans">
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans">
       <AnimatePresence>
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
@@ -35,29 +41,32 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss()
-    }, toast.duration || 4000)
+    }, toast.duration || 4500)
     return () => clearTimeout(timer)
   }, [toast, onDismiss])
 
-  const icons = {
-    success: (
-      <div className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
-        <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
-      </div>
-    ),
-    error: (
-      <div className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 flex items-center justify-center shrink-0">
-        <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-      </div>
-    ),
-    info: (
-      <div className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
-        <Info className="w-3.5 h-3.5 stroke-[2.5]" />
-      </div>
-    ),
+  const type = toast.type || 'success'
+
+  const variantMap: Record<string, 'default' | 'destructive' | 'info' | 'success' | 'warning'> = {
+    success: 'success',
+    error: 'destructive',
+    info: 'info',
+    warning: 'warning',
   }
 
-  const type = toast.type || 'success'
+  const icons = {
+    success: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />,
+    error: <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />,
+    info: <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />,
+    warning: <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />,
+  }
+
+  const defaultTitles: Record<string, string> = {
+    success: 'Success',
+    error: 'Error',
+    info: 'Information',
+    warning: 'Warning',
+  }
 
   return (
     <motion.div
@@ -65,26 +74,18 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border border-zinc-800/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl shadow-black/10 dark:shadow-black/50 text-xs font-sans select-none"
+      className="pointer-events-auto w-full select-none shadow-lg shadow-black/10 dark:shadow-black/50"
     >
-      <div className="mt-0.5">{icons[type]}</div>
-      <div className="flex-1 min-w-0 pt-0.5">
-        {toast.title && (
-          <div className="font-semibold text-xs text-kumo-strong tracking-tight mb-0.5">
-            {toast.title}
-          </div>
-        )}
-        <div className="text-xs text-kumo-subtle leading-relaxed break-words font-medium">
-          {toast.message}
-        </div>
-      </div>
-      <button
-        onClick={onDismiss}
-        className="text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-fill p-1 rounded-md transition-colors cursor-pointer shrink-0 ml-1 mt-0.5"
-        aria-label="Dismiss toast"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+      <Alert variant={variantMap[type] || 'default'} className="bg-kumo-base shadow-sm">
+        {icons[type] || <ShieldCheckIcon className="w-4 h-4 text-kumo-default shrink-0" />}
+        <AlertTitle>{toast.title || defaultTitles[type] || 'Notification'}</AlertTitle>
+        <AlertDescription>{toast.message}</AlertDescription>
+        <AlertAction>
+          <Button variant="outline" size="xs" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        </AlertAction>
+      </Alert>
     </motion.div>
   )
 }

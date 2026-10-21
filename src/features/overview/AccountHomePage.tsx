@@ -7,6 +7,12 @@ import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { formatNaira, formatQuantity, formatDate } from '@/lib/utils'
 import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/reui/alert'
+import {
   Boxes,
   Flame,
   Truck,
@@ -33,7 +39,8 @@ import {
   Ban,
   Activity,
   ShoppingBag,
-  ExternalLink
+  ExternalLink,
+  ShieldCheckIcon
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -474,11 +481,17 @@ export const AccountHomePage: React.FC = () => {
     <div className="space-y-6 font-sans antialiased text-kumo-default pb-12">
       {/* Toast Alert Notification */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-kumo-base border border-kumo-line shadow-xl text-xs font-medium text-kumo-strong">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-            <span>{toastMessage}</span>
-          </div>
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-auto">
+          <Alert variant="success" className="bg-kumo-base shadow-lg shadow-black/10 dark:shadow-black/50">
+            <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <AlertTitle>Notification</AlertTitle>
+            <AlertDescription>{toastMessage}</AlertDescription>
+            <AlertAction>
+              <Button variant="outline" size="xs" onClick={() => setToastMessage(null)}>
+                Dismiss
+              </Button>
+            </AlertAction>
+          </Alert>
         </div>
       )}
 
