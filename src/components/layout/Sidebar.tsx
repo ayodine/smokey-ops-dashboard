@@ -26,13 +26,13 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  UserCheck,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { SignInActivityModal } from './SignInActivityModal'
-import { ManageAccountsModal } from './ManageAccountsModal'
 
 interface NavItem {
   label: string
@@ -116,11 +116,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
 
-  // Account dropdown and creation state
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [accountSearchQuery, setAccountSearchQuery] = useState('')
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
-  const [isManageAccountOpen, setIsManageAccountOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState<UserRole>('admin')
@@ -388,7 +386,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                   type="button"
                   onClick={() => {
                     setIsAccountMenuOpen(false)
-                    setIsManageAccountOpen(true)
+                    navigate('/accounts')
+                    onCloseMobile()
                   }}
                   className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80 rounded-b-2xl"
                 >
@@ -581,6 +580,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       <div className="border-t border-kumo-line p-2 shrink-0 bg-kumo-canvas">
         {!isCollapsed ? (
           <div className="flex flex-col gap-1">
+            {currentAccount.role === 'admin' && (
+              <Link
+                to="/accounts"
+                onClick={onCloseMobile}
+                className={cn(
+                  "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
+                  location.pathname === '/accounts' || location.pathname === '/admin/accounts'
+                    ? "bg-kumo-tint text-kumo-strong font-semibold"
+                    : "text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <UserCheck className="w-4 h-4 text-primary shrink-0" />
+                  <span className="truncate">Manage accounts</span>
+                </div>
+                <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/10 text-primary px-1.5 py-0.2 rounded shrink-0">
+                  Admin
+                </span>
+              </Link>
+            )}
+
             <button
               type="button"
               onClick={() => setIsActivityModalOpen(true)}
@@ -909,13 +929,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           </div>
         </form>
       </Dialog>
-
-      {/* Super Admin Manage Accounts Modal (Adapted from user screenshot) */}
-      <ManageAccountsModal
-        isOpen={isManageAccountOpen}
-        onClose={() => setIsManageAccountOpen(false)}
-        onOpenSignInActivity={() => setIsActivityModalOpen(true)}
-      />
 
       {/* Temporary Credentials Provisioned Confirmation */}
       <Dialog

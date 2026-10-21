@@ -33,6 +33,8 @@ export const Breadcrumbs: React.FC = () => {
     dispatch: 'Dispatch queue',
     shipments: 'Shipment tracking',
     returns: 'Returns & RMA',
+    accounts: 'Manage accounts',
+    admin: 'Admin',
   }
 
   // Helper for sentence case fallback
