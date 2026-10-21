@@ -11,6 +11,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      '@/components/ui/button': path.resolve(import.meta.dirname, './src/components/ui/Button.tsx'),
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },

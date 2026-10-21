@@ -130,6 +130,9 @@ interface SmokeyOpsContextType {
   currentAccount: AppUserAccount
   switchAccount: (email: string) => void
   createAccount: (account: AppUserAccount) => void
+  updateAccount: (email: string, updates: Partial<AppUserAccount> & { password?: string }) => void
+  deleteAccount: (email: string) => void
+  changePassword: (email: string, newPassword: string) => void
   addRiderProfile: (riderData: Partial<RiderPayout> & { rider_name: string; phone: string }) => RiderPayout
   availableAccounts: AppUserAccount[]
 
@@ -156,6 +159,11 @@ export interface AppUserAccount {
   emergency_contact?: string
   emergency_phone?: string
   national_id_nin?: string
+  status?: 'active' | 'suspended' | 'invited'
+  last_active?: string
+  password?: string
+  temporary_password?: string
+  created_at?: string
   // Driver specific KYC fields
   vehicle_type?: string
   plate_number?: string
@@ -169,20 +177,80 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     email: 'Ayodine47@gmail.com',
     name: 'Ayodine Admin',
     role: 'admin',
-    roleLabel: 'Administrator'
+    roleLabel: 'Super Admin',
+    staff_id: 'SHD-ADM-001',
+    assigned_hub: 'Central Hub (Ikeja)',
+    department: 'Executive Operations',
+    phone: '+234 803 111 2233',
+    status: 'active',
+    last_active: 'Active now',
+    created_at: '10 Jan 2026',
   },
   {
     email: 'ops-team@smokeyhut.com',
     name: 'Smokey Ops Team',
     role: 'manager',
-    roleLabel: 'Operations Manager'
+    roleLabel: 'Operations Manager',
+    staff_id: 'SHD-OPS-002',
+    assigned_hub: 'Yaba Head Office',
+    department: 'Kitchen Operations',
+    phone: '+234 802 345 6789',
+    status: 'active',
+    last_active: '14m ago',
+    created_at: '15 Jan 2026',
   },
   {
     email: 'Ridersmokeyyusuf@gmail.com',
     name: 'Rider Yusuf',
     role: 'rider',
     roleLabel: 'Delivery Rider',
-    rider_user_id: 455
+    rider_user_id: 455,
+    staff_id: 'SHD-LOG-455',
+    assigned_hub: 'Lekki Dispatch Staging',
+    department: 'Logistics',
+    phone: '+234 814 902 3311',
+    status: 'active',
+    last_active: '35m ago',
+    created_at: '01 Feb 2026',
+  },
+  {
+    email: 'chef.amara@smokeyhut.com',
+    name: 'Chef Amara Okon',
+    role: 'kitchen',
+    roleLabel: 'Production Cook',
+    staff_id: 'SHD-KTN-108',
+    assigned_hub: 'Central Kitchen (Ikeja)',
+    department: 'Culinary Production',
+    phone: '+234 809 777 8899',
+    status: 'active',
+    last_active: '2h ago',
+    created_at: '12 Feb 2026',
+  },
+  {
+    email: 'kemi.inv@smokeyhut.com',
+    name: 'Kemi Adebayo',
+    role: 'inventory',
+    roleLabel: 'Inventory Specialist',
+    staff_id: 'SHD-INV-042',
+    assigned_hub: 'Main Storage Warehouse',
+    department: 'Procurement & Storage',
+    phone: '+234 811 555 4422',
+    status: 'active',
+    last_active: 'Yesterday',
+    created_at: '20 Feb 2026',
+  },
+  {
+    email: 'babajide.dispatch@smokeyhut.com',
+    name: 'Babajide Alao',
+    role: 'dispatcher',
+    roleLabel: 'Logistics Coordinator',
+    staff_id: 'SHD-DSP-019',
+    assigned_hub: 'Lekki Dispatch Staging',
+    department: 'Last-Mile Fulfillment',
+    phone: '+234 806 333 9900',
+    status: 'active',
+    last_active: '1d ago',
+    created_at: '05 Mar 2026',
   }
 ]
 
@@ -419,6 +487,58 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })
     switchAccount(newAcc.email)
     showToast(`Created ${newAcc.roleLabel} account for ${newAcc.name || newAcc.email}`, 'success')
+  }
+
+  const updateAccount = (email: string, updates: Partial<AppUserAccount> & { password?: string }) => {
+    setAccounts(prev => {
+      const updated = prev.map(a => {
+        if (a.email.toLowerCase() === email.toLowerCase()) {
+          const merged = { ...a, ...updates }
+          if (updates.email && updates.email !== email) {
+            merged.email = updates.email
+          }
+          return merged
+        }
+        return a
+      })
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      return updated
+    })
+
+    if (updates.email && updates.email !== email && activeAccountEmail.toLowerCase() === email.toLowerCase()) {
+      setActiveAccountEmail(updates.email)
+      localStorage.setItem('smokey_active_account', updates.email)
+    }
+
+    showToast(`Saved changes for ${updates.name || email}`, 'success', 'Account Updated')
+  }
+
+  const deleteAccount = (email: string) => {
+    const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+    if (accounts.length <= 1) {
+      showToast('Cannot delete the sole administrative account', 'error', 'Action Restricted')
+      return
+    }
+
+    setAccounts(prev => {
+      const updated = prev.filter(a => a.email.toLowerCase() !== email.toLowerCase())
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      return updated
+    })
+
+    if (activeAccountEmail.toLowerCase() === email.toLowerCase()) {
+      const remaining = accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase())
+      if (remaining.length > 0) {
+        switchAccount(remaining[0].email)
+      }
+    }
+
+    showToast(`Removed account ${target?.name || email} from system`, 'info', 'Account Removed')
+  }
+
+  const changePassword = (email: string, newPassword: string) => {
+    updateAccount(email, { password: newPassword, temporary_password: newPassword })
+    showToast(`Password successfully updated for ${email}`, 'success', 'Security Credentials')
   }
 
   // Feedback: Toasts & Success Modal
@@ -1533,6 +1653,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentAccount,
         switchAccount,
         createAccount,
+        updateAccount,
+        deleteAccount,
+        changePassword,
         addRiderProfile,
         availableAccounts: accounts,
         toasts,

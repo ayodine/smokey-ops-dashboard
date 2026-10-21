@@ -25,6 +25,7 @@
 
     /* Paths */
     "paths": {
+      "@/components/ui/button": ["./src/components/ui/Button.tsx"],
       "@/*": ["./src/*"]
     }
   },

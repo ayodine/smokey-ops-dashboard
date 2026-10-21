@@ -32,6 +32,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { SignInActivityModal } from './SignInActivityModal'
+import { ManageAccountsModal } from './ManageAccountsModal'
 
 interface NavItem {
   label: string
@@ -283,6 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           <div className="flex h-[58px] shrink-0 items-center justify-between px-3">
             <button
               type="button"
+              aria-label="Switch account profile"
               onClick={() => {
                 setIsAccountMenuOpen(prev => !prev)
                 setAccountSearchQuery('')
@@ -908,80 +910,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         </form>
       </Dialog>
 
-      {/* Manage Account Modal */}
-      <Dialog
+      {/* Super Admin Manage Accounts Modal (Adapted from user screenshot) */}
+      <ManageAccountsModal
         isOpen={isManageAccountOpen}
         onClose={() => setIsManageAccountOpen(false)}
-        title="Manage Account"
-        description="Active operator credentials, security status, and hub access."
-        maxWidth="md"
-      >
-        <div className="space-y-4 font-sans text-xs">
-          <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-lg flex items-center justify-center shrink-0">
-                {currentAccount.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-sm text-kumo-strong truncate">{currentAccount.name}</h4>
-                  <span className="px-2 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 rounded-md">
-                    {currentAccount.roleLabel}
-                  </span>
-                </div>
-                <p className="text-kumo-subtle text-xs truncate mt-0.5">{currentAccount.email}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2 text-xs">
-            <div className="flex justify-between py-1 border-b border-kumo-line/60">
-              <span className="text-kumo-subtle">Staff / Employee ID:</span>
-              <span className="font-mono font-semibold text-kumo-strong">{currentAccount.staff_id || 'SHD-OPS-001'}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-kumo-line/60">
-              <span className="text-kumo-subtle">Assigned Branch / Hub:</span>
-              <span className="font-semibold text-kumo-strong">{currentAccount.assigned_hub || selectedWarehouse?.name || 'Yaba Head Office'}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-kumo-line/60">
-              <span className="text-kumo-subtle">Session Authentication:</span>
-              <span className="font-medium text-emerald-600 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Active Verified SSO Session
-              </span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-kumo-subtle">Access Role Scope:</span>
-              <span className="text-kumo-strong uppercase font-bold text-[10px] tracking-wider bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line">
-                {currentAccount.role}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsManageAccountOpen(false)
-                setIsActivityModalOpen(true)
-              }}
-              className="px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>View Sign-in Activity</span>
-            </button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() => setIsManageAccountOpen(false)}
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+        onOpenSignInActivity={() => setIsActivityModalOpen(true)}
+      />
 
       {/* Temporary Credentials Provisioned Confirmation */}
       <Dialog

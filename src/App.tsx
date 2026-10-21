@@ -28,6 +28,9 @@ import { RiderDashboardPage } from '@/features/logistics/RiderDashboardPage'
 // Overview Domain
 import { AccountHomePage } from '@/features/overview/AccountHomePage'
 
+// Admin Domain
+import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
+
 // Auth Screen Domain (shadcn /components/ui)
 import AuthSectionThree from '@/components/ui/auth-section-3'
 import Demo from '@/components/ui/demo'
@@ -73,6 +76,10 @@ export function App() {
                 <Route path="rider" element={<Navigate to="/logistics/rider-portal" replace />} />
                 <Route path="logistics/pickup" element={<StorePickupPage />} />
                 <Route path="logistics/third-party" element={<ThirdPartyLogisticsPage />} />
+
+                {/* 4. SUPER ADMIN & ACCOUNT MANAGEMENT */}
+                <Route path="accounts" element={<ManageAccountsPage />} />
+                <Route path="admin/accounts" element={<ManageAccountsPage />} />
 
                 {/* Catch-all Fallback */}
                 <Route path="*" element={<Navigate to="/inventory/raw" replace />} />
