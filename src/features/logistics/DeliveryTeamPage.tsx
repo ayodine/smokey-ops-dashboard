@@ -883,17 +883,12 @@ export const DeliveryTeamPage: React.FC = () => {
                 </div>
               </div>
 
-              <Select
+              <Input
                 label="Vehicle Model"
+                placeholder="e.g. Bajaj Boxer 150 Motorcycle"
                 value={newDriverForm.vehicle_type}
-                onValueChange={(val) => setNewDriverForm({ ...newDriverForm, vehicle_type: String(val) })}
-                options={[
-                  { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
-                  { value: 'TVS HLX 125 Motorcycle', label: 'TVS HLX 125 Motorcycle' },
-                  { value: 'Haojue 110 Delivery Bike', label: 'Haojue 110 Delivery Bike' },
-                  { value: 'Electric Delivery Scooter', label: 'Electric Delivery Scooter' },
-                ]}
-                size="sm"
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
+                required
               />
 
               <Input

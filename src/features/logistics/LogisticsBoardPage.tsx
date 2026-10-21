@@ -21,7 +21,6 @@ import {
   DollarSign, 
   Phone, 
   MapPin, 
-  MessageSquareShare,
   AlertTriangle,
   Upload,
   X,
@@ -119,11 +118,6 @@ export const LogisticsBoardPage: React.FC = () => {
     }
     setIsAssignModalOpen(false)
     setActiveTab('assigned')
-  }
-
-  const handleSendWhatsApp = (d: LogisticsDelivery) => {
-    const text = `Hello ${d.customer_name}, your Smokey Hut order (${d.order_ref}) is out for delivery with ${d.assigned_rider}. Driver phone: ${d.phone}. Track delivery here: https://track.smokeyhut.com/${d.order_ref}`
-    window.open(`https://wa.me/234${d.phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   const unassignedColumns: ColumnDef<LogisticsDelivery>[] = [
@@ -265,27 +259,16 @@ export const LogisticsBoardPage: React.FC = () => {
           )}
 
           {(d.status === 'in_transit' || d.status === 'out_for_delivery') && (
-            <>
-              <Tooltip content="Confirm order delivered to customer">
-                <button
-                  type="button"
-                  onClick={() => markDelivered(d.id)}
-                  className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Delivered
-                </button>
-              </Tooltip>
-              <Tooltip content="Send WhatsApp tracking update to customer">
-                <button
-                  type="button"
-                  onClick={() => handleSendWhatsApp(d)}
-                  className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer shrink-0 flex-none"
-                >
-                  <MessageSquareShare className="w-4 h-4" />
-                </button>
-              </Tooltip>
-            </>
+            <Tooltip content="Confirm order delivered to customer">
+              <button
+                type="button"
+                onClick={() => markDelivered(d.id)}
+                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Delivered
+              </button>
+            </Tooltip>
           )}
 
           {d.status === 'delivered' && (

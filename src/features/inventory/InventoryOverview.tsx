@@ -232,7 +232,7 @@ export const InventoryOverview: React.FC = () => {
         <MetricCard
           title="Inventory Valuation"
           value={formatNaira(totalValuation)}
-          delta={{ value: '+8.4% vs last week', isPositive: true }}
+          delta={{ value: '+8.4%', isPositive: true, period: 'vs last month (MTD)' }}
           subtext="Calculated by historical acquisition cost"
           icon={<TrendingUp className="w-5 h-5 text-kumo-brand" />}
         />

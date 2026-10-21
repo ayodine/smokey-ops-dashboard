@@ -725,23 +725,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               {newRole === 'rider' && (
                 <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2.5 animate-in fade-in">
                   <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-primary" />
                     <span>Driver Fleet KYC Details</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Select
-                      label="Vehicle Model"
-                      value={newVehicleType}
-                      onValueChange={(val) => setNewVehicleType(String(val))}
-                      options={[
-                        { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
-                        { value: 'TVS HLX 125 Motorcycle', label: 'TVS HLX 125 Motorcycle' },
-                        { value: 'Haojue 110 Delivery Bike', label: 'Haojue 110 Delivery Bike' },
-                        { value: 'Electric Delivery Scooter', label: 'Electric Delivery Scooter' },
-                      ]}
-                      size="sm"
-                    />
+                    <div>
+                      <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
+                      <input
+                        type="text"
+                        value={newVehicleType}
+                        onChange={(e) => setNewVehicleType(e.target.value)}
+                        placeholder="e.g. Bajaj Boxer 150 Motorcycle"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      />
+                    </div>
 
                     <div>
                       <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>

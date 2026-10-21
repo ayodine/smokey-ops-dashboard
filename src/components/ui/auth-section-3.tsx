@@ -279,23 +279,19 @@ export default function AuthSectionThree() {
                   {role === 'rider' && (
                     <div className="p-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
                       <div className="text-xs font-semibold text-black/80 dark:text-white/80 uppercase tracking-wider flex items-center gap-1.5">
-                        <Truck className="w-3.5 h-3.5 text-[#c0201f]" />
                         <span>Driver Fleet KYC Details</span>
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1 text-left">
-                          <Select
-                            label="Vehicle Model"
+                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Vehicle Model</label>
+                          <input
+                            type="text"
+                            required
                             value={vehicleType}
-                            onValueChange={(val) => setVehicleType(String(val))}
-                            options={[
-                              { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
-                              { value: 'TVS HLX 125 Motorcycle', label: 'TVS HLX 125 Motorcycle' },
-                              { value: 'Haojue 110 Delivery Bike', label: 'Haojue 110 Delivery Bike' },
-                              { value: 'Electric Delivery Scooter', label: 'Electric Delivery Scooter' },
-                            ]}
-                            size="sm"
+                            onChange={(e) => setVehicleType(e.target.value)}
+                            placeholder="e.g. TVS HLX 125 Motorcycle"
+                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
                           />
                         </div>
 

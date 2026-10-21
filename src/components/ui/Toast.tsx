@@ -51,16 +51,10 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
       </div>
     ),
     info: (
-      <div className="w-6 h-6 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+      <div className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
         <Info className="w-3.5 h-3.5 stroke-[2.5]" />
       </div>
     ),
-  }
-
-  const borderStyles = {
-    success: 'border-l-4 border-l-emerald-600 dark:border-l-emerald-500',
-    error: 'border-l-4 border-l-rose-600 dark:border-l-rose-500',
-    info: 'border-l-4 border-l-primary dark:border-l-primary',
   }
 
   const type = toast.type || 'success'
@@ -71,10 +65,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className={cn(
-        'pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border border-kumo-line bg-kumo-base dark:bg-kumo-base shadow-lg shadow-black/5 dark:shadow-black/40 text-xs font-sans select-none',
-        borderStyles[type]
-      )}
+      className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border border-zinc-800/70 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl shadow-black/10 dark:shadow-black/50 text-xs font-sans select-none"
     >
       <div className="mt-0.5">{icons[type]}</div>
       <div className="flex-1 min-w-0 pt-0.5">
