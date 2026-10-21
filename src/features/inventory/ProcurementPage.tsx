@@ -4,6 +4,8 @@ import { PurchaseOrder } from '@/types/inventory'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { formatNaira, formatShortDate } from '@/lib/utils'
 import { CheckCircle2 } from 'lucide-react'
@@ -127,16 +129,10 @@ export const ProcurementPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Procurement & Purchase Orders
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Manage raw ingredient orders, supplier lead times, and warehouse dock receiving inspections.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Procurement & Purchase Orders"
+        subtitle="Manage raw ingredient orders, supplier lead times, and warehouse dock receiving inspections."
+      />
 
       <DataTable
         title="Vendor Purchase Orders and Shipments"
@@ -155,15 +151,14 @@ export const ProcurementPage: React.FC = () => {
           rowActions={po => (
             <div className="flex items-center gap-1.5 justify-end shrink-0">
               {po.status !== 'RECEIVED' ? (
-                <Button
-                  size="xs"
+                <TableActionButton
                   variant="primary"
                   onClick={() => handleOpenReceiving(po)}
-                  leftIcon={<CheckCircle2 className="w-3 h-3" />}
-                  className="whitespace-nowrap shrink-0 flex-none"
+                  icon={<CheckCircle2 />}
+                  iconStrokeWidth={2}
                 >
                   Receive Goods
-                </Button>
+                </TableActionButton>
               ) : (
                 <span className="text-[11px] text-emerald-600 font-semibold font-mono whitespace-nowrap shrink-0">
                   Fully Received

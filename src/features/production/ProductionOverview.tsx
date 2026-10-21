@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Link } from 'react-router-dom'
 import { 
   Factory, 
@@ -93,24 +94,17 @@ export const ProductionOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Production Management
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Assembly line scheduling, smoke cycle tracking, recipe material allocations, and batch yield controls.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Production Management"
+        subtitle="Assembly line scheduling, smoke cycle tracking, recipe material allocations, and batch yield controls."
+        actions={
           <Link to="/production/orders">
             <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
               Launch Production Run
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

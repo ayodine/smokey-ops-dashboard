@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -196,22 +198,20 @@ export const SalesInventoryPage: React.FC = () => {
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Manually adjust on-hand stock">
-            <button
-              type="button"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenAdjust(p)}
-              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Adjust
-            </button>
+            </TableActionButton>
           </Tooltip>
           <Tooltip content="Edit dish pricing and reorder levels">
-            <button
-              type="button"
+            <TableActionButton
+              variant="primary"
               onClick={() => handleOpenEdit(p)}
-              className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-opacity hover:opacity-85 font-sans shadow-2xs bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300 whitespace-nowrap shrink-0 flex-none"
             >
               Edit
-            </button>
+            </TableActionButton>
           </Tooltip>
         </div>
       ),
@@ -258,26 +258,21 @@ export const SalesInventoryPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Sales Inventory & Finished Goods
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Sales-ready smoked guinea fowls, 1-liter rice bowls, beef jerky, and fresh palm wine available for order fulfillment.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => handleOpenEdit()}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs"
-        >
-          Add Sales Product
-        </Button>
-      </div>
+      <PageHeader
+        title="Sales Inventory & Finished Goods"
+        subtitle="Sales-ready smoked guinea fowls, 1-liter rice bowls, beef jerky, and fresh palm wine available for order fulfillment."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleOpenEdit()}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
+          >
+            Add Sales Product
+          </Button>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { KumoTabs } from '@/components/ui/Tabs'
@@ -178,30 +180,24 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
       header: 'Action',
       defaultWidth: 160,
       accessor: (d) => (
-        <button
-          type="button"
+        <TableActionButton
+          variant="primary"
+          icon={<Receipt />}
+          iconStrokeWidth={2}
           onClick={() => handleOpenEvidence(d)}
-          className="px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10 border border-primary/30 rounded-lg cursor-pointer transition-colors flex items-center gap-1 whitespace-nowrap shrink-0 flex-none"
         >
-          <Receipt className="w-3.5 h-3.5" />
           Audit Invoice
-        </button>
+        </TableActionButton>
       ),
     },
   ]
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Courier Fees & Delivery Audit
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Monitor delivery charges billed to customers versus actual courier fees invoiced by delivery partners.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Courier Fees & Delivery Audit"
+        subtitle="Monitor delivery charges billed to customers versus actual courier fees invoiced by delivery partners."
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -6,6 +6,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
@@ -303,26 +304,21 @@ export const PackagingExecutionPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Packaging Execution & Kitchen Pack-Out
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            The operational bridge between kitchen cooking and logistics. Select packaging materials to deduct consumables before releasing orders for dispatch.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsManualOrderModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs shrink-0"
-        >
-          Assign Order for Packing
-        </Button>
-      </div>
+      <PageHeader
+        title="Packaging Execution & Kitchen Pack-Out"
+        subtitle="The operational bridge between kitchen cooking and logistics. Select packaging materials to deduct consumables before releasing orders for dispatch."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsManualOrderModalOpen(true)}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs shrink-0"
+          >
+            Assign Order for Packing
+          </Button>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

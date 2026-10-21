@@ -4,6 +4,7 @@ import { SalesMovement } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatQuantity, formatDate } from '@/lib/utils'
@@ -124,16 +125,10 @@ export const StockMovementsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Sales Stock Movements Ledger
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Real-time ledger of finished goods additions from kitchen batches, customer order deductions, and balance sheet corrections.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Sales Stock Movements Ledger"
+        subtitle="Real-time ledger of finished goods additions from kitchen batches, customer order deductions, and balance sheet corrections."
+      />
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

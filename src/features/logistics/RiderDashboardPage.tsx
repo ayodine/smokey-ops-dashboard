@@ -7,6 +7,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/Badge'
 import { formatNaira, formatDate } from '@/lib/utils'
 import {
@@ -536,18 +537,10 @@ export const RiderDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Page Header (Matches SuppliersPage and other pages) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Rider Operations Portal
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Order fulfillment queue, trip milestones, proof of delivery, and earnings ledger.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Rider Operations Portal"
+        subtitle="Order fulfillment queue, trip milestones, proof of delivery, and earnings ledger."
+        actions={
           <Button
             variant="outline"
             size="sm"
@@ -557,8 +550,8 @@ export const RiderDashboardPage: React.FC = () => {
           >
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI METRIC CARDS (Contextual to active tab) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

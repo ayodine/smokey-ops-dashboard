@@ -4,6 +4,8 @@ import { Supplier, RawDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -181,15 +183,14 @@ export const SuppliersPage: React.FC = () => {
       header: 'Action',
       defaultWidth: 160,
       accessor: (s) => (
-        <div className="flex items-center gap-1.5 shrink-0 py-1" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <TableActionButton
+            variant="outline"
+            icon={<Pencil className="text-kumo-subtle" />}
             onClick={() => handleOpenManage(s)}
-            className="px-3.5 py-1.5 h-8 text-xs font-semibold text-kumo-strong bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex items-center gap-1.5"
           >
-            <Pencil className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-            <span>Manage</span>
-          </button>
+            Manage
+          </TableActionButton>
         </div>
       ),
     },
@@ -197,30 +198,25 @@ export const SuppliersPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Suppliers & Vendor Procurement
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Registered live poultry farmers, agro-wholesale markets, firewood contractors, and food packaging manufacturers.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => {
-            setIsCustomCategoryMode(false)
-            setCustomCategoryInput('')
-            setIsAddModalOpen(true)
-          }}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit"
-        >
-          Add New Vendor
-        </Button>
-      </div>
+      <PageHeader
+        title="Suppliers & Vendor Procurement"
+        subtitle="Registered live poultry farmers, agro-wholesale markets, firewood contractors, and food packaging manufacturers."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              setIsCustomCategoryMode(false)
+              setCustomCategoryInput('')
+              setIsAddModalOpen(true)
+            }}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit"
+          >
+            Add New Vendor
+          </Button>
+        }
+      />
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

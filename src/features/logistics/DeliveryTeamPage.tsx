@@ -7,6 +7,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -320,23 +322,21 @@ export const DeliveryTeamPage: React.FC = () => {
           <div className="flex items-center gap-2 w-full justify-center" onClick={e => e.stopPropagation()}>
             {unremitted > 0 ? (
               <Tooltip content="Record cash collected by driver">
-                <button
-                  type="button"
+                <TableActionButton
+                  variant="success"
                   onClick={() => handleOpenRemitModal(r)}
-                  className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
                 >
                   Remit Cash
-                </button>
+                </TableActionButton>
               </Tooltip>
             ) : null}
             <Tooltip content="View driver account ledger & full profile">
-              <button
-                type="button"
+              <TableActionButton
+                variant="outline"
                 onClick={() => handleOpenAccount(r, 'ledger')}
-                className="px-3 py-1.5 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
               >
                 View Account
-              </button>
+              </TableActionButton>
             </Tooltip>
           </div>
         )
@@ -348,34 +348,29 @@ export const DeliveryTeamPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Delivery Drivers & Fleet
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Manage fleet drivers, active trip assignments, earnings, cash on delivery, and driver profiles.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsOnboardModalOpen(true)}
-            leftIcon={<UserPlus className="w-4 h-4" />}
-          >
-            Onboard Fleet Driver
-          </Button>
-          <Link
-            to="/logistics/rider-portal"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition"
-          >
-            <Bike className="w-4 h-4" />
-            <span>Open Rider Portal (Rider Yusuf)</span>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Delivery Drivers & Fleet"
+        subtitle="Manage fleet drivers, active trip assignments, earnings, cash on delivery, and driver profiles."
+        actions={
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsOnboardModalOpen(true)}
+              leftIcon={<UserPlus className="w-4 h-4" />}
+            >
+              Onboard Fleet Driver
+            </Button>
+            <Link
+              to="/logistics/rider-portal"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition"
+            >
+              <Bike className="w-4 h-4" />
+              <span>Open Rider Portal (Rider Yusuf)</span>
+            </Link>
+          </>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

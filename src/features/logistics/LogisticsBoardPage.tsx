@@ -6,6 +6,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Select } from '@/components/ui/Select'
@@ -295,16 +296,10 @@ export const LogisticsBoardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Logistics Dispatch Board
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Central dispatch control for packaged orders. Assign trips to internal riders or external courier partners and track delivery completion.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Logistics Dispatch Board"
+        subtitle="Central dispatch control for packaged orders. Assign trips to internal riders or external courier partners and track delivery completion."
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

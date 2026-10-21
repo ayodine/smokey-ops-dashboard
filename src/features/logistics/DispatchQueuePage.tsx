@@ -4,6 +4,8 @@ import { DispatchItem } from '@/types/logistics'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Printer, CheckCircle2, Send, Barcode, ShieldCheck, MapPin, Phone } from 'lucide-react'
 
@@ -109,16 +111,10 @@ export const DispatchQueuePage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Dispatch Queue & Waybills
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Stage orders, print waybills, and dispatch packages to internal drivers or delivery companies.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Dispatch Queue & Waybills"
+        subtitle="Stage orders, print waybills, and dispatch packages to internal drivers or delivery companies."
+      />
 
       <DataTable
         title="Active Dispatch Staging and Waybills"
@@ -138,14 +134,13 @@ export const DispatchQueuePage: React.FC = () => {
         }
         rowActions={item => (
           <div className="flex items-center gap-1.5 justify-end">
-            <Button
-              size="xs"
-              variant="secondary"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenManifest(item)}
-              leftIcon={<Printer className="w-3 h-3" />}
+              icon={<Printer className="w-3.5 h-3.5" />}
             >
               Waybill
-            </Button>
+            </TableActionButton>
           </div>
         )}
       />

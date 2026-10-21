@@ -4,6 +4,7 @@ import { BillOfMaterials } from '@/types/production'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/Select'
 import { formatNaira, formatQuantity } from '@/lib/utils'
 import { ScrollText, Layers, Plus, Check } from 'lucide-react'
@@ -14,16 +15,10 @@ export const BOMPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Recipes & Food Costing
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Formulation recipes, raw ingredient consumption rates, kitchen trim allowances, and unit costs.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Recipes & Food Costing"
+        subtitle="Formulation recipes, raw ingredient consumption rates, kitchen trim allowances, and unit costs."
+        actions={
           <Select
             className="w-72"
             value={selectedBOM.id}
@@ -36,8 +31,8 @@ export const BOMPage: React.FC = () => {
               label: `${b.finished_product_name} (${b.version})`
             }))}
           />
-        </div>
-      </div>
+        }
+      />
 
       {/* Selected BOM Plate */}
       <div className="rounded-lg ring ring-kumo-line bg-kumo-base p-5 shadow-xs space-y-4">

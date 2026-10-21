@@ -7,6 +7,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
@@ -151,18 +152,10 @@ export const DeliverySchedulePage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Delivery Schedule & Pre-Orders
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Multi-day delivery scheduling for advance corporate lunches, weekend feast pre-orders, and event bulk deliveries.
-          </p>
-        </div>
-
-        {/* Action Button */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+      <PageHeader
+        title="Delivery Schedule & Pre-Orders"
+        subtitle="Multi-day delivery scheduling for advance corporate lunches, weekend feast pre-orders, and event bulk deliveries."
+        actions={
           <Button
             variant="primary"
             size="sm"
@@ -172,8 +165,8 @@ export const DeliverySchedulePage: React.FC = () => {
           >
             Send Due Orders to Kitchen
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {releaseFeedback && (
         <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2 font-sans">

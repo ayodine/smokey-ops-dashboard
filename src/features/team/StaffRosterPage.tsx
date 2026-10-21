@@ -1,5 +1,6 @@
 import React from 'react'
 import { ResizableTable, defaultEmployees, Employee } from '@/components/ui/resizable-table'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const SMOKEY_OPERATIONS_STAFF: Employee[] = [
   {
@@ -92,16 +93,10 @@ const SMOKEY_OPERATIONS_STAFF: Employee[] = [
 export const StaffRosterPage: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Operations Staff Roster
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Manage cooks, quality control inspectors, warehouse storekeepers, and delivery drivers.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Operations Staff Roster"
+        subtitle="Manage cooks, quality control inspectors, warehouse storekeepers, and delivery drivers."
+      />
 
       <ResizableTable
         title="Operations Staff"

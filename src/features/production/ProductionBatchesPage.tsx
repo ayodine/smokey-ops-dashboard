@@ -6,6 +6,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -564,26 +565,21 @@ export const ProductionBatchesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Production Batches & Cooking Recipes
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsCreateModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs"
-        >
-          Start Cooking Batch
-        </Button>
-      </div>
+      <PageHeader
+        title="Production Batches & Cooking Recipes"
+        subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
+          >
+            Start Cooking Batch
+          </Button>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

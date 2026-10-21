@@ -4,6 +4,8 @@ import { Shipment } from '@/types/logistics'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { formatShortDate, formatDate } from '@/lib/utils'
 import { Navigation, Clock, CheckCircle2, User, Phone, MapPin, Truck } from 'lucide-react'
@@ -80,16 +82,10 @@ export const ShipmentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Shipment Tracking & Carrier Milestones
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Monitor en-route deliveries, driver waypoints, customer handoffs, and digital proof of delivery.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Shipment Tracking & Carrier Milestones"
+        subtitle="Monitor en-route deliveries, driver waypoints, customer handoffs, and digital proof of delivery."
+      />
 
       <DataTable
         title="Live Transit Shipments and Carrier Waybills"
@@ -109,14 +105,13 @@ export const ShipmentsPage: React.FC = () => {
         }
         rowActions={shipment => (
           <div className="flex items-center gap-1.5 justify-end">
-            <Button
-              size="xs"
-              variant="secondary"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenTimeline(shipment)}
-              leftIcon={<Navigation className="w-3 h-3" />}
+              icon={<Navigation className="w-3.5 h-3.5" />}
             >
               Milestones
-            </Button>
+            </TableActionButton>
           </div>
         )}
       />

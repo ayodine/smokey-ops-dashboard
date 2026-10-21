@@ -4,6 +4,7 @@ import { ProductSKU } from '@/types/inventory'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -144,16 +145,10 @@ export const ProductsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Products & Item Catalog
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Central catalog defining raw ingredients, packaging, finished meals, and safety replenishment lines.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Products & Item Catalog"
+        subtitle="Central catalog defining raw ingredients, packaging, finished meals, and safety replenishment lines."
+      />
 
       <DataTable
         title="Custom SKUs and Catalog Items"

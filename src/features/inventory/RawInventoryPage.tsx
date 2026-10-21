@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -827,46 +828,41 @@ export const RawInventoryPage: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
       {/* Page Title & Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Raw Material Inventory
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Manage fresh meats, cooking spices, hardwood charcoal, and oil deliveries from trusted local suppliers.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenBlindStocktake}
-            leftIcon={<ClipboardCheck className="w-4 h-4 text-blue-600" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Daily Stock Check
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleOpenEditProduct()}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            New Item
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleOpenReceive()}
-            leftIcon={<PackagePlus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Add Received Stock
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Raw Material Inventory"
+        subtitle="Manage fresh meats, cooking spices, hardwood charcoal, and oil deliveries from trusted local suppliers."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenBlindStocktake}
+              leftIcon={<ClipboardCheck className="w-4 h-4 text-blue-600" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Daily Stock Check
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenEditProduct()}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              New Item
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleOpenReceive()}
+              leftIcon={<PackagePlus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Add Received Stock
+            </Button>
+          </>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -6,6 +6,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -167,26 +168,21 @@ export const KitchenTasksPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Kitchen Tasks & Shift Delegation
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Assign smoker calibration, cold room temp monitoring, pre-marination rubbing, and hygiene checklist tasks to shift operators.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsCreateModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs"
-        >
-          New Kitchen Task
-        </Button>
-      </div>
+      <PageHeader
+        title="Kitchen Tasks & Shift Delegation"
+        subtitle="Assign smoker calibration, cold room temp monitoring, pre-marination rubbing, and hygiene checklist tasks to shift operators."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
+          >
+            New Kitchen Task
+          </Button>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

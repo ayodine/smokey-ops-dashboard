@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { KpiCarousel } from '@/components/ui/KpiCarousel'
 import { StatusBadge } from '@/components/ui/Badge'
+import { Heading, Subheading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
 import { formatNaira } from '@/lib/utils'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
@@ -64,13 +65,13 @@ export const ExecutiveOverview: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h1 className="text-lg sm:text-xl font-bold tracking-normal text-kumo-strong">
+            <Heading level={1} size="lg">
               Operations Control Center
-            </h1>
+            </Heading>
           </div>
-          <p className="text-xs text-kumo-subtle mt-1.5 leading-relaxed">
+          <Subheading size="xs" className="mt-1.5">
             Connected to <strong className="text-kumo-strong">Central Production Kitchen (Ikeja)</strong>. 2 pit runs active, 3 orders staged for courier dispatch.
-          </p>
+          </Subheading>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

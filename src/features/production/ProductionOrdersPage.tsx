@@ -3,6 +3,7 @@ import { INITIAL_PRODUCTION_ORDERS } from '@/lib/mockData'
 import { ProductionOrder, ProductionStatus } from '@/types/production'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import {
@@ -77,16 +78,10 @@ export const ProductionOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Production Orders
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-0.5">
-            Track kitchen cooking stages from raw meat preparation to smoker pits and final packaging.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Production Orders"
+        subtitle="Track kitchen cooking stages from raw meat preparation to smoker pits and final packaging."
+      />
 
       {/* Interactive 8-Stage Lifecycle Stepper Plate */}
       <div className="rounded-lg ring ring-kumo-line bg-kumo-base p-5 shadow-xs space-y-5 font-sans">

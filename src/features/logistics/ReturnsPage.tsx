@@ -4,6 +4,7 @@ import { ReturnOrder } from '@/types/logistics'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { RotateCcw, ShieldAlert, CheckCircle2, AlertOctagon } from 'lucide-react'
 
@@ -92,14 +93,10 @@ export const ReturnsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-          Returns & Exchanges
-        </h1>
-        <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-          Process customer returns, inspect meal condition, determine restock eligibility, and log discarded items.
-        </p>
-      </div>
+      <PageHeader
+        title="Returns & Exchanges"
+        subtitle="Process customer returns, inspect meal condition, determine restock eligibility, and log discarded items."
+      />
 
       <DataTable
         title="Customer RMA Dispositions and Restock Records"

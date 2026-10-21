@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -189,18 +191,10 @@ export const InventoryOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Page Title & Main Action Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Inventory Management
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Real-time multi-warehouse stock balances, safety reserves, and atomic movement audit ledgers.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Inventory Management"
+        subtitle="Real-time multi-warehouse stock balances, safety reserves, and atomic movement audit ledgers."
+        actions={
           <Button
             variant="primary"
             onClick={() => handleOpenAdjust(products[0])}
@@ -208,8 +202,8 @@ export const InventoryOverview: React.FC = () => {
           >
             Record Stock Movement
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 4-Plate Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -293,14 +287,13 @@ export const InventoryOverview: React.FC = () => {
         ]}
         rowActions={product => (
           <div className="flex items-center gap-1.5 justify-end">
-            <Button
-              size="xs"
-              variant="secondary"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenAdjust(product)}
-              leftIcon={<RotateCcw className="w-3 h-3" />}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
             >
               Adjust
-            </Button>
+            </TableActionButton>
           </div>
         )}
       />

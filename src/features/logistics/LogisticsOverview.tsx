@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Link } from 'react-router-dom'
 import { 
   Truck, 
@@ -75,24 +76,17 @@ export const LogisticsOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Logistics & Fulfilment Control
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Real-time courier fleet dispatching, live milestone tracking, waybill manifests, and reverse logistics.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Logistics & Fulfilment Control"
+        subtitle="Real-time courier fleet dispatching, live milestone tracking, waybill manifests, and reverse logistics."
+        actions={
           <Link to="/logistics/dispatch">
             <Button variant="primary" leftIcon={<Send className="w-4 h-4" />}>
               Process Dispatch Queue
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* 4-Plate Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

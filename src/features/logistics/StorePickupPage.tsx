@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { KumoTabs } from '@/components/ui/Tabs'
@@ -114,14 +116,14 @@ export const StorePickupPage: React.FC = () => {
       accessor: (p) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0">
           {p.order_status === 'ready_for_pickup' ? (
-            <button
-              type="button"
+            <TableActionButton
+              variant="success"
+              icon={<UserCheck />}
+              iconStrokeWidth={2}
               onClick={() => handleOpenCollect(p)}
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg cursor-pointer transition-colors flex items-center gap-1 whitespace-nowrap shrink-0 flex-none"
             >
-              <UserCheck className="w-3.5 h-3.5" />
               Hand Over
-            </button>
+            </TableActionButton>
           ) : (
             <div className="text-xs text-kumo-subtle whitespace-nowrap shrink-0">
               Handed by <span className="text-kumo-strong font-medium">{p.handover_staff || 'Staff'}</span>
@@ -134,16 +136,10 @@ export const StorePickupPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Store Pickup Orders
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Manage customers collecting meals directly at the pickup counter.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Store Pickup Orders"
+        subtitle="Manage customers collecting meals directly at the pickup counter."
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">

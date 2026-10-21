@@ -4,6 +4,7 @@ import { Warehouse } from '@/types/inventory'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Building2, MapPin, Phone, UserCheck, ShieldCheck } from 'lucide-react'
 
 export const WarehousesPage: React.FC = () => {
@@ -88,14 +89,10 @@ export const WarehousesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-          Facilities & Warehouse Network
-        </h1>
-        <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-          Directory of physical central kitchens, regional depots, cold-chain storage facilities, and bin storage layouts.
-        </p>
-      </div>
+      <PageHeader
+        title="Facilities & Warehouse Network"
+        subtitle="Directory of physical central kitchens, regional depots, cold-chain storage facilities, and bin storage layouts."
+      />
 
       <DataTable
         title="Operational Facilities and Cold Hubs"

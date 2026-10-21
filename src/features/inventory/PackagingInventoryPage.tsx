@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -204,22 +206,20 @@ export const PackagingInventoryPage: React.FC = () => {
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record incoming packaging containers">
-            <button
-              type="button"
+            <TableActionButton
+              variant="success"
               onClick={() => handleOpenReceive(p)}
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               + Intake
-            </button>
+            </TableActionButton>
           </Tooltip>
           <Tooltip content="Manually adjust or audit stock count">
-            <button
-              type="button"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenAdjust(p)}
-              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Audit
-            </button>
+            </TableActionButton>
           </Tooltip>
         </div>
       ),
@@ -273,48 +273,43 @@ export const PackagingInventoryPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Packaging & Packing Materials Inventory
-          </h1>
-          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
-            Paper bowls, branded polybags, customized aluminum foil seals, and thermal order tracking labels.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setNewMaterialForm({
-                name: '',
-                sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
-                unit: 'PIECES',
-                stock_qty: 100,
-                unit_cost: 250,
-                reorder_level: 50,
-                supplier_name: 'PACKAGING DIRECT LTD'
-              })
-              setIsNewMaterialModalOpen(true)
-            }}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            New Packaging Material
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleOpenReceive()}
-            leftIcon={<PackageCheck className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Receive Stock Intake
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Packaging & Packing Materials Inventory"
+        subtitle="Paper bowls, branded polybags, customized aluminum foil seals, and thermal order tracking labels."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setNewMaterialForm({
+                  name: '',
+                  sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
+                  unit: 'PIECES',
+                  stock_qty: 100,
+                  unit_cost: 250,
+                  reorder_level: 50,
+                  supplier_name: 'PACKAGING DIRECT LTD'
+                })
+                setIsNewMaterialModalOpen(true)
+              }}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              New Packaging Material
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleOpenReceive()}
+              leftIcon={<PackageCheck className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Receive Stock Intake
+            </Button>
+          </>
+        }
+      />
 
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
