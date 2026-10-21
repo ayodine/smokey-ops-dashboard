@@ -525,7 +525,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     adjustRawStock(
       lot.product_id,
       -actualQty,
-      `[FEFO PRIORITY] Cooking batch allocation for ${targetDishName} (Lot: ${lot.lot_number})`,
+      `[PRIORITY EXPIRING LOT] Cooking batch allocation for ${targetDishName} (Lot: ${lot.lot_number})`,
       "Kitchen Cooking Allocation"
     )
 
@@ -542,7 +542,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: "in_production",
       started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       completed_at: null,
-      remarks: `[FEFO URGENT PRIORITY] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Smoke immediately on current shift to prevent food waste.'}`,
+      remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Smoke immediately on current shift to prevent food waste.'}`,
       created_by_name: pitmasterName || "Shift Pitmaster",
       raw_materials: [
         {
@@ -557,7 +557,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProductionBatches(prev => [newBatch, ...prev])
 
     showSuccessModal({
-      title: 'Kitchen Batch Created (FEFO Priority)',
+      title: 'Kitchen Batch Created (Expiring Stock Priority)',
       message: `Lot ${lot.lot_number} has been allocated and sent directly to the kitchen smoker for immediate preparation.`,
       details: [
         { label: 'Batch Reference', value: batchRef },

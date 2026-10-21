@@ -87,8 +87,7 @@ export const RawInventoryPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'current' | 'fefo' | 'inbound' | 'outbound' | 'usage' | 'escrow'>('current')
 
-  // FEFO Workflow State
-  const [fefoFilter, setFefoFilter] = useState<'all' | 'near_expiry'>('all')
+  // Expiring Lots Workflow State
   const [isPrioritizeModalOpen, setIsPrioritizeModalOpen] = useState(false)
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false)
   const [selectedLot, setSelectedLot] = useState<InventoryLot | null>(null)
@@ -168,14 +167,6 @@ export const RawInventoryPage: React.FC = () => {
   const criticalExpiringLots = useMemo(() => {
     return inventoryLots.filter(l => l.days_to_expiry <= 3 && l.remaining_qty > 0)
   }, [inventoryLots])
-
-  // Filtered FEFO lots based on user-selected filter pill
-  const filteredFefoLots = useMemo(() => {
-    if (fefoFilter === 'near_expiry') {
-      return inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0)
-    }
-    return inventoryLots
-  }, [inventoryLots, fefoFilter])
 
   // Handlers
   const handleOpenReceive = (product?: RawProduct) => {
@@ -350,7 +341,7 @@ export const RawInventoryPage: React.FC = () => {
     setPrioritizeQty(lot.remaining_qty)
     setPrioritizeDish(getMatchingDishForProtein(lot.product_name))
     setPrioritizePitmaster('Babajide (Pitmaster)')
-    setPrioritizeRemarks(`[FEFO URGENT PRIORITY] Lot ${lot.lot_number} allocated to smoker pit. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
+    setPrioritizeRemarks(`[URGENT EXPIRING BATCH] Lot ${lot.lot_number} allocated to smoker pit. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
     setIsPrioritizeModalOpen(true)
   }
 
@@ -474,13 +465,14 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
+      defaultWidth: 220,
       accessor: (p) => (
-        <div className="flex items-center gap-1.5 font-sans" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record incoming stock from supplier">
             <button
               type="button"
               onClick={() => handleOpenReceive(p)}
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs"
+              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               + Receive
             </button>
@@ -489,7 +481,7 @@ export const RawInventoryPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenAdjust(p)}
-              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs"
+              className="px-3 py-1.5 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Adjust
             </button>
@@ -499,17 +491,19 @@ export const RawInventoryPage: React.FC = () => {
     },
   ]
 
-  // Column definitions for FEFO Lots Tab
+  // Column definitions for Expiring Lots Tab
   const fefoColumns: ColumnDef<InventoryLot>[] = [
     {
       key: 'lot_number',
-      header: 'Lot Identifier',
-      accessor: (l) => <span className="font-medium text-xs text-kumo-strong font-sans">{l.lot_number}</span>,
+      header: 'Batch Lot Number',
+      defaultWidth: 160,
+      accessor: (l) => <span className="font-semibold text-xs text-kumo-strong font-mono">{l.lot_number}</span>,
       sortValue: (l) => l.lot_number,
     },
     {
       key: 'product_name',
       header: 'Protein / Raw Item',
+      defaultWidth: 240,
       accessor: (l) => (
         <div>
           <div className="font-medium text-kumo-strong font-sans">{l.product_name}</div>
@@ -521,14 +515,16 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'supplier_name',
       header: 'Supplier / Origin',
+      defaultWidth: 180,
       accessor: (l) => <span className="text-xs text-kumo-default font-sans">{l.supplier_name}</span>,
       sortValue: (l) => l.supplier_name,
     },
     {
       key: 'remaining_qty',
       header: 'Remaining Balance',
+      defaultWidth: 180,
       accessor: (l) => (
-        <span className="font-medium text-xs text-kumo-strong font-sans">
+        <span className="font-medium text-xs text-kumo-strong font-sans whitespace-nowrap">
           {formatQuantity(l.remaining_qty)} / {l.initial_qty} {l.unit}
         </span>
       ),
@@ -537,19 +533,21 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'expiry_date',
       header: 'Expiry Date',
+      defaultWidth: 140,
       accessor: (l) => (
-        <span className="text-xs text-kumo-default font-sans">{l.expiry_date}</span>
+        <span className="text-xs text-kumo-default font-sans whitespace-nowrap">{l.expiry_date}</span>
       ),
       sortValue: (l) => l.expiry_date,
     },
     {
       key: 'days_to_expiry',
       header: 'Days Left',
+      defaultWidth: 200,
       accessor: (l) => {
         const isUrgent = l.days_to_expiry <= 4
         return (
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 whitespace-nowrap ${
               isUrgent
                 ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300'
                 : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
@@ -564,17 +562,18 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
+      defaultWidth: 360,
       accessor: (l) => {
         if (l.remaining_qty <= 0) {
           return <span className="text-[11px] text-kumo-subtle italic">Depleted / Written Off</span>
         }
         return (
-          <div className="flex items-center gap-1.5 font-sans" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
             <Tooltip content="Create prep batch targeting this lot so it gets smoked first">
               <button
                 type="button"
                 onClick={() => handleOpenPrioritize(l)}
-                className="px-2.5 py-1 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none flex items-center gap-1.5"
               >
                 <Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 Prioritize in Kitchen
@@ -584,7 +583,7 @@ export const RawInventoryPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleOpenWaste(l)}
-                className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                 Log Spoilage / Waste
@@ -888,13 +887,9 @@ export const RawInventoryPage: React.FC = () => {
         <MetricCard
           title="Near Expiry Lots"
           value={nearExpiryCount}
-          description="Batches expiring ≤ 4 days • Click to view"
+          description="Batches expiring within 4 days"
           icon={<Calendar className="w-4 h-4 text-amber-500" />}
           variant={nearExpiryCount > 0 ? "warning" : "default"}
-          onClick={() => {
-            setActiveTab('fefo')
-            setFefoFilter('near_expiry')
-          }}
         />
         <MetricCard
           title="Stock Discrepancies"
@@ -941,61 +936,14 @@ export const RawInventoryPage: React.FC = () => {
         )}
 
         {activeTab === 'fefo' && (
-          <div className="space-y-3">
-            {/* Filter pills for FEFO lots */}
-            <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-kumo-subtle">Filter Lots:</span>
-                <button
-                  type="button"
-                  onClick={() => setFefoFilter('all')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
-                    fefoFilter === 'all'
-                      ? 'bg-kumo-strong text-white border-kumo-strong dark:bg-white dark:text-black dark:border-white shadow-2xs'
-                      : 'bg-kumo-base text-kumo-default border-kumo-line hover:bg-kumo-surface'
-                  }`}
-                >
-                  All Batches ({inventoryLots.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFefoFilter('near_expiry')}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    fefoFilter === 'near_expiry'
-                      ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
-                      : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                  ≤ 4 Days Left ({inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0).length})
-                </button>
-              </div>
-
-              {fefoFilter === 'near_expiry' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-rose-600 dark:text-rose-400 font-medium bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 rounded-md border border-rose-200 dark:border-rose-800">
-                    Active Filter: Showing lots expiring in ≤ 4 days
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setFefoFilter('all')}
-                    className="text-xs text-kumo-subtle hover:text-kumo-strong underline cursor-pointer"
-                  >
-                    Clear Filter
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <DataTable
-              data={filteredFefoLots}
-              columns={fefoColumns}
-              searchable={true}
-              searchPlaceholder="Filter by lot number or protein SKU..."
-              title="Perishables FEFO Lot"
-              exportFilename="smokey-fefo-lots"
-            />
-          </div>
+          <DataTable
+            data={inventoryLots}
+            columns={fefoColumns}
+            searchable={true}
+            searchPlaceholder="Filter by batch lot number or item..."
+            title="Expiring Raw Materials & Batches"
+            exportFilename="smokey-expiring-batches"
+          />
         )}
 
         {activeTab === 'inbound' && (
@@ -1100,7 +1048,7 @@ export const RawInventoryPage: React.FC = () => {
               onChange={(e) => setReceiveLotNumber(e.target.value)}
             />
             <SingleDatePicker
-              label="Expiry Date (FEFO Rule)"
+              label="Expiration Date (First Expiring)"
               value={receiveExpiryDate}
               onChange={(d) => setReceiveExpiryDate(d)}
               required

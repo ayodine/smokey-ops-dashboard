@@ -162,8 +162,7 @@ export function DataTable<T>({
         if (k.includes('status') || k.includes('state')) {
           initial[col.key] = 200
         } else if (k === 'actions' || k.includes('action') || k.includes('option')) {
-          const isButtonAction = col.header && (col.header.includes('Inbound') || col.header.includes('Action') || col.header.includes('Ledger') || col.header.includes('Assign'))
-          initial[col.key] = col.defaultWidth || (isButtonAction ? 150 : 120)
+          initial[col.key] = col.defaultWidth || 240
         } else if (k === 'sku' || k.includes('ref') || k === 'code') {
           initial[col.key] = 150
         } else if (k.includes('date') || k.includes('time')) {
@@ -923,32 +922,21 @@ export function DataTable<T>({
                                 <div className={cn(
                                   'w-full max-w-full min-w-0 overflow-hidden flex items-center',
                                   col.align === 'right' ? 'justify-end text-right' : col.align === 'center' ? 'justify-center text-center' : 'justify-start text-left',
-                                  // Standalone badges & pills adapt responsively to column width
-                                  '[&>[data-kumo-component="Badge"]]:w-full [&>[data-kumo-component="Badge"]]:max-w-full [&>[data-kumo-component="Badge"]]:justify-center [&>[data-kumo-component="Badge"]]:text-center',
-                                  '[&>[data-badge]]:w-full [&>[data-badge]]:max-w-full [&>[data-badge]]:justify-center [&>[data-badge]]:text-center',
-                                  // Action container responsiveness (div wrapping buttons / tooltips)
-                                  '[&>div:has(button)]:w-full [&>div:has(button)]:max-w-full [&>div:has(button)]:min-w-0 [&>div:has(button)]:flex [&>div:has(button)]:items-center',
-                                  '[&>div:has([data-kumo-tooltip])]:w-full [&>div:has([data-kumo-tooltip])]:max-w-full [&>div:has([data-kumo-tooltip])]:min-w-0 [&>div:has([data-kumo-tooltip])]:flex [&>div:has([data-kumo-tooltip])]:items-center',
-                                  // Tooltips inside action containers expand responsively
-                                  '[&>div:has(button)>[data-kumo-tooltip]]:flex-1 [&>div:has(button)>[data-kumo-tooltip]]:min-w-0 [&>div:has(button)>[data-kumo-tooltip]]:w-full [&>div:has(button)>[data-kumo-tooltip]]:justify-center',
-                                  '[&>div:has(button)>button]:flex-1 [&>div:has(button)>button]:min-w-0 [&>div:has(button)>button]:w-full [&>div:has(button)>button]:justify-center',
-                                  // Standalone tooltips or buttons directly inside cell
-                                  '[&>[data-kumo-tooltip]]:w-full [&>[data-kumo-tooltip]]:max-w-full [&>[data-kumo-tooltip]]:justify-center',
-                                  '[&>button]:w-full [&>button]:max-w-full [&>button]:justify-center',
-                                  // All buttons inside tooltips expand and center
-                                  '[&_[data-kumo-tooltip]>button]:w-full [&_[data-kumo-tooltip]>button]:max-w-full [&_[data-kumo-tooltip]>button]:justify-center',
-                                  '[&_button]:max-w-full [&_button]:justify-center [&_button]:text-center',
-                                  // Preserve compact size for icon-only buttons
-                                  '[&_button:has(svg:only-child)]:w-auto [&_button:has(svg:only-child)]:shrink-0 [&_button:has(svg:only-child)]:flex-none',
-                                  '[&_button.p-1]:w-auto [&_button.p-1]:shrink-0 [&_button.p-1]:flex-none',
-                                  '[&>[data-kumo-tooltip]:has(button:has(svg:only-child))]:flex-none [&>[data-kumo-tooltip]:has(button:has(svg:only-child))]:w-auto',
-                                  '[&>div:has(button)>[data-kumo-tooltip]:has(button:has(svg:only-child))]:flex-none [&>div:has(button)>[data-kumo-tooltip]:has(button:has(svg:only-child))]:w-auto',
-                                  // Clean text truncation inside buttons
-                                  '[&_button]:truncate [&_button>span]:truncate',
-                                  // Standalone rounded status spans adapt responsively
-                                  '[&>span[class*="rounded"]]:w-full [&>span[class*="rounded"]]:max-w-full [&>span[class*="rounded"]]:justify-center [&>span[class*="rounded"]]:text-center [&>span[class*="rounded"]]:inline-flex',
+                                  // Standalone badges & pills adapt naturally without being squeezed
+                                  '[&>[data-kumo-component="Badge"]]:w-auto [&>[data-kumo-component="Badge"]]:max-w-full [&>[data-kumo-component="Badge"]]:shrink-0 [&>[data-kumo-component="Badge"]]:whitespace-nowrap',
+                                  '[&>[data-badge]]:w-auto [&>[data-badge]]:max-w-full [&>[data-badge]]:shrink-0 [&>[data-badge]]:whitespace-nowrap',
+                                  // Action container keeps buttons naturally sized side by side
+                                  '[&>div:has(button)]:w-auto [&>div:has(button)]:max-w-full [&>div:has(button)]:flex [&>div:has(button)]:items-center [&>div:has(button)]:gap-1.5 [&>div:has(button)]:shrink-0',
+                                  '[&>div:has([data-kumo-tooltip])]:w-auto [&>div:has([data-kumo-tooltip])]:max-w-full [&>div:has([data-kumo-tooltip])]:flex [&>div:has([data-kumo-tooltip])]:items-center [&>div:has([data-kumo-tooltip])]:gap-1.5 [&>div:has([data-kumo-tooltip])]:shrink-0',
+                                  // Buttons inside action containers maintain natural width and padding
+                                  '[&>div:has(button)>button]:w-auto [&>div:has(button)>button]:shrink-0 [&>div:has(button)>button]:flex-none [&>div:has(button)>button]:whitespace-nowrap',
+                                  '[&>div:has(button)>[data-kumo-tooltip]]:w-auto [&>div:has(button)>[data-kumo-tooltip]]:shrink-0 [&>div:has(button)>[data-kumo-tooltip]]:flex-none',
+                                  '[&_[data-kumo-tooltip]>button]:w-auto [&_[data-kumo-tooltip]>button]:shrink-0 [&_[data-kumo-tooltip]>button]:flex-none [&_[data-kumo-tooltip]>button]:whitespace-nowrap',
+                                  '[&_button]:whitespace-nowrap',
+                                  // Standalone rounded status spans maintain natural pill shape
+                                  '[&>span[class*="rounded"]]:w-auto [&>span[class*="rounded"]]:max-w-full [&>span[class*="rounded"]]:shrink-0 [&>span[class*="rounded"]]:inline-flex [&>span[class*="rounded"]]:whitespace-nowrap',
                                   // Text labels and divs adapt with clean truncation
-                                  '[&>span]:truncate [&>div]:min-w-0 [&_span]:truncate [&_div]:min-w-0'
+                                  '[&>span]:truncate [&>div]:min-w-0'
                                 )}>
                                   {col.accessor(item)}
                                 </div>
