@@ -9,7 +9,7 @@ export const Breadcrumbs: React.FC = () => {
   const labelMap: Record<string, string> = {
     overview: 'Home overview',
     inventory: 'Inventory',
-    raw: 'Raw ingredients',
+    raw: 'Raw inventory',
     packaging: 'Packaging materials',
     sales: 'Sales inventory',
     movements: 'Stock movements',

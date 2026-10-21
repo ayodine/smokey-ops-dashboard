@@ -36,7 +36,7 @@ interface NavSection {
 }
 
 const RECENT_NAV_ITEMS = [
-  { label: 'Raw Ingredients', href: '/inventory/raw' },
+  { label: 'Raw Inventory', href: '/inventory/raw' },
   { label: 'Packaging Materials', href: '/inventory/packaging' },
   { label: 'Stock Movements', href: '/inventory/movements' },
   { label: 'Production Batches', href: '/production/batches' },
@@ -50,7 +50,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Boxes,
     defaultHref: '/inventory/raw',
     items: [
-      { label: 'Raw Ingredients', href: '/inventory/raw', badge: '13' },
+      { label: 'Raw Inventory', href: '/inventory/raw', badge: '13' },
       { label: 'Packaging Materials', href: '/inventory/packaging', badge: '7' },
       { label: 'Sales Inventory', href: '/inventory/sales', badge: '7' },
       { label: 'Stock Movements', href: '/inventory/movements' },

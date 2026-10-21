@@ -9,6 +9,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { formatDate } from '@/lib/utils'
 import { 
   CheckSquare, 
@@ -258,11 +259,10 @@ export const KitchenTasksPage: React.FC = () => {
             />
           </div>
 
-          <Input
+          <SingleDatePicker
             label="Target Due Date"
-            type="date"
             value={newTask.due_date}
-            onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
+            onChange={(date) => setNewTask(prev => ({ ...prev, due_date: date }))}
             required
           />
 

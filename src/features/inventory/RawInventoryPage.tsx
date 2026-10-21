@@ -25,8 +25,10 @@ import {
   Flame,
   Trash2,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Pencil
 } from 'lucide-react'
+import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 
 export const ALL_INVENTORY_UNITS = [
   { value: 'PIECES', label: 'Pieces (Birds / Carcasses / Whole Units)' },
@@ -61,7 +63,7 @@ export const ALL_INVENTORY_UNITS = [
   { value: 'BALE', label: 'Bales' },
   { value: 'SACHET', label: 'Sachets' },
   { value: 'TRAY', label: 'Trays' },
-  { value: 'CUSTOM', label: '✍️ Custom / Type manual unit...' }
+  { value: 'CUSTOM', label: 'Custom / Type manual unit...' }
 ]
 
 export const RawInventoryPage: React.FC = () => {
@@ -395,7 +397,7 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'name',
-      header: 'Ingredient',
+      header: 'Material',
       accessor: (p) => (
         <div>
           <div className="flex items-center gap-2">
@@ -721,7 +723,7 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'product_name',
-      header: 'Raw Ingredient',
+      header: 'Raw Material',
       accessor: (u) => <span className="font-medium text-kumo-strong font-sans">{u.product_name}</span>,
       sortValue: (u) => u.product_name,
     },
@@ -830,7 +832,7 @@ export const RawInventoryPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
-            Raw Ingredients & Meat Inventory
+            Raw Material Inventory
           </h1>
           <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
             Manage fresh meats, cooking spices, hardwood charcoal, and oil deliveries from trusted local suppliers.
@@ -870,27 +872,26 @@ export const RawInventoryPage: React.FC = () => {
 
       {/* Kitchen Urgency Alert Banner (Rendered when any lot is <= 3 days from expiring) */}
       {criticalExpiringLots.length > 0 && (
-        <div className="relative overflow-hidden rounded-xl border border-rose-300 dark:border-rose-900/80 bg-linear-to-r from-rose-50 via-amber-50/70 to-rose-50 dark:from-rose-950/40 dark:via-amber-950/20 dark:to-rose-950/40 p-4 sm:p-5 shadow-sm">
+        <div className="rounded-xl border border-[#F3B0BB] dark:border-[#52171E] bg-[#FDF2F4] dark:bg-[#200A0D] p-4 sm:p-5 shadow-2xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-xs shrink-0 mt-0.5">
-                <AlertTriangle className="w-5 h-5 animate-bounce" />
+              <div className="p-2 rounded-lg bg-[#C8102E] text-white shadow-2xs shrink-0 mt-0.5">
+                <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#C8102E] text-white">
                     Kitchen Urgency Alert
                   </span>
-                  <span className="text-xs font-semibold text-rose-800 dark:text-rose-300">
+                  <span className="text-xs font-semibold text-[#C8102E] dark:text-rose-300">
                     FEFO Expiring Soon ({criticalExpiringLots.length} lot{criticalExpiringLots.length > 1 ? 's' : ''} ≤ 3 Days Left)
                   </span>
                 </div>
-                <h2 className="text-sm sm:text-base font-bold text-kumo-strong mt-1">
+                <h2 className="text-sm font-bold text-kumo-strong mt-1">
                   Immediate Smoker Pit Prioritization Required
                 </h2>
                 <p className="text-xs text-kumo-default mt-0.5 max-w-2xl leading-relaxed">
-                  Lot <span className="font-semibold text-kumo-strong font-mono">{criticalExpiringLots[0].lot_number}</span> ({criticalExpiringLots[0].remaining_qty} {criticalExpiringLots[0].unit} of <span className="font-semibold text-kumo-strong">{criticalExpiringLots[0].product_name}</span>) expires on <span className="font-semibold text-rose-700 dark:text-rose-300">{criticalExpiringLots[0].expiry_date}</span> ({criticalExpiringLots[0].days_to_expiry} day{criticalExpiringLots[0].days_to_expiry === 1 ? '' : 's'} remaining). Smoke on current shift to avoid <span className="font-semibold text-rose-700 dark:text-rose-400">{formatNaira(criticalExpiringLots[0].remaining_qty * criticalExpiringLots[0].unit_cost)}</span> in spoilage shrinkage.
+                  Lot <span className="font-semibold text-kumo-strong font-mono">{criticalExpiringLots[0].lot_number}</span> ({criticalExpiringLots[0].remaining_qty} {criticalExpiringLots[0].unit} of <span className="font-semibold text-kumo-strong">{criticalExpiringLots[0].product_name}</span>) expires on <span className="font-semibold text-[#C8102E] dark:text-rose-400">{criticalExpiringLots[0].expiry_date}</span> ({criticalExpiringLots[0].days_to_expiry} day{criticalExpiringLots[0].days_to_expiry === 1 ? '' : 's'} remaining). Smoke on current shift to avoid <span className="font-semibold text-[#C8102E] dark:text-rose-400">{formatNaira(criticalExpiringLots[0].remaining_qty * criticalExpiringLots[0].unit_cost)}</span> in spoilage shrinkage.
                 </p>
               </div>
             </div>
@@ -899,8 +900,8 @@ export const RawInventoryPage: React.FC = () => {
                 variant="primary"
                 size="sm"
                 onClick={() => handleOpenPrioritize(criticalExpiringLots[0])}
-                leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
-                className="h-9 px-3.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"
+                leftIcon={<Flame className="w-3.5 h-3.5" />}
+                className="h-9 px-3.5 text-xs font-semibold bg-[#C8102E] hover:bg-[#b00d27] text-white border-transparent shadow-2xs"
               >
                 Prioritize #{criticalExpiringLots[0].lot_number}
               </Button>
@@ -912,7 +913,7 @@ export const RawInventoryPage: React.FC = () => {
                   setFefoFilter('near_expiry')
                 }}
                 rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                className="h-9 px-3 text-xs font-medium border-rose-300 text-rose-800 bg-white/80 hover:bg-white dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-200"
+                className="h-9 px-3 text-xs font-medium border-[#F3B0BB] text-[#C8102E] bg-white hover:bg-[#FDF2F4] dark:bg-transparent dark:border-[#52171E] dark:text-rose-300"
               >
                 View Urgent ({criticalExpiringLots.length})
               </Button>
@@ -984,7 +985,7 @@ export const RawInventoryPage: React.FC = () => {
               p.sku.toLowerCase().includes(q) ||
               p.unit.toLowerCase().includes(q)
             }
-            title="Raw Ingredients"
+            title="Raw Materials"
             exportFilename="smokey-raw-inventory"
             onRowClick={(p) => handleOpenEditProduct(p)}
             onDateRangeChange={setDateRange}
@@ -1150,11 +1151,11 @@ export const RawInventoryPage: React.FC = () => {
               value={receiveLotNumber}
               onChange={(e) => setReceiveLotNumber(e.target.value)}
             />
-            <Input
+            <SingleDatePicker
               label="Expiry Date (FEFO Rule)"
-              type="date"
               value={receiveExpiryDate}
-              onChange={(e) => setReceiveExpiryDate(e.target.value)}
+              onChange={(d) => setReceiveExpiryDate(d)}
+              required
             />
           </div>
 
@@ -1252,7 +1253,7 @@ export const RawInventoryPage: React.FC = () => {
       >
         <form onSubmit={handleSubmitProduct} className="space-y-4">
           <Input
-            label="Ingredient Name"
+            label="Material Name"
             placeholder="e.g. FRESH SPRING CHICKEN"
             value={productForm.name}
             onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
@@ -1282,9 +1283,16 @@ export const RawInventoryPage: React.FC = () => {
                       setCustomUnitText(productForm.unit || '')
                     }
                   }}
-                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
                 >
-                  {isCustomUnitMode ? '← Standard list' : '✍️ Custom label'}
+                  {isCustomUnitMode ? (
+                    '← Standard list'
+                  ) : (
+                    <>
+                      <Pencil className="w-3 h-3" />
+                      <span>Custom label</span>
+                    </>
+                  )}
                 </button>
               </div>
 

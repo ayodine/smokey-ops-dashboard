@@ -37,7 +37,10 @@ import {
   Eye, 
   Play, 
   CheckSquare, 
-  AlertOctagon 
+  AlertOctagon,
+  Pencil,
+  Save,
+  Check
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -49,7 +52,9 @@ export const ProductionBatchesPage: React.FC = () => {
     createBatch,
     startBatch,
     completeBatch,
-    cancelBatch
+    cancelBatch,
+    updateBatch,
+    saveCustomRecipeTemplate
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
@@ -57,6 +62,24 @@ export const ProductionBatchesPage: React.FC = () => {
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null)
+
+  // Edit Batch State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [batchToEdit, setBatchToEdit] = useState<ProductionBatch | null>(null)
+  const [editBatchForm, setEditBatchForm] = useState({
+    output_product_id: 0,
+    expected_output: 0,
+    actual_output: 0,
+    wastage: 0,
+    created_by_name: '',
+    remarks: '',
+  })
+  const [editSuccessMsg, setEditSuccessMsg] = useState<string | null>(null)
+
+  // Save Recipe Template State
+  const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false)
+  const [templateVersionName, setTemplateVersionName] = useState('')
+  const [templateSuccessFeedback, setTemplateSuccessFeedback] = useState<string | null>(null)
 
   // Complete Form
   const [actualOutput, setActualOutput] = useState<number>(50)
@@ -208,6 +231,70 @@ export const ProductionBatchesPage: React.FC = () => {
     setIsPreviewModalOpen(true)
   }
 
+  const handleOpenEdit = (b: ProductionBatch) => {
+    setBatchToEdit(b)
+    setEditBatchForm({
+      output_product_id: b.output_product_id,
+      expected_output: b.expected_output,
+      actual_output: b.actual_output,
+      wastage: b.wastage,
+      created_by_name: b.created_by_name,
+      remarks: b.remarks || '',
+    })
+    setEditSuccessMsg(null)
+    setIsEditModalOpen(true)
+  }
+
+  const handleSaveBatchEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!batchToEdit) return
+    const targetProduct = salesProducts.find(p => p.id === Number(editBatchForm.output_product_id))
+
+    updateBatch(batchToEdit.id, {
+      output_product_id: Number(editBatchForm.output_product_id),
+      output_product_name: targetProduct?.name || batchToEdit.output_product_name,
+      expected_output: Number(editBatchForm.expected_output),
+      actual_output: Number(editBatchForm.actual_output),
+      wastage: Number(editBatchForm.wastage),
+      created_by_name: editBatchForm.created_by_name,
+      remarks: editBatchForm.remarks,
+    })
+    setEditSuccessMsg('Batch corrections saved successfully.')
+    setTimeout(() => {
+      setEditSuccessMsg(null)
+      setIsEditModalOpen(false)
+    }, 1200)
+  }
+
+  const handleConfirmSaveTemplate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!templateVersionName.trim()) return
+
+    const targetProduct = salesProducts.find(p => p.id === selectedOutputProduct)
+    const newIngredients = bomRows.map(row => ({
+      raw_product_id: row.product_id,
+      sku: row.sku,
+      name: row.name,
+      standard_qty_per_unit: Number((row.quantity / (expectedOutput || 1)).toFixed(4)),
+      unit: row.unit
+    }))
+
+    saveCustomRecipeTemplate({
+      version_name: templateVersionName.trim(),
+      output_product_id: selectedOutputProduct,
+      output_product_name: targetProduct?.name || 'Dish',
+      standard_batch_size: expectedOutput,
+      standard_yield_percent: 100,
+      unit: targetProduct?.unit || 'PIECES',
+      allowed_variance_pct: 5,
+      ingredients: newIngredients
+    })
+
+    setTemplateSuccessFeedback(`Saved recipe template "${templateVersionName.trim()}"!`)
+    setIsSaveTemplateModalOpen(false)
+    setTemplateVersionName('')
+  }
+
   const handleConfirmCreate = (e: React.FormEvent) => {
     e.preventDefault()
     const targetProduct = salesProducts.find(p => p.id === Number(selectedOutputProduct))
@@ -296,7 +383,7 @@ export const ProductionBatchesPage: React.FC = () => {
       key: 'actions',
       header: 'Action',
       accessor: (b) => (
-        <div className="flex items-center" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
           {b.status === 'draft' ? (
             <Tooltip content="Begin cooking this batch">
               <button
@@ -320,6 +407,16 @@ export const ProductionBatchesPage: React.FC = () => {
               </button>
             </Tooltip>
           )}
+
+          <Tooltip content="Edit batch details or correct mistakes">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(b)}
+              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
         </div>
       ),
     },
@@ -375,13 +472,24 @@ export const ProductionBatchesPage: React.FC = () => {
       key: 'actions',
       header: 'Inspection',
       accessor: (b) => (
-        <button
-          type="button"
-          onClick={() => handleOpenPreview(b)}
-          className="px-2 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded cursor-pointer transition-colors"
-        >
-          View BOM & QC
-        </button>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => handleOpenPreview(b)}
+            className="px-2 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded cursor-pointer transition-colors"
+          >
+            View BOM & QC
+          </button>
+          <Tooltip content="Correct yield, wastage, or shift notes">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(b)}
+              className="p-1 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -458,6 +566,7 @@ export const ProductionBatchesPage: React.FC = () => {
             searchable={true}
             searchPlaceholder="Search active batch..."
             exportFilename="smokey-active-batches"
+            onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
           />
         ) : (
@@ -467,6 +576,7 @@ export const ProductionBatchesPage: React.FC = () => {
             searchable={true}
             searchPlaceholder="Search completed run..."
             exportFilename="smokey-completed-batches"
+            onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
           />
         )}
@@ -481,6 +591,13 @@ export const ProductionBatchesPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleConfirmCreate} className="space-y-4">
+          {templateSuccessFeedback && (
+            <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{templateSuccessFeedback}</span>
+            </div>
+          )}
+
           <Select
             label="Cooking Recipe Template"
             value={selectedRecipeTemplateId}
@@ -516,17 +633,29 @@ export const ProductionBatchesPage: React.FC = () => {
 
           {/* BOM Ingredients List */}
           <div className="space-y-2.5 pt-2 border-t border-kumo-line">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider font-sans">
                 Raw Ingredients to Use (Recipe List)
               </span>
-              <button
-                type="button"
-                onClick={handleAddBomRow}
-                className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Ingredient
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemplateVersionName('')
+                    setIsSaveTemplateModalOpen(true)
+                  }}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Save as Recipe Template
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddBomRow}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Ingredient
+                </button>
+              </div>
             </div>
 
             {/* Sub-header labels for alignment */}
@@ -756,6 +885,144 @@ export const ProductionBatchesPage: React.FC = () => {
           </div>
         </div>
       </Dialog>
+
+      {/* MODAL 4: Save Recipe Template */}
+      <Dialog
+        isOpen={isSaveTemplateModalOpen}
+        onClose={() => setIsSaveTemplateModalOpen(false)}
+        title="Save as Recipe Template"
+        description="Save this BOM formulation as an official standard recipe template for future kitchen batch runs."
+      >
+        <form onSubmit={handleConfirmSaveTemplate} className="space-y-4">
+          <Input
+            label="Template Version / Name"
+            placeholder="e.g. Signature Charcoal Smoked Chicken v2"
+            value={templateVersionName}
+            onChange={(e) => setTemplateVersionName(e.target.value)}
+            required
+            autoFocus
+          />
+
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle">Target Finished Dish:</span>
+              <span className="font-semibold text-kumo-strong">
+                {salesProducts.find(p => p.id === selectedOutputProduct)?.name}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle">Standard Batch Size:</span>
+              <span className="font-semibold text-kumo-strong font-mono">{expectedOutput} units</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle">Formulated Ingredients:</span>
+              <span className="font-semibold text-kumo-strong">{bomRows.length} items</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto border border-kumo-line rounded-lg p-2 bg-kumo-base">
+            <div className="text-[11px] font-semibold text-kumo-subtle uppercase px-1 pb-1 border-b border-kumo-line">
+              Ingredient Ratios Per Portioned Unit
+            </div>
+            {bomRows.map((row, i) => (
+              <div key={i} className="flex justify-between items-center text-xs px-1 py-1">
+                <span className="font-medium text-kumo-strong">{row.name}</span>
+                <span className="font-mono text-kumo-subtle text-[11px]">
+                  {(row.quantity / (expectedOutput || 1)).toFixed(3)} {row.unit} / unit
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsSaveTemplateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>
+              Save Recipe Template
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 5: Edit Batch (Mistake Correction) */}
+      {batchToEdit && (
+        <Dialog
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title={`Edit Batch: ${batchToEdit.batch_ref}`}
+          description="Correct planned yield, actual output, cooking wastage, or shift operator notes."
+          maxWidth="lg"
+        >
+          <form onSubmit={handleSaveBatchEdit} className="space-y-4 font-sans">
+            {editSuccessMsg && (
+              <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{editSuccessMsg}</span>
+              </div>
+            )}
+
+            <Select
+              label="Target Finished Dish"
+              value={editBatchForm.output_product_id}
+              onChange={(e) => setEditBatchForm(prev => ({ ...prev, output_product_id: Number(e.target.value) }))}
+              options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Planned Output (Units)"
+                type="number"
+                min="1"
+                value={editBatchForm.expected_output}
+                onChange={(e) => setEditBatchForm(prev => ({ ...prev, expected_output: Number(e.target.value) }))}
+                required
+              />
+              <Input
+                label="Actual Cooked Output (Units)"
+                type="number"
+                min="0"
+                value={editBatchForm.actual_output}
+                onChange={(e) => setEditBatchForm(prev => ({ ...prev, actual_output: Number(e.target.value) }))}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Cooking Loss / Wastage (Units)"
+                type="number"
+                min="0"
+                value={editBatchForm.wastage}
+                onChange={(e) => setEditBatchForm(prev => ({ ...prev, wastage: Number(e.target.value) }))}
+                required
+              />
+              <Input
+                label="Shift Operator / Pitmaster"
+                value={editBatchForm.created_by_name}
+                onChange={(e) => setEditBatchForm(prev => ({ ...prev, created_by_name: e.target.value }))}
+                required
+              />
+            </div>
+
+            <Input
+              label="Batch Notes & Shift Remarks"
+              value={editBatchForm.remarks}
+              onChange={(e) => setEditBatchForm(prev => ({ ...prev, remarks: e.target.value }))}
+              placeholder="e.g. Pit #2 smoke cycle, wood type, temperature checks"
+            />
+
+            <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="md" type="submit" leftIcon={<Save className="w-4 h-4" />}>
+                Save Corrections
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
     </div>
   )
 }

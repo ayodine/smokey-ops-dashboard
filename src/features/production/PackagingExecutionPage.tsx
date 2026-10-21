@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
+import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { formatNaira, formatDate } from '@/lib/utils'
 import { 
@@ -30,12 +31,25 @@ export const PackagingExecutionPage: React.FC = () => {
     packagingProducts,
     packagingMaterialsDaily,
     startPackagingOrder,
-    confirmPackagingOrder
+    confirmPackagingOrder,
+    addPackagingQueueOrder
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'ready' | 'in_packaging' | 'daily' | 'history'>('ready')
   const [isStartModalOpen, setIsStartModalOpen] = useState(false)
+  const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PackagingQueueOrder | null>(null)
+
+  // Manual Order Form State
+  const [manualOrderForm, setManualOrderForm] = useState({
+    customer_name: '',
+    phone: '',
+    address: '',
+    items_summary: '',
+    total_amount: 15000,
+    delivery_fee: 2500,
+    payment_status: 'paid' as 'paid' | 'pending'
+  })
 
   // Compulsory packaging selection state
   const [pickedItems, setPickedItems] = useState<Array<{ packaging_name: string; quantity: number }>>([
@@ -81,6 +95,30 @@ export const PackagingExecutionPage: React.FC = () => {
     startPackagingOrder(selectedOrder.id, pickedItems)
     setIsStartModalOpen(false)
     setActiveTab('in_packaging')
+  }
+
+  const handleConfirmManualOrder = (e: React.FormEvent) => {
+    e.preventDefault()
+    addPackagingQueueOrder({
+      customer_name: manualOrderForm.customer_name,
+      phone: manualOrderForm.phone,
+      address: manualOrderForm.address,
+      items_summary: manualOrderForm.items_summary,
+      total_amount: Number(manualOrderForm.total_amount),
+      delivery_fee: Number(manualOrderForm.delivery_fee),
+      payment_status: manualOrderForm.payment_status
+    })
+    setIsManualOrderModalOpen(false)
+    setManualOrderForm({
+      customer_name: '',
+      phone: '',
+      address: '',
+      items_summary: '',
+      total_amount: 15000,
+      delivery_fee: 2500,
+      payment_status: 'paid'
+    })
+    setActiveTab('ready')
   }
 
   // Column defs for Ready for Packaging
@@ -272,6 +310,16 @@ export const PackagingExecutionPage: React.FC = () => {
             The operational bridge between kitchen cooking and logistics. Select packaging materials to deduct consumables before releasing orders for dispatch.
           </p>
         </div>
+
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setIsManualOrderModalOpen(true)}
+          leftIcon={<Plus className="w-4 h-4" />}
+          className="h-10 px-4 text-sm font-medium shadow-xs shrink-0"
+        >
+          Assign Order for Packing
+        </Button>
       </div>
 
       {/* KPI Stat Strip */}
@@ -461,6 +509,89 @@ export const PackagingExecutionPage: React.FC = () => {
             </Button>
             <Button variant="primary" size="md" type="submit">
               Deduct Materials & Start Packaging
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Modal 2: Assign Manual / Web Order for Packing */}
+      <Dialog
+        isOpen={isManualOrderModalOpen}
+        onClose={() => setIsManualOrderModalOpen(false)}
+        title="Assign Order for Kitchen Packaging"
+        description="Queue a phone, WhatsApp, or website order for packaging material allocation and pack-out."
+      >
+        <form onSubmit={handleConfirmManualOrder} className="space-y-4 font-sans">
+          <Input
+            label="Customer Full Name"
+            placeholder="e.g. Chief Adeyemi Ogunlesi"
+            value={manualOrderForm.customer_name}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, customer_name: e.target.value }))}
+            required
+            autoFocus
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Phone Number"
+              placeholder="0803..."
+              value={manualOrderForm.phone}
+              onChange={(e) => setManualOrderForm(prev => ({ ...prev, phone: e.target.value }))}
+              required
+            />
+            <Select
+              label="Payment Status"
+              value={manualOrderForm.payment_status}
+              onChange={(e) => setManualOrderForm(prev => ({ ...prev, payment_status: e.target.value as any }))}
+              options={[
+                { value: 'paid', label: 'PAID (Verified Online / Transfer)' },
+                { value: 'pending', label: 'PENDING (Pay on Delivery)' },
+              ]}
+            />
+          </div>
+
+          <Input
+            label="Delivery Address / Mode"
+            placeholder="e.g. 14 Admiralty Way, Lekki Phase 1 (or 'Store Pickup Counter')"
+            value={manualOrderForm.address}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, address: e.target.value }))}
+            required
+            helperText="Tip: Include 'Pickup' in the address to automatically route to Store Pickup Counter upon completion."
+          />
+
+          <Input
+            label="Food Items Ordered (Summary)"
+            placeholder="e.g. 1x Full Smokey Guineafowl, 2x Jollof Rice Bowls"
+            value={manualOrderForm.items_summary}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, items_summary: e.target.value }))}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Order Total Amount (₦)"
+              type="number"
+              min="500"
+              value={manualOrderForm.total_amount}
+              onChange={(e) => setManualOrderForm(prev => ({ ...prev, total_amount: Number(e.target.value) }))}
+              required
+            />
+            <Input
+              label="Delivery Fee (₦)"
+              type="number"
+              min="0"
+              value={manualOrderForm.delivery_fee}
+              onChange={(e) => setManualOrderForm(prev => ({ ...prev, delivery_fee: Number(e.target.value) }))}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsManualOrderModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" leftIcon={<Package className="w-4 h-4" />}>
+              Queue for Packing
             </Button>
           </div>
         </form>

@@ -74,9 +74,11 @@ interface SmokeyOpsContextType {
   saveRawProduct: (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => void
   receivePackaging: (data: { productId: number; quantity: number; unitCost: number }) => void
   adjustPackagingStock: (productId: number, delta: number, notes: string) => void
+  savePackagingProduct: (product: Partial<PackagingProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number }) => void
   adjustSalesStock: (productId: number, delta: number, notes: string) => void
   saveSalesProduct: (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number }) => void
   addSupplier: (supplier: Omit<Supplier, 'id' | 'supplier_ref' | 'delivery_count' | 'total_spend' | 'is_active'>) => void
+  updateSupplier: (supplier: Supplier) => void
   submitStocktakeCount: (counts: Array<{ productId: number; physicalCount: number; category: 'raw' | 'packaging' | 'sales' }>, countedBy: string) => number
   resolveStocktakeVariance: (varianceId: number, supervisorNotes: string) => void
 
@@ -88,9 +90,12 @@ interface SmokeyOpsContextType {
 
   // Production Actions
   createBatch: (data: { outputProductId: number; outputProductName: string; expectedOutput: number; remarks?: string; rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }> }) => void
+  updateBatch: (batchId: number, data: Partial<ProductionBatch>) => void
+  saveCustomRecipeTemplate: (template: Omit<RecipeTemplate, 'id'>) => void
   startBatch: (batchId: number) => void
   completeBatch: (batchId: number, actualOutput: number, wastage: number, remarks?: string) => void
   cancelBatch: (batchId: number) => void
+  addPackagingQueueOrder: (order: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => void
   startPackagingOrder: (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => void
   confirmPackagingOrder: (orderId: number, staffName?: string) => void
   updateTaskStatus: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
@@ -140,7 +145,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(SEED_SUPPLIERS)
   const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(SEED_INVENTORY_LOTS)
-  const [recipeTemplates] = useState<RecipeTemplate[]>(SEED_RECIPE_TEMPLATES)
+  const [recipeTemplates, setRecipeTemplates] = useState<RecipeTemplate[]>(SEED_RECIPE_TEMPLATES)
   const [stocktakeVariances, setStocktakeVariances] = useState<StocktakeVariance[]>(SEED_STOCKTAKE_VARIANCES)
 
   // Production Domain
@@ -676,6 +681,38 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
+  const savePackagingProduct = (product: Partial<PackagingProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number }) => {
+    if (product.id) {
+      setPackagingProducts(prev => prev.map(p => p.id === product.id ? {
+        ...p,
+        name: product.name,
+        sku: product.sku,
+        unit: product.unit,
+        unit_cost: product.unit_cost,
+        reorder_level: product.reorder_level,
+        inventory_value: p.stock_qty * product.unit_cost
+      } : p))
+      showToast(`Updated packaging material: ${product.name}`, 'success')
+    } else {
+      const newProd: PackagingProduct = {
+        id: Date.now(),
+        sku: product.sku,
+        name: product.name,
+        product_type: 'packaging',
+        unit: product.unit,
+        unit_cost: product.unit_cost,
+        stock_qty: 0,
+        qty_available: 0,
+        qty_allocated: 0,
+        reorder_level: product.reorder_level,
+        inventory_value: 0,
+        is_active: 1
+      }
+      setPackagingProducts(prev => [...prev, newProd])
+      showToast(`Added new packaging material: ${product.name}`, 'success')
+    }
+  }
+
   const addSupplier = (supplier: Omit<Supplier, 'id' | 'supplier_ref' | 'delivery_count' | 'total_spend' | 'is_active'>) => {
     const newSup: Supplier = {
       id: Date.now(),
@@ -686,6 +723,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ...supplier
     }
     setSuppliers(prev => [...prev, newSup])
+    showToast(`Supplier ${supplier.name} registered`, 'success')
+  }
+
+  const updateSupplier = (updated: Supplier) => {
+    setSuppliers(prev => prev.map(s => s.id === updated.id ? updated : s))
+    showToast(`Updated supplier ${updated.name}`, 'success')
   }
 
   // -------------------------------------------------------------
@@ -777,6 +820,47 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })
 
     setProductionBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: "cancelled" } : b))
+    showToast(`Batch ${batch.batch_ref} cancelled and raw materials returned to stock`, 'info')
+  }
+
+  const updateBatch = (batchId: number, data: Partial<ProductionBatch>) => {
+    setProductionBatches(prev => prev.map(b => b.id === batchId ? { ...b, ...data } : b))
+    showToast(`Batch updated successfully`, 'success')
+  }
+
+  const saveCustomRecipeTemplate = (template: Omit<RecipeTemplate, 'id'>) => {
+    const newTmpl: RecipeTemplate = {
+      id: Date.now(),
+      ...template
+    }
+    setRecipeTemplates(prev => [...prev, newTmpl])
+    showToast(`Saved recipe template: ${template.version_name}`, 'success')
+  }
+
+  const addPackagingQueueOrder = (data: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => {
+    const orderRef = `SHD-${String(Math.floor(7000 + Math.random() * 2000))}`
+    const newOrder: PackagingQueueOrder = {
+      id: Date.now(),
+      order_ref: orderRef,
+      customer_name: data.customer_name,
+      phone: data.phone,
+      address: data.address,
+      items_summary: data.items_summary,
+      items: [
+        { product_name: data.items_summary, quantity: 1, unit_price: data.total_amount, line_total: data.total_amount }
+      ],
+      total_amount: data.total_amount,
+      delivery_fee: data.delivery_fee ?? (data.address.toLowerCase().includes('pickup') ? 0 : 2500),
+      delivery_mode: 'instant',
+      payment_status: data.payment_status ?? 'paid',
+      order_status: 'ready_for_fulfillment',
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      packaged_at: null,
+      packaged_by_name: null,
+      packaging_materials_picked: []
+    }
+    setPackagingQueue(prev => [newOrder, ...prev])
+    showToast(`Order ${orderRef} queued for packaging!`, 'success')
   }
 
   const startPackagingOrder = (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => {
@@ -1080,6 +1164,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         adjustSalesStock,
         saveSalesProduct,
         addSupplier,
+        updateSupplier,
+        savePackagingProduct,
         submitStocktakeCount,
         resolveStocktakeVariance,
         productionBatches,
@@ -1087,9 +1173,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         packagingMaterialsDaily,
         kitchenTasks,
         createBatch,
+        updateBatch,
+        saveCustomRecipeTemplate,
         startBatch,
         completeBatch,
         cancelBatch,
+        addPackagingQueueOrder,
         startPackagingOrder,
         confirmPackagingOrder,
         updateTaskStatus,

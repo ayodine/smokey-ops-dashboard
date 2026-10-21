@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { Supplier } from '@/lib/smokeyData'
+import { Supplier, RawDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
-import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { formatNaira } from '@/lib/utils'
+import { KumoTabs } from '@/components/ui/KumoTabs'
+import { formatNaira, formatDate } from '@/lib/utils'
 import { 
   Building2, 
   CheckCircle2, 
@@ -17,12 +17,30 @@ import {
   Plus, 
   Phone, 
   Mail, 
-  MapPin 
+  MapPin,
+  Pencil,
+  FileText,
+  Boxes,
+  Calendar,
+  Layers,
+  Save,
+  Check
 } from 'lucide-react'
 
+const STANDARD_SUPPLY_CATEGORIES = [
+  { value: 'Fresh Poultry & Proteins', label: 'Fresh Poultry & Proteins (Guinea Fowls, Chicken, Turkey)' },
+  { value: 'Spices & Dry Peppers', label: 'Spices & Dry Peppers' },
+  { value: 'Smoker Firewood & Charcoal', label: 'Smoker Firewood & Charcoal' },
+  { value: 'Food Grade Packaging & Bags', label: 'Food Grade Packaging & Bags' },
+  { value: 'Cooking Oils & Seasonings', label: 'Cooking Oils & Seasonings' },
+]
+
 export const SuppliersPage: React.FC = () => {
-  const { suppliers, addSupplier } = useSmokeyOps()
+  const { suppliers, addSupplier, updateSupplier, rawDeliveries } = useSmokeyOps()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isCustomCategoryMode, setIsCustomCategoryMode] = useState(false)
+  const [customCategoryInput, setCustomCategoryInput] = useState('')
+
   const [newSupplier, setNewSupplier] = useState({
     name: '',
     phone: '',
@@ -31,19 +49,47 @@ export const SuppliersPage: React.FC = () => {
     category: 'Fresh Poultry & Proteins'
   })
 
+  // Manage Supplier State
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false)
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [editForm, setEditForm] = useState<Supplier | null>(null)
+  const [manageTab, setManageTab] = useState<'profile' | 'supplies'>('profile')
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null)
+
   const totalSuppliers = suppliers.length
   const activeSuppliers = suppliers.filter(s => s.is_active === 1).length
   const totalDeliveries = suppliers.reduce((acc, s) => acc + s.delivery_count, 0)
   const totalSpend = suppliers.reduce((acc, s) => acc + s.total_spend, 0)
 
+  const handleOpenManage = (s: Supplier) => {
+    setSelectedSupplier(s)
+    setEditForm({ ...s })
+    setManageTab('profile')
+    setSaveSuccessMsg(null)
+    setIsManageModalOpen(true)
+  }
+
+  const handleSaveSupplier = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editForm) return
+    updateSupplier(editForm)
+    setSelectedSupplier(editForm)
+    setSaveSuccessMsg('Supplier details updated successfully.')
+    setTimeout(() => setSaveSuccessMsg(null), 3000)
+  }
+
   const handleConfirmAdd = (e: React.FormEvent) => {
     e.preventDefault()
+    const finalCategory = isCustomCategoryMode && customCategoryInput.trim()
+      ? customCategoryInput.trim()
+      : newSupplier.category
+
     addSupplier({
       name: newSupplier.name,
       phone: newSupplier.phone,
       email: newSupplier.email,
       address: newSupplier.address,
-      category: newSupplier.category,
+      category: finalCategory,
     })
     setNewSupplier({
       name: '',
@@ -52,8 +98,20 @@ export const SuppliersPage: React.FC = () => {
       address: '',
       category: 'Fresh Poultry & Proteins'
     })
+    setCustomCategoryInput('')
+    setIsCustomCategoryMode(false)
     setIsAddModalOpen(false)
   }
+
+  // Supplies history for selected supplier
+  const supplierDeliveries = selectedSupplier
+    ? rawDeliveries.filter(d => 
+        (d.supplier_name && selectedSupplier.name && d.supplier_name.toLowerCase() === selectedSupplier.name.toLowerCase()) || 
+        d.supplier_id === selectedSupplier.id
+      )
+    : []
+
+  const supplierTotalDeliveriesSpend = supplierDeliveries.reduce((acc, d) => acc + d.value_amount, 0)
 
   const columns: ColumnDef<Supplier>[] = [
     {
@@ -67,7 +125,7 @@ export const SuppliersPage: React.FC = () => {
       header: 'Vendor Name & Category',
       accessor: (s) => (
         <div>
-          <div className="font-medium text-kumo-strong font-sans">{s.name}</div>
+          <div className="font-semibold text-kumo-strong font-sans">{s.name}</div>
           <div className="text-xs text-primary font-medium font-sans">{s.category}</div>
         </div>
       ),
@@ -119,10 +177,20 @@ export const SuppliersPage: React.FC = () => {
       sortValue: (s) => s.total_spend,
     },
     {
-      key: 'status',
-      header: 'Vendor Status',
-      accessor: (s) => <StatusBadge status={s.is_active ? 'active' : 'inactive'} label={s.is_active ? 'ACTIVE' : 'INACTIVE'} />,
-      sortValue: (s) => s.is_active,
+      key: 'actions',
+      header: 'Action',
+      accessor: (s) => (
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenManage(s)}
+            className="h-7 px-2.5 text-xs font-medium"
+          >
+            Manage
+          </Button>
+        </div>
+      ),
     },
   ]
 
@@ -141,7 +209,11 @@ export const SuppliersPage: React.FC = () => {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setIsCustomCategoryMode(false)
+            setCustomCategoryInput('')
+            setIsAddModalOpen(true)
+          }}
           leftIcon={<Plus className="w-4 h-4" />}
           className="h-10 px-4 text-sm font-medium shadow-xs"
         >
@@ -184,6 +256,7 @@ export const SuppliersPage: React.FC = () => {
         searchable={true}
         searchPlaceholder="Search vendor name, contact, category..."
         exportFilename="smokey-suppliers-directory"
+        onRowClick={(s) => handleOpenManage(s)}
       />
 
       {/* Add Modal */}
@@ -202,18 +275,47 @@ export const SuppliersPage: React.FC = () => {
             required
           />
 
-          <Select
-            label="Supply Category"
-            value={newSupplier.category}
-            onChange={(e) => setNewSupplier(prev => ({ ...prev, category: e.target.value }))}
-            options={[
-              { value: 'Fresh Poultry & Proteins', label: 'Fresh Poultry & Proteins (Guinea Fowls, Chicken, Turkey)' },
-              { value: 'Spices & Dry Peppers', label: 'Spices & Dry Peppers' },
-              { value: 'Smoker Firewood & Charcoal', label: 'Smoker Firewood & Charcoal' },
-              { value: 'Food Grade Packaging & Bags', label: 'Food Grade Packaging & Bags' },
-              { value: 'Cooking Oils & Seasonings', label: 'Cooking Oils & Seasonings' },
-            ]}
-          />
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-kumo-strong">
+                Supply Category <span className="text-kumo-danger">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomCategoryMode(!isCustomCategoryMode)
+                  if (!isCustomCategoryMode) {
+                    setCustomCategoryInput('')
+                  }
+                }}
+                className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+              >
+                {isCustomCategoryMode ? (
+                  '← Standard categories'
+                ) : (
+                  <>
+                    <Pencil className="w-3 h-3" />
+                    <span>Custom category</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {isCustomCategoryMode ? (
+              <Input
+                placeholder="e.g. Fresh Seafood & Fish, Butchery Equipment, Cleaning..."
+                value={customCategoryInput}
+                onChange={(e) => setCustomCategoryInput(e.target.value)}
+                required
+              />
+            ) : (
+              <Select
+                value={newSupplier.category}
+                onChange={(e) => setNewSupplier(prev => ({ ...prev, category: e.target.value }))}
+                options={STANDARD_SUPPLY_CATEGORIES}
+              />
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -250,6 +352,181 @@ export const SuppliersPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* Manage Supplier & Supplies Log Modal */}
+      {selectedSupplier && editForm && (
+        <Dialog
+          isOpen={isManageModalOpen}
+          onClose={() => setIsManageModalOpen(false)}
+          title={`Manage Vendor: ${selectedSupplier.name}`}
+          description={`Supplier Code: ${selectedSupplier.supplier_ref} • ${selectedSupplier.category}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            {/* Tabs */}
+            <div className="border-b border-kumo-line">
+              <KumoTabs
+                activeTab={manageTab}
+                onChange={(val) => setManageTab(val as any)}
+                tabs={[
+                  { id: 'profile', label: 'Vendor Profile & Contact' },
+                  { id: 'supplies', label: 'Supplies Log (Inbound Shipments)', badge: supplierDeliveries.length },
+                ]}
+              />
+            </div>
+
+            {saveSuccessMsg && (
+              <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>{saveSuccessMsg}</span>
+              </div>
+            )}
+
+            {manageTab === 'profile' && (
+              <form onSubmit={handleSaveSupplier} className="space-y-4">
+                <Input
+                  label="Vendor Business Name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                  required
+                />
+
+                <Input
+                  label="Supply Category"
+                  value={editForm.category}
+                  onChange={(e) => setEditForm(prev => prev ? ({ ...prev, category: e.target.value }) : null)}
+                  placeholder="e.g. Fresh Poultry & Proteins"
+                  required
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    label="Phone Number"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm(prev => prev ? ({ ...prev, phone: e.target.value }) : null)}
+                    required
+                  />
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    value={editForm.email || ''}
+                    onChange={(e) => setEditForm(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
+                  />
+                </div>
+
+                <Input
+                  label="Facility / Depot Address"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm(prev => prev ? ({ ...prev, address: e.target.value }) : null)}
+                  required
+                />
+
+                <div className="p-3 rounded-lg border border-kumo-line bg-kumo-surface flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-kumo-strong">Vendor Partnership Status</div>
+                    <div className="text-[11px] text-kumo-subtle">
+                      {editForm.is_active ? 'Active vendor eligible for purchase orders' : 'Suspended / Inactive'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(prev => prev ? ({ ...prev, is_active: prev.is_active ? 0 : 1 }) : null)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                      editForm.is_active 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300' 
+                        : 'bg-kumo-base text-kumo-subtle border-kumo-line'
+                    }`}
+                  >
+                    {editForm.is_active ? 'Active Vendor' : 'Mark Inactive'}
+                  </button>
+                </div>
+
+                <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+                  <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
+                    Close
+                  </Button>
+                  <Button variant="primary" size="md" type="submit" leftIcon={<Save className="w-4 h-4" />}>
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {manageTab === 'supplies' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-kumo-surface border border-kumo-line text-xs">
+                  <div>
+                    <span className="text-kumo-subtle">Recorded Shipments:</span>{' '}
+                    <span className="font-semibold text-kumo-strong">{supplierDeliveries.length} orders</span>
+                  </div>
+                  <div>
+                    <span className="text-kumo-subtle">Total Procurement Value:</span>{' '}
+                    <span className="font-semibold text-emerald-700">{formatNaira(supplierTotalDeliveriesSpend || selectedSupplier.total_spend)}</span>
+                  </div>
+                </div>
+
+                {supplierDeliveries.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-kumo-line rounded-lg">
+                    <Boxes className="w-8 h-8 text-kumo-subtle mx-auto mb-2 opacity-50" />
+                    <p className="text-xs font-medium text-kumo-strong">No Inbound Shipments Logged Yet</p>
+                    <p className="text-[11px] text-kumo-subtle mt-0.5">
+                      Deliveries received from this vendor in Raw Material Inventory will automatically appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-kumo-line rounded-lg overflow-hidden max-h-80 overflow-y-auto">
+                    <table className="w-full text-left text-xs font-sans">
+                      <thead className="bg-kumo-surface text-kumo-subtle text-[11px] uppercase border-b border-kumo-line">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Delivery Ref</th>
+                          <th className="px-3 py-2 font-medium">Date</th>
+                          <th className="px-3 py-2 font-medium">Material Received</th>
+                          <th className="px-3 py-2 font-medium">Qty</th>
+                          <th className="px-3 py-2 font-medium">Unit Cost</th>
+                          <th className="px-3 py-2 font-medium text-right">Invoice Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-kumo-line">
+                        {supplierDeliveries.map((delivery) => (
+                          <tr key={delivery.id} className="hover:bg-kumo-tint/50">
+                            <td className="px-3 py-2.5 font-mono text-[11px] text-kumo-strong">
+                              {delivery.delivery_ref}
+                            </td>
+                            <td className="px-3 py-2.5 text-kumo-subtle text-[11px]">
+                              {formatDate(delivery.date_received)}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="font-medium text-kumo-strong">{delivery.product_name}</div>
+                              {delivery.lot_number && (
+                                <div className="text-[10px] text-kumo-subtle font-mono">Lot: {delivery.lot_number}</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-kumo-default font-medium">
+                              {delivery.quantity} {delivery.unit}
+                            </td>
+                            <td className="px-3 py-2.5 text-kumo-subtle">
+                              {formatNaira(delivery.unit_cost)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-semibold text-emerald-700">
+                              {formatNaira(delivery.value_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2 border-t border-kumo-line">
+                  <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

@@ -27,13 +27,26 @@ export const PackagingInventoryPage: React.FC = () => {
     packagingProducts,
     packagingReceiptsTotals,
     receivePackaging,
-    adjustPackagingStock
+    adjustPackagingStock,
+    savePackagingProduct
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'materials' | 'totals'>('materials')
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
+  const [isNewMaterialModalOpen, setIsNewMaterialModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<PackagingProduct | null>(null)
+
+  // New Material Form
+  const [newMaterialForm, setNewMaterialForm] = useState({
+    name: '',
+    sku: '',
+    unit: 'PIECES',
+    stock_qty: 100,
+    unit_cost: 250,
+    reorder_level: 50,
+    supplier_name: 'PACKAGING DIRECT LTD'
+  })
 
   // Receive Form
   const [receiveProductId, setReceiveProductId] = useState<number>(packagingProducts[0]?.id || 93)
@@ -80,6 +93,28 @@ export const PackagingInventoryPage: React.FC = () => {
     if (!selectedProduct) return
     adjustPackagingStock(selectedProduct.id, Number(adjustDelta), adjustNote)
     setIsAdjustModalOpen(false)
+  }
+
+  const handleConfirmNewMaterial = (e: React.FormEvent) => {
+    e.preventDefault()
+    savePackagingProduct({
+      name: newMaterialForm.name,
+      sku: newMaterialForm.sku || `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
+      unit: newMaterialForm.unit,
+      stock_qty: Number(newMaterialForm.stock_qty),
+      unit_cost: Number(newMaterialForm.unit_cost),
+      reorder_level: Number(newMaterialForm.reorder_level)
+    })
+    setIsNewMaterialModalOpen(false)
+    setNewMaterialForm({
+      name: '',
+      sku: '',
+      unit: 'PIECES',
+      stock_qty: 100,
+      unit_cost: 250,
+      reorder_level: 50,
+      supplier_name: 'PACKAGING DIRECT LTD'
+    })
   }
 
   const materialsColumns: ColumnDef<PackagingProduct>[] = [
@@ -247,15 +282,37 @@ export const PackagingInventoryPage: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => handleOpenReceive()}
-          leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs"
-        >
-          Add Received Stock
-        </Button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setNewMaterialForm({
+                name: '',
+                sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
+                unit: 'PIECES',
+                stock_qty: 100,
+                unit_cost: 250,
+                reorder_level: 50,
+                supplier_name: 'PACKAGING DIRECT LTD'
+              })
+              setIsNewMaterialModalOpen(true)
+            }}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
+          >
+            New Packaging Material
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleOpenReceive()}
+            leftIcon={<PackageCheck className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
+          >
+            Receive Stock Intake
+          </Button>
+        </div>
       </div>
 
       {/* KPI Stat Strip */}
@@ -413,6 +470,90 @@ export const PackagingInventoryPage: React.FC = () => {
             </Button>
             <Button variant="primary" type="submit">
               Apply Correction
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* New Packaging Material Modal */}
+      <Dialog
+        isOpen={isNewMaterialModalOpen}
+        onClose={() => setIsNewMaterialModalOpen(false)}
+        title="Create New Packaging Material"
+        description="Add a new consumable container, bag, food bowl, or label SKU to the packaging inventory."
+      >
+        <form onSubmit={handleConfirmNewMaterial} className="space-y-4 font-sans">
+          <Input
+            label="Material Name"
+            placeholder="e.g. 1.5L Big Food Bowl & Lid"
+            value={newMaterialForm.name}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, name: e.target.value }))}
+            required
+            autoFocus
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="SKU Code"
+              value={newMaterialForm.sku}
+              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, sku: e.target.value }))}
+              placeholder="e.g. PKG-00010"
+              required
+            />
+            <Select
+              label="Unit of Measure"
+              value={newMaterialForm.unit}
+              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit: e.target.value }))}
+              options={[
+                { value: 'PIECES', label: 'Pieces (Bags / Bowls / Lids)' },
+                { value: 'PACK', label: 'Packs / Bundles' },
+                { value: 'ROLL', label: 'Rolls (Foil / Wrap / Stickers)' },
+                { value: 'CARTON', label: 'Cartons / Cases' },
+                { value: 'KG', label: 'Kilograms (kg)' },
+              ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="Initial Stock Qty"
+              type="number"
+              min="0"
+              value={newMaterialForm.stock_qty}
+              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, stock_qty: Number(e.target.value) }))}
+              required
+            />
+            <Input
+              label="Unit Cost (₦)"
+              type="number"
+              min="0"
+              value={newMaterialForm.unit_cost}
+              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
+              required
+            />
+            <Input
+              label="Reorder Alert Level"
+              type="number"
+              min="1"
+              value={newMaterialForm.reorder_level}
+              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, reorder_level: Number(e.target.value) }))}
+              required
+            />
+          </div>
+
+          <Input
+            label="Preferred Supplier / Manufacturer"
+            placeholder="e.g. PACKAGING DIRECT LTD"
+            value={newMaterialForm.supplier_name}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, supplier_name: e.target.value }))}
+          />
+
+          <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsNewMaterialModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit">
+              Save Packaging Material
             </Button>
           </div>
         </form>

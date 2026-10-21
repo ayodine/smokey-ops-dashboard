@@ -93,7 +93,7 @@ export const StorePickupPage: React.FC = () => {
         return (
           <StatusBadge
             status={p.order_status === 'collected' ? 'active' : 'pending'}
-            label={p.order_status === 'collected' ? 'COLLECTED' : 'WAITING AT COUNTER'}
+            label={p.order_status === 'collected' ? 'COLLECTED' : 'WAITING PICKUP'}
           />
         )
       },
@@ -147,7 +147,7 @@ export const StorePickupPage: React.FC = () => {
         <MetricCard
           title="Ready for Pickup"
           value={readyCount}
-          description="Waiting at counter"
+          description="Waiting pickup"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
