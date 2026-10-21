@@ -481,31 +481,34 @@ export const AccountHomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Header (Clean, no redundant masthead labels as requested) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-kumo-line">
+      {/* Page Title & Action Bar (Consistent with Raw Ingredients & other inventory pages) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-kumo-strong">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong">
             Home overview
           </h1>
-          <p className="text-xs text-kumo-subtle mt-0.5">
+          <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
             {totalItemCount} stock items · {lowStockCount} running low · {expiringCount} expiring within 30 days
           </p>
         </div>
 
-        {/* Header Action Buttons (Using Design System Red and Outline, No Black/Orange) */}
-        <div className="flex items-center gap-2">
+        {/* Header Action Buttons (Consistent size, font, and positioning with Raw Ingredients page) */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => navigate('/inventory/raw')}
-            className="h-9 px-3 text-xs"
+            leftIcon={<Boxes className="w-4 h-4 text-primary" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
           >
             Inventory management
           </Button>
           <Button
             variant="primary"
+            size="sm"
             onClick={() => setIsAddStockModalOpen(true)}
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-            className="h-9 px-4 text-xs font-semibold bg-[#c0201f] hover:bg-[#a01817] text-white border-0 shadow-xs"
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-sm font-medium shadow-xs"
           >
             Add stock
           </Button>
