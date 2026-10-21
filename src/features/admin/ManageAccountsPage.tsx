@@ -22,14 +22,11 @@ import {
   UserCheck,
   CheckCircle2,
   MoreVertical,
-  Boxes,
-  Layers,
-  ArrowUpRight
+  Layers
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { MetricCard } from '@/components/ui/MetricCard'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { TableActionButton } from '@/components/ui/TableActionButton'
@@ -115,15 +112,6 @@ export const ManageAccountsPage: React.FC = () => {
 
   const inactiveCount = useMemo(() => {
     return availableAccounts.filter(a => a.status === 'suspended').length
-  }, [availableAccounts])
-
-  const uniqueHubsCount = useMemo(() => {
-    const hubs = new Set(availableAccounts.map(a => a.assigned_hub || 'Central Kitchen (Ikeja)'))
-    return Math.max(hubs.size, 4)
-  }, [availableAccounts])
-
-  const privilegedCount = useMemo(() => {
-    return availableAccounts.filter(a => a.role === 'admin' || a.role === 'manager').length
   }, [availableAccounts])
 
   // Data filtered by the active Kumo tab & dropdowns
@@ -569,38 +557,7 @@ export const ManageAccountsPage: React.FC = () => {
       />
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. KPI STAT STRIP (Adapted from Raw Inventory layout)          */}
-      {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <MetricCard
-          title="Total Team Accounts"
-          value={availableAccounts.length}
-          description="Registered operators & staff"
-          icon={<Users className="w-4 h-4 text-primary" />}
-        />
-        <MetricCard
-          title="Active Operators"
-          value={activeCount}
-          description="Currently authorized & online"
-          icon={<UserCheck className="w-4 h-4 text-emerald-500" />}
-          trend={{ value: 8.4, isPositive: true }}
-        />
-        <MetricCard
-          title="Operating Hubs"
-          value={uniqueHubsCount}
-          description="Active kitchens & dispatch hubs"
-          icon={<Boxes className="w-4 h-4 text-blue-500" />}
-        />
-        <MetricCard
-          title="Super Admins & Leads"
-          value={privilegedCount}
-          description="Full privileged access & routes"
-          icon={<ShieldCheck className="w-4 h-4 text-amber-500" />}
-        />
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* 3. KUMO TABS (Official Cloudflare Kumo design system component)*/}
+      {/* 2. KUMO TABS (Official Cloudflare Kumo design system component)*/}
       {/* ------------------------------------------------------------- */}
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
