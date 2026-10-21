@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
@@ -868,32 +869,32 @@ export const DeliveryTeamPage: React.FC = () => {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-medium text-kumo-default mb-1.5">Operating Dispatch Hub</label>
-                <select
-                  value={newDriverForm.operating_hub}
-                  onChange={(e) => setNewDriverForm({ ...newDriverForm, operating_hub: e.target.value })}
-                  className="w-full text-xs rounded-xl border border-kumo-line bg-kumo-surface px-3 py-2 text-kumo-strong focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  <option value="Victoria Island Central Hub">Victoria Island Central Hub</option>
-                  <option value="Lekki Phase 1 Hub">Lekki Phase 1 Hub</option>
-                  <option value="Ikeja GRA Kitchen Hub">Ikeja GRA Kitchen Hub</option>
-                  <option value="Yaba Express Hub">Yaba Express Hub</option>
-                </select>
+                <label className="block text-xs font-medium text-kumo-default mb-1.5">
+                  Operating Hub / Office
+                </label>
+                <div className="flex items-center justify-between h-9 px-3 rounded-xl border border-kumo-line bg-kumo-surface text-xs text-kumo-strong">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="font-medium truncate">Victoria Island Central Hub</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                    Active HQ
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-kumo-default mb-1.5">Vehicle Model</label>
-                <select
-                  value={newDriverForm.vehicle_type}
-                  onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
-                  className="w-full text-xs rounded-xl border border-kumo-line bg-kumo-surface px-3 py-2 text-kumo-strong focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  <option value="Bajaj Boxer 150 Motorcycle">Bajaj Boxer 150 Motorcycle</option>
-                  <option value="TVS HLX 125 Motorcycle">TVS HLX 125 Motorcycle</option>
-                  <option value="Haojue 110 Delivery Bike">Haojue 110 Delivery Bike</option>
-                  <option value="Electric Delivery Scooter">Electric Delivery Scooter</option>
-                </select>
-              </div>
+              <Select
+                label="Vehicle Model"
+                value={newDriverForm.vehicle_type}
+                onValueChange={(val) => setNewDriverForm({ ...newDriverForm, vehicle_type: String(val) })}
+                options={[
+                  { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
+                  { value: 'TVS HLX 125 Motorcycle', label: 'TVS HLX 125 Motorcycle' },
+                  { value: 'Haojue 110 Delivery Bike', label: 'Haojue 110 Delivery Bike' },
+                  { value: 'Electric Delivery Scooter', label: 'Electric Delivery Scooter' },
+                ]}
+                size="sm"
+              />
 
               <Input
                 label="Vehicle Plate Number"

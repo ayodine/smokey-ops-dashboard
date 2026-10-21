@@ -7,6 +7,7 @@ import { FlutedGlass } from "@paper-design/shaders-react";
 import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2, Truck, Bike, ShieldCheck, MapPin, Building, Phone } from "lucide-react";
 import { motion } from "motion/react";
 import { useSmokeyOps, type UserRole } from "@/context/SmokeyOpsContext";
+import { Select } from "@/components/ui/Select";
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
@@ -213,21 +214,20 @@ export default function AuthSectionThree() {
               {authMode === 'signup' && (
                 <div className="space-y-3.5 pt-1">
                   <div className="space-y-1.5 text-left w-full">
-                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                      Operational Role & Permissions
-                    </label>
-                    <select
+                    <Select
+                      label="Operational Role & Permissions"
                       value={role}
-                      onChange={(e) => setRole(e.target.value as UserRole)}
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                    >
-                      <option value="manager">Operations Manager (Kitchen & Logistics)</option>
-                      <option value="admin">Administrator (Full Access)</option>
-                      <option value="kitchen">Kitchen Chef / Prep Lead</option>
-                      <option value="inventory">Inventory & Stock Officer</option>
-                      <option value="dispatcher">Logistics Dispatcher</option>
-                      <option value="rider">Delivery Fleet Rider (Trip Portal & Wallet)</option>
-                    </select>
+                      onValueChange={(val) => setRole(val as UserRole)}
+                      options={[
+                        { value: 'manager', label: 'Operations Manager (Kitchen & Logistics)' },
+                        { value: 'admin', label: 'Administrator (Full Access)' },
+                        { value: 'kitchen', label: 'Kitchen Chef / Prep Lead' },
+                        { value: 'inventory', label: 'Inventory & Stock Officer' },
+                        { value: 'dispatcher', label: 'Logistics Dispatcher' },
+                        { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
+                      ]}
+                      size="sm"
+                    />
                   </div>
 
                   <div className="grid gap-3.5 sm:grid-cols-2">
@@ -262,18 +262,17 @@ export default function AuthSectionThree() {
 
                   <div className="space-y-1.5 text-left w-full">
                     <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                      Operating Dispatch Hub
+                      Operating Hub / Office
                     </label>
-                    <select
-                      value={assignedHub}
-                      onChange={(e) => setAssignedHub(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                    >
-                      <option value="Victoria Island Central Hub">Victoria Island Central Hub</option>
-                      <option value="Lekki Phase 1 Hub">Lekki Phase 1 Hub</option>
-                      <option value="Ikeja GRA Kitchen Hub">Ikeja GRA Kitchen Hub</option>
-                      <option value="Yaba Express Hub">Yaba Express Hub</option>
-                    </select>
+                    <div className="flex items-center justify-between h-11 px-3.5 rounded-lg border border-black/15 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03] text-sm text-black dark:text-white">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="font-medium truncate">Victoria Island Central Hub</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        Active HQ
+                      </span>
+                    </div>
                   </div>
 
                   {/* Rider Specific KYC Card */}
@@ -286,17 +285,18 @@ export default function AuthSectionThree() {
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1 text-left">
-                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Vehicle Model</label>
-                          <select
+                          <Select
+                            label="Vehicle Model"
                             value={vehicleType}
-                            onChange={(e) => setVehicleType(e.target.value)}
-                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-[#121214] text-xs text-black dark:text-white"
-                          >
-                            <option value="Bajaj Boxer 150 Motorcycle">Bajaj Boxer 150 Motorcycle</option>
-                            <option value="TVS HLX 125 Motorcycle">TVS HLX 125 Motorcycle</option>
-                            <option value="Haojue 110 Delivery Bike">Haojue 110 Delivery Bike</option>
-                            <option value="Electric Delivery Scooter">Electric Delivery Scooter</option>
-                          </select>
+                            onValueChange={(val) => setVehicleType(String(val))}
+                            options={[
+                              { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
+                              { value: 'TVS HLX 125 Motorcycle', label: 'TVS HLX 125 Motorcycle' },
+                              { value: 'Haojue 110 Delivery Bike', label: 'Haojue 110 Delivery Bike' },
+                              { value: 'Electric Delivery Scooter', label: 'Electric Delivery Scooter' },
+                            ]}
+                            size="sm"
+                          />
                         </div>
 
                         <div className="space-y-1 text-left">

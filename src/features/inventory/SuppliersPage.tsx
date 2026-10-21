@@ -179,17 +179,17 @@ export const SuppliersPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 140,
+      defaultWidth: 160,
       accessor: (s) => (
-        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="flex items-center gap-1.5 shrink-0 py-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
             onClick={() => handleOpenManage(s)}
-            className="h-7 px-2.5 text-xs font-medium whitespace-nowrap shrink-0 flex-none"
+            className="px-3.5 py-1.5 h-8 text-xs font-semibold text-kumo-strong bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex items-center gap-1.5"
           >
-            Manage
-          </Button>
+            <Pencil className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+            <span>Manage</span>
+          </button>
         </div>
       ),
     },
@@ -216,7 +216,7 @@ export const SuppliersPage: React.FC = () => {
             setIsAddModalOpen(true)
           }}
           leftIcon={<Plus className="w-4 h-4" />}
-          className="h-10 px-4 text-sm font-medium shadow-xs"
+          className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit"
         >
           Add New Vendor
         </Button>
