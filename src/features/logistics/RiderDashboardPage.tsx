@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { LogisticsDelivery, RiderTask } from '@/lib/smokeyData'
+import { LogisticsDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
@@ -21,7 +21,6 @@ import {
   Clock,
   RotateCcw,
   Check,
-  AlertTriangle,
   Info,
   Calendar,
   Layers,
@@ -32,10 +31,8 @@ export const RiderDashboardPage: React.FC = () => {
   const {
     riders,
     logisticsDeliveries,
-    riderTasks,
     markDelivered,
     declineDelivery,
-    updateRiderTask,
     showToast,
   } = useSmokeyOps()
 
@@ -75,14 +72,6 @@ export const RiderDashboardPage: React.FC = () => {
   const completedOrders = useMemo(() => {
     return riderDeliveries.filter(d => d.status === 'delivered')
   }, [riderDeliveries])
-
-  // Shift duties assigned to this rider
-  const riderAssignedTasks = useMemo(() => {
-    if (!currentRider) return []
-    return riderTasks.filter(
-      t => t.assignee_id === currentRider.rider_user_id || t.assignee_name === currentRider.rider_name
-    )
-  }, [riderTasks, currentRider])
 
   // Decline Dialog state
   const [declineTargetOrder, setDeclineTargetOrder] = useState<LogisticsDelivery | null>(null)
@@ -128,13 +117,6 @@ export const RiderDashboardPage: React.FC = () => {
     {
       id: 'earnings',
       label: 'Earnings & Wallet',
-    },
-    {
-      id: 'tasks',
-      label: 'Shift Duties & Checklist',
-      badge: riderAssignedTasks.filter(t => t.status !== 'done').length > 0
-        ? riderAssignedTasks.filter(t => t.status !== 'done').length
-        : undefined,
     },
   ]
 
@@ -438,128 +420,6 @@ export const RiderDashboardPage: React.FC = () => {
     },
   ]
 
-  // -----------------------------------------------------------------
-  // TABLE COLUMNS: 4. SHIFT DUTIES & CHECKLIST
-  // -----------------------------------------------------------------
-  const taskColumns: ColumnDef<RiderTask>[] = [
-    {
-      key: 'task_ref',
-      header: 'Task Code',
-      accessor: (t) => (
-        <span className="font-mono font-bold text-xs text-kumo-strong font-sans">
-          {t.task_ref}
-        </span>
-      ),
-      sortValue: (t) => t.task_ref,
-    },
-    {
-      key: 'title',
-      header: 'Duty / Inspection Procedure',
-      accessor: (t) => (
-        <div className="font-sans max-w-md">
-          <div className="font-semibold text-xs text-kumo-strong">{t.title}</div>
-          {t.description && (
-            <p className="text-[11px] text-kumo-subtle font-normal leading-relaxed mt-0.5">
-              {t.description}
-            </p>
-          )}
-        </div>
-      ),
-      sortValue: (t) => t.title,
-    },
-    {
-      key: 'due_date',
-      header: 'Due Time',
-      accessor: (t) => (
-        <span className="text-xs text-kumo-subtle font-normal font-sans">
-          {t.due_date}
-        </span>
-      ),
-      sortValue: (t) => t.due_date,
-    },
-    {
-      key: 'priority',
-      header: 'Priority',
-      accessor: (t) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-sans ${
-          t.priority === 'urgent'
-            ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-            : t.priority === 'normal'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
-              : 'bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
-        }`}>
-          {t.priority}
-        </span>
-      ),
-      sortValue: (t) => t.priority,
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      accessor: (t) => {
-        if (t.status === 'done') {
-          return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 font-sans">
-              <Check className="w-3 h-3" />
-              Completed
-            </span>
-          )
-        }
-        if (t.status === 'in_progress') {
-          return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 font-sans">
-              In Progress
-            </span>
-          )
-        }
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-kumo-surface text-kumo-subtle border border-kumo-line font-sans">
-            Pending
-          </span>
-        )
-      },
-      sortValue: (t) => t.status,
-    },
-    {
-      key: 'actions',
-      header: 'Action',
-      accessor: (t) => (
-        <div className="flex items-center gap-1.5 font-sans" onClick={(e) => e.stopPropagation()}>
-          {t.status !== 'done' && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => updateRiderTask(t.id, 'done')}
-              className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              Complete
-            </Button>
-          )}
-          {t.status === 'pending' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateRiderTask(t.id, 'in_progress')}
-              className="h-7 px-2 text-xs font-medium"
-            >
-              Start
-            </Button>
-          )}
-          {t.status === 'done' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateRiderTask(t.id, 'pending')}
-              className="h-7 px-2 text-xs font-medium text-kumo-subtle hover:text-kumo-strong"
-            >
-              Reopen
-            </Button>
-          )}
-        </div>
-      ),
-    },
-  ]
-
   return (
     <div className="space-y-6 font-sans">
       {/* Page Header (Matches SuppliersPage and other pages) */}
@@ -677,36 +537,6 @@ export const RiderDashboardPage: React.FC = () => {
             />
           </>
         )}
-
-        {/* TAB 4: SHIFT TASKS METRICS */}
-        {activeTab === 'tasks' && (
-          <>
-            <MetricCard
-              title="Shift Duties"
-              value={`${riderAssignedTasks.length} Tasks`}
-              description="Vehicle & shift checklists"
-              icon={<CheckCircle2 className="w-4 h-4 text-primary" />}
-            />
-            <MetricCard
-              title="Completed Duties"
-              value={`${riderAssignedTasks.filter(t => t.status === 'done').length} Finished`}
-              description="Inspected and verified items"
-              icon={<Check className="w-4 h-4 text-emerald-500" />}
-            />
-            <MetricCard
-              title="Remaining Active"
-              value={`${riderAssignedTasks.filter(t => t.status !== 'done').length} Duties`}
-              description="Pending check procedures"
-              icon={<Clock className="w-4 h-4 text-amber-500" />}
-            />
-            <MetricCard
-              title="Urgent Priority"
-              value={`${riderAssignedTasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length} Critical`}
-              description="Immediate safety inspections"
-              icon={<AlertTriangle className="w-4 h-4 text-rose-500" />}
-            />
-          </>
-        )}
       </div>
 
       {/* Tabs Navigation (No bottom border line, no icons in labels) */}
@@ -812,22 +642,6 @@ export const RiderDashboardPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------- */}
-        {/* TAB 4: SHIFT DUTIES & CHECKLIST TABLE                         */}
-        {/* ------------------------------------------------------------- */}
-        {activeTab === 'tasks' && (
-          <div className="space-y-4">
-            <DataTable
-              data={riderAssignedTasks}
-              columns={taskColumns}
-              searchable={true}
-              searchPlaceholder="Search task code, inspection title, priority..."
-              exportFilename="smokey-rider-shift-tasks"
-              emptyMessage="No shift duties assigned."
-            />
           </div>
         )}
       </div>
