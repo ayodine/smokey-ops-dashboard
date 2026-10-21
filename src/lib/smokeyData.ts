@@ -281,12 +281,13 @@ export interface LogisticsDelivery {
   phone: string
   address: string
   delivery_fee: number
+  total_amount?: number
   booked_fee?: number | null
   rider_type: 'internal' | 'third_party'
   assigned_rider: string
   assigned_rider_id?: number
   third_party_provider?: string | null
-  status: 'pending' | 'assigned' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed'
+  status: 'pending' | 'assigned' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'cancelled'
   dispatch_date: string
   pickup_at: string | null
   delivered_at: string | null
@@ -296,6 +297,7 @@ export interface LogisticsDelivery {
   cod_amount?: number
   items_summary: string
   notes?: string
+  decline_reason?: string
 }
 
 export interface ScheduledOrder {
@@ -319,6 +321,10 @@ export interface RiderPayout {
   phone: string
   active_assignments: number
   today_trips: number
+  deliveries_today?: number
+  deliveries_week?: number
+  deliveries_month?: number
+  total_completed?: number // Lifetime completed deliveries (e.g. 362)
   earnings_today: number
   earnings_week: number
   earnings_month: number
@@ -343,6 +349,18 @@ export interface RiderPayout {
   on_time_rate?: number
   cod_limit?: number
   date_joined?: string
+}
+
+export interface RiderTask {
+  id: number
+  task_ref: string // e.g. "TSK-0012"
+  title: string
+  description?: string
+  assignee_name: string
+  assignee_id?: number
+  due_date: string
+  priority: 'low' | 'normal' | 'urgent'
+  status: 'pending' | 'in_progress' | 'done'
 }
 
 export interface StorePickupOrder {
@@ -921,6 +939,78 @@ export const SEED_LOGISTICS_DELIVERIES: LogisticsDelivery[] = [
     payment_mode: "online",
     cod_amount: 0,
     items_summary: "Smokey Beef Jerkey × 4; Full Smokey Guineafowl × 1"
+  },
+  {
+    id: 4982,
+    delivery_ref: "SHD-08410",
+    order_id: 8610,
+    order_ref: "SHD-08410",
+    customer_name: "Chioma Eze",
+    phone: "08031234567",
+    address: "15 Admiralty Way, Lekki Phase 1",
+    total_amount: 32500,
+    delivery_fee: 3500,
+    booked_fee: null,
+    rider_type: "internal",
+    assigned_rider: "RIDER YUSUF",
+    assigned_rider_id: 455,
+    status: "assigned",
+    dispatch_date: "2026-10-21",
+    pickup_at: null,
+    delivered_at: null,
+    fee_verify_status: "none",
+    payment_mode: "online",
+    cod_amount: 0,
+    items_summary: "1L Guineafowl Rice × 1; Full Smokey Catfish × 2; Smokey Pepper Sauce × 1",
+    notes: "Call when at gate, dial flat 4B intercom"
+  },
+  {
+    id: 4971,
+    delivery_ref: "SHD-08383",
+    order_id: 8595,
+    order_ref: "SHD-08383",
+    customer_name: "Mohammed abubakar Galadima",
+    phone: "07087141351",
+    address: "32a Cooper Rd Ikoyi, Lagos",
+    total_amount: 28200,
+    delivery_fee: 3000,
+    booked_fee: null,
+    rider_type: "internal",
+    assigned_rider: "RIDER YUSUF",
+    assigned_rider_id: 455,
+    status: "delivered",
+    dispatch_date: "2026-10-03",
+    pickup_at: "2026-10-03 13:50:00",
+    delivered_at: "2026-10-03 14:41:28",
+    fee_verify_status: "approved",
+    payment_mode: "online",
+    cod_amount: 0,
+    items_summary: "1L Guineafowl Rice × 1; Catfish × 1",
+    notes: "Delivered to security reception"
+  },
+  {
+    id: 4965,
+    delivery_ref: "SHD-08375",
+    order_id: 8588,
+    order_ref: "SHD-08375",
+    customer_name: "Amina Bello",
+    phone: "08091122334",
+    address: "12 Glover Road, Ikoyi, Lagos",
+    total_amount: 45000,
+    delivery_fee: 3500,
+    booked_fee: null,
+    rider_type: "internal",
+    assigned_rider: "RIDER YUSUF",
+    assigned_rider_id: 455,
+    status: "delivered",
+    dispatch_date: "2026-10-02",
+    pickup_at: "2026-10-02 11:30:00",
+    delivered_at: "2026-10-02 12:20:15",
+    fee_verify_status: "approved",
+    payment_mode: "online",
+    cod_amount: 0,
+    items_summary: "Full Smokey Guineafowl × 2; Undiluted Palmwine × 2",
+    notes: "Delivered directly to customer"
   }
 ]
 
@@ -939,6 +1029,10 @@ export const SEED_RIDER_PAYOUTS: RiderPayout[] = [
     staff_id: "RDR-001",
     active_assignments: 3,
     today_trips: 4,
+    deliveries_today: 4,
+    deliveries_week: 18,
+    deliveries_month: 72,
+    total_completed: 184,
     earnings_today: 12000,
     earnings_week: 54000,
     earnings_month: 215000,
@@ -969,6 +1063,10 @@ export const SEED_RIDER_PAYOUTS: RiderPayout[] = [
     staff_id: "RDR-002",
     active_assignments: 2,
     today_trips: 5,
+    deliveries_today: 5,
+    deliveries_week: 21,
+    deliveries_month: 84,
+    total_completed: 212,
     earnings_today: 15000,
     earnings_week: 62000,
     earnings_month: 248000,
@@ -993,33 +1091,37 @@ export const SEED_RIDER_PAYOUTS: RiderPayout[] = [
   },
   {
     rider_user_id: 455,
-    rider_name: "RIDER EMMANUEL",
-    phone: "08145556677",
-    email: "emmanuel.nwosu@smokeyhut.com",
+    rider_name: "RIDER YUSUF",
+    phone: "07087141351",
+    email: "Ridersmokeyyusuf@gmail.com",
     staff_id: "RDR-003",
     active_assignments: 1,
-    today_trips: 3,
-    earnings_today: 9000,
-    earnings_week: 42000,
-    earnings_month: 168000,
-    pending_payout: 9000,
+    today_trips: 0,
+    deliveries_today: 0,
+    deliveries_week: 0,
+    deliveries_month: 34,
+    total_completed: 362,
+    earnings_today: 0,
+    earnings_week: 0,
+    earnings_month: 185000,
+    pending_payout: 0,
     cod_cash_collected: 0,
-    cod_remitted_total: 120000,
-    net_balance: 9000,
-    paid_total: 120000,
-    lifetime_earnings: 129000,
+    cod_remitted_total: 1183000,
+    net_balance: 0,
+    paid_total: 1183000,
+    lifetime_earnings: 1183000,
     status: "active",
     vehicle_type: "Honda CB125 Motorcycle",
     plate_number: "KTU-193-BD",
     operating_hub: "Victoria Island Central Hub",
     license_number: "DL-67341-LAG",
     license_expiry: "Jan 2027",
-    emergency_contact: "Chidi Nwosu (Father)",
+    emergency_contact: "Musa Yusuf (Brother)",
     emergency_phone: "08129876543",
     rating: 5.0,
-    on_time_rate: 100.0,
-    cod_limit: 45000,
-    date_joined: "18 Aug 2025"
+    on_time_rate: 99.2,
+    cod_limit: 50000,
+    date_joined: "18 Aug 2024"
   },
   {
     rider_user_id: 456,
@@ -1029,6 +1131,10 @@ export const SEED_RIDER_PAYOUTS: RiderPayout[] = [
     staff_id: "RDR-004",
     active_assignments: 0,
     today_trips: 0,
+    deliveries_today: 0,
+    deliveries_week: 12,
+    deliveries_month: 48,
+    total_completed: 142,
     earnings_today: 0,
     earnings_week: 36000,
     earnings_month: 144000,
@@ -1051,6 +1157,53 @@ export const SEED_RIDER_PAYOUTS: RiderPayout[] = [
     cod_limit: 40000,
     date_joined: "10 Jan 2025"
   },
+]
+
+export const SEED_RIDER_TASKS: RiderTask[] = [
+  {
+    id: 141,
+    task_ref: "TSK-0012",
+    title: "Pre-Shift Motorcycle Safety & Tire Pressure Check",
+    description: "Inspect Honda CB125 front/rear brake pads, chain tension, fuel gauge, and tire pressure (28 PSI front, 32 PSI rear) before morning run.",
+    assignee_name: "RIDER YUSUF",
+    assignee_id: 455,
+    due_date: "2026-10-21 08:30:00",
+    priority: "urgent",
+    status: "done"
+  },
+  {
+    id: 142,
+    task_ref: "TSK-0014",
+    title: "Insulated Thermal Cooler Bag Sanitization",
+    description: "Disinfect interior thermal foil lining with food-grade sanitizing wipe; ensure heat-pack zipper seals tightly.",
+    assignee_name: "RIDER YUSUF",
+    assignee_id: 455,
+    due_date: "2026-10-21 11:00:00",
+    priority: "normal",
+    status: "in_progress"
+  },
+  {
+    id: 143,
+    task_ref: "TSK-0018",
+    title: "Cash-on-Delivery (COD) Mid-Day Reconciliation",
+    description: "Verify physical cash collected from morning runs against mobile POS receipt journal before afternoon peak dispatch.",
+    assignee_name: "RIDER YUSUF",
+    assignee_id: 455,
+    due_date: "2026-10-21 15:00:00",
+    priority: "normal",
+    status: "pending"
+  },
+  {
+    id: 144,
+    task_ref: "TSK-0021",
+    title: "End-of-Shift Fuel Log & Kilometer Odometer Reading",
+    description: "Record ending odometer reading on hub fleet logbook and submit gas refill receipts to hub cashier.",
+    assignee_name: "RIDER YUSUF",
+    assignee_id: 455,
+    due_date: "2026-10-21 19:30:00",
+    priority: "low",
+    status: "pending"
+  }
 ]
 
 export const SEED_STORE_PICKUPS: StorePickupOrder[] = [

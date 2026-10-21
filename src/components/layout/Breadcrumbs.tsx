@@ -21,6 +21,8 @@ export const Breadcrumbs: React.FC = () => {
     board: 'Dispatch board',
     schedule: 'Delivery schedule',
     riders: 'Delivery fleet & riders',
+    'rider-portal': 'Rider portal',
+    rider: 'Rider portal',
     pickup: 'Store pickup counter',
     'third-party': '3PL logistics & fees',
     products: 'Products & SKUs',

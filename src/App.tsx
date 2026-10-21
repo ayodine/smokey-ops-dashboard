@@ -23,6 +23,7 @@ import { DeliverySchedulePage } from '@/features/logistics/DeliverySchedulePage'
 import { DeliveryTeamPage } from '@/features/logistics/DeliveryTeamPage'
 import { StorePickupPage } from '@/features/logistics/StorePickupPage'
 import { ThirdPartyLogisticsPage } from '@/features/logistics/ThirdPartyLogisticsPage'
+import { RiderDashboardPage } from '@/features/logistics/RiderDashboardPage'
 
 // Overview Domain
 import { AccountHomePage } from '@/features/overview/AccountHomePage'
@@ -68,6 +69,8 @@ export function App() {
                 <Route path="logistics/board" element={<LogisticsBoardPage />} />
                 <Route path="logistics/schedule" element={<DeliverySchedulePage />} />
                 <Route path="logistics/riders" element={<DeliveryTeamPage />} />
+                <Route path="logistics/rider-portal" element={<RiderDashboardPage />} />
+                <Route path="rider" element={<Navigate to="/logistics/rider-portal" replace />} />
                 <Route path="logistics/pickup" element={<StorePickupPage />} />
                 <Route path="logistics/third-party" element={<ThirdPartyLogisticsPage />} />
 

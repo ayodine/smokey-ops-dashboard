@@ -77,6 +77,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Dispatch Board', href: '/logistics/board', badge: '5' },
       { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '3' },
       { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '4' },
+      { label: 'Rider Portal (My Trips)', href: '/logistics/rider-portal', badge: 'Active' },
       { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '2' },
       { label: 'Courier Fees & Delivery', href: '/logistics/third-party' },
     ],

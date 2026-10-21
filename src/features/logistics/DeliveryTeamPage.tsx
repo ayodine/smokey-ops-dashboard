@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { RiderPayout } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -287,6 +288,16 @@ export const DeliveryTeamPage: React.FC = () => {
           <p className="text-xs text-kumo-subtle mt-1 leading-relaxed">
             Manage fleet drivers, active trip assignments, earnings, cash on delivery, and driver profiles.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/logistics/rider-portal"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition"
+          >
+            <Bike className="w-4 h-4" />
+            <span>Open Rider Portal (Rider Yusuf)</span>
+          </Link>
         </div>
       </div>
 

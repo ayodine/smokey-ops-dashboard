@@ -177,13 +177,14 @@ export const LogisticsBoardPage: React.FC = () => {
       key: 'status',
       header: 'Trip Status',
       accessor: (d) => {
-        const statusMap = {
-          assigned: { status: 'pending' as const, label: 'Assigned' },
-          in_transit: { status: 'pending' as const, label: 'In transit' },
-          out_for_delivery: { status: 'pending' as const, label: 'Out for delivery' },
-          delivered: { status: 'active' as const, label: 'Delivered' },
-          failed: { status: 'inactive' as const, label: 'Failed' },
-          pending: { status: 'pending' as const, label: 'Pending' }
+        const statusMap: Record<string, { status: 'pending' | 'active' | 'inactive'; label: string }> = {
+          assigned: { status: 'pending', label: 'Assigned' },
+          in_transit: { status: 'pending', label: 'In transit' },
+          out_for_delivery: { status: 'pending', label: 'Out for delivery' },
+          delivered: { status: 'active', label: 'Delivered' },
+          failed: { status: 'inactive', label: 'Failed' },
+          cancelled: { status: 'inactive', label: 'Cancelled' },
+          pending: { status: 'pending', label: 'Pending' }
         }
         const s = statusMap[d.status] || { status: 'pending' as const, label: d.status.replace(/_/g, ' ') }
         return <StatusBadge status={s.status} label={s.label} />

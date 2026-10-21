@@ -17,6 +17,7 @@ import {
   LogisticsDelivery,
   ScheduledOrder,
   RiderPayout,
+  RiderTask,
   StorePickupOrder,
   ThirdPartyWeeklySummary,
   InventoryLot,
@@ -39,6 +40,7 @@ import {
   SEED_LOGISTICS_DELIVERIES,
   SEED_SCHEDULED_ORDERS,
   SEED_RIDER_PAYOUTS,
+  SEED_RIDER_TASKS,
   SEED_STORE_PICKUPS,
   SEED_THIRD_PARTY_SUMMARY,
   SEED_INVENTORY_LOTS,
@@ -105,6 +107,7 @@ interface SmokeyOpsContextType {
   logisticsDeliveries: LogisticsDelivery[]
   scheduledOrders: ScheduledOrder[]
   riders: RiderPayout[]
+  riderTasks: RiderTask[]
   storePickups: StorePickupOrder[]
   thirdPartySummaries: ThirdPartyWeeklySummary[]
 
@@ -112,6 +115,8 @@ interface SmokeyOpsContextType {
   assignRider: (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number) => void
   confirmRiderCollect: (deliveryId: number) => void
   markDelivered: (deliveryId: number) => void
+  declineDelivery: (deliveryId: number, reason: string) => void
+  updateRiderTask: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
   startScheduledOrder: (orderId: number) => void
   autoReleaseDuePreOrders: () => number
   payAndResetRider: (riderId: number) => void
@@ -158,6 +163,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(SEED_LOGISTICS_DELIVERIES)
   const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrder[]>(SEED_SCHEDULED_ORDERS)
   const [riders, setRiders] = useState<RiderPayout[]>(SEED_RIDER_PAYOUTS)
+  const [riderTasks, setRiderTasks] = useState<RiderTask[]>(SEED_RIDER_TASKS)
   const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(SEED_STORE_PICKUPS)
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
 
@@ -1015,6 +1021,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           ...r,
           active_assignments: newActive,
           today_trips: r.today_trips + 1,
+          deliveries_today: (r.deliveries_today || 0) + 1,
+          deliveries_week: (r.deliveries_week || 0) + 1,
+          deliveries_month: (r.deliveries_month || 0) + 1,
+          total_completed: (r.total_completed || 0) + 1,
           earnings_today: r.earnings_today + fee,
           earnings_week: r.earnings_week + fee,
           earnings_month: r.earnings_month + fee,
@@ -1023,7 +1033,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           status: newActive > 0 ? "on_trip" : "active"
         }
       }))
+      showToast(`Delivery confirmed — ₦${fee.toLocaleString()} credited to rider pending payout`, 'success')
     }
+  }
+
+  const declineDelivery = (deliveryId: number, reason: string) => {
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    if (!delivery) return
+
+    const prevRiderId = delivery.assigned_rider_id
+
+    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
+      ...d,
+      assigned_rider: "Unassigned",
+      assigned_rider_id: undefined,
+      status: "pending",
+      pickup_at: null,
+      decline_reason: reason
+    } : d))
+
+    if (prevRiderId) {
+      setRiders(prev => prev.map(r => {
+        if (r.rider_user_id !== prevRiderId) return r
+        const newActive = Math.max(0, r.active_assignments - 1)
+        return {
+          ...r,
+          active_assignments: newActive,
+          status: newActive > 0 ? "on_trip" : "active"
+        }
+      }))
+    }
+
+    showToast(`Order #${delivery.order_ref} returned to dispatch board`, 'info')
+  }
+
+  const updateRiderTask = (taskId: number, status: 'pending' | 'in_progress' | 'done') => {
+    setRiderTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
+    showToast(`Task marked as ${status.replace('_', ' ')}`, 'info')
   }
 
   const startScheduledOrder = (orderId: number) => {
@@ -1186,11 +1232,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         logisticsDeliveries,
         scheduledOrders,
         riders,
+        riderTasks,
         storePickups,
         thirdPartySummaries,
         assignRider,
         confirmRiderCollect,
         markDelivered,
+        declineDelivery,
+        updateRiderTask,
         startScheduledOrder,
         autoReleaseDuePreOrders,
         payAndResetRider,
