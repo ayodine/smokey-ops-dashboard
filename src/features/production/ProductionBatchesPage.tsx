@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -57,7 +58,7 @@ export const ProductionBatchesPage: React.FC = () => {
     saveCustomRecipeTemplate
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
+  const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed'>('active')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
@@ -211,9 +212,12 @@ export const ProductionBatchesPage: React.FC = () => {
   }, [productionBatches, dateRange])
 
   const totalBatches = activeBatchesForKPI.length
-  const pendingBatches = useMemo(() => productionBatches.filter(b => b.status === 'in_production' || b.status === 'draft'), [productionBatches])
+  const prepQueuedBatches = useMemo(() => productionBatches.filter(b => b.status === 'draft'), [productionBatches])
+  const producingBatches = useMemo(() => productionBatches.filter(b => b.status === 'in_production'), [productionBatches])
   const completedBatches = useMemo(() => productionBatches.filter(b => b.status === 'completed'), [productionBatches])
-  const filteredPending = activeBatchesForKPI.filter(b => b.status === 'in_production' || b.status === 'draft')
+
+  const filteredPrepQueued = activeBatchesForKPI.filter(b => b.status === 'draft')
+  const filteredProducing = activeBatchesForKPI.filter(b => b.status === 'in_production')
   const filteredCompleted = activeBatchesForKPI.filter(b => b.status === 'completed')
   const totalProducedUnits = filteredCompleted.reduce((acc, b) => acc + b.actual_output, 0)
 
@@ -317,8 +321,8 @@ export const ProductionBatchesPage: React.FC = () => {
     setIsCompleteModalOpen(false)
   }
 
-  // Columns for Pending Batches
-  const pendingColumns: ColumnDef<ProductionBatch>[] = [
+  // Columns for Active / Prep Queued Batches (Needing Action to Start Cooking)
+  const activeColumns: ColumnDef<ProductionBatch>[] = [
     {
       key: 'batch_ref',
       header: 'Batch Ref',
@@ -358,58 +362,120 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'status',
       header: 'Cooking Status',
-      accessor: (b) => {
-        const statusMap: Record<string, { status: 'active' | 'pending' | 'inactive'; label: string }> = {
-          in_production: { status: 'pending', label: 'IN SMOKER PIT' },
-          draft: { status: 'pending', label: 'PREP QUEUED' },
-          cancelled: { status: 'inactive', label: 'CANCELLED' }
-        }
-        const s = statusMap[b.status] || { status: 'pending', label: b.status.toUpperCase() }
-        return <StatusBadge status={s.status} label={s.label} />
-      },
+      accessor: () => <StatusBadge status="warning" label="PREP QUEUED" />,
       sortValue: (b) => b.status,
     },
     {
       key: 'started_at',
-      header: 'Started At',
-      accessor: (b) => <span className="text-xs text-kumo-subtle">{b.started_at ? formatDate(b.started_at) : 'Not Started'}</span>,
+      header: 'Queue Status',
+      accessor: () => <span className="text-xs text-kumo-subtle font-sans">Awaiting Pit Start</span>,
     },
     {
       key: 'created_by_name',
       header: 'Shift Operator',
-      accessor: (b) => <span className="text-xs text-kumo-default">{b.created_by_name}</span>,
+      accessor: (b) => <span className="text-xs text-kumo-default font-sans">{b.created_by_name}</span>,
     },
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 220,
+      defaultWidth: 200,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          {b.status === 'draft' ? (
-            <Tooltip content="Begin cooking this batch">
-              <button
-                type="button"
-                onClick={() => startBatch(b.id)}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Start Cooking</span>
-              </button>
-            </Tooltip>
-          ) : (
-            <Tooltip content="Record yield and complete this batch">
-              <button
-                type="button"
-                onClick={() => handleOpenComplete(b)}
-                className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                <span>Complete Cooking</span>
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip content="Begin cooking this batch in smoker pit">
+            <TableActionButton
+              variant="primary"
+              onClick={() => startBatch(b.id)}
+              leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
+            >
+              Start Cooking
+            </TableActionButton>
+          </Tooltip>
 
-          <Tooltip content="Edit batch details or correct mistakes">
+          <Tooltip content="Edit batch details or correct recipe quantities">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(b)}
+              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ]
+
+  // Columns for On-going / Producing Batches (Needing Action to Complete Cooking)
+  const ongoingColumns: ColumnDef<ProductionBatch>[] = [
+    {
+      key: 'batch_ref',
+      header: 'Batch Ref',
+      accessor: (b) => (
+        <Tooltip content="Click to view recipe & ingredients">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleOpenPreview(b)
+            }}
+            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
+          >
+            <span>{b.batch_ref}</span>
+          </button>
+        </Tooltip>
+      ),
+      sortValue: (b) => b.batch_ref,
+    },
+    {
+      key: 'output_product_name',
+      header: 'Cooking Product',
+      accessor: (b) => (
+        <div>
+          <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
+          <div className="text-xs text-kumo-subtle font-sans">{b.raw_materials.length} ingredients loaded in pit</div>
+        </div>
+      ),
+      sortValue: (b) => b.output_product_name,
+    },
+    {
+      key: 'expected_output',
+      header: 'Batch Capacity',
+      accessor: (b) => <span className="font-medium text-kumo-strong font-sans text-xs">{b.expected_output} units</span>,
+      sortValue: (b) => b.expected_output,
+    },
+    {
+      key: 'status',
+      header: 'Cooking Status',
+      accessor: () => <StatusBadge status="processing" label="PRODUCING" />,
+      sortValue: (b) => b.status,
+    },
+    {
+      key: 'started_at',
+      header: 'Cooking Since',
+      accessor: (b) => <span className="text-xs text-kumo-subtle font-sans">{b.started_at ? formatDate(b.started_at) : 'In progress'}</span>,
+    },
+    {
+      key: 'created_by_name',
+      header: 'Pitmaster',
+      accessor: (b) => <span className="text-xs text-kumo-default font-sans">{b.created_by_name}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      defaultWidth: 210,
+      accessor: (b) => (
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="Record QC yield and complete cooking">
+            <TableActionButton
+              variant="success"
+              onClick={() => handleOpenComplete(b)}
+              leftIcon={<CheckSquare className="w-3.5 h-3.5" />}
+            >
+              Complete Cooking
+            </TableActionButton>
+          </Tooltip>
+
+          <Tooltip content="Edit batch parameters">
             <button
               type="button"
               onClick={() => handleOpenEdit(b)}
@@ -476,13 +542,12 @@ export const ProductionBatchesPage: React.FC = () => {
       defaultWidth: 180,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
+          <TableActionButton
+            variant="outline"
             onClick={() => handleOpenPreview(b)}
-            className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded cursor-pointer transition-colors whitespace-nowrap shrink-0 flex-none"
           >
             View BOM & QC
-          </button>
+          </TableActionButton>
           <Tooltip content="Correct yield, wastage, or shift notes">
             <button
               type="button"
@@ -525,26 +590,26 @@ export const ProductionBatchesPage: React.FC = () => {
         <MetricCard
           title="Total Batches"
           value={totalBatches}
-          description={dateRange ? "In selected date range" : "Runs on record"}
+          description={dateRange ? "In selected date range" : "All batches recorded"}
           icon={<Factory className="w-4 h-4 text-primary" />}
         />
         <MetricCard
-          title="Active Cooking"
-          value={filteredPending.length}
-          description="In pre-prep or smoker pits"
-          icon={<Flame className="w-4 h-4 text-amber-500" />}
+          title="Prep Queued"
+          value={filteredPrepQueued.length}
+          description="Awaiting smoker ignition"
+          icon={<Clock className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
-          title="Completed Batches"
+          title="Producing (In Pit)"
+          value={filteredProducing.length}
+          description="Cooking in smoker chambers"
+          icon={<Flame className="w-4 h-4 text-rose-500" />}
+        />
+        <MetricCard
+          title="Finished Batches"
           value={filteredCompleted.length}
           description="QC inspected & finalized"
           icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-        />
-        <MetricCard
-          title="Total Units Cooked"
-          value={`${totalProducedUnits} units`}
-          description="Added to sales inventory"
-          icon={<Clock className="w-4 h-4 text-blue-500" />}
         />
       </div>
 
@@ -554,7 +619,8 @@ export const ProductionBatchesPage: React.FC = () => {
           activeTab={activeTab}
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
-            { id: 'pending', label: 'Active Batches', badge: pendingBatches.length },
+            { id: 'active', label: 'Active Batches', badge: prepQueuedBatches.length },
+            { id: 'ongoing', label: 'On-going Batches', badge: producingBatches.length },
             { id: 'completed', label: 'Finished Batches', badge: completedBatches.length },
           ]}
         />
@@ -562,22 +628,37 @@ export const ProductionBatchesPage: React.FC = () => {
 
       {/* Tables */}
       <div>
-        {activeTab === 'pending' ? (
+        {activeTab === 'active' && (
           <DataTable
-            data={pendingBatches}
-            columns={pendingColumns}
+            data={prepQueuedBatches}
+            columns={activeColumns}
             searchable={true}
-            searchPlaceholder="Search active batch..."
-            exportFilename="smokey-active-batches"
+            searchPlaceholder="Search active prep batches..."
+            title="Active Prep Queued Batch"
+            exportFilename="smokey-active-prep-batches"
             onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
           />
-        ) : (
+        )}
+        {activeTab === 'ongoing' && (
+          <DataTable
+            data={producingBatches}
+            columns={ongoingColumns}
+            searchable={true}
+            searchPlaceholder="Search on-going producing runs..."
+            title="On-going Producing Batch"
+            exportFilename="smokey-producing-batches"
+            onRowClick={(b) => handleOpenPreview(b)}
+            onDateRangeChange={setDateRange}
+          />
+        )}
+        {activeTab === 'completed' && (
           <DataTable
             data={completedBatches}
             columns={completedColumns}
             searchable={true}
-            searchPlaceholder="Search completed run..."
+            searchPlaceholder="Search finished cooking runs..."
+            title="Finished Cooking Run"
             exportFilename="smokey-completed-batches"
             onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}

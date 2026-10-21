@@ -365,13 +365,13 @@ export const SuppliersPage: React.FC = () => {
         >
           <div className="space-y-4">
             {/* Tabs */}
-            <div className="border-b border-kumo-line">
+            <div>
               <KumoTabs
                 activeTab={manageTab}
                 onChange={(val) => setManageTab(val as any)}
                 tabs={[
                   { id: 'profile', label: 'Vendor Profile & Contact' },
-                  { id: 'supplies', label: 'Supplies Log (Inbound Shipments)', badge: supplierDeliveries.length },
+                  { id: 'supplies', label: 'Supplies Log', badge: supplierDeliveries.length },
                 ]}
               />
             </div>

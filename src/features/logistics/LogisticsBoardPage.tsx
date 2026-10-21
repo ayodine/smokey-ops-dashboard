@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Select } from '@/components/ui/Select'
@@ -38,6 +39,7 @@ export const LogisticsBoardPage: React.FC = () => {
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned'>('unassigned')
+  const [activeSubTab, setActiveSubTab] = useState<'all' | 'in_transit' | 'out_for_delivery' | 'delivered'>('all')
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedDelivery, setSelectedDelivery] = useState<LogisticsDelivery | null>(null)
 
@@ -60,6 +62,17 @@ export const LogisticsBoardPage: React.FC = () => {
 
   const unassignedDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status === 'pending'), [logisticsDeliveries])
   const activeDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status !== 'pending'), [logisticsDeliveries])
+  const inTransitCount = useMemo(() => activeDeliveries.filter(d => d.status === 'in_transit').length, [activeDeliveries])
+  const outForDeliveryCount = useMemo(() => activeDeliveries.filter(d => d.status === 'out_for_delivery').length, [activeDeliveries])
+  const deliveredCount = useMemo(() => activeDeliveries.filter(d => d.status === 'delivered').length, [activeDeliveries])
+
+  const filteredActiveDeliveries = useMemo(() => {
+    if (activeSubTab === 'in_transit') return activeDeliveries.filter(d => d.status === 'in_transit')
+    if (activeSubTab === 'out_for_delivery') return activeDeliveries.filter(d => d.status === 'out_for_delivery')
+    if (activeSubTab === 'delivered') return activeDeliveries.filter(d => d.status === 'delivered')
+    return activeDeliveries
+  }, [activeDeliveries, activeSubTab])
+
   const deliveredTodayCount = activeDeliveriesForKPI.filter(d => d.status === 'delivered').length
   const totalFeesCollected = activeDeliveriesForKPI.reduce((acc, d) => acc + d.delivery_fee, 0)
 
@@ -166,14 +179,14 @@ export const LogisticsBoardPage: React.FC = () => {
       defaultWidth: 160,
       accessor: (d) => (
         <Tooltip content="Assign order to an in-house driver or courier">
-          <button
-            type="button"
+          <TableActionButton
+            variant="primary"
+            icon={<UserCheck />}
+            iconStrokeWidth={2}
             onClick={() => handleOpenAssign(d)}
-            className="px-3 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0"
           >
-            <UserCheck className="w-3.5 h-3.5" />
             Assign Driver
-          </button>
+          </TableActionButton>
         </Tooltip>
       ),
     },
@@ -248,31 +261,30 @@ export const LogisticsBoardPage: React.FC = () => {
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           {d.status === 'assigned' && (
             <Tooltip content="Confirm driver collected food from kitchen">
-              <button
-                type="button"
+              <TableActionButton
+                variant="blue"
                 onClick={() => confirmRiderCollect(d.id)}
-                className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 rounded-lg cursor-pointer transition-colors shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 Driver Collect
-              </button>
+              </TableActionButton>
             </Tooltip>
           )}
 
           {(d.status === 'in_transit' || d.status === 'out_for_delivery') && (
             <Tooltip content="Confirm order delivered to customer">
-              <button
-                type="button"
+              <TableActionButton
+                variant="success"
+                icon={<CheckCircle2 />}
+                iconStrokeWidth={2}
                 onClick={() => markDelivered(d.id)}
-                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
                 Delivered
-              </button>
+              </TableActionButton>
             </Tooltip>
           )}
 
           {d.status === 'delivered' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 whitespace-nowrap shrink-0">
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 whitespace-nowrap shrink-0 px-2 font-sans">
               <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled
             </span>
           )}
@@ -347,15 +359,38 @@ export const LogisticsBoardPage: React.FC = () => {
             onDateRangeChange={setDateRange}
           />
         ) : (
-          <DataTable
-            data={activeDeliveries}
-            columns={assignedColumns}
-            searchable={true}
-            searchPlaceholder="Search active deliveries or riders..."
-            title="Active Delivery Trip"
-            exportFilename="smokey-active-deliveries"
-            onDateRangeChange={setDateRange}
-          />
+          <div className="space-y-4">
+            <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
+              <KumoTabs
+                activeTab={activeSubTab}
+                onChange={(val) => setActiveSubTab(val as any)}
+                tabs={[
+                  { id: 'all', label: 'All Active Trips', badge: activeDeliveries.length },
+                  { id: 'in_transit', label: 'In Transit', badge: inTransitCount },
+                  { id: 'out_for_delivery', label: 'Out for Delivery', badge: outForDeliveryCount },
+                  { id: 'delivered', label: 'Delivered', badge: deliveredCount },
+                ]}
+              />
+            </div>
+
+            <DataTable
+              data={filteredActiveDeliveries}
+              columns={assignedColumns}
+              searchable={true}
+              searchPlaceholder="Search active deliveries or riders..."
+              title={
+                activeSubTab === 'in_transit' 
+                  ? 'In-Transit Trips' 
+                  : activeSubTab === 'out_for_delivery' 
+                  ? 'Out for Delivery Trips' 
+                  : activeSubTab === 'delivered' 
+                  ? 'Delivered Trips' 
+                  : 'All Active Delivery Trips'
+              }
+              exportFilename={`smokey-active-deliveries-${activeSubTab}`}
+              onDateRangeChange={setDateRange}
+            />
+          </div>
         )}
       </div>
 

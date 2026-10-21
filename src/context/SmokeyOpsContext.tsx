@@ -114,6 +114,7 @@ interface SmokeyOpsContextType {
   // Logistics Actions
   assignRider: (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number, feeEvidencePath?: string) => void
   confirmRiderCollect: (deliveryId: number) => void
+  acceptDelivery: (deliveryId: number) => void
   markDelivered: (deliveryId: number) => void
   declineDelivery: (deliveryId: number, reason: string) => void
   updateRiderTask: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
@@ -1263,6 +1264,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } : d))
   }
 
+  const acceptDelivery = (deliveryId: number) => {
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
+      ...d,
+      status: "in_transit",
+      pickup_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+    } : d))
+    showToast(`Order #${delivery?.order_ref || deliveryId} accepted — moved to In-Transit`, 'success')
+  }
+
   const markDelivered = (deliveryId: number) => {
     const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
     if (!delivery) return
@@ -1508,6 +1519,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         thirdPartySummaries,
         assignRider,
         confirmRiderCollect,
+        acceptDelivery,
         markDelivered,
         declineDelivery,
         updateRiderTask,

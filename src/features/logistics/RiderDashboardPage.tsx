@@ -6,6 +6,7 @@ import { KumoTabs } from '@/components/ui/Tabs'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
 import { StatusBadge } from '@/components/ui/Badge'
 import { formatNaira, formatDate } from '@/lib/utils'
 import {
@@ -24,7 +25,8 @@ import {
   Info,
   Calendar,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Navigation
 } from 'lucide-react'
 
 export const RiderDashboardPage: React.FC = () => {
@@ -32,6 +34,7 @@ export const RiderDashboardPage: React.FC = () => {
     riders,
     logisticsDeliveries,
     markDelivered,
+    acceptDelivery,
     declineDelivery,
     showToast,
   } = useSmokeyOps()
@@ -61,10 +64,15 @@ export const RiderDashboardPage: React.FC = () => {
     )
   }, [logisticsDeliveries, currentRider])
 
-  // Active trips assigned to this rider
-  const activeOrders = useMemo(() => {
+  // Awaiting rider accept/decline action
+  const assignedOrders = useMemo(() => {
+    return riderDeliveries.filter(d => d.status === 'assigned')
+  }, [riderDeliveries])
+
+  // Accepted trips currently on the road
+  const inTransitOrders = useMemo(() => {
     return riderDeliveries.filter(
-      d => d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery'
+      d => d.status === 'in_transit' || d.status === 'out_for_delivery'
     )
   }, [riderDeliveries])
 
@@ -108,7 +116,12 @@ export const RiderDashboardPage: React.FC = () => {
     {
       id: 'assigned',
       label: 'Assigned Orders',
-      badge: activeOrders.length > 0 ? activeOrders.length : undefined,
+      badge: assignedOrders.length > 0 ? assignedOrders.length : undefined,
+    },
+    {
+      id: 'in_transit',
+      label: 'In-Transit',
+      badge: inTransitOrders.length > 0 ? inTransitOrders.length : undefined,
     },
     {
       id: 'delivered',
@@ -122,8 +135,13 @@ export const RiderDashboardPage: React.FC = () => {
   ]
 
   // Calculated metrics
-  const activeFees = activeOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
-  const activeCodTotal = activeOrders.reduce(
+  const assignedFees = assignedOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
+  const assignedCodTotal = assignedOrders.reduce(
+    (sum, o) => sum + (o.payment_mode === 'cod' ? (o.cod_amount || 0) : 0),
+    0
+  )
+  const inTransitFees = inTransitOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
+  const inTransitCodTotal = inTransitOrders.reduce(
     (sum, o) => sum + (o.payment_mode === 'cod' ? (o.cod_amount || 0) : 0),
     0
   )
@@ -226,25 +244,133 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 250,
+      defaultWidth: 230,
       accessor: (d) => (
         <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
-          <Button
+          <TableActionButton
             variant="outline"
-            size="sm"
             onClick={() => handleOpenDecline(d)}
-            className="!w-auto !flex-none h-7 px-2.5 text-xs font-medium text-kumo-subtle hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-800"
           >
             Decline
-          </Button>
-          <Button
+          </TableActionButton>
+          <TableActionButton
             variant="primary"
-            size="sm"
+            icon={<Check />}
+            iconStrokeWidth={2.5}
+            onClick={() => acceptDelivery(d.id)}
+          >
+            Accept Order
+          </TableActionButton>
+        </div>
+      ),
+    },
+  ]
+
+  // -----------------------------------------------------------------
+  // TABLE COLUMNS: 2. IN-TRANSIT ACTIVE DELIVERIES
+  // -----------------------------------------------------------------
+  const inTransitColumns: ColumnDef<LogisticsDelivery>[] = [
+    {
+      key: 'order_ref',
+      header: 'Order Ref',
+      defaultWidth: 120,
+      accessor: (d) => (
+        <div>
+          <span className="font-semibold text-xs text-kumo-strong font-sans">
+            #{d.order_ref}
+          </span>
+          <div className="text-[11px] text-kumo-subtle font-normal font-sans">
+            {d.dispatch_date}
+          </div>
+        </div>
+      ),
+      sortValue: (d) => d.order_ref,
+    },
+    {
+      key: 'customer',
+      header: 'Customer Contact',
+      defaultWidth: 160,
+      accessor: (d) => (
+        <div className="font-sans">
+          <div className="font-semibold text-xs text-kumo-strong">{d.customer_name}</div>
+          <a
+            href={`tel:${d.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 text-[11px] text-kumo-subtle hover:text-kumo-strong font-normal mt-0.5 transition-colors"
+          >
+            <Phone className="w-3 h-3 text-kumo-subtle shrink-0" />
+            <span>{d.phone}</span>
+          </a>
+        </div>
+      ),
+      sortValue: (d) => d.customer_name,
+    },
+    {
+      key: 'address',
+      header: 'Delivery Address & Route',
+      defaultWidth: 240,
+      accessor: (d) => (
+        <div className="w-full font-sans">
+          <p className="text-xs text-kumo-strong font-normal leading-snug truncate" title={d.address}>
+            {d.address}
+          </p>
+          <a
+            href={`https://maps.google.com/?q=${encodeURIComponent(d.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 text-[11px] text-kumo-subtle hover:text-kumo-strong font-normal mt-0.5 transition-colors"
+          >
+            <MapPin className="w-3 h-3 text-kumo-subtle shrink-0" />
+            <span>Navigate Maps</span>
+            <ExternalLink className="w-2.5 h-2.5" />
+          </a>
+        </div>
+      ),
+      sortValue: (d) => d.address,
+    },
+    {
+      key: 'items_summary',
+      header: 'Kitchen Packed Item',
+      defaultWidth: 220,
+      accessor: (d) => (
+        <div className="w-full font-sans">
+          <div className="text-xs text-kumo-strong font-normal truncate" title={d.items_summary}>
+            {d.items_summary || 'Standard Meal Package'}
+          </div>
+          {d.notes && (
+            <div className="text-[11px] text-kumo-subtle font-normal truncate mt-0.5" title={d.notes}>
+              Note: {d.notes}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'delivery_fee',
+      header: 'Trip Fee',
+      defaultWidth: 110,
+      accessor: (d) => (
+        <span className="font-semibold text-xs text-kumo-strong font-mono">
+          {formatNaira(d.delivery_fee)}
+        </span>
+      ),
+      sortValue: (d) => d.delivery_fee,
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      defaultWidth: 180,
+      accessor: (d) => (
+        <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
+          <TableActionButton
+            variant="success"
+            icon={<CheckCircle2 />}
+            iconStrokeWidth={2}
             onClick={() => setConfirmDeliveryTarget(d)}
-            className="!w-auto !flex-none h-7 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white whitespace-nowrap"
           >
             Confirm Delivered
-          </Button>
+          </TableActionButton>
         </div>
       ),
     },
@@ -440,33 +566,63 @@ export const RiderDashboardPage: React.FC = () => {
         {activeTab === 'assigned' && (
           <>
             <MetricCard
-              title="Active Assignments"
-              value={`${activeOrders.length} ${activeOrders.length === 1 ? 'Trip' : 'Trips'}`}
-              description="Orders in dispatch or transit"
+              title="Awaiting Acceptance"
+              value={`${assignedOrders.length} ${assignedOrders.length === 1 ? 'Trip' : 'Trips'}`}
+              description="Orders dispatched for your acceptance"
               icon={<Bike className="w-4 h-4 text-primary" />}
             />
             <MetricCard
-              title="Potential Fee Earning"
-              value={formatNaira(activeFees)}
+              title="Available Trip Fees"
+              value={formatNaira(assignedFees)}
               description="Trip earnings upon completion"
               icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
             />
             <MetricCard
-              title="Kitchen Packing Queue"
-              value={`${activeOrders.filter(o => o.status === 'assigned').length} Pending`}
-              description="Awaiting food bag collection"
-              icon={<Clock className="w-4 h-4 text-amber-500" />}
+              title="Cash on Delivery (COD)"
+              value={formatNaira(assignedCodTotal)}
+              description="Cash meal bills to collect"
+              icon={<Receipt className="w-4 h-4 text-amber-500" />}
             />
             <MetricCard
-              title="Cash on Delivery (COD)"
-              value={formatNaira(activeCodTotal)}
-              description="Cash meal bills to collect"
-              icon={<Receipt className="w-4 h-4 text-rose-500" />}
+              title="Acceptance SLA"
+              value="< 3 mins"
+              description="Fast dispatcher acceptance target"
+              icon={<Clock className="w-4 h-4 text-blue-500" />}
             />
           </>
         )}
 
-        {/* TAB 2: DELIVERED ORDERS METRICS */}
+        {/* TAB 2: IN-TRANSIT ACTIVE METRICS */}
+        {activeTab === 'in_transit' && (
+          <>
+            <MetricCard
+              title="In-Transit Active Trips"
+              value={`${inTransitOrders.length} ${inTransitOrders.length === 1 ? 'Trip' : 'Trips'}`}
+              description="Currently accepted & on the road"
+              icon={<Navigation className="w-4 h-4 text-primary" />}
+            />
+            <MetricCard
+              title="Trip Fees to Earn"
+              value={formatNaira(inTransitFees)}
+              description="Credited upon customer handover"
+              icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+            />
+            <MetricCard
+              title="COD to Collect"
+              value={formatNaira(inTransitCodTotal)}
+              description="Cash to remit to kitchen cashier"
+              icon={<Receipt className="w-4 h-4 text-rose-500" />}
+            />
+            <MetricCard
+              title="Avg Delivery Window"
+              value="~28 Mins"
+              description="On-track for hot smokehouse delivery"
+              icon={<Clock className="w-4 h-4 text-emerald-500" />}
+            />
+          </>
+        )}
+
+        {/* TAB 3: DELIVERED ORDERS METRICS */}
         {activeTab === 'delivered' && (
           <>
             <MetricCard
@@ -496,7 +652,7 @@ export const RiderDashboardPage: React.FC = () => {
           </>
         )}
 
-        {/* TAB 3: EARNINGS & WALLET METRICS */}
+        {/* TAB 4: EARNINGS & WALLET METRICS */}
         {activeTab === 'earnings' && (
           <>
             <MetricCard
@@ -546,8 +702,8 @@ export const RiderDashboardPage: React.FC = () => {
           <div className="space-y-4">
             <DataTable
               tableId="rider-assigned-orders"
-              title="Assigned Orders"
-              data={activeOrders}
+              title="Assigned Orders (Pending Acceptance)"
+              data={assignedOrders}
               columns={assignedColumns}
               searchable={true}
               searchPlaceholder="Search order ref, customer, phone, address..."
@@ -560,7 +716,33 @@ export const RiderDashboardPage: React.FC = () => {
               enableDateFilter={true}
               exportFilename="smokey-rider-assigned-orders"
               onRowClick={(order) => setPreviewOrder(order)}
-              emptyMessage="No active trip assignments found. When kitchen dispatch assigns an order, it will appear here."
+              emptyMessage="No pending trip assignments found. When kitchen dispatch assigns an order, it will appear here."
+            />
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 2: IN-TRANSIT ORDERS TABLE                                */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'in_transit' && (
+          <div className="space-y-4">
+            <DataTable
+              tableId="rider-in-transit-orders"
+              title="In-Transit Active Deliveries"
+              data={inTransitOrders}
+              columns={inTransitColumns}
+              searchable={true}
+              searchPlaceholder="Search order ref, customer, phone, address..."
+              searchFilter={(d, q) =>
+                d.order_ref.toLowerCase().includes(q) ||
+                d.customer_name.toLowerCase().includes(q) ||
+                d.phone.toLowerCase().includes(q) ||
+                d.address.toLowerCase().includes(q)
+              }
+              enableDateFilter={true}
+              exportFilename="smokey-rider-in-transit-orders"
+              onRowClick={(order) => setPreviewOrder(order)}
+              emptyMessage="No in-transit orders currently on the road. Accept an assigned order above to start delivery."
             />
           </div>
         )}

@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
@@ -167,14 +168,13 @@ export const PackagingExecutionPage: React.FC = () => {
       defaultWidth: 160,
       accessor: (o) => (
         <Tooltip content="Allocate containers and start packaging this order">
-          <button
-            type="button"
+          <TableActionButton
+            variant="primary"
             onClick={() => handleOpenStartModal(o)}
-            className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
+            leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
           >
-            <Package className="w-3.5 h-3.5" />
             Start Packaging
-          </button>
+          </TableActionButton>
         </Tooltip>
       ),
     },
@@ -224,14 +224,13 @@ export const PackagingExecutionPage: React.FC = () => {
       defaultWidth: 180,
       accessor: (o) => (
         <Tooltip content="Hand over packed meal to dispatch board">
-          <button
-            type="button"
+          <TableActionButton
+            variant="success"
             onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
-            className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
+            leftIcon={<Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
           >
-            <Check className="w-3.5 h-3.5" />
             Confirm Packaged
-          </button>
+          </TableActionButton>
         </Tooltip>
       ),
     },

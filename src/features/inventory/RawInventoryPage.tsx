@@ -4,6 +4,7 @@ import { RawProduct, RawDelivery, RawMovement, RawUsageItem, InventoryLot, Stock
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -469,22 +470,20 @@ export const RawInventoryPage: React.FC = () => {
       accessor: (p) => (
         <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record incoming stock from supplier">
-            <button
-              type="button"
+            <TableActionButton
+              variant="success"
               onClick={() => handleOpenReceive(p)}
-              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               + Receive
-            </button>
+            </TableActionButton>
           </Tooltip>
           <Tooltip content="Adjust on-hand stock or record kitchen wastage">
-            <button
-              type="button"
+            <TableActionButton
+              variant="outline"
               onClick={() => handleOpenAdjust(p)}
-              className="px-3 py-1.5 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Adjust
-            </button>
+            </TableActionButton>
           </Tooltip>
         </div>
       ),
@@ -570,24 +569,22 @@ export const RawInventoryPage: React.FC = () => {
         return (
           <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
             <Tooltip content="Create prep batch targeting this lot so it gets smoked first">
-              <button
-                type="button"
+              <TableActionButton
+                variant="warning"
                 onClick={() => handleOpenPrioritize(l)}
-                className="px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none flex items-center gap-1.5"
+                leftIcon={<Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
               >
-                <Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 Prioritize in Kitchen
-              </button>
+              </TableActionButton>
             </Tooltip>
             <Tooltip content="Record shrinkage with reason 'Expired / Past Date'">
-              <button
-                type="button"
+              <TableActionButton
+                variant="danger"
                 onClick={() => handleOpenWaste(l)}
-                className="px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none flex items-center gap-1.5"
+                leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
               >
-                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                 Log Spoilage / Waste
-              </button>
+              </TableActionButton>
             </Tooltip>
           </div>
         )
@@ -813,14 +810,12 @@ export const RawInventoryPage: React.FC = () => {
       accessor: (v) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0">
           {v.status === 'pending_review' ? (
-            <Button
+            <TableActionButton
               variant="outline"
-              size="sm"
               onClick={() => handleOpenResolve(v)}
-              className="text-xs py-1 h-7 whitespace-nowrap shrink-0 flex-none"
             >
               Sign-Off
-            </Button>
+            </TableActionButton>
           ) : (
             <span className="text-[11px] text-kumo-subtle italic whitespace-nowrap shrink-0">Resolved</span>
           )}

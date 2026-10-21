@@ -5,6 +5,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TableActionButton } from '@/components/ui/TableActionButton'
+import { KumoTabs } from '@/components/ui/KumoTabs'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -23,6 +25,7 @@ import {
 
 export const KitchenTasksPage: React.FC = () => {
   const { kitchenTasks, updateTaskStatus, createKitchenTask } = useSmokeyOps()
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newTask, setNewTask] = useState({
     title: '',
@@ -37,6 +40,15 @@ export const KitchenTasksPage: React.FC = () => {
   const inProgressCount = kitchenTasks.filter(t => t.status === 'in_progress').length
   const pendingCount = kitchenTasks.filter(t => t.status === 'pending').length
   const completedCount = kitchenTasks.filter(t => t.status === 'done').length
+
+  const pendingTasks = kitchenTasks.filter(t => t.status !== 'done')
+  const completedTasks = kitchenTasks.filter(t => t.status === 'done')
+
+  const displayedTasks = activeTab === 'pending' 
+    ? pendingTasks 
+    : activeTab === 'completed' 
+    ? completedTasks 
+    : kitchenTasks
 
   const handleConfirmCreate = (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,30 +130,30 @@ export const KitchenTasksPage: React.FC = () => {
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           {t.status === 'pending' && (
             <Tooltip content="Start working on this task">
-              <button
-                type="button"
+              <TableActionButton
+                variant="primary"
+                icon={<Play className="fill-current" />}
+                iconStrokeWidth={2}
                 onClick={() => updateTaskStatus(t.id, 'in_progress')}
-                className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
-                <Play className="w-3 h-3 fill-current" />
                 Start Task
-              </button>
+              </TableActionButton>
             </Tooltip>
           )}
           {t.status === 'in_progress' && (
             <Tooltip content="Mark this task completed">
-              <button
-                type="button"
+              <TableActionButton
+                variant="success"
+                icon={<Check />}
+                iconStrokeWidth={2.5}
                 onClick={() => updateTaskStatus(t.id, 'done')}
-                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
-                <Check className="w-3.5 h-3.5" />
                 Mark Done
-              </button>
+              </TableActionButton>
             </Tooltip>
           )}
           {t.status === 'done' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans whitespace-nowrap shrink-0">
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans whitespace-nowrap shrink-0 px-2">
               <Check className="w-3.5 h-3.5" /> Passed
             </span>
           )}
@@ -201,13 +213,27 @@ export const KitchenTasksPage: React.FC = () => {
         />
       </div>
 
+      {/* Filter Tabs */}
+      <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
+        <KumoTabs
+          activeTab={activeTab}
+          onChange={(val) => setActiveTab(val as any)}
+          tabs={[
+            { id: 'all', label: 'All Tasks', badge: kitchenTasks.length },
+            { id: 'pending', label: 'Pending', badge: pendingTasks.length },
+            { id: 'completed', label: 'Completed', badge: completedTasks.length },
+          ]}
+        />
+      </div>
+
       {/* Table */}
       <DataTable
-        data={kitchenTasks}
+        data={displayedTasks}
         columns={columns}
         searchable={true}
         searchPlaceholder="Search task title or assignee..."
-        exportFilename="smokey-kitchen-tasks"
+        title={activeTab === 'all' ? 'All Kitchen Tasks' : activeTab === 'pending' ? 'Pending Tasks' : 'Completed Tasks'}
+        exportFilename={`smokey-kitchen-tasks-${activeTab}`}
       />
 
       {/* Create Modal */}

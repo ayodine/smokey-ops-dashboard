@@ -125,3 +125,5 @@ export const InactiveButton = React.forwardRef<HTMLButtonElement, Omit<ButtonPro
 )
 
 InactiveButton.displayName = 'InactiveButton'
+
+export { TableActionButton, type TableActionButtonProps } from './TableActionButton'
