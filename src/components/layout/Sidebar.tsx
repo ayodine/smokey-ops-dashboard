@@ -77,7 +77,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Dispatch Board', href: '/logistics/board', badge: '5' },
       { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '3' },
       { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '4' },
-      { label: 'Rider Portal (My Trips)', href: '/logistics/rider-portal', badge: 'Active' },
       { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '2' },
       { label: 'Courier Fees & Delivery', href: '/logistics/third-party' },
     ],
@@ -355,7 +354,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 
                 {!isCollapsed && (
                   <>
-                    <span className="truncate flex-1 tracking-wider uppercase text-[11px] font-bold">
+                    <span className="truncate flex-1 tracking-wider uppercase text-[11px] font-semibold">
                       {section.title}
                     </span>
                     <ChevronDown
@@ -386,13 +385,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                             to={subItem.href}
                             onClick={onCloseMobile}
                             className={cn(
-                              'group/menu-button relative flex min-h-[32px] w-full min-w-0 cursor-pointer items-center justify-between rounded-md px-2.5 py-1 text-[13px] font-medium outline-none transition-colors',
+                              'group/menu-button relative flex min-h-[32px] w-full min-w-0 cursor-pointer items-center justify-between rounded-md px-2.5 py-1 text-[13px] font-normal outline-none transition-colors',
                               isSubActive
-                                ? 'bg-primary/10 text-primary font-semibold'
-                                : 'text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong'
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-kumo-default font-normal hover:bg-kumo-tint hover:text-kumo-strong'
                             )}
                           >
-                            <span className="truncate flex-1 text-[13px]">{subItem.label}</span>
+                            <span className="truncate flex-1 text-[13px] font-normal">{subItem.label}</span>
                             {subItem.badge && (
                               <span
                                 className={cn(
