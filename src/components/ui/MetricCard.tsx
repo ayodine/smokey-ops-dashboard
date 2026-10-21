@@ -25,6 +25,7 @@ export interface MetricCardProps {
   sparklineType?: 'spikes' | 'wave' | 'dense' | 'flat' | 'auto'
   noData?: boolean
   strokeColor?: string
+  onClick?: () => void
 }
 
 // Generate realistic deterministic sparklines matching Cloudflare Metrics
@@ -80,6 +81,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   sparklineType = 'auto',
   noData,
   strokeColor,
+  onClick,
 }) => {
   const effectiveSubtext = subtext || description
   const effectiveDelta = delta || (trend ? { value: `${trend.isPositive ? '+' : ''}${trend.value}%`, isPositive: trend.isPositive } : undefined)
@@ -203,8 +205,13 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       data-sentry-component="ChartCardStandard"
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       className={cn(
         'relative flex min-h-[124px] flex-col justify-between overflow-hidden rounded-lg bg-kumo-base ring ring-kumo-line transition-all hover:ring-kumo-interact p-3.5 shadow-2xs select-none',
+        onClick && 'cursor-pointer hover:ring-amber-400/80 hover:shadow-xs active:scale-[0.99] transition-transform',
         accentBorders[variant],
         className
       )}

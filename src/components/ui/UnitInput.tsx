@@ -12,6 +12,7 @@ export interface UnitInputProps {
   onChangeUnit?: (unit: string) => void
   unitOptions?: string[]
   min?: number
+  max?: number
   step?: string | number
   placeholder?: string
   required?: boolean
@@ -43,6 +44,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   onChangeUnit,
   unitOptions = DEFAULT_UNITS,
   min = 0,
+  max,
   step = 'any',
   placeholder = '0.0',
   required = false,
@@ -138,6 +140,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
           type="number"
           step={step}
           min={min}
+          max={max}
           value={value === 0 && placeholder ? '' : value}
           onChange={(e) => {
             onChangeValue?.(Number(e.target.value))

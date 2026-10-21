@@ -69,6 +69,8 @@ interface SmokeyOpsContextType {
   receiveRawStock: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; notes?: string }) => void
   receiveRawStockWithLot: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; lotNumber?: string; expiryDate?: string; notes?: string }) => void
   adjustRawStock: (productId: number, delta: number, notes: string, reason: string) => void
+  writeOffLotWaste: (data: { lotId: number; quantity: number; notes: string; approverName: string }) => void
+  prioritizeLotInKitchen: (data: { lotId: number; quantity: number; targetDishName: string; pitmasterName: string; shiftRemarks?: string }) => void
   saveRawProduct: (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => void
   receivePackaging: (data: { productId: number; quantity: number; unitCost: number }) => void
   adjustPackagingStock: (productId: number, delta: number, notes: string) => void
@@ -346,6 +348,132 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       user_name: "Inventory Supervisor"
     }
     setRawMovements(prev => [newMovement, ...prev])
+  }
+
+  const writeOffLotWaste = ({
+    lotId,
+    quantity,
+    notes,
+    approverName
+  }: {
+    lotId: number
+    quantity: number
+    notes: string
+    approverName: string
+  }) => {
+    const lot = inventoryLots.find(l => l.id === lotId)
+    if (!lot) return
+
+    const actualQty = Math.min(quantity, lot.remaining_qty)
+    const newRemaining = Math.max(0, lot.remaining_qty - actualQty)
+
+    // Update lot balance & status
+    setInventoryLots(prev => prev.map(l => l.id === lotId ? {
+      ...l,
+      remaining_qty: newRemaining,
+      status: newRemaining === 0 ? 'expired' : l.status
+    } : l))
+
+    // Deduct stock from raw inventory with reason "waste"
+    adjustRawStock(
+      lot.product_id,
+      -actualQty,
+      `Lot ${lot.lot_number} written off: ${notes} (Approved by ${approverName})`,
+      "Expired / Past Date"
+    )
+
+    showSuccessModal({
+      title: 'Spoilage / Waste Written Off',
+      message: `Lot ${lot.lot_number} (${lot.product_name}) successfully written off and removed from inventory.`,
+      details: [
+        { label: 'Lot Identifier', value: lot.lot_number },
+        { label: 'Raw Protein', value: lot.product_name },
+        { label: 'Quantity Written Off', value: `${actualQty} ${lot.unit}` },
+        { label: 'Total Value Loss', value: formatNaira(actualQty * lot.unit_cost) },
+        { label: 'Reason', value: 'Expired / Past Date' },
+        { label: 'Authorized By', value: approverName }
+      ]
+    })
+    showToast(`Logged ${actualQty} ${lot.unit} spoilage write-off for ${lot.lot_number}`, 'info')
+  }
+
+  const prioritizeLotInKitchen = ({
+    lotId,
+    quantity,
+    targetDishName,
+    pitmasterName,
+    shiftRemarks
+  }: {
+    lotId: number
+    quantity: number
+    targetDishName: string
+    pitmasterName: string
+    shiftRemarks?: string
+  }) => {
+    const lot = inventoryLots.find(l => l.id === lotId)
+    if (!lot) return
+
+    const actualQty = Math.min(quantity, lot.remaining_qty)
+    const newRemaining = Math.max(0, lot.remaining_qty - actualQty)
+
+    // 1. Update lot remaining quantity
+    setInventoryLots(prev => prev.map(l => l.id === lotId ? {
+      ...l,
+      remaining_qty: newRemaining
+    } : l))
+
+    // 2. Find matching sales dish
+    const matchingSales = salesProducts.find(s => s.name.toLowerCase() === targetDishName.toLowerCase())
+    const outputProductId = matchingSales?.id || 101
+
+    // 3. Deduct raw material from inventory
+    adjustRawStock(
+      lot.product_id,
+      -actualQty,
+      `[FEFO PRIORITY] Cooking batch allocation for ${targetDishName} (Lot: ${lot.lot_number})`,
+      "Kitchen Cooking Allocation"
+    )
+
+    // 4. Create real production batch
+    const batchRef = `BAT-${String(productionBatches.length + 23).padStart(5, '0')}`
+    const newBatch: ProductionBatch = {
+      id: Date.now(),
+      batch_ref: batchRef,
+      output_product_id: outputProductId,
+      output_product_name: targetDishName,
+      expected_output: actualQty,
+      actual_output: 0,
+      wastage: 0,
+      status: "in_production",
+      started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      completed_at: null,
+      remarks: `[FEFO URGENT PRIORITY] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Smoke immediately on current shift to prevent food waste.'}`,
+      created_by_name: pitmasterName || "Shift Pitmaster",
+      raw_materials: [
+        {
+          product_id: lot.product_id,
+          sku: lot.sku,
+          name: `${lot.product_name} (Lot: ${lot.lot_number})`,
+          quantity: actualQty,
+          unit: lot.unit
+        }
+      ]
+    }
+    setProductionBatches(prev => [newBatch, ...prev])
+
+    showSuccessModal({
+      title: 'Kitchen Batch Created (FEFO Priority)',
+      message: `Lot ${lot.lot_number} has been allocated and sent directly to the kitchen smoker for immediate preparation.`,
+      details: [
+        { label: 'Batch Reference', value: batchRef },
+        { label: 'Source Lot', value: `${lot.lot_number} (Exp: ${lot.expiry_date})` },
+        { label: 'Target Finished Dish', value: targetDishName },
+        { label: 'Quantity Prepped', value: `${actualQty} ${lot.unit}` },
+        { label: 'Assigned Pitmaster', value: pitmasterName || 'Shift Pitmaster' },
+        { label: 'Kitchen Status', value: 'In Production (Cooking Started)' }
+      ]
+    })
+    showToast(`Batch ${batchRef} created: Lot ${lot.lot_number} prioritized in kitchen!`, 'success')
   }
 
   const saveRawProduct = (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => {
@@ -944,6 +1072,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         receiveRawStock,
         receiveRawStockWithLot,
         adjustRawStock,
+        writeOffLotWaste,
+        prioritizeLotInKitchen,
         saveRawProduct,
         receivePackaging,
         adjustPackagingStock,

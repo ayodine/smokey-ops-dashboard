@@ -21,7 +21,11 @@ import {
   PackagePlus,
   ClipboardCheck,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Flame,
+  Trash2,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react'
 
 export const ALL_INVENTORY_UNITS = [
@@ -68,15 +72,35 @@ export const RawInventoryPage: React.FC = () => {
     rawUsage,
     suppliers,
     inventoryLots,
+    salesProducts,
     stocktakeVariances,
     receiveRawStockWithLot,
     adjustRawStock,
+    writeOffLotWaste,
+    prioritizeLotInKitchen,
     saveRawProduct,
     submitStocktakeCount,
     resolveStocktakeVariance
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'current' | 'fefo' | 'inbound' | 'outbound' | 'usage' | 'escrow'>('current')
+
+  // FEFO Workflow State
+  const [fefoFilter, setFefoFilter] = useState<'all' | 'near_expiry'>('all')
+  const [isPrioritizeModalOpen, setIsPrioritizeModalOpen] = useState(false)
+  const [isWasteModalOpen, setIsWasteModalOpen] = useState(false)
+  const [selectedLot, setSelectedLot] = useState<InventoryLot | null>(null)
+
+  // Prioritize in Kitchen Form State
+  const [prioritizeQty, setPrioritizeQty] = useState<number>(1)
+  const [prioritizeDish, setPrioritizeDish] = useState<string>('')
+  const [prioritizePitmaster, setPrioritizePitmaster] = useState('Babajide (Pitmaster)')
+  const [prioritizeRemarks, setPrioritizeRemarks] = useState('')
+
+  // Spoilage / Waste Form State
+  const [wasteQty, setWasteQty] = useState<number>(1)
+  const [wasteApprover, setWasteApprover] = useState('Babajide (Pitmaster)')
+  const [wasteNotes, setWasteNotes] = useState('')
 
   // Modals state
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
@@ -136,7 +160,20 @@ export const RawInventoryPage: React.FC = () => {
   const outboundCount = rawMovements.length
   const lowStockCount = rawProducts.filter(p => p.stock_qty <= p.reorder_level).length
   const pendingVariancesCount = stocktakeVariances.filter(v => v.status === 'pending_review').length
-  const nearExpiryCount = inventoryLots.filter(l => l.status === 'near_expiry').length
+  const nearExpiryCount = inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0).length
+
+  // Batches expiring in <= 3 days with remaining balance
+  const criticalExpiringLots = useMemo(() => {
+    return inventoryLots.filter(l => l.days_to_expiry <= 3 && l.remaining_qty > 0)
+  }, [inventoryLots])
+
+  // Filtered FEFO lots based on user-selected filter pill
+  const filteredFefoLots = useMemo(() => {
+    if (fefoFilter === 'near_expiry') {
+      return inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0)
+    }
+    return inventoryLots
+  }, [inventoryLots, fefoFilter])
 
   // Handlers
   const handleOpenReceive = (product?: RawProduct) => {
@@ -283,6 +320,69 @@ export const RawInventoryPage: React.FC = () => {
     if (!selectedVariance) return
     resolveStocktakeVariance(selectedVariance.id, supervisorResolutionNotes)
     setIsResolveModalOpen(false)
+  }
+
+  // FEFO Workflow Handlers (Prioritize in Kitchen & Log Waste)
+  const getMatchingDishForProtein = (productName: string): string => {
+    const upper = productName.toUpperCase()
+    if (upper.includes('GUINEAFOWL') || upper.includes('GNF')) {
+      return 'Full Smokey Guineafowl'
+    }
+    if (upper.includes('CATFISH') || upper.includes('FISH')) {
+      return 'Charcoal Roasted Whole Catfish (Family)'
+    }
+    if (upper.includes('TURKEY')) {
+      return 'Smokey Jumbo Turkey Wings (Pair)'
+    }
+    if (upper.includes('BEEF') || upper.includes('BRISKET')) {
+      return 'Smokey Beef Jerkey (Kilishi) 125g'
+    }
+    if (upper.includes('CHICKEN')) {
+      return 'Full Smokey Guineafowl'
+    }
+    return salesProducts[0]?.name || 'Full Smokey Guineafowl'
+  }
+
+  const handleOpenPrioritize = (lot: InventoryLot) => {
+    setSelectedLot(lot)
+    setPrioritizeQty(lot.remaining_qty)
+    setPrioritizeDish(getMatchingDishForProtein(lot.product_name))
+    setPrioritizePitmaster('Babajide (Pitmaster)')
+    setPrioritizeRemarks(`[FEFO URGENT PRIORITY] Lot ${lot.lot_number} allocated to smoker pit. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
+    setIsPrioritizeModalOpen(true)
+  }
+
+  const handleSubmitPrioritize = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedLot) return
+    prioritizeLotInKitchen({
+      lotId: selectedLot.id,
+      quantity: Number(prioritizeQty),
+      targetDishName: prioritizeDish,
+      pitmasterName: prioritizePitmaster,
+      shiftRemarks: prioritizeRemarks
+    })
+    setIsPrioritizeModalOpen(false)
+  }
+
+  const handleOpenWaste = (lot: InventoryLot) => {
+    setSelectedLot(lot)
+    setWasteQty(lot.remaining_qty)
+    setWasteApprover('Babajide (Pitmaster)')
+    setWasteNotes('Expired / past optimal cold-storage freshness date. Written off according to food safety protocol.')
+    setIsWasteModalOpen(true)
+  }
+
+  const handleSubmitWaste = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedLot) return
+    writeOffLotWaste({
+      lotId: selectedLot.id,
+      quantity: Number(wasteQty),
+      notes: wasteNotes,
+      approverName: wasteApprover
+    })
+    setIsWasteModalOpen(false)
   }
 
   // Column definitions for Tab 1: Current Inventory (with Three-State Invariant & FEFO Lot tags)
@@ -449,8 +549,8 @@ export const RawInventoryPage: React.FC = () => {
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
               isUrgent
-                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
             }`}
           >
             {l.days_to_expiry} days ({isUrgent ? 'Near Expiry' : 'Active'})
@@ -458,6 +558,39 @@ export const RawInventoryPage: React.FC = () => {
         )
       },
       sortValue: (l) => l.days_to_expiry,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      accessor: (l) => {
+        if (l.remaining_qty <= 0) {
+          return <span className="text-[11px] text-kumo-subtle italic">Depleted / Written Off</span>
+        }
+        return (
+          <div className="flex items-center gap-1.5 font-sans" onClick={e => e.stopPropagation()}>
+            <Tooltip content="Create prep batch targeting this lot so it gets smoked first">
+              <button
+                type="button"
+                onClick={() => handleOpenPrioritize(l)}
+                className="px-2.5 py-1 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap flex items-center gap-1"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                Prioritize in Kitchen
+              </button>
+            </Tooltip>
+            <Tooltip content="Record shrinkage with reason 'Expired / Past Date'">
+              <button
+                type="button"
+                onClick={() => handleOpenWaste(l)}
+                className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                Log Spoilage / Waste
+              </button>
+            </Tooltip>
+          </div>
+        )
+      },
     },
   ]
 
@@ -735,6 +868,59 @@ export const RawInventoryPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Kitchen Urgency Alert Banner (Rendered when any lot is <= 3 days from expiring) */}
+      {criticalExpiringLots.length > 0 && (
+        <div className="relative overflow-hidden rounded-xl border border-rose-300 dark:border-rose-900/80 bg-linear-to-r from-rose-50 via-amber-50/70 to-rose-50 dark:from-rose-950/40 dark:via-amber-950/20 dark:to-rose-950/40 p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-xs shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    Kitchen Urgency Alert
+                  </span>
+                  <span className="text-xs font-semibold text-rose-800 dark:text-rose-300">
+                    FEFO Expiring Soon ({criticalExpiringLots.length} lot{criticalExpiringLots.length > 1 ? 's' : ''} ≤ 3 Days Left)
+                  </span>
+                </div>
+                <h2 className="text-sm sm:text-base font-bold text-kumo-strong mt-1">
+                  Immediate Smoker Pit Prioritization Required
+                </h2>
+                <p className="text-xs text-kumo-default mt-0.5 max-w-2xl leading-relaxed">
+                  Lot <span className="font-semibold text-kumo-strong font-mono">{criticalExpiringLots[0].lot_number}</span> ({criticalExpiringLots[0].remaining_qty} {criticalExpiringLots[0].unit} of <span className="font-semibold text-kumo-strong">{criticalExpiringLots[0].product_name}</span>) expires on <span className="font-semibold text-rose-700 dark:text-rose-300">{criticalExpiringLots[0].expiry_date}</span> ({criticalExpiringLots[0].days_to_expiry} day{criticalExpiringLots[0].days_to_expiry === 1 ? '' : 's'} remaining). Smoke on current shift to avoid <span className="font-semibold text-rose-700 dark:text-rose-400">{formatNaira(criticalExpiringLots[0].remaining_qty * criticalExpiringLots[0].unit_cost)}</span> in spoilage shrinkage.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleOpenPrioritize(criticalExpiringLots[0])}
+                leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
+                className="h-9 px-3.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"
+              >
+                Prioritize #{criticalExpiringLots[0].lot_number}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setActiveTab('fefo')
+                  setFefoFilter('near_expiry')
+                }}
+                rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                className="h-9 px-3 text-xs font-medium border-rose-300 text-rose-800 bg-white/80 hover:bg-white dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-200"
+              >
+                View Urgent ({criticalExpiringLots.length})
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
@@ -753,8 +939,13 @@ export const RawInventoryPage: React.FC = () => {
         <MetricCard
           title="Near Expiry Lots"
           value={nearExpiryCount}
-          description="Batches expiring ≤ 4 days"
+          description="Batches expiring ≤ 4 days • Click to view"
           icon={<Calendar className="w-4 h-4 text-amber-500" />}
+          variant={nearExpiryCount > 0 ? "warning" : "default"}
+          onClick={() => {
+            setActiveTab('fefo')
+            setFefoFilter('near_expiry')
+          }}
         />
         <MetricCard
           title="Stock Discrepancies"
@@ -801,14 +992,61 @@ export const RawInventoryPage: React.FC = () => {
         )}
 
         {activeTab === 'fefo' && (
-          <DataTable
-            data={inventoryLots}
-            columns={fefoColumns}
-            searchable={true}
-            searchPlaceholder="Filter by lot number or protein SKU..."
-            title="Perishables FEFO Lot"
-            exportFilename="smokey-fefo-lots"
-          />
+          <div className="space-y-3">
+            {/* Filter pills for FEFO lots */}
+            <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-kumo-subtle">Filter Lots:</span>
+                <button
+                  type="button"
+                  onClick={() => setFefoFilter('all')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                    fefoFilter === 'all'
+                      ? 'bg-kumo-strong text-white border-kumo-strong dark:bg-white dark:text-black dark:border-white shadow-2xs'
+                      : 'bg-kumo-base text-kumo-default border-kumo-line hover:bg-kumo-surface'
+                  }`}
+                >
+                  All Batches ({inventoryLots.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFefoFilter('near_expiry')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    fefoFilter === 'near_expiry'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                      : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  ≤ 4 Days Left ({inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0).length})
+                </button>
+              </div>
+
+              {fefoFilter === 'near_expiry' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-rose-600 dark:text-rose-400 font-medium bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 rounded-md border border-rose-200 dark:border-rose-800">
+                    Active Filter: Showing lots expiring in ≤ 4 days
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFefoFilter('all')}
+                    className="text-xs text-kumo-subtle hover:text-kumo-strong underline cursor-pointer"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <DataTable
+              data={filteredFefoLots}
+              columns={fefoColumns}
+              searchable={true}
+              searchPlaceholder="Filter by lot number or protein SKU..."
+              title="Perishables FEFO Lot"
+              exportFilename="smokey-fefo-lots"
+            />
+          </div>
         )}
 
         {activeTab === 'inbound' && (
@@ -1215,6 +1453,190 @@ export const RawInventoryPage: React.FC = () => {
             </Button>
             <Button variant="primary" type="submit">
               Confirm Stock Update
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 6: Prioritize Lot for Kitchen Smoker */}
+      <Dialog
+        isOpen={isPrioritizeModalOpen}
+        onClose={() => setIsPrioritizeModalOpen(false)}
+        title={`Prioritize in Kitchen Smoker: ${selectedLot?.lot_number || ''}`}
+        description="Allocate this perishable lot directly to a kitchen smoke batch so it gets smoked first to prevent food waste."
+      >
+        <form onSubmit={handleSubmitPrioritize} className="space-y-4">
+          <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Lot Identifier:</span>
+              <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Perishable Protein:</span>
+              <span className="font-medium text-kumo-strong">{selectedLot?.product_name} ({selectedLot?.sku})</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Remaining Stock Available:</span>
+              <span className="font-medium text-kumo-strong">{selectedLot?.remaining_qty} {selectedLot?.unit}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Expiration Date:</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400">
+                {selectedLot?.expiry_date} ({selectedLot?.days_to_expiry} days left)
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <UnitInput
+              label="Quantity to Allocate to Smoker"
+              value={prioritizeQty}
+              onChangeValue={(val) => setPrioritizeQty(Math.min(selectedLot?.remaining_qty || val, Math.max(1, val)))}
+              unit={selectedLot?.unit || 'units'}
+              min={1}
+              max={selectedLot?.remaining_qty}
+              step="any"
+              required
+            />
+            <Select
+              label="Target Finished Smoked Dish"
+              value={prioritizeDish}
+              onChange={(e) => setPrioritizeDish(e.target.value)}
+              options={salesProducts.map(p => ({
+                value: p.name,
+                label: `${p.name} (${formatNaira(p.selling_price)})`
+              }))}
+            />
+          </div>
+
+          <Input
+            label="Assigned Lead Pitmaster"
+            value={prioritizePitmaster}
+            onChange={(e) => setPrioritizePitmaster(e.target.value)}
+            placeholder="e.g. Babajide (Pitmaster)"
+            required
+          />
+
+          <div>
+            <label className="block text-xs font-medium text-kumo-default mb-1">
+              Kitchen Shift Remarks & Smoker Instructions
+            </label>
+            <textarea
+              value={prioritizeRemarks}
+              onChange={(e) => setPrioritizeRemarks(e.target.value)}
+              rows={2}
+              className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-amber-500 focus:outline-none"
+              placeholder="e.g. Smoke first on morning shift run..."
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
+            <Button variant="outline" type="button" onClick={() => setIsPrioritizeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-amber-700 shadow-xs"
+            >
+              Start Kitchen Batch
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 7: Log Spoilage / Waste Write-Off */}
+      <Dialog
+        isOpen={isWasteModalOpen}
+        onClose={() => setIsWasteModalOpen(false)}
+        title={`Log Spoilage / Waste Write-Off: ${selectedLot?.lot_number || ''}`}
+        description="Record shrinkage for expired or spoiled stock. This removes units from raw inventory and logs an audited write-off."
+      >
+        <form onSubmit={handleSubmitWaste} className="space-y-4">
+          <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Lot Identifier:</span>
+              <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Perishable Protein:</span>
+              <span className="font-medium text-kumo-strong">{selectedLot?.product_name}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Available Balance:</span>
+              <span className="font-medium text-kumo-strong">{selectedLot?.remaining_qty} {selectedLot?.unit}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-kumo-subtle">Unit Acquisition Cost:</span>
+              <span className="text-kumo-default font-sans">{formatNaira(selectedLot?.unit_cost || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center pt-1 border-t border-rose-200 dark:border-rose-900/50">
+              <span className="font-semibold text-rose-800 dark:text-rose-300">Financial Loss (Shrinkage):</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400 text-sm">
+                {formatNaira((Number(wasteQty) || 0) * (selectedLot?.unit_cost || 0))}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <UnitInput
+              label="Quantity to Write Off"
+              value={wasteQty}
+              onChangeValue={(val) => setWasteQty(Math.min(selectedLot?.remaining_qty || val, Math.max(0.1, val)))}
+              unit={selectedLot?.unit || 'units'}
+              min={0.1}
+              max={selectedLot?.remaining_qty}
+              step="any"
+              required
+            />
+            <div>
+              <label className="block text-xs font-medium text-kumo-default mb-1">
+                Reason for Write-Off
+              </label>
+              <input
+                type="text"
+                readOnly
+                value="Expired / Past Date"
+                className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong p-2.5 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
+              />
+            </div>
+          </div>
+
+          <Input
+            label="Authorized By (Supervisor / Digital Signature)"
+            value={wasteApprover}
+            onChange={(e) => setWasteApprover(e.target.value)}
+            placeholder="e.g. Babajide (Pitmaster)"
+            required
+          />
+
+          <div>
+            <label className="block text-xs font-medium text-kumo-default mb-1">
+              Spoilage / Disposal Notes
+            </label>
+            <textarea
+              value={wasteNotes}
+              onChange={(e) => setWasteNotes(e.target.value)}
+              rows={2}
+              className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-rose-500 focus:outline-none"
+              placeholder="e.g. Past shelf-life threshold. Cold chain storage inspected."
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
+            <Button variant="outline" type="button" onClick={() => setIsWasteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              leftIcon={<Trash2 className="w-4 h-4" />}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"
+            >
+              Confirm Spoilage Write-Off
             </Button>
           </div>
         </form>
