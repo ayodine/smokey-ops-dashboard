@@ -376,6 +376,7 @@ export interface StorePickupOrder {
   collected_at: string | null
   collected_by: string | null
   handover_staff: string | null
+  collector_phone?: string | null
   items_summary: string
 }
 

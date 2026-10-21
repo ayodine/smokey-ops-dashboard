@@ -121,7 +121,7 @@ interface SmokeyOpsContextType {
   autoReleaseDuePreOrders: () => number
   payAndResetRider: (riderId: number) => void
   remitCodCash: (riderId: number, cashAmount: number, cashierName: string) => void
-  markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string) => void
+  markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => void
   verifyThirdPartyFee: (deliveryId: number, status: 'approved' | 'flagged', note?: string) => void
 
   // Account Profile & RBAC
@@ -1258,22 +1258,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Paid ${formatNaira(payoutAmount)} to ${rider.rider_name}`, 'success')
   }
 
-  const markPickupCollected = (orderId: number, collectedBy: string, handoverStaff: string) => {
+  const markPickupCollected = (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => {
     setStorePickups(prev => prev.map(p => p.id === orderId ? {
       ...p,
       order_status: "collected",
       collected_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       collected_by: collectedBy,
-      handover_staff: handoverStaff
+      handover_staff: handoverStaff,
+      collector_phone: collectorPhone || p.phone,
     } : p))
+    showToast(`Order handed over to ${collectedBy}${collectorPhone ? ` (${collectorPhone})` : ''}`, 'success')
   }
 
   const verifyThirdPartyFee = (deliveryId: number, status: 'approved' | 'flagged', note?: string) => {
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       fee_verify_status: status,
       notes: note ? `${d.notes || ''} [Verification note: ${note}]` : d.notes
     } : d))
+    showToast(
+      status === 'approved'
+        ? `Invoice approved: ${delivery?.order_ref || 'Delivery'} (${delivery?.assigned_rider || 'Courier'})`
+        : `Invoice flagged: Overcharge reported for ${delivery?.order_ref || 'Delivery'}`,
+      status === 'approved' ? 'success' : 'error'
+    )
   }
 
   return (

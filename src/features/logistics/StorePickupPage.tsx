@@ -24,6 +24,7 @@ export const StorePickupPage: React.FC = () => {
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false)
   const [selectedPickup, setSelectedPickup] = useState<StorePickupOrder | null>(null)
   const [collectedByName, setCollectedByName] = useState('')
+  const [collectorPhone, setCollectorPhone] = useState('')
   const [handoverStaff, setHandoverStaff] = useState('Tunde Bakare (Front Counter)')
 
   const totalPickups = storePickups.length
@@ -39,13 +40,14 @@ export const StorePickupPage: React.FC = () => {
   const handleOpenCollect = (p: StorePickupOrder) => {
     setSelectedPickup(p)
     setCollectedByName(p.customer_name)
+    setCollectorPhone(p.phone || '')
     setIsCollectModalOpen(true)
   }
 
   const handleConfirmCollect = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPickup) return
-    markPickupCollected(selectedPickup.id, collectedByName, handoverStaff)
+    markPickupCollected(selectedPickup.id, collectedByName, handoverStaff, collectorPhone)
     setIsCollectModalOpen(false)
   }
 
@@ -65,6 +67,12 @@ export const StorePickupPage: React.FC = () => {
           <div className="text-xs text-kumo-subtle flex items-center gap-1 font-sans">
             <Phone className="w-3 h-3" /> {p.phone}
           </div>
+          {p.order_status === 'collected' && p.collected_by && (
+            <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-sans mt-0.5 flex items-center gap-1">
+              <UserCheck className="w-3 h-3 shrink-0" />
+              <span>Collected by: <strong className="font-semibold">{p.collected_by}</strong> ({p.collector_phone || p.phone})</span>
+            </div>
+          )}
         </div>
       ),
       sortValue: (p) => p.customer_name,
@@ -202,8 +210,18 @@ export const StorePickupPage: React.FC = () => {
 
           <Input
             label="Name of Person Collecting"
+            placeholder="e.g. Tolu Adeyemi"
             value={collectedByName}
             onChange={(e) => setCollectedByName(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Phone Number of Person Collecting"
+            type="tel"
+            placeholder="e.g. 0801 234 5678"
+            value={collectorPhone}
+            onChange={(e) => setCollectorPhone(e.target.value)}
             required
           />
 
@@ -214,11 +232,11 @@ export const StorePickupPage: React.FC = () => {
             required
           />
 
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line font-sans">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsCollectModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-2.5 pt-3 border-t border-kumo-line font-sans w-full">
+            <Button variant="secondary" size="md" type="button" className="w-full sm:w-auto cursor-pointer" onClick={() => setIsCollectModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="md" type="submit">
+            <Button variant="primary" size="md" type="submit" className="w-full sm:w-auto cursor-pointer">
               Confirm Handover
             </Button>
           </div>
