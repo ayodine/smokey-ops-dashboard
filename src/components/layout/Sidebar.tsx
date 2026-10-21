@@ -217,6 +217,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               </div>
 
               <div className="border-t border-kumo-line pt-1">
+                <Link
+                  to="/auth"
+                  onClick={() => setIsAccountMenuOpen(false)}
+                  className="w-full px-3 py-1.5 text-left text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint flex items-center justify-between cursor-pointer"
+                >
+                  <span>Switch Account / Sign In</span>
+                  <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono">/auth</span>
+                </Link>
                 <button
                   type="button"
                   onClick={() => setIsAccountMenuOpen(false)}

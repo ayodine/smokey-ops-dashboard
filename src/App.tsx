@@ -27,6 +27,10 @@ import { ThirdPartyLogisticsPage } from '@/features/logistics/ThirdPartyLogistic
 // Overview Domain
 import { AccountHomePage } from '@/features/overview/AccountHomePage'
 
+// Auth Screen Domain (shadcn /components/ui)
+import AuthSectionThree from '@/components/ui/auth-section-3'
+import Demo from '@/components/ui/demo'
+
 export function App() {
   return (
     <ThemeProvider>
@@ -34,6 +38,12 @@ export function App() {
         <SmokeyOpsProvider>
           <BrowserRouter>
             <Routes>
+              {/* Full-screen Authentication and Demo Screens (outside AppShell) */}
+              <Route path="/auth" element={<AuthSectionThree />} />
+              <Route path="/login" element={<AuthSectionThree />} />
+              <Route path="/signup" element={<AuthSectionThree />} />
+              <Route path="/demo" element={<Demo />} />
+
               <Route path="/" element={<AppShell />}>
                 {/* Default Landing Page directs to Account Overview */}
                 <Route index element={<Navigate to="/overview" replace />} />
