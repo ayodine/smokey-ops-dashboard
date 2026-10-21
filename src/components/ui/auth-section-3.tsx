@@ -4,147 +4,277 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { FlutedGlass } from "@paper-design/shaders-react";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
-
-const formFields = [
-  {
-    label: "First name",
-    value: "Babajide",
-    type: "text",
-    placeholder: "Babajide",
-  },
-  { label: "Last name", value: "Ogundipe", type: "text", placeholder: "Ogundipe" },
-];
-
-const termsText = (
-  <>
-    By creating an account, you agree to our{" "}
-    <a
-      href="#"
-      className="font-medium text-black/55 underline underline-offset-2 dark:text-white/55"
-    >
-      Terms of Service
-    </a>{" "}
-    and{" "}
-    <a
-      href="#"
-      className="font-medium text-black/55 underline underline-offset-2 dark:text-white/55"
-    >
-      Privacy Policy
-    </a>
-  </>
-);
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
 
+  // Mode: 'login' (Sign in) vs 'signup' (Create account)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+
+  // Form fields
+  const [firstName, setFirstName] = useState("Babajide");
+  const [lastName, setLastName] = useState("Ogundipe");
+  const [email, setEmail] = useState("ayodine47@gmail.com");
+  const [password, setPassword] = useState("password123");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(true);
+
+  // States
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Email/Password Submit handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/overview");
+    setIsSubmitting(true);
+    setSuccessMessage(authMode === 'login' ? "Signing you in..." : "Account created successfully!");
+    
+    setTimeout(() => {
+      setIsSubmitting(false);
+      navigate("/overview");
+    }, 900);
+  };
+
+  // Google OAuth flow handler
+  const handleGoogleSignIn = () => {
+    setGoogleLoading(true);
+    setSuccessMessage("Connecting to Google Account...");
+    
+    setTimeout(() => {
+      setGoogleLoading(false);
+      navigate("/overview");
+    }, 1100);
   };
 
   return (
-    <section className="min-h-screen bg-white p-3 text-black antialiased [font-synthesis:none] dark:bg-[#050505] dark:text-white">
+    <section className="min-h-screen bg-white p-3 text-black antialiased [font-synthesis:none] dark:bg-[#050505] dark:text-white font-sans">
       <div className="grid min-h-[calc(100vh-1.5rem)] gap-6 lg:grid-cols-[0.94fr_1.06fr]">
-        {/* Left Side - SignUp Form */}
+        {/* Left Side - Authentication Form */}
         <div className="flex min-h-[760px] items-center justify-center rounded-md border border-black/10 bg-white px-6 py-12 dark:border-white/5 dark:bg-[#0a0a0c] lg:min-h-0 lg:px-14 lg:py-20 xl:px-20 relative">
+          {/* Back button */}
           <button
             type="button"
             onClick={() => navigate("/overview")}
             className="absolute top-6 left-6 inline-flex items-center gap-1.5 text-xs font-medium text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white cursor-pointer transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Console</span>
+            <span>Back to Home overview</span>
           </button>
 
           <div className="mx-auto w-full max-w-[460px]">
+            {/* Header / Brand */}
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#c0201f]" />
                 <span className="text-xs font-semibold tracking-wider uppercase text-black/50 dark:text-white/50">
-                  Smokey Hut Operations
+                  Smokey Hut Delight
                 </span>
               </div>
-              <h1 className="text-3xl font-medium tracking-tight sm:text-4xl text-black dark:text-white">
-                Create an account
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-black dark:text-white">
+                {authMode === 'login' ? "Sign in to your account" : "Create an account"}
               </h1>
-              <p className="mt-2 text-xs text-black/50 dark:text-white/50">
-                Sign in to manage inventory, pitmaster batches, and courier fulfillment.
+              <p className="mt-1.5 text-xs text-black/55 dark:text-white/55 leading-relaxed">
+                {authMode === 'login'
+                  ? "Enter your work email and password to access the operations dashboard."
+                  : "Sign up with your work email to manage food inventory, cooking batches, and delivery drivers."}
               </p>
             </div>
 
-            {/* Social Signup Buttons */}
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4">
+            {/* Success notification banner if signing in */}
+            {successMessage && (
+              <div className="mt-4 p-3 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-xs flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {/* Social Authentication: Google Button */}
+            <div className="mt-6">
               <button
                 type="button"
-                onClick={() => navigate("/overview")}
-                className="flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[0.02] dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 cursor-pointer"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading}
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-black/15 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 cursor-pointer disabled:opacity-60 shadow-2xs"
               >
-                <GoogleIcon />
-                <span className="whitespace-nowrap">Sign up with Google</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/overview")}
-                className="flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[0.02] dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 cursor-pointer"
-              >
-                <AppleIcon />
-                <span className="whitespace-nowrap">Sign up with Apple</span>
+                {googleLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-black dark:text-white" />
+                ) : (
+                  <GoogleIcon />
+                )}
+                <span>{authMode === 'login' ? "Sign in with Google" : "Sign up with Google"}</span>
               </button>
             </div>
 
+            {/* Divider */}
             <div className="my-6 flex items-center gap-4 text-xs font-medium text-black/40 dark:text-white/30">
               <div className="h-px flex-1 bg-black/10 dark:bg-white/10" />
-              or
+              <span>or continue with email</span>
               <div className="h-px flex-1 bg-black/10 dark:bg-white/10" />
             </div>
 
+            {/* Form */}
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {formFields.map((field) => (
-                  <InputField
-                    key={field.label}
-                    label={field.label}
-                    value={field.value}
-                    placeholder={field.placeholder}
-                    type={field.type}
+              {/* If Sign Up mode, show First and Last name */}
+              {authMode === 'signup' && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5 text-left w-full">
+                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                      First name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="e.g. Babajide"
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left w-full">
+                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                      Last name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="e.g. Ogundipe"
+                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Work Email */}
+              <div className="space-y-1.5 text-left w-full">
+                <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@smokeyhutdelight.com"
+                  className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-[#c0201f]"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1.5 text-left w-full">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-black/70 dark:text-white/70">
+                    Password
+                  </label>
+                  {authMode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => alert("Password reset link sent to your email.")}
+                      className="text-xs font-medium text-[#c0201f] hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative flex h-11 items-center rounded-lg border border-black/15 bg-white px-3.5 dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/30 dark:text-white dark:placeholder:text-white/30 pr-8"
                   />
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
 
-              <InputField
-                label="Work Email"
-                value="pitmaster@smokeyhutdelight.com"
-                placeholder="email@example.com"
-                type="email"
-              />
-
-              <InputField
-                label="Password"
-                value="*************"
-                placeholder="Enter password"
-                type="password"
-              />
-
-              <div className="space-y-3 pt-2 text-xs leading-5 text-black/45 dark:text-white/40 sm:text-[13px]">
-                <CheckboxLine>
-                  I don't want to receive promotional marketing emails and daily product notifications.
-                </CheckboxLine>
-                <CheckboxLine>{termsText}</CheckboxLine>
+              {/* Checkboxes / Terms */}
+              <div className="space-y-2 pt-1 text-xs text-black/60 dark:text-white/60">
+                {authMode === 'login' ? (
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="size-3.5 rounded border border-black/25 accent-[#c0201f]"
+                    />
+                    <span>Remember this device for 30 days</span>
+                  </label>
+                ) : (
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 size-3.5 rounded border border-black/25 accent-[#c0201f]"
+                    />
+                    <span>
+                      I agree to the Smokey Hut terms of service and operational privacy policy.
+                    </span>
+                  </label>
+                )}
               </div>
 
+              {/* Submit CTA Button (Brand Red: #c0201f) */}
               <button
                 type="submit"
-                className="mt-8 flex h-11 w-full items-center justify-center rounded-lg border border-black/40 bg-black text-sm font-medium text-white transition-colors hover:bg-black/85 dark:border-white/40 dark:bg-white dark:text-black dark:hover:bg-white/85 cursor-pointer font-sans"
+                disabled={isSubmitting}
+                className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#c0201f] text-sm font-semibold text-white transition-colors hover:bg-[#a01817] cursor-pointer shadow-sm disabled:opacity-70"
               >
-                Enter Operations Console
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white" />}
+                <span>{authMode === 'login' ? "Sign In" : "Create Account"}</span>
               </button>
             </form>
+
+            {/* Toggle between Sign In and Sign Up */}
+            <div className="mt-6 text-center text-xs text-black/60 dark:text-white/60">
+              {authMode === 'login' ? (
+                <p>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('signup');
+                      setSuccessMessage(null);
+                    }}
+                    className="font-semibold text-[#c0201f] hover:underline cursor-pointer ml-1"
+                  >
+                    Create an account
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setSuccessMessage(null);
+                    }}
+                    className="font-semibold text-[#c0201f] hover:underline cursor-pointer ml-1"
+                  >
+                    Sign in to your account
+                  </button>
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Side - Marketing Testimonial and Mockup */}
+        {/* Right Side - Marketing Testimonial and Local Store Inventory Stock Image */}
         <div className="relative flex min-h-[720px] flex-col overflow-hidden rounded-md bg-linear-to-b from-black to-zinc-950 p-8 text-white sm:p-12 lg:min-h-0 lg:p-16">
           {/* Background Shader */}
           <div className="absolute inset-0 z-0 pointer-events-none">
@@ -182,18 +312,19 @@ export default function AuthSectionThree() {
               >
                 <img
                   src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80"
-                  alt="Charlotte"
-                  className="size-10 shrink-0 rounded-full border border-white/20 object-cover"
+                  alt="Babajide Ogundipe"
+                  className="size-11 shrink-0 rounded-full border border-white/20 object-cover"
                 />
                 <div>
-                  <div className="font-semibold leading-tight text-white">
-                    Charlotte Adeyemi
+                  <div className="font-semibold leading-tight text-white text-sm">
+                    Babajide Ogundipe
                   </div>
                   <div className="mt-0.5 text-xs text-white/60">
-                    Lead Operations & Logistics Director
+                    Head of Kitchen & Meat Operations
                   </div>
                 </div>
               </motion.div>
+
               <motion.blockquote
                 initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -203,13 +334,14 @@ export default function AuthSectionThree() {
                   delay: 0.12,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="mt-7 text-2xl font-light leading-tight tracking-[-0.035em] text-white/90 sm:text-3xl lg:text-[34px]"
+                className="mt-7 text-2xl font-light leading-snug tracking-tight text-white/95 sm:text-3xl"
               >
-                “Every batch run, courier remittance, and stock alert has the restraint and polish we need to operate flawlessly.”
+                “Everything we need to track our meat stock, kitchen cooking batches, and delivery drivers is right here in one place.”
               </motion.blockquote>
             </div>
 
-            <div className="mt-10 w-full translate-y-[24%] overflow-hidden rounded-2xl border border-white/15 bg-black/70 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:translate-y-[22%] lg:absolute lg:left-[12%] lg:-bottom-28 lg:mt-0 lg:w-[105%] lg:max-w-none lg:origin-bottom-left lg:translate-y-0 lg:-rotate-3 xl:left-[14%] xl:-bottom-[150px] xl:w-[108%] 2xl:-bottom-[170px] 2xl:w-[112%]">
+            {/* Local Store Inventory Management Stock Image */}
+            <div className="mt-10 w-full translate-y-[20%] overflow-hidden rounded-2xl border border-white/15 bg-black/75 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:translate-y-[18%] lg:absolute lg:left-[12%] lg:-bottom-24 lg:mt-0 lg:w-[105%] lg:max-w-none lg:origin-bottom-left lg:translate-y-0 lg:-rotate-2 xl:left-[14%] xl:-bottom-[130px] xl:w-[108%]">
               <motion.div
                 initial={{ opacity: 0, y: 72, filter: "blur(10px)" }}
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -221,18 +353,19 @@ export default function AuthSectionThree() {
                 }}
                 className="overflow-hidden rounded-xl border border-white/10 bg-black"
               >
-                <div className="flex items-center gap-1.5 border-b border-white/10 bg-black/40 px-4 py-3 select-none">
+                <div className="flex items-center gap-1.5 border-b border-white/10 bg-black/50 px-4 py-2.5 select-none">
                   <div className="size-2 rounded-full bg-white/35" />
                   <div className="size-2 rounded-full bg-white/25" />
                   <div className="size-2 rounded-full bg-white/15" />
-                  <span className="ml-4 text-[9px] font-mono tracking-wider text-white/40">
+                  <span className="ml-3 text-[10px] font-mono tracking-wider text-white/50">
                     staging.smokeyhutdelight.com/overview
                   </span>
                 </div>
+                {/* Local Store Inventory Management Stock Image */}
                 <img
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80"
-                  alt="Operations Console Mockup"
-                  className="h-auto w-full object-cover object-top opacity-95 [filter:brightness(0.9)_contrast(1.1)]"
+                  src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80"
+                  alt="Local Store Food & Warehouse Inventory Management"
+                  className="h-auto w-full object-cover object-top opacity-95 [filter:brightness(0.95)_contrast(1.05)]"
                 />
               </motion.div>
             </div>
@@ -243,96 +376,11 @@ export default function AuthSectionThree() {
   );
 }
 
-function InputField({
-  label,
-  placeholder,
-  type = "text",
-  value,
-}: {
-  label: string;
-  placeholder: string;
-  type?: string;
-  value: string;
-}) {
-  const [val, setVal] = useState(value);
-  const [showPassword, setShowPassword] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
-  return (
-    <div className="space-y-1.5 text-left w-full">
-      <label className="text-xs font-semibold text-black/60 dark:text-white/60">
-        {label}
-      </label>
-      <div className="relative flex h-11 items-center rounded-lg border border-black/15 bg-white px-3.5 dark:border-white/10 dark:bg-white/5">
-        <input
-          type={
-            type === "password" ? (showPassword ? "text" : "password") : type
-          }
-          value={val}
-          onFocus={() => {
-            if (!isEditing) {
-              setVal("");
-              setIsEditing(true);
-            }
-          }}
-          onChange={(e) => {
-            setVal(e.target.value);
-            setIsEditing(true);
-          }}
-          placeholder={placeholder}
-          className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/30 dark:text-white dark:placeholder:text-white/30"
-        />
-        {type === "password" && (
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3.5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white cursor-pointer"
-          >
-            {showPassword ? (
-              <EyeOff className="size-4" />
-            ) : (
-              <Eye className="size-4" />
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CheckboxLine({ children }: { children: ReactNode }) {
-  return (
-    <label className="flex items-start gap-3 cursor-pointer">
-      <span className="relative mt-1 size-3.5 shrink-0">
-        <input
-          type="checkbox"
-          className="peer size-full cursor-pointer appearance-none rounded-[3px] border border-black/25 bg-white checked:border-black checked:bg-black dark:border-white/30 dark:bg-white/5 dark:checked:border-white dark:checked:bg-white"
-        />
-        <svg
-          viewBox="0 0 12 12"
-          className="pointer-events-none absolute inset-0 hidden size-full p-0.5 text-white peer-checked:block dark:text-black"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 6.2 5 8.1 9 3.9"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-      <span>{children}</span>
-    </label>
-  );
-}
-
 function GoogleIcon() {
   return (
     <svg
-      width="15"
-      height="15"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       aria-hidden="true"
       className="shrink-0"
@@ -353,21 +401,6 @@ function GoogleIcon() {
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"
         fill="#EB4335"
       />
-    </svg>
-  );
-}
-
-function AppleIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path d="M17.05 12.54c-.03-3.02 2.47-4.47 2.58-4.54-1.41-2.06-3.6-2.34-4.38-2.37-1.86-.19-3.64 1.1-4.58 1.1-.95 0-2.42-1.07-3.98-1.04-2.05.03-3.94 1.19-4.99 3.02-2.13 3.69-.54 9.16 1.53 12.15 1.01 1.46 2.22 3.1 3.81 3.04 1.53-.06 2.11-.99 3.96-.99s2.37.99 3.99.96c1.65-.03 2.69-1.49 3.69-2.96 1.16-1.69 1.64-3.33 1.66-3.41-.04-.02-3.2-1.23-3.24-4.87ZM14.03 3.66c.84-1.02 1.41-2.43 1.25-3.84-1.21.05-2.68.81-3.55 1.83-.78.9-1.46 2.34-1.28 3.72 1.35.1 2.73-.69 3.58-1.71Z" />
     </svg>
   );
 }

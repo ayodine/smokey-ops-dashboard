@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
   Boxes,
@@ -15,7 +15,10 @@ import {
   ChevronsUpDown,
   Check,
   User,
+  ShieldCheck,
+  LogOut,
 } from 'lucide-react'
+import { SignInActivityModal } from './SignInActivityModal'
 
 interface NavItem {
   label: string
@@ -88,9 +91,13 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, onOpenCommandMenu }) => {
   const location = useLocation()
+  const navigate = useNavigate()
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('ops_sidebar_collapsed') === 'true'
   })
+
+  // Sign-in activity modal state
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
 
   // Account dropdown state
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
@@ -258,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </button>
           </div>
 
-          {/* Account Home Link */}
+          {/* Home Overview Link */}
           <Link
             to="/overview"
             onClick={onCloseMobile}
@@ -270,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             )}
           >
             <Home className="w-4 h-4 text-kumo-subtle shrink-0" />
-            <span className="truncate">Account home</span>
+            <span className="truncate">Home overview</span>
           </Link>
 
           {/* Recents Collapsible Sub-menu */}
@@ -410,41 +417,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         })}
       </div>
 
-      {/* 4. Smokey Hut Ops Moved to the Bottom of the Side Menu (Footer) */}
-      <div className="border-t border-kumo-line p-3 shrink-0 bg-kumo-canvas">
+      {/* 4. Footer: Sign-in Activity & Sign Out */}
+      <div className="border-t border-kumo-line p-2 shrink-0 bg-kumo-canvas">
         {!isCollapsed ? (
-          <div className="flex flex-col gap-2">
-            <Link
-              to="/inventory/raw"
-              className="flex items-center gap-2.5 min-w-0 group cursor-pointer focus:outline-none"
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setIsActivityModalOpen(true)}
+              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
             >
-              <div className="w-7 h-7 rounded bg-primary flex items-center justify-center shrink-0 shadow-xs text-white">
-                <Flame className="w-4 h-4 fill-current" />
+              <div className="flex items-center gap-2 min-w-0">
+                <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                <span className="truncate">Sign-in activity</span>
               </div>
-              <div className="min-w-0 flex flex-col justify-center">
-                <span className="font-bold text-xs leading-none text-kumo-strong tracking-tight truncate">
-                  Smokey Hut Ops
-                </span>
-                <span className="text-[10px] text-kumo-subtle font-sans truncate mt-0.5">
-                  Food Processing OS
-                </span>
-              </div>
-            </Link>
+              <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/10 text-primary px-1.5 py-0.2 rounded shrink-0">
+                Admin
+              </span>
+            </button>
 
-            <div className="flex items-center justify-between text-[11px] text-kumo-subtle pt-2 border-t border-kumo-line/60">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-sans text-xs">Live System Sync</span>
-              </div>
-              <span className="font-sans text-[10px] text-kumo-subtle">v2.4 Pro</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className="truncate">Sign out</span>
+            </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2" title="Smokey Hut Ops">
-            <div className="w-7 h-7 rounded bg-primary flex items-center justify-center shrink-0 shadow-xs text-white">
-              <Flame className="w-4 h-4 fill-current" />
-            </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => setIsActivityModalOpen(true)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-primary hover:bg-kumo-tint transition-colors cursor-pointer"
+              title="Sign-in Activity (Admin)"
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
@@ -476,6 +493,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           </div>
         </div>
       )}
+
+      {/* Sign-in Activity Modal */}
+      <SignInActivityModal
+        isOpen={isActivityModalOpen}
+        onClose={() => setIsActivityModalOpen(false)}
+      />
     </>
   )
 }

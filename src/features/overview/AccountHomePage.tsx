@@ -25,9 +25,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Bell,
-  Share2,
-  AlertCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Archive,
   Ban,
   Activity,
@@ -58,6 +58,9 @@ export interface SmokeyInventoryItem {
   supplierName?: string
 }
 
+type SortField = 'name' | 'category' | 'currentStock' | 'daysToExpiry' | 'status'
+type SortOrder = 'asc' | 'desc'
+
 export const AccountHomePage: React.FC = () => {
   const navigate = useNavigate()
   const {
@@ -69,9 +72,6 @@ export const AccountHomePage: React.FC = () => {
     receiveRawStock,
     receivePackaging,
     saveRawProduct,
-    productionBatches,
-    logisticsDeliveries,
-    riders
   } = useSmokeyOps()
 
   // Search & Filter state
@@ -79,8 +79,14 @@ export const AccountHomePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
+
+  // Sorting state (Inherited from project table standard)
+  const [sortField, setSortField] = useState<SortField>('currentStock')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+
+  // Pagination: Strictly 10 rows per table as requested
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 12
+  const pageSize = 10
 
   // Action Modals State
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false)
@@ -112,7 +118,6 @@ export const AccountHomePage: React.FC = () => {
 
     // Map Raw Ingredients & Meats
     rawProducts.forEach(raw => {
-      // Find matching FEFO lot if available
       const matchingLot = inventoryLots.find(lot => lot.product_id === raw.id || lot.sku === raw.sku)
       
       let days = 999
@@ -123,10 +128,10 @@ export const AccountHomePage: React.FC = () => {
         const expStr = matchingLot?.expiry_date || raw.expiry_date || '2026-10-05'
         days = matchingLot?.days_to_expiry ?? 14
         expDateFormatted = formatDate(expStr)
-        expText = days <= 0 ? 'Expired today' : `in ${days} days`
+        expText = days <= 0 ? 'Expires today' : `in ${days} days`
       }
 
-      // Determine Category
+      // Determine Category in plain English
       let category = 'Raw Ingredients'
       const n = raw.name.toLowerCase()
       if (n.includes('guineafowl') || n.includes('chicken') || n.includes('turkey') || n.includes('catfish') || n.includes('beef') || n.includes('goat') || n.includes('gizzard')) {
@@ -139,10 +144,8 @@ export const AccountHomePage: React.FC = () => {
         category = 'Cooking Oils'
       }
 
-      // Max capacity reference (typically 2-3x reorder level)
       const maxStock = Math.max(raw.stock_qty, raw.reorder_level * 2.5, 50)
 
-      // Determine Status
       let status: SmokeyInventoryItem['status'] = 'healthy'
       let priority: SmokeyInventoryItem['priority'] = 'normal'
 
@@ -166,7 +169,7 @@ export const AccountHomePage: React.FC = () => {
         itemType: 'raw',
         name: raw.name,
         sku: raw.sku,
-        batchLot: matchingLot?.lot_number || raw.fefo_lot || `LOT-${raw.sku.slice(-4)}`,
+        batchLot: matchingLot?.lot_number ? `Batch ${matchingLot.lot_number.replace('LOT-', '')}` : `Batch ${raw.sku.slice(-4)}`,
         category,
         currentStock: raw.stock_qty,
         maxStock: Math.round(maxStock),
@@ -206,7 +209,7 @@ export const AccountHomePage: React.FC = () => {
         itemType: 'packaging',
         name: pack.name,
         sku: pack.sku,
-        batchLot: `LOT-PCK-${pack.sku.slice(-3)}`,
+        batchLot: `Batch ${pack.sku.slice(-3)}`,
         category: 'Packaging Materials',
         currentStock: pack.stock_qty,
         maxStock: Math.round(maxStock),
@@ -246,7 +249,7 @@ export const AccountHomePage: React.FC = () => {
         itemType: 'sales',
         name: sales.name,
         sku: sales.sku,
-        batchLot: `PRD-${sales.sku.slice(4, 10)}`,
+        batchLot: `Batch ${sales.sku.slice(4, 9)}`,
         category: 'Finished Goods',
         currentStock: sales.stock_qty,
         maxStock: Math.round(maxStock),
@@ -259,15 +262,15 @@ export const AccountHomePage: React.FC = () => {
         isPerishable: true,
         status,
         priority,
-        supplierName: 'Smokey In-house Kitchen'
+        supplierName: 'Smokey Kitchen'
       })
     })
 
     return items
   }, [rawProducts, packagingProducts, salesProducts, inventoryLots])
 
-  // 2. Compute dynamic KPIs
-  const totalSkuCount = allInventoryItems.length
+  // 2. Dynamic KPI metrics in plain English
+  const totalItemCount = allInventoryItems.length
   const lowStockCount = allInventoryItems.filter(i => i.status === 'low' || i.status === 'critical').length
   const outOfStockCount = allInventoryItems.filter(i => i.status === 'out_of_stock').length
   const expiringCount = allInventoryItems.filter(i => i.status === 'expiring' || (i.isPerishable && i.daysToExpiry <= 14)).length
@@ -278,9 +281,9 @@ export const AccountHomePage: React.FC = () => {
     return rawVal + packVal + salesVal
   }, [rawProducts, packagingProducts, salesProducts])
 
-  // 3. Filtered Items
-  const filteredItems = useMemo(() => {
-    return allInventoryItems.filter(item => {
+  // 3. Filtered & Sorted Items
+  const filteredAndSortedItems = useMemo(() => {
+    const filtered = allInventoryItems.filter(item => {
       const q = searchQuery.toLowerCase().trim()
       const matchesSearch =
         !q ||
@@ -300,9 +303,46 @@ export const AccountHomePage: React.FC = () => {
 
       return matchesSearch && matchesStatus && matchesCategory && matchesPriority
     })
-  }, [allInventoryItems, searchQuery, statusFilter, categoryFilter, priorityFilter])
 
-  // 4. Expiring Soon list (FEFO items mapped from real project inventory)
+    // Sort items
+    return filtered.sort((a, b) => {
+      let comparison = 0
+      if (sortField === 'name') {
+        comparison = a.name.localeCompare(b.name)
+      } else if (sortField === 'category') {
+        comparison = a.category.localeCompare(b.category)
+      } else if (sortField === 'currentStock') {
+        comparison = a.currentStock - b.currentStock
+      } else if (sortField === 'daysToExpiry') {
+        comparison = a.daysToExpiry - b.daysToExpiry
+      } else if (sortField === 'status') {
+        const statusOrder = { critical: 1, out_of_stock: 2, expiring: 3, low: 4, healthy: 5 }
+        comparison = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99)
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }, [allInventoryItems, searchQuery, statusFilter, categoryFilter, priorityFilter, sortField, sortOrder])
+
+  // Pagination calculations (max 10 rows per table)
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedItems.length / pageSize))
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    return filteredAndSortedItems.slice(startIndex, startIndex + pageSize)
+  }, [filteredAndSortedItems, currentPage, pageSize])
+
+  // Sorting toggle handler
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+    setCurrentPage(1)
+  }
+
+  // 4. Expiring Soon list (Perishable lots mapped in plain English)
   const expiringSoonList = useMemo(() => {
     const perishables = allInventoryItems
       .filter(i => i.isPerishable && i.daysToExpiry <= 30 && i.currentStock > 0)
@@ -321,12 +361,12 @@ export const AccountHomePage: React.FC = () => {
         days: item.daysToExpiry,
         badgeBg,
         name: item.name,
-        sub: `${item.sku} · exp ${item.expiryDate}`
+        sub: `${item.sku} · expires ${item.expiryDate}`
       }
     })
   }, [allInventoryItems])
 
-  // 5. Low Stock Alerts list (Real items below reorder level)
+  // 5. Low Stock Alerts list (Items running low)
   const lowStockAlertsList = useMemo(() => {
     const lows = allInventoryItems
       .filter(i => i.status === 'critical' || i.status === 'low' || i.currentStock <= i.reorderLevel)
@@ -341,8 +381,7 @@ export const AccountHomePage: React.FC = () => {
         sku: item.sku,
         stockText: `${formatQuantity(item.currentStock)} / ${formatQuantity(item.maxStock)} ${item.unit.toLowerCase()} (${percentage}%)`,
         percentage,
-        barColor: isCritical ? 'bg-[#c0201f]' : 'bg-amber-500',
-        btnVariant: isCritical ? ('danger' as const) : ('dark' as const)
+        barColor: isCritical ? 'bg-[#c0201f]' : 'bg-amber-500'
       }
     })
   }, [allInventoryItems])
@@ -367,7 +406,7 @@ export const AccountHomePage: React.FC = () => {
           productId: actionItem.item.originalId,
           quantity: qty,
           unitCost: actionItem.item.unitCost,
-          notes: `${actionItem.action} via Account Hub. Ref: ${actionPoRef}. ${actionNotes}`
+          notes: `${actionItem.action} via Home overview. Order ref: ${actionPoRef}. ${actionNotes}`
         })
       } else if (actionItem.item.itemType === 'packaging') {
         receivePackaging({
@@ -378,7 +417,7 @@ export const AccountHomePage: React.FC = () => {
       }
     }
 
-    setToastMessage(`Confirmed ${actionItem.action} for ${actionItem.item.name} (${qty} ${actionItem.item.unit})`)
+    setToastMessage(`Confirmed order for ${actionItem.item.name} (${qty} ${actionItem.item.unit})`)
     setTimeout(() => setToastMessage(null), 3500)
     setActionItem(null)
   }
@@ -403,7 +442,7 @@ export const AccountHomePage: React.FC = () => {
     })
 
     setIsAddStockModalOpen(false)
-    setToastMessage(`Successfully registered ${newStockForm.name} in inventory`)
+    setToastMessage(`Added ${newStockForm.name} to inventory`)
     setTimeout(() => setToastMessage(null), 3500)
   }
 
@@ -419,118 +458,50 @@ export const AccountHomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Top Operational Bar: Brand & Shift Info (Remapped to Smokey Operations Hub) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 py-1">
-        {/* Left: Brand & Facility Indicator */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#c0201f] flex items-center justify-center text-white shadow-xs">
-              <Flame className="w-4 h-4 fill-current" />
-            </div>
-            <div className="flex items-center gap-1.5 text-sm font-semibold tracking-tight text-kumo-strong">
-              <span>Smokey Hut</span>
-              <span className="text-kumo-subtle font-normal">/</span>
-              <span className="text-kumo-subtle font-normal">Operations & Inventory Hub</span>
-            </div>
-          </div>
-
-          <span className="hidden md:inline-block px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-primary/10 text-primary border border-primary/20">
-            Lekki Central Depot
-          </span>
-        </div>
-
-        {/* Right: Operational Shift Pill, Bell, Share, User Profile */}
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
-          {/* Shift Pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800/60 dark:text-emerald-300 text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Morning Shift · 06:00–14:00</span>
-          </div>
-
-          {/* Icon Button: Bell */}
-          <button
-            type="button"
-            onClick={() => setToastMessage(`Active alerts: ${lowStockCount} items below reorder, ${expiringCount} perishable items expiring`)}
-            className="size-8 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer relative"
-            title="Operational Notifications"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            {lowStockCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c0201f] ring-2 ring-kumo-canvas" />
-            )}
-          </button>
-
-          {/* Icon Button: Share / Copy */}
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(window.location.href)
-              setToastMessage('Copied dashboard link to clipboard!')
-            }}
-            className="size-8 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
-            title="Share Dashboard"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-          </button>
-
-          {/* User Profile Mini Card */}
-          <Link
-            to="/auth"
-            className="flex items-center gap-2 pl-2 pr-2 py-1 rounded-full border border-kumo-line bg-kumo-base hover:bg-kumo-tint transition-colors cursor-pointer"
-            title="Pitmaster Babajide · Lead Operations & Kitchen Director (Click for Auth Screen)"
-          >
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80"
-                alt="Babajide Ogundipe"
-                className="w-6 h-6 rounded-full object-cover border border-kumo-line"
-              />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-black" />
-            </div>
-            <span className="hidden xl:inline text-xs font-semibold text-kumo-strong">
-              Babajide (Pitmaster)
-            </span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Main Section Header with Title, Summary, and + Add Stock Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+      {/* Page Header (Clean, no redundant masthead labels as requested) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-kumo-line">
         <div>
+          {/* Breadcrumb standardized to Home overview */}
+          <div className="flex items-center gap-1.5 text-xs text-kumo-subtle mb-1">
+            <Link to="/overview" className="hover:text-kumo-strong transition-colors">
+              Home overview
+            </Link>
+          </div>
           <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-kumo-strong">
-            Inventory
+            Home overview
           </h1>
           <p className="text-xs text-kumo-subtle mt-0.5">
-            {totalSkuCount} SKUs · {lowStockCount} below reorder · {expiringCount} expiring within 30 days
+            {totalItemCount} stock items · {lowStockCount} running low · {expiringCount} expiring within 30 days
           </p>
         </div>
 
+        {/* Header Action Buttons (Using Design System Red and Outline, No Black/Orange) */}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={() => navigate('/inventory/raw')}
             className="h-9 px-3 text-xs"
           >
-            Inventory Management
+            Inventory management
           </Button>
           <Button
             variant="primary"
             onClick={() => setIsAddStockModalOpen(true)}
             leftIcon={<Plus className="w-3.5 h-3.5" />}
-            className="h-9 px-4 text-xs font-semibold bg-[#0f172a] hover:bg-[#1e293b] text-white dark:bg-white dark:text-black dark:hover:bg-zinc-200 border-0 shadow-sm"
+            className="h-9 px-4 text-xs font-semibold bg-[#c0201f] hover:bg-[#a01817] text-white border-0 shadow-xs"
           >
-            Add Stock
+            Add stock
           </Button>
         </div>
       </div>
 
-      {/* 4 Metric KPI Cards (Remapped to Smokey Hut Operations Data) */}
+      {/* 4 Metric KPI Cards in Plain English */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: TOTAL WORKING INVENTORY */}
+        {/* Metric 1: TOTAL STOCK VALUE */}
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Total Inventory Valuation
+              Total stock value
             </span>
             <div className="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
               ₦
@@ -541,16 +512,16 @@ export const AccountHomePage: React.FC = () => {
               {formatNaira(totalValuation)}
             </span>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              {totalSkuCount} SKUs
+              {totalItemCount} items
             </span>
           </div>
         </div>
 
-        {/* Metric 2: LOW STOCK */}
+        {/* Metric 2: RUNNING LOW */}
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Low Stock
+              Running low
             </span>
             <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex items-center justify-center">
               <Archive className="w-4 h-4" />
@@ -561,16 +532,16 @@ export const AccountHomePage: React.FC = () => {
               {lowStockCount}
             </span>
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-              +{lowStockCount} below reorder point
+              needs reorder
             </span>
           </div>
         </div>
 
-        {/* Metric 3: EXPIRING 30D (Perishable FEFO Lots) */}
+        {/* Metric 3: EXPIRING SOON */}
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Expiring 30D (FEFO)
+              Expiring soon
             </span>
             <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
@@ -581,7 +552,7 @@ export const AccountHomePage: React.FC = () => {
               {expiringCount}
             </span>
             <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-              {allInventoryItems.filter(i => i.isPerishable && i.daysToExpiry <= 7).length} urgent within 7 days
+              urgent within 7 days
             </span>
           </div>
         </div>
@@ -590,7 +561,7 @@ export const AccountHomePage: React.FC = () => {
         <div className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Out of Stock
+              Out of stock
             </span>
             <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 flex items-center justify-center">
               <Ban className="w-4 h-4" />
@@ -601,7 +572,7 @@ export const AccountHomePage: React.FC = () => {
               {outOfStockCount}
             </span>
             <span className="text-xs font-medium text-kumo-subtle">
-              needs supplier PO
+              needs supplier order
             </span>
           </div>
         </div>
@@ -613,17 +584,17 @@ export const AccountHomePage: React.FC = () => {
         <div className="lg:col-span-8 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
           {/* Table Toolbar Header */}
           <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
-            {/* Title & Alerts Badge */}
+            {/* Title & Alerts Badge in Plain English */}
             <div className="flex items-center gap-2.5">
               <span className="text-sm font-bold text-kumo-strong">
                 Stock items
               </span>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
-                {lowStockCount + outOfStockCount} alerts
+                {lowStockCount + outOfStockCount} need attention
               </span>
             </div>
 
-            {/* Controls: Search input, Category filter, Status filter, Priority filter, Maximize */}
+            {/* Controls: Search input, Category filter, Status filter, Reset */}
             <div className="flex items-center flex-wrap gap-2 text-xs">
               {/* Search Bar */}
               <div className="relative min-w-[190px]">
@@ -673,33 +644,15 @@ export const AccountHomePage: React.FC = () => {
                 >
                   <option value="all">All statuses</option>
                   <option value="critical">Critical</option>
-                  <option value="low">Low</option>
+                  <option value="low">Running low</option>
                   <option value="out_of_stock">Out of stock</option>
-                  <option value="expiring">Expiring</option>
+                  <option value="expiring">Expiring soon</option>
                   <option value="healthy">Healthy</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
               </div>
 
-              {/* Priority Select */}
-              <div className="relative">
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => {
-                    setPriorityFilter(e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  className="h-8 pl-2.5 pr-7 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default appearance-none focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All priority</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="high">High</option>
-                  <option value="normal">Normal</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
-              </div>
-
-              {/* Maximize Icon */}
+              {/* Reset Filter Button */}
               <button
                 type="button"
                 onClick={() => {
@@ -707,6 +660,9 @@ export const AccountHomePage: React.FC = () => {
                   setStatusFilter('all')
                   setCategoryFilter('all')
                   setPriorityFilter('all')
+                  setSortField('currentStock')
+                  setSortOrder('asc')
+                  setCurrentPage(1)
                   setToastMessage('Filters reset to default')
                 }}
                 className="size-8 rounded-lg border border-kumo-line bg-kumo-canvas hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
@@ -717,28 +673,99 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Table Container */}
+          {/* Table Container (Inherited from other pages with interactive Column Sorting) */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-kumo-line bg-kumo-canvas/40 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
-                  <th className="py-2.5 px-4 font-semibold">ITEM / SKU</th>
-                  <th className="py-2.5 px-4 font-semibold">CATEGORY</th>
-                  <th className="py-2.5 px-4 font-semibold">STOCK</th>
-                  <th className="py-2.5 px-4 font-semibold">NEXT EXPIRY</th>
-                  <th className="py-2.5 px-4 font-semibold">STATUS</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">ACTION</th>
+                <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
+                  {/* Item Name Column Header */}
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Item name</span>
+                      {sortField === 'name' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Category Column Header */}
+                  <th
+                    onClick={() => handleSort('category')}
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Category</span>
+                      {sortField === 'category' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Stock Column Header */}
+                  <th
+                    onClick={() => handleSort('currentStock')}
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>In stock</span>
+                      {sortField === 'currentStock' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Expiration Column Header */}
+                  <th
+                    onClick={() => handleSort('daysToExpiry')}
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Expires</span>
+                      {sortField === 'daysToExpiry' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Status Column Header */}
+                  <th
+                    onClick={() => handleSort('status')}
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Status</span>
+                      {sortField === 'status' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Action Column Header */}
+                  <th className="py-2.5 px-4 font-semibold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kumo-line/60">
-                {filteredItems.length === 0 ? (
+                {paginatedItems.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-kumo-subtle">
-                      No stock items match your filter criteria.
+                      No stock items match your search.
                     </td>
                   </tr>
                 ) : (
-                  filteredItems.map((item) => {
+                  paginatedItems.map((item) => {
                     const percent = Math.min(100, Math.round((item.currentStock / item.maxStock) * 100))
                     
                     // Determine stock progress bar color
@@ -758,10 +785,10 @@ export const AccountHomePage: React.FC = () => {
                         key={item.id}
                         className="hover:bg-kumo-tint/40 transition-colors group"
                       >
-                        {/* Item Name & SKU / Batch Lot */}
+                        {/* Item Name & SKU / Batch */}
                         <td className="py-3 px-4">
                           <div className={cn(
-                            'font-semibold',
+                            'font-semibold text-xs',
                             item.status === 'critical' ? 'text-rose-600 dark:text-rose-400' :
                             item.status === 'expiring' ? 'text-amber-700 dark:text-amber-400' :
                             'text-kumo-strong'
@@ -774,13 +801,13 @@ export const AccountHomePage: React.FC = () => {
                         </td>
 
                         {/* Category */}
-                        <td className="py-3 px-4 text-kumo-subtle">
+                        <td className="py-3 px-4 text-kumo-subtle text-xs">
                           {item.category}
                         </td>
 
                         {/* Stock with Mini Progress Bar */}
                         <td className="py-3 px-4 min-w-[130px]">
-                          <div className="font-medium text-kumo-strong flex items-center gap-1">
+                          <div className="font-medium text-kumo-strong flex items-center gap-1 text-xs">
                             <span>{formatQuantity(item.currentStock)}</span>
                             <span className="text-kumo-subtle text-[11px]">/ {formatQuantity(item.maxStock)} {item.unit.toLowerCase()}</span>
                           </div>
@@ -792,9 +819,9 @@ export const AccountHomePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Next Expiry (FEFO countdown) */}
+                        {/* Expiration date */}
                         <td className="py-3 px-4">
-                          <div className="text-kumo-strong font-medium">
+                          <div className="text-kumo-strong font-medium text-xs">
                             {item.expiryDate}
                           </div>
                           <div className={cn(
@@ -807,7 +834,7 @@ export const AccountHomePage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Status Dot Pill */}
+                        {/* Status Dot Pill in Plain English */}
                         <td className="py-3 px-4">
                           {item.status === 'critical' && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
@@ -818,7 +845,7 @@ export const AccountHomePage: React.FC = () => {
                           {item.status === 'low' && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-900">
                               <span className="size-1.5 rounded-full bg-yellow-500" />
-                              Low
+                              Running low
                             </span>
                           )}
                           {item.status === 'out_of_stock' && (
@@ -830,7 +857,7 @@ export const AccountHomePage: React.FC = () => {
                           {item.status === 'expiring' && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900">
                               <span className="size-1.5 rounded-full bg-orange-500" />
-                              Expiring
+                              Expiring soon
                             </span>
                           )}
                           {item.status === 'healthy' && (
@@ -841,49 +868,35 @@ export const AccountHomePage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Action Buttons */}
+                        {/* Action Buttons: Consistent Width (w-[80px]), Uniform Design System Color (Red CTA or Outline) */}
                         <td className="py-3 px-4 text-right">
-                          {item.status === 'critical' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAction(item, 'Reorder')}
-                              className="px-3 py-1 rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
-                            >
-                              Reorder
-                            </button>
-                          ) : item.status === 'low' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAction(item, 'Reorder')}
-                              className="px-3 py-1 rounded-md text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors cursor-pointer shadow-2xs"
-                            >
-                              Reorder
-                            </button>
-                          ) : item.status === 'out_of_stock' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAction(item, 'Restock')}
-                              className="px-3 py-1 rounded-md text-xs font-semibold bg-[#115e59] text-white hover:bg-[#0f766e] transition-colors cursor-pointer shadow-2xs"
-                            >
-                              Restock
-                            </button>
-                          ) : item.status === 'expiring' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAction(item, 'Inspect')}
-                              className="px-3 py-1 rounded-md text-xs font-semibold bg-[#ea580c] text-white hover:bg-[#c2410c] transition-colors cursor-pointer shadow-2xs"
-                            >
-                              Inspect
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAction(item, 'View')}
-                              className="px-3 py-1 rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default hover:text-kumo-strong transition-colors cursor-pointer"
-                            >
-                              View
-                            </button>
-                          )}
+                          <div className="flex justify-end">
+                            {item.status === 'critical' || item.status === 'low' || item.status === 'out_of_stock' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAction(item, item.status === 'out_of_stock' ? 'Restock' : 'Reorder')}
+                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
+                              >
+                                {item.status === 'out_of_stock' ? 'Restock' : 'Reorder'}
+                              </button>
+                            ) : item.status === 'expiring' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAction(item, 'Inspect')}
+                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
+                              >
+                                Inspect
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAction(item, 'View')}
+                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                              >
+                                View
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -893,40 +906,40 @@ export const AccountHomePage: React.FC = () => {
             </table>
           </div>
 
-          {/* Table Footer: Pagination */}
+          {/* Table Footer: Max 10 Rows per Page Pagination */}
           <div className="p-3 border-t border-kumo-line bg-kumo-canvas/30 flex items-center justify-between text-xs text-kumo-subtle">
             <div>
-              Showing {filteredItems.length} of {totalSkuCount} SKUs
+              Showing {paginatedItems.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredAndSortedItems.length)} of {filteredAndSortedItems.length} items
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
                 className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
-                disabled
               >
                 ← Prev
               </button>
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={cn(
+                    'w-7 h-7 rounded-md text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer',
+                    currentPage === pageNum
+                      ? 'bg-[#c0201f] text-white shadow-2xs'
+                      : 'hover:bg-kumo-tint text-kumo-default'
+                  )}
+                >
+                  {pageNum}
+                </button>
+              ))}
               <button
                 type="button"
-                className="w-7 h-7 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black font-semibold flex items-center justify-center shadow-2xs"
-              >
-                1
-              </button>
-              <button
-                type="button"
-                className="w-7 h-7 rounded-md hover:bg-kumo-tint text-kumo-default flex items-center justify-center transition-colors cursor-pointer"
-              >
-                2
-              </button>
-              <button
-                type="button"
-                className="w-7 h-7 rounded-md hover:bg-kumo-tint text-kumo-default flex items-center justify-center transition-colors cursor-pointer"
-              >
-                3
-              </button>
-              <button
-                type="button"
-                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
               >
                 Next →
               </button>
@@ -936,11 +949,11 @@ export const AccountHomePage: React.FC = () => {
 
         {/* Right Column (4 cols ~ 30%): Expiring Soon & Low Stock Alerts */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Widget 1: Expiring Soon (FEFO Lots) */}
+          {/* Widget 1: Expiring Soon */}
           <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
               <h3 className="text-sm font-bold text-kumo-strong">
-                Expiring Soon (FEFO)
+                Expiring soon
               </h3>
               <span className="text-[11px] text-kumo-subtle font-medium">
                 {expiringCount} within 30 days
@@ -949,7 +962,7 @@ export const AccountHomePage: React.FC = () => {
 
             <div className="space-y-3">
               {expiringSoonList.length === 0 ? (
-                <p className="text-xs text-kumo-subtle py-2 text-center">No lots expiring within 30 days.</p>
+                <p className="text-xs text-kumo-subtle py-2 text-center">No items expiring within 30 days.</p>
               ) : (
                 expiringSoonList.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 text-xs">
@@ -978,24 +991,25 @@ export const AccountHomePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setStatusFilter('expiring')
-                  setToastMessage('Filtered table to show expiring FEFO lots')
+                  setCurrentPage(1)
+                  setToastMessage('Filtered table to show expiring items')
                 }}
                 className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
-                <span>View all expiring lots</span>
+                <span>View all expiring items</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Widget 2: Low Stock Alerts */}
+          {/* Widget 2: Items running low (Uniform Brand Red Buttons, No Black/Orange) */}
           <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
               <h3 className="text-sm font-bold text-kumo-strong">
-                Low Stock Alerts
+                Items running low
               </h3>
               <span className="text-[11px] text-kumo-subtle font-medium">
-                {lowStockCount} below reorder
+                {lowStockCount} need reorder
               </span>
             </div>
 
@@ -1014,12 +1028,7 @@ export const AccountHomePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenAction(entry.item, 'Reorder')}
-                        className={cn(
-                          'px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer shadow-2xs',
-                          entry.btnVariant === 'danger'
-                            ? 'bg-[#c0201f] text-white hover:bg-[#a01817]'
-                            : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700'
-                        )}
+                        className="w-[76px] h-6 flex items-center justify-center rounded-md text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a01817] transition-colors cursor-pointer shadow-2xs"
                       >
                         Reorder
                       </button>
@@ -1045,7 +1054,8 @@ export const AccountHomePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setStatusFilter('low')
-                  setToastMessage('Filtered table to show low stock items')
+                  setCurrentPage(1)
+                  setToastMessage('Filtered table to show items running low')
                 }}
                 className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
@@ -1061,12 +1071,12 @@ export const AccountHomePage: React.FC = () => {
       <Dialog
         isOpen={isAddStockModalOpen}
         onClose={() => setIsAddStockModalOpen(false)}
-        title="Register New Inventory SKU"
-        description="Add a raw protein, spice blend, packaging stock, or fuel material to Smokey Hut."
+        title="Add Stock Item to Inventory"
+        description="Register a new food ingredient, spice, fuel material, or packaging stock."
       >
         <form onSubmit={handleAddStockSubmit} className="space-y-4 text-xs font-sans">
           <Input
-            label="Item Description / Material Name"
+            label="Item description / Material name"
             placeholder="e.g. Fresh Quail / Applewood Smoking Chips"
             value={newStockForm.name}
             onChange={(e) => setNewStockForm(prev => ({ ...prev, name: e.target.value }))}
@@ -1075,15 +1085,15 @@ export const AccountHomePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="SKU Code"
+              label="Item code (SKU)"
               placeholder="e.g. SKU-00045"
               value={newStockForm.sku}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, sku: e.target.value }))}
               required
             />
             <Input
-              label="FEFO Lot / Consignment #"
-              placeholder="e.g. LOT-QUA-1002"
+              label="Batch or delivery number"
+              placeholder="e.g. Batch B8821"
               value={newStockForm.batch}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, batch: e.target.value }))}
             />
@@ -1109,8 +1119,8 @@ export const AccountHomePage: React.FC = () => {
             </div>
 
             <Input
-              label="Unit of Measurement"
-              placeholder="PIECES, KG, BUNDLE, ROLLS"
+              label="Unit of measure"
+              placeholder="Pieces, kg, bundle, rolls"
               value={newStockForm.unit}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, unit: e.target.value }))}
               required
@@ -1119,7 +1129,7 @@ export const AccountHomePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Initial Quantity On-Hand"
+              label="Initial quantity in stock"
               type="number"
               placeholder="50"
               value={newStockForm.stock}
@@ -1127,7 +1137,7 @@ export const AccountHomePage: React.FC = () => {
               required
             />
             <Input
-              label="Reorder Safety Buffer"
+              label="Reorder safety alert level"
               type="number"
               placeholder="20"
               value={newStockForm.reorderLevel}
@@ -1138,7 +1148,7 @@ export const AccountHomePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Unit Cost (₦)"
+              label="Cost per unit (₦)"
               type="number"
               placeholder="6500"
               value={newStockForm.unitCost}
@@ -1146,7 +1156,7 @@ export const AccountHomePage: React.FC = () => {
               required
             />
             <Input
-              label="Expiry Date (if perishable)"
+              label="Expiration date (if perishable)"
               type="date"
               value={newStockForm.expiryDate}
               onChange={(e) => setNewStockForm(prev => ({ ...prev, expiryDate: e.target.value }))}
@@ -1161,8 +1171,12 @@ export const AccountHomePage: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
-              Save & Credit Stock
+            <Button
+              variant="primary"
+              type="submit"
+              className="bg-[#c0201f] hover:bg-[#a01817] text-white font-semibold"
+            >
+              Save stock item
             </Button>
           </div>
         </form>
@@ -1174,30 +1188,30 @@ export const AccountHomePage: React.FC = () => {
           isOpen={true}
           onClose={() => setActionItem(null)}
           title={`${actionItem.action}: ${actionItem.item.name}`}
-          description={`Execute inventory action for ${actionItem.item.sku} (${actionItem.item.batchLot}).`}
+          description={`Order or inspect inventory for ${actionItem.item.sku} (${actionItem.item.batchLot}).`}
         >
           <form onSubmit={handleConfirmAction} className="space-y-4 text-xs font-sans">
             <div className="p-3 rounded-lg bg-kumo-canvas border border-kumo-line space-y-1">
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Current On-Hand:</span>
+                <span className="text-kumo-subtle">Current in stock:</span>
                 <span className="font-semibold text-kumo-strong">
                   {formatQuantity(actionItem.item.currentStock)} {actionItem.item.unit.toLowerCase()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Reorder Level:</span>
+                <span className="text-kumo-subtle">Reorder level:</span>
                 <span className="font-semibold text-kumo-strong">
                   {formatQuantity(actionItem.item.reorderLevel)} {actionItem.item.unit.toLowerCase()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Expiry / FEFO:</span>
+                <span className="text-kumo-subtle">Expiration status:</span>
                 <span className="font-semibold text-kumo-strong">
                   {actionItem.item.expiryDate} ({actionItem.item.expiryText})
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-kumo-subtle">Unit Cost:</span>
+                <span className="text-kumo-subtle">Cost per unit:</span>
                 <span className="font-semibold text-kumo-strong">{formatNaira(actionItem.item.unitCost)}</span>
               </div>
             </div>
@@ -1205,11 +1219,11 @@ export const AccountHomePage: React.FC = () => {
             {actionItem.action === 'Inspect' ? (
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-kumo-strong">
-                  Quality Clearance & Cold-Chain Storage Notes
+                  Inspection notes & quality clearance
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Record freezer temperature, marinade vacuum seal, meat color..."
+                  placeholder="Record storage temperature, package condition, meat freshness..."
                   value={actionNotes}
                   onChange={(e) => setActionNotes(e.target.value)}
                   className="w-full p-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none"
@@ -1218,14 +1232,14 @@ export const AccountHomePage: React.FC = () => {
               </div>
             ) : actionItem.action === 'View' ? (
               <div className="space-y-2 text-kumo-subtle">
-                <p>This inventory material is healthy and within optimal operational thresholds.</p>
-                <p>Managed by: Pitmaster Babajide (Lekki Central Facility).</p>
+                <p>This inventory item is healthy and within normal operating levels.</p>
+                <p>Managed by: Smokey Hut Central Depot.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <Input
-                    label={`Reorder Quantity (${actionItem.item.unit})`}
+                    label={`Order quantity (${actionItem.item.unit.toLowerCase()})`}
                     type="number"
                     value={actionQuantity}
                     onChange={(e) => setActionQuantity(e.target.value)}
@@ -1248,21 +1262,21 @@ export const AccountHomePage: React.FC = () => {
                 </div>
 
                 <Input
-                  label="Purchase Order Ref / Delivery Waybill"
+                  label="Purchase order reference or note"
                   value={actionPoRef}
                   onChange={(e) => setActionPoRef(e.target.value)}
                   required
                 />
 
                 <Input
-                  label="Special Receiving Instructions (Optional)"
-                  placeholder="e.g. Weigh on scale upon delivery at back dock"
+                  label="Receiving instructions (optional)"
+                  placeholder="e.g. Verify scale weight on arrival at receiving dock"
                   value={actionNotes}
                   onChange={(e) => setActionNotes(e.target.value)}
                 />
 
                 <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-between text-xs">
-                  <span>Estimated Total Invoiced:</span>
+                  <span>Estimated total cost:</span>
                   <span className="font-bold text-sm">
                     {formatNaira((parseFloat(actionQuantity) || 0) * actionItem.item.unitCost)}
                   </span>
@@ -1279,10 +1293,11 @@ export const AccountHomePage: React.FC = () => {
                 Close
               </Button>
               <Button
-                variant={actionItem.action === 'Reorder' ? 'destructive' : 'primary'}
+                variant="primary"
                 type="submit"
+                className="bg-[#c0201f] hover:bg-[#a01817] text-white font-semibold"
               >
-                Confirm {actionItem.action}
+                Confirm {actionItem.action.toLowerCase()}
               </Button>
             </div>
           </form>
