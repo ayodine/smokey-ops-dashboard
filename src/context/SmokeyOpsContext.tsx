@@ -112,7 +112,7 @@ interface SmokeyOpsContextType {
   thirdPartySummaries: ThirdPartyWeeklySummary[]
 
   // Logistics Actions
-  assignRider: (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number) => void
+  assignRider: (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number, feeEvidencePath?: string) => void
   confirmRiderCollect: (deliveryId: number) => void
   markDelivered: (deliveryId: number) => void
   declineDelivery: (deliveryId: number, reason: string) => void
@@ -1060,7 +1060,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // LOGISTICS MUTATIONS
   // -------------------------------------------------------------
 
-  const assignRider = (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number) => {
+  const assignRider = (
+    deliveryId: number,
+    riderType: 'internal' | 'third_party',
+    riderName: string,
+    riderId?: number,
+    bookedFee?: number,
+    feeEvidencePath?: string
+  ) => {
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       rider_type: riderType,
@@ -1068,6 +1075,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       assigned_rider_id: riderId,
       third_party_provider: riderType === 'third_party' ? riderName : null,
       booked_fee: bookedFee || null,
+      fee_evidence_path: feeEvidencePath || d.fee_evidence_path || null,
+      fee_verify_status: riderType === 'third_party' ? (feeEvidencePath ? 'approved' : 'pending') : 'none',
       status: "assigned"
     } : d))
 

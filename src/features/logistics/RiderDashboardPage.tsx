@@ -96,6 +96,7 @@ export const RiderDashboardPage: React.FC = () => {
 
   // Confirm Handover Dialog state
   const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<LogisticsDelivery | null>(null)
+  const [previewOrder, setPreviewOrder] = useState<LogisticsDelivery | null>(null)
 
   const handleConfirmDelivered = (order: LogisticsDelivery) => {
     markDelivered(order.id)
@@ -132,15 +133,16 @@ export const RiderDashboardPage: React.FC = () => {
   const pendingPayoutBalance = currentRider?.pending_payout ?? 0
 
   // -----------------------------------------------------------------
-  // TABLE COLUMNS: 1. ASSIGNED ORDERS
+  // TABLE COLUMNS: 1. ASSIGNED ORDERS (Strictly 6 columns per spec)
   // -----------------------------------------------------------------
   const assignedColumns: ColumnDef<LogisticsDelivery>[] = [
     {
       key: 'order_ref',
       header: 'Order Ref',
+      defaultWidth: 120,
       accessor: (d) => (
         <div>
-          <span className="font-bold text-xs text-kumo-strong font-sans">
+          <span className="font-semibold text-xs text-kumo-strong font-sans">
             #{d.order_ref}
           </span>
           <div className="text-[11px] text-kumo-subtle font-normal font-sans">
@@ -153,15 +155,16 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'customer',
       header: 'Customer Contact',
+      defaultWidth: 160,
       accessor: (d) => (
         <div className="font-sans">
           <div className="font-semibold text-xs text-kumo-strong">{d.customer_name}</div>
           <a
             href={`tel:${d.phone}`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-0.5"
+            className="inline-flex items-center gap-1 text-[11px] text-kumo-subtle hover:text-kumo-strong font-normal mt-0.5 transition-colors"
           >
-            <Phone className="w-3 h-3 text-primary" />
+            <Phone className="w-3 h-3 text-kumo-subtle shrink-0" />
             <span>{d.phone}</span>
           </a>
         </div>
@@ -171,9 +174,10 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'address',
       header: 'Delivery Address & Route',
+      defaultWidth: 240,
       accessor: (d) => (
-        <div className="max-w-xs font-sans">
-          <p className="text-xs text-kumo-default font-normal leading-snug truncate" title={d.address}>
+        <div className="w-full font-sans">
+          <p className="text-xs text-kumo-strong font-normal leading-snug truncate" title={d.address}>
             {d.address}
           </p>
           <a
@@ -181,9 +185,9 @@ export const RiderDashboardPage: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-0.5"
+            className="inline-flex items-center gap-1 text-[11px] text-kumo-subtle hover:text-kumo-strong font-normal mt-0.5 transition-colors"
           >
-            <MapPin className="w-3 h-3 text-amber-500" />
+            <MapPin className="w-3 h-3 text-kumo-subtle shrink-0" />
             <span>Navigate Maps</span>
             <ExternalLink className="w-2.5 h-2.5" />
           </a>
@@ -193,14 +197,15 @@ export const RiderDashboardPage: React.FC = () => {
     },
     {
       key: 'items_summary',
-      header: 'Kitchen Pack Items',
+      header: 'Kitchen Packed Item',
+      defaultWidth: 220,
       accessor: (d) => (
-        <div className="max-w-xs font-sans">
+        <div className="w-full font-sans">
           <div className="text-xs text-kumo-strong font-normal truncate" title={d.items_summary}>
             {d.items_summary || 'Standard Meal Package'}
           </div>
           {d.notes && (
-            <div className="text-[11px] text-amber-700 dark:text-amber-400 font-medium truncate mt-0.5" title={d.notes}>
+            <div className="text-[11px] text-kumo-subtle font-normal truncate mt-0.5" title={d.notes}>
               Note: {d.notes}
             </div>
           )}
@@ -208,57 +213,27 @@ export const RiderDashboardPage: React.FC = () => {
       ),
     },
     {
-      key: 'payment',
-      header: 'Payment Mode',
-      accessor: (d) => (
-        <div className="font-sans">
-          {d.payment_mode === 'cod' ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800">
-              COD: {formatNaira(d.cod_amount || 0)}
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800">
-              Online Prepaid
-            </span>
-          )}
-        </div>
-      ),
-      sortValue: (d) => d.payment_mode || 'online',
-    },
-    {
       key: 'delivery_fee',
       header: 'Trip Fee',
+      defaultWidth: 110,
       accessor: (d) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 font-sans">
-          +{formatNaira(d.delivery_fee)}
+        <span className="font-semibold text-xs text-kumo-strong font-mono">
+          {formatNaira(d.delivery_fee)}
         </span>
       ),
       sortValue: (d) => d.delivery_fee,
     },
     {
-      key: 'status',
-      header: 'Status',
-      accessor: (d) => {
-        const isOut = d.status === 'out_for_delivery'
-        return (
-          <StatusBadge
-            status={isOut ? 'pending' : 'pending'}
-            label={isOut ? 'Out for delivery' : 'Assigned to you'}
-          />
-        )
-      },
-      sortValue: (d) => d.status,
-    },
-    {
       key: 'actions',
-      header: 'Actions',
+      header: 'Action',
+      defaultWidth: 250,
       accessor: (d) => (
-        <div className="flex items-center gap-1.5 font-sans" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleOpenDecline(d)}
-            className="h-7 px-2 text-xs font-medium text-kumo-subtle hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-800"
+            className="!w-auto !flex-none h-7 px-2.5 text-xs font-medium text-kumo-subtle hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-800"
           >
             Decline
           </Button>
@@ -266,7 +241,7 @@ export const RiderDashboardPage: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={() => setConfirmDeliveryTarget(d)}
-            className="h-7 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
+            className="!w-auto !flex-none h-7 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white whitespace-nowrap"
           >
             Confirm Delivered
           </Button>
@@ -282,8 +257,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'delivered_at',
       header: 'Delivered Timestamp',
+      defaultWidth: 180,
       accessor: (d) => (
-        <span className="text-xs font-medium text-kumo-strong font-sans">
+        <span className="text-xs font-normal text-kumo-subtle font-sans">
           {d.delivered_at || `${d.dispatch_date} (Completed)`}
         </span>
       ),
@@ -292,8 +268,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'order_ref',
       header: 'Order Ref',
+      defaultWidth: 130,
       accessor: (d) => (
-        <span className="font-bold text-xs text-kumo-strong font-sans">
+        <span className="font-semibold text-xs text-kumo-strong font-sans">
           #{d.order_ref}
         </span>
       ),
@@ -301,7 +278,8 @@ export const RiderDashboardPage: React.FC = () => {
     },
     {
       key: 'customer',
-      header: 'Customer',
+      header: 'Customer Contact',
+      defaultWidth: 180,
       accessor: (d) => (
         <div className="font-sans">
           <div className="font-semibold text-xs text-kumo-strong">{d.customer_name}</div>
@@ -312,9 +290,10 @@ export const RiderDashboardPage: React.FC = () => {
     },
     {
       key: 'address',
-      header: 'Delivery Location',
+      header: 'Delivery Address',
+      defaultWidth: 260,
       accessor: (d) => (
-        <span className="text-xs text-kumo-default font-normal max-w-xs truncate block font-sans" title={d.address}>
+        <span className="text-xs text-kumo-strong font-normal w-full truncate block font-sans" title={d.address}>
           {d.address}
         </span>
       ),
@@ -323,8 +302,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'items_summary',
       header: 'Package Items',
+      defaultWidth: 220,
       accessor: (d) => (
-        <span className="text-xs text-kumo-subtle font-normal max-w-xs truncate block font-sans" title={d.items_summary}>
+        <span className="text-xs text-kumo-subtle font-normal w-full truncate block font-sans" title={d.items_summary}>
           {d.items_summary || 'Smokey meal package'}
         </span>
       ),
@@ -332,9 +312,10 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'delivery_fee',
       header: 'Trip Fee Earned',
+      defaultWidth: 130,
       accessor: (d) => (
-        <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-sans">
-          +{formatNaira(d.delivery_fee)}
+        <span className="font-semibold text-xs text-kumo-strong font-mono">
+          {formatNaira(d.delivery_fee)}
         </span>
       ),
       sortValue: (d) => d.delivery_fee,
@@ -342,8 +323,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
+      defaultWidth: 130,
       accessor: () => (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-sans">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-sans">
           <Check className="w-3 h-3" />
           Delivered
         </span>
@@ -358,8 +340,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'date',
       header: 'Trip Date',
+      defaultWidth: 140,
       accessor: (d) => (
-        <span className="text-xs font-medium text-kumo-strong font-sans">
+        <span className="text-xs font-normal text-kumo-subtle font-sans">
           {d.delivered_at ? d.delivered_at.substring(0, 10) : d.dispatch_date}
         </span>
       ),
@@ -368,8 +351,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'order_ref',
       header: 'Order Ref',
+      defaultWidth: 130,
       accessor: (d) => (
-        <span className="font-bold text-xs text-kumo-strong font-sans">
+        <span className="font-semibold text-xs text-kumo-strong font-sans">
           #{d.order_ref}
         </span>
       ),
@@ -377,11 +361,12 @@ export const RiderDashboardPage: React.FC = () => {
     },
     {
       key: 'customer',
-      header: 'Customer Destination',
+      header: 'Destination',
+      defaultWidth: 260,
       accessor: (d) => (
-        <div className="font-sans">
-          <div className="font-medium text-xs text-kumo-strong">{d.customer_name}</div>
-          <div className="text-[11px] text-kumo-subtle font-normal truncate max-w-xs" title={d.address}>
+        <div className="font-sans w-full">
+          <div className="font-semibold text-xs text-kumo-strong">{d.customer_name}</div>
+          <div className="text-[11px] text-kumo-subtle font-normal truncate" title={d.address}>
             {d.address}
           </div>
         </div>
@@ -391,6 +376,7 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'payment_mode',
       header: 'Payment Type',
+      defaultWidth: 150,
       accessor: (d) => (
         <span className="text-xs text-kumo-subtle font-normal font-sans capitalize">
           {d.payment_mode === 'cod' ? 'Cash on delivery' : 'Online prepaid'}
@@ -401,9 +387,10 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'delivery_fee',
       header: 'Credit Amount',
+      defaultWidth: 140,
       accessor: (d) => (
-        <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 font-sans">
-          +{formatNaira(d.delivery_fee)}
+        <span className="font-semibold text-xs text-kumo-strong font-mono">
+          {formatNaira(d.delivery_fee)}
         </span>
       ),
       sortValue: (d) => d.delivery_fee,
@@ -411,6 +398,7 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'status',
       header: 'Settlement Status',
+      defaultWidth: 160,
       accessor: () => (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 font-sans">
           <Check className="w-3 h-3" />
@@ -557,12 +545,21 @@ export const RiderDashboardPage: React.FC = () => {
         {activeTab === 'assigned' && (
           <div className="space-y-4">
             <DataTable
+              tableId="rider-assigned-orders"
+              title="Assigned Orders"
               data={activeOrders}
               columns={assignedColumns}
               searchable={true}
               searchPlaceholder="Search order ref, customer, phone, address..."
+              searchFilter={(d, q) =>
+                d.order_ref.toLowerCase().includes(q) ||
+                d.customer_name.toLowerCase().includes(q) ||
+                d.phone.toLowerCase().includes(q) ||
+                d.address.toLowerCase().includes(q)
+              }
               enableDateFilter={true}
               exportFilename="smokey-rider-assigned-orders"
+              onRowClick={(order) => setPreviewOrder(order)}
               emptyMessage="No active trip assignments found. When kitchen dispatch assigns an order, it will appear here."
             />
           </div>
@@ -574,12 +571,21 @@ export const RiderDashboardPage: React.FC = () => {
         {activeTab === 'delivered' && (
           <div className="space-y-4">
             <DataTable
+              tableId="rider-delivered-orders"
+              title="Delivered Orders"
               data={completedOrders}
               columns={deliveredColumns}
               searchable={true}
               searchPlaceholder="Search delivered order ref, customer, address..."
+              searchFilter={(d, q) =>
+                d.order_ref.toLowerCase().includes(q) ||
+                d.customer_name.toLowerCase().includes(q) ||
+                d.phone.toLowerCase().includes(q) ||
+                d.address.toLowerCase().includes(q)
+              }
               enableDateFilter={true}
               exportFilename="smokey-rider-delivered-history"
+              onRowClick={(order) => setPreviewOrder(order)}
               emptyMessage="No historical delivered orders found matching your search."
             />
           </div>
@@ -619,32 +625,193 @@ export const RiderDashboardPage: React.FC = () => {
 
             {/* Earnings Breakdown Table */}
             <DataTable
+              tableId="rider-earnings-ledger"
+              title="Earnings Ledger"
               data={completedOrders}
               columns={earningsColumns}
               searchable={true}
               searchPlaceholder="Search trip earnings by order #, customer, address..."
+              searchFilter={(d, q) =>
+                d.order_ref.toLowerCase().includes(q) ||
+                d.customer_name.toLowerCase().includes(q) ||
+                d.address.toLowerCase().includes(q)
+              }
               enableDateFilter={true}
               exportFilename="smokey-rider-earnings-ledger"
+              onRowClick={(order) => setPreviewOrder(order)}
               emptyMessage="No trip earnings found matching criteria."
             />
-
-            {/* RBAC Policy Notice */}
-            <div className="bg-kumo-surface border border-kumo-line rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <span className="font-semibold text-kumo-strong">
-                    Financial Clearing Policy (RBAC: can_clear_payment = false)
-                  </span>
-                  <p className="text-kumo-subtle mt-0.5 font-normal leading-relaxed">
-                    Fleet delivery commissions are cleared and disbursed directly by Store Management and Logistics Dispatch. Self-clearing is strictly restricted to maintain financial integrity.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: ORDER DETAILS PREVIEW (Click to View)                   */}
+      {/* ------------------------------------------------------------- */}
+      <Dialog
+        isOpen={previewOrder !== null}
+        onClose={() => setPreviewOrder(null)}
+        title={`Delivery Order Details — #${previewOrder?.order_ref}`}
+        description="Comprehensive customer route, kitchen packaging, and commission ledger details."
+        maxWidth="lg"
+      >
+        {previewOrder && (
+          <div className="space-y-4 font-sans text-xs">
+            {/* Status & Timing Banner */}
+            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <span className="text-kumo-subtle text-[11px] block">Order Reference</span>
+                <span className="text-sm font-bold text-kumo-strong">#{previewOrder.order_ref}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-kumo-subtle">
+                  {previewOrder.status === 'delivered' ? `Delivered: ${previewOrder.delivered_at || previewOrder.dispatch_date}` : `Dispatched: ${previewOrder.dispatch_date}`}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                  previewOrder.status === 'delivered'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                    : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                }`}>
+                  {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
+                </span>
+              </div>
+            </div>
+
+            {/* Customer & Route Details */}
+            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+                Customer & Destination Route
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-kumo-subtle text-[11px] block">Recipient Name</span>
+                  <span className="font-semibold text-kumo-strong">{previewOrder.customer_name}</span>
+                </div>
+                <div>
+                  <span className="text-kumo-subtle text-[11px] block">Phone Contact</span>
+                  <a
+                    href={`tel:${previewOrder.phone}`}
+                    className="inline-flex items-center gap-1 font-semibold text-kumo-strong hover:underline"
+                  >
+                    <Phone className="w-3 h-3 text-kumo-subtle" />
+                    <span>{previewOrder.phone}</span>
+                  </a>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-kumo-subtle text-[11px] block">Drop-off Address</span>
+                  <p className="text-kumo-strong font-medium mt-0.5">{previewOrder.address}</p>
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(previewOrder.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium mt-1.5"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Open in Google Maps for Navigation</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Kitchen Food Package */}
+            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+                Kitchen Packaged Items
+              </h4>
+              <p className="text-kumo-strong font-medium text-xs">
+                {previewOrder.items_summary || 'Smokey Hut Kitchen Meal Pack'}
+              </p>
+              {previewOrder.notes && (
+                <div className="p-2.5 bg-muted/20 border border-kumo-line rounded text-[11px] text-kumo-strong">
+                  <span className="font-semibold text-kumo-subtle block mb-0.5">Kitchen Special Instructions:</span>
+                  {previewOrder.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Financial Commission & Billing */}
+            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+                Trip Commission & Payment Status
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                <div>
+                  <span className="text-kumo-subtle text-[11px] block">Trip Fee Earned</span>
+                  <span className="font-bold text-sm text-kumo-strong font-mono">
+                    {formatNaira(previewOrder.delivery_fee)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-kumo-subtle text-[11px] block">Payment Mode</span>
+                  <span className="font-medium text-kumo-strong">
+                    {previewOrder.payment_mode === 'cod' ? `COD (${formatNaira(previewOrder.cod_amount || 0)})` : 'Online Prepaid'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-kumo-subtle text-[11px] block">Settlement Status</span>
+                  <span className="font-medium text-kumo-strong">
+                    {previewOrder.status === 'delivered' ? 'Settled to Wallet' : 'Pending Completion'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Third-Party receipt proof if available */}
+              {previewOrder.fee_evidence_path && (
+                <div className="pt-2 border-t border-kumo-line mt-2">
+                  <span className="text-kumo-subtle text-[11px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
+                  <div className="max-w-xs border border-kumo-line rounded-lg overflow-hidden">
+                    <img
+                      src={previewOrder.fee_evidence_path}
+                      alt="Courier Receipt"
+                      className="w-full h-auto object-cover max-h-48"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions in Modal Footer */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-kumo-line">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewOrder(null)}
+              >
+                Close
+              </Button>
+              {previewOrder.status !== 'delivered' && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const target = previewOrder
+                      setPreviewOrder(null)
+                      handleOpenDecline(target)
+                    }}
+                    className="text-rose-600 hover:border-rose-300"
+                  >
+                    Decline Order
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const target = previewOrder
+                      setPreviewOrder(null)
+                      setConfirmDeliveryTarget(target)
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    Confirm Delivered
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       {/* ------------------------------------------------------------- */}
       {/* MODAL: DECLINE DELIVERY (Spec 4.4)                            */}

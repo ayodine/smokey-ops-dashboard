@@ -22,7 +22,11 @@ import {
   Phone, 
   MapPin, 
   MessageSquareShare,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  X,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react'
 
 export const LogisticsBoardPage: React.FC = () => {
@@ -41,8 +45,11 @@ export const LogisticsBoardPage: React.FC = () => {
   // Assign Form State
   const [riderType, setRiderType] = useState<'internal' | 'third_party'>('internal')
   const [internalRiderId, setInternalRiderId] = useState<number>(riders[0]?.rider_user_id || 453)
-  const [thirdPartyName, setThirdPartyName] = useState<string>('GIG Logistics')
+  const [thirdPartyName, setThirdPartyName] = useState<string>('Uber Connect')
   const [bookedFee, setBookedFee] = useState<number>(3500)
+  const [receiptImage, setReceiptImage] = useState<string | null>(null)
+  const [receiptFileName, setReceiptFileName] = useState<string>('')
+  const [receiptUploadError, setReceiptUploadError] = useState<string | null>(null)
 
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
@@ -60,18 +67,55 @@ export const LogisticsBoardPage: React.FC = () => {
   const handleOpenAssign = (delivery: LogisticsDelivery) => {
     setSelectedDelivery(delivery)
     setBookedFee(delivery.delivery_fee)
+    setReceiptImage(null)
+    setReceiptFileName('')
+    setReceiptUploadError(null)
     setIsAssignModalOpen(true)
+  }
+
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setReceiptUploadError('Please select a valid image file (.jpg, .png, .webp).')
+      return
+    }
+    setReceiptUploadError(null)
+    setReceiptFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setReceiptImage(event.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveReceipt = () => {
+    setReceiptImage(null)
+    setReceiptFileName('')
+    setReceiptUploadError(null)
   }
 
   const handleConfirmAssign = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedDelivery) return
 
+    if (riderType === 'third_party' && !receiptImage) {
+      setReceiptUploadError('Receipt upload is compulsory for third-party courier assignment. Please upload the fare screenshot.')
+      return
+    }
+
     if (riderType === 'internal') {
       const match = riders.find(r => r.rider_user_id === Number(internalRiderId))
       assignRider(selectedDelivery.id, 'internal', match?.rider_name || 'Internal Rider', Number(internalRiderId))
     } else {
-      assignRider(selectedDelivery.id, 'third_party', thirdPartyName, undefined, Number(bookedFee))
+      assignRider(
+        selectedDelivery.id,
+        'third_party',
+        thirdPartyName,
+        undefined,
+        Number(bookedFee),
+        receiptImage || undefined
+      )
     }
     setIsAssignModalOpen(false)
     setActiveTab('assigned')
@@ -336,6 +380,7 @@ export const LogisticsBoardPage: React.FC = () => {
         onClose={() => setIsAssignModalOpen(false)}
         title={`Assign Rider: Order ${selectedDelivery?.order_ref}`}
         description="Choose between internal fleet dispatch or third-party courier service."
+        maxWidth="lg"
       >
         <form onSubmit={handleConfirmAssign} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1">
@@ -356,10 +401,13 @@ export const LogisticsBoardPage: React.FC = () => {
           <Select
             label="Courier Fleet Mode"
             value={riderType}
-            onChange={(e) => setRiderType(e.target.value as any)}
+            onChange={(e) => {
+              setRiderType(e.target.value as any)
+              setReceiptUploadError(null)
+            }}
             options={[
               { value: 'internal', label: 'Internal Fleet (Smokey Hut In-House Dispatch Rider)' },
-              { value: 'third_party', label: 'Third-Party Logistics Partner (GIG, Bolt, Gokada, Uber)' }
+              { value: 'third_party', label: 'Third-Party Courier (Uber, InDrive, Gokada, Bolt, GIG)' }
             ]}
           />
 
@@ -374,16 +422,17 @@ export const LogisticsBoardPage: React.FC = () => {
               }))}
             />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               <Select
                 label="3rd-Party Courier Company"
                 value={thirdPartyName}
                 onChange={(e) => setThirdPartyName(e.target.value)}
                 options={[
-                  { value: 'GIG Logistics', label: 'GIG Logistics' },
+                  { value: 'Uber Connect', label: 'Uber Connect (Uber App)' },
+                  { value: 'InDrive Courier', label: 'InDrive Courier' },
                   { value: 'Gokada Express', label: 'Gokada Express' },
                   { value: 'Bolt Dispatch', label: 'Bolt Dispatch' },
-                  { value: 'Uber Connect', label: 'Uber Connect' },
+                  { value: 'GIG Logistics', label: 'GIG Logistics' },
                   { value: 'Independent Courier', label: 'Independent Courier' }
                 ]}
               />
@@ -401,6 +450,77 @@ export const LogisticsBoardPage: React.FC = () => {
                   <span><strong>Subsidy Deficit Warning:</strong> Courier charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
                 </div>
               )}
+
+              {/* Compulsory 3rd-Party Receipt / Fare Proof Upload */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-kumo-strong">
+                    Courier Fare Receipt / App Screenshot <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    Compulsory
+                  </span>
+                </div>
+                <p className="text-[11px] text-kumo-subtle leading-normal">
+                  Upload screenshot showing the charged fare from Uber, InDrive, Gokada, Bolt, etc., before confirming assignment.
+                </p>
+
+                {receiptImage ? (
+                  <div className="border border-kumo-line rounded-lg p-3 bg-kumo-canvas flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative w-14 h-14 rounded-md border border-kumo-line overflow-hidden shrink-0 bg-muted/20">
+                        <img
+                          src={receiptImage}
+                          alt="Fare Receipt Proof"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-kumo-strong truncate">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate">{receiptFileName || 'fare_receipt.jpg'}</span>
+                        </div>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1">
+                          Proof Attached
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveReceipt}
+                      className="p-1.5 text-kumo-subtle hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors shrink-0"
+                      title="Remove receipt"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    receiptUploadError ? 'border-rose-300 bg-rose-50/40 dark:bg-rose-950/20' : 'border-kumo-line hover:border-primary/50 hover:bg-muted/10'
+                  }`}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReceiptFileChange}
+                      className="hidden"
+                    />
+                    <Upload className={`w-6 h-6 mb-1.5 ${receiptUploadError ? 'text-rose-500' : 'text-kumo-subtle'}`} />
+                    <span className="text-xs font-semibold text-kumo-strong text-center">
+                      Click to upload fare receipt screenshot
+                    </span>
+                    <span className="text-[11px] text-kumo-subtle mt-0.5 text-center">
+                      PNG, JPG, or WEBP from Uber, InDrive, Gokada, or Bolt
+                    </span>
+                  </label>
+                )}
+
+                {receiptUploadError && (
+                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mt-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{receiptUploadError}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
