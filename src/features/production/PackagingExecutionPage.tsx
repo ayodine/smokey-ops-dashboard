@@ -164,12 +164,13 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 160,
       accessor: (o) => (
         <Tooltip content="Allocate containers and start packaging this order">
           <button
             type="button"
             onClick={() => handleOpenStartModal(o)}
-            className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+            className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
           >
             <Package className="w-3.5 h-3.5" />
             Start Packaging
@@ -204,7 +205,7 @@ export const PackagingExecutionPage: React.FC = () => {
       accessor: (o) => (
         <div className="space-y-0.5">
           {o.packaging_materials_picked?.map((p, i) => (
-            <span key={i} className="inline-block mr-1 px-1.5 py-0.5 rounded text-[11px] font-sans font-medium bg-kumo-surface text-kumo-strong border border-kumo-line">
+            <span key={i} className="inline-block mr-1 px-1.5 py-0.5 rounded text-[11px] font-sans font-medium bg-kumo-surface text-kumo-strong border border-kumo-line whitespace-nowrap">
               {p.packaging_name} × {p.quantity}
             </span>
           ))}
@@ -214,17 +215,19 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'status',
       header: 'Pack Status',
+      defaultWidth: 180,
       accessor: (o) => <StatusBadge status="pending" label="ON PACKING TABLE" />,
     },
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 180,
       accessor: (o) => (
         <Tooltip content="Hand over packed meal to dispatch board">
           <button
             type="button"
             onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
-            className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 font-sans shadow-2xs"
+            className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
           >
             <Check className="w-3.5 h-3.5" />
             Confirm Packaged

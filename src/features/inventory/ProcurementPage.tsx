@@ -120,6 +120,7 @@ export const ProcurementPage: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
+      defaultWidth: 160,
       accessor: po => <StatusBadge status={po.status} size="sm" />,
     },
   ]
@@ -152,18 +153,19 @@ export const ProcurementPage: React.FC = () => {
           po.supplier_name.toLowerCase().includes(q)
         }
           rowActions={po => (
-            <div className="flex items-center gap-1.5 justify-end">
+            <div className="flex items-center gap-1.5 justify-end shrink-0">
               {po.status !== 'RECEIVED' ? (
                 <Button
                   size="xs"
                   variant="primary"
                   onClick={() => handleOpenReceiving(po)}
                   leftIcon={<CheckCircle2 className="w-3 h-3" />}
+                  className="whitespace-nowrap shrink-0 flex-none"
                 >
                   Receive Goods
                 </Button>
               ) : (
-                <span className="text-[11px] text-emerald-600 font-semibold font-mono">
+                <span className="text-[11px] text-emerald-600 font-semibold font-mono whitespace-nowrap shrink-0">
                   Fully Received
                 </span>
               )}
@@ -206,28 +208,28 @@ export const ProcurementPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-lg ring ring-kumo-line overflow-hidden bg-kumo-base">
+            <div className="rounded-lg ring ring-kumo-line overflow-x-auto bg-kumo-base">
               <table className="w-full text-left">
                 <thead className="bg-kumo-tint text-[11px] uppercase font-semibold text-kumo-subtle border-b border-kumo-line">
                   <tr>
-                    <th className="p-2.5">Item SKU & Name</th>
-                    <th className="p-2.5 text-right">Ordered</th>
-                    <th className="p-2.5 text-right w-36">Delivered Qty</th>
+                    <th className="p-2.5 whitespace-nowrap">Item SKU & Name</th>
+                    <th className="p-2.5 text-right whitespace-nowrap">Ordered</th>
+                    <th className="p-2.5 text-right w-36 whitespace-nowrap">Delivered Qty</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-kumo-line">
                   {selectedPO.items.map(item => (
                     <tr key={item.id} className="hover:bg-kumo-tint/50 transition-colors">
-                      <td className="p-2.5">
+                      <td className="p-2.5 whitespace-nowrap">
                         <span className="font-mono font-bold text-kumo-strong">
                           {item.sku}
                         </span>
                         <p className="text-kumo-subtle text-[11px]">{item.name}</p>
                       </td>
-                      <td className="p-2.5 text-right font-mono font-semibold text-kumo-default">
+                      <td className="p-2.5 text-right font-mono font-semibold text-kumo-default whitespace-nowrap">
                         {item.quantity_ordered} {item.uom}
                       </td>
-                      <td className="p-2.5 text-right">
+                      <td className="p-2.5 text-right whitespace-nowrap">
                         <input
                           type="number"
                           min="0"

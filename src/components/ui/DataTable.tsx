@@ -150,7 +150,7 @@ export function DataTable<T>({
 
   // Column width state for resizable columns, loaded from localStorage if previously adjusted
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = { checkbox: 48, actions: 120 }
+    const initial: Record<string, number> = { checkbox: 48, actions: 240 }
     columns.forEach(col => {
       const parsed = typeof col.width === 'number' ? col.width : parseInt(String(col.width || '0'), 10)
       if (col.defaultWidth) {
@@ -187,6 +187,9 @@ export function DataTable<T>({
       if (saved) {
         const parsed = JSON.parse(saved)
         if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.actions && parsed.actions < 180) {
+            parsed.actions = 240
+          }
           return { ...initial, ...parsed }
         }
       }
@@ -204,6 +207,9 @@ export function DataTable<T>({
       if (saved) {
         const parsed = JSON.parse(saved)
         if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.actions && parsed.actions < 180) {
+            parsed.actions = 240
+          }
           setColumnWidths(prev => ({ ...prev, ...parsed }))
         }
       }
@@ -833,7 +839,7 @@ export function DataTable<T>({
               {hasRowAction && (
                 <div 
                   className="flex items-center justify-center px-3 py-3 text-xs font-medium text-muted-foreground border-r border-border shrink-0 select-none" 
-                  style={{ width: columnWidths.actions || 120 }}
+                  style={{ width: columnWidths.actions || 240 }}
                 >
                   {actionHeader || 'Action'}
                 </div>
@@ -935,8 +941,8 @@ export function DataTable<T>({
                                   '[&_button]:whitespace-nowrap',
                                   // Standalone rounded status spans maintain natural pill shape
                                   '[&>span[class*="rounded"]]:w-auto [&>span[class*="rounded"]]:max-w-full [&>span[class*="rounded"]]:shrink-0 [&>span[class*="rounded"]]:inline-flex [&>span[class*="rounded"]]:whitespace-nowrap',
-                                  // Text labels and divs adapt with clean truncation
-                                  '[&>span]:truncate [&>div]:min-w-0'
+                                  // Text labels and divs adapt with clean truncation, protecting badge pills
+                                  '[&>span:not([class*="rounded"]):not([data-kumo-component])]:truncate [&>div]:min-w-0'
                                 )}>
                                   {col.accessor(item)}
                                 </div>
@@ -947,9 +953,9 @@ export function DataTable<T>({
                           {hasRowAction && (
                             <div 
                               className="flex items-center justify-center px-3 py-3 border-r border-border shrink-0 text-xs"
-                              style={{ width: columnWidths.actions || 120 }}
+                              style={{ width: columnWidths.actions || 240 }}
                             >
-                              <div className="w-full max-w-full min-w-0 flex items-center justify-center [&_button]:w-full [&_button]:max-w-full [&_button]:justify-center [&_button]:truncate [&_button>span]:truncate">
+                              <div className="w-full max-w-full min-w-0 flex items-center justify-center [&_button]:w-auto [&_button]:shrink-0 [&_button]:flex-none [&_button]:whitespace-nowrap gap-1.5">
                                 {rowActions ? (
                                   rowActions(item)
                                 ) : null}

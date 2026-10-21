@@ -73,6 +73,7 @@ export const ShipmentsPage: React.FC = () => {
     {
       key: 'status',
       header: 'Transit Status',
+      defaultWidth: 160,
       accessor: s => <StatusBadge status={s.status} size="sm" />,
     },
   ]

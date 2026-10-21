@@ -211,14 +211,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     <span
       data-kumo-component="Badge"
       className={cn(
-        'inline-flex items-center font-medium rounded-full border border-solid select-none tracking-normal leading-none max-w-full min-w-0 overflow-hidden font-sans transition-colors',
+        'inline-flex items-center font-medium rounded-full border border-solid select-none tracking-normal leading-none shrink-0 whitespace-nowrap font-sans transition-colors',
         size === 'sm' ? 'px-2.5 py-1 text-[11px] gap-1.5' : 'px-3 py-1 text-xs gap-1.5',
         config.colorClasses,
         className
       )}
     >
       <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', config.dotColor)} />
-      <span className="truncate min-w-0 overflow-hidden">{config.label}</span>
+      <span className="whitespace-nowrap shrink-0">{config.label}</span>
     </span>
   )
 }

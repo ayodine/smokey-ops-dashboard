@@ -164,7 +164,7 @@ export const SuppliersPage: React.FC = () => {
       key: 'delivery_count',
       header: 'Deliveries Fulfilled',
       accessor: (s) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-kumo-surface text-kumo-default border border-kumo-line font-sans">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-kumo-surface text-kumo-default border border-kumo-line font-sans whitespace-nowrap shrink-0">
           {s.delivery_count} shipments
         </span>
       ),
@@ -179,13 +179,14 @@ export const SuppliersPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 140,
       accessor: (s) => (
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleOpenManage(s)}
-            className="h-7 px-2.5 text-xs font-medium"
+            className="h-7 px-2.5 text-xs font-medium whitespace-nowrap shrink-0 flex-none"
           >
             Manage
           </Button>
@@ -474,40 +475,40 @@ export const SuppliersPage: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="border border-kumo-line rounded-lg overflow-hidden max-h-80 overflow-y-auto">
+                  <div className="border border-kumo-line rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
                     <table className="w-full text-left text-xs font-sans">
                       <thead className="bg-kumo-surface text-kumo-subtle text-[11px] uppercase border-b border-kumo-line">
                         <tr>
-                          <th className="px-3 py-2 font-medium">Delivery Ref</th>
-                          <th className="px-3 py-2 font-medium">Date</th>
-                          <th className="px-3 py-2 font-medium">Material Received</th>
-                          <th className="px-3 py-2 font-medium">Qty</th>
-                          <th className="px-3 py-2 font-medium">Unit Cost</th>
-                          <th className="px-3 py-2 font-medium text-right">Invoice Value</th>
+                          <th className="px-3 py-2 font-medium whitespace-nowrap">Delivery Ref</th>
+                          <th className="px-3 py-2 font-medium whitespace-nowrap">Date</th>
+                          <th className="px-3 py-2 font-medium whitespace-nowrap">Material Received</th>
+                          <th className="px-3 py-2 font-medium whitespace-nowrap">Qty</th>
+                          <th className="px-3 py-2 font-medium whitespace-nowrap">Unit Cost</th>
+                          <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Invoice Value</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-kumo-line">
                         {supplierDeliveries.map((delivery) => (
                           <tr key={delivery.id} className="hover:bg-kumo-tint/50">
-                            <td className="px-3 py-2.5 font-mono text-[11px] text-kumo-strong">
+                            <td className="px-3 py-2.5 font-mono text-[11px] text-kumo-strong whitespace-nowrap">
                               {delivery.delivery_ref}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-subtle text-[11px]">
+                            <td className="px-3 py-2.5 text-kumo-subtle text-[11px] whitespace-nowrap">
                               {formatDate(delivery.date_received)}
                             </td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-3 py-2.5 whitespace-nowrap">
                               <div className="font-medium text-kumo-strong">{delivery.product_name}</div>
                               {delivery.lot_number && (
                                 <div className="text-[10px] text-kumo-subtle font-mono">Lot: {delivery.lot_number}</div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-default font-medium">
+                            <td className="px-3 py-2.5 text-kumo-default font-medium whitespace-nowrap">
                               {delivery.quantity} {delivery.unit}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-subtle">
+                            <td className="px-3 py-2.5 text-kumo-subtle whitespace-nowrap">
                               {formatNaira(delivery.unit_cost)}
                             </td>
-                            <td className="px-3 py-2.5 text-right font-semibold text-emerald-700">
+                            <td className="px-3 py-2.5 text-right font-semibold text-emerald-700 whitespace-nowrap">
                               {formatNaira(delivery.value_amount)}
                             </td>
                           </tr>

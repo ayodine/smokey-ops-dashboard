@@ -83,37 +83,37 @@ export const BOMPage: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-850 text-[11px] font-semibold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="px-3.5 py-2.5">Component / Raw Material</th>
-                <th className="px-3.5 py-2.5 font-mono">SKU Code</th>
-                <th className="px-3.5 py-2.5 text-right font-mono">Batch Qty</th>
-                <th className="px-3.5 py-2.5 text-right font-mono">Unit Cost</th>
-                <th className="px-3.5 py-2.5 text-right font-mono">Subtotal</th>
-                <th className="px-3.5 py-2.5 text-center">Substitutions</th>
+                <th className="px-3.5 py-2.5 whitespace-nowrap">Component / Raw Material</th>
+                <th className="px-3.5 py-2.5 font-mono whitespace-nowrap">SKU Code</th>
+                <th className="px-3.5 py-2.5 text-right font-mono whitespace-nowrap">Batch Qty</th>
+                <th className="px-3.5 py-2.5 text-right font-mono whitespace-nowrap">Unit Cost</th>
+                <th className="px-3.5 py-2.5 text-right font-mono whitespace-nowrap">Subtotal</th>
+                <th className="px-3.5 py-2.5 text-center whitespace-nowrap">Substitutions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {selectedBOM.components.map(comp => (
                 <tr key={comp.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                  <td className="px-3.5 py-3 font-semibold text-slate-900 dark:text-slate-100">
+                  <td className="px-3.5 py-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                     {comp.raw_material_name}
                   </td>
-                  <td className="px-3.5 py-3 font-mono text-slate-500">{comp.raw_material_sku}</td>
-                  <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                  <td className="px-3.5 py-3 font-mono text-slate-500 whitespace-nowrap">{comp.raw_material_sku}</td>
+                  <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                     {comp.required_quantity} {comp.uom}
                   </td>
-                  <td className="px-3.5 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                  <td className="px-3.5 py-3 text-right font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
                     {formatNaira(comp.unit_cost)}
                   </td>
-                  <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                  <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                     {formatNaira(comp.required_quantity * comp.unit_cost)}
                   </td>
-                  <td className="px-3.5 py-3 text-center">
+                  <td className="px-3.5 py-3 text-center whitespace-nowrap">
                     {comp.allow_substitution ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800 whitespace-nowrap shrink-0 inline-flex items-center">
                         Authorized
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-400">Strict Single Source</span>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0 inline-flex items-center">Strict Single Source</span>
                     )}
                   </td>
                 </tr>
@@ -121,13 +121,13 @@ export const BOMPage: React.FC = () => {
             </tbody>
             <tfoot className="bg-slate-50/80 dark:bg-slate-850 border-t-2 border-slate-200 dark:border-slate-800 font-mono text-xs">
               <tr>
-                <td colSpan={4} className="px-3.5 py-2.5 text-right font-bold text-slate-700 dark:text-slate-300">
+                <td colSpan={4} className="px-3.5 py-2.5 text-right font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                   Total Calculated Batch Recipe Cost ({selectedBOM.standard_batch_size} units):
                 </td>
-                <td className="px-3.5 py-2.5 text-right font-bold text-sm text-[#0051C3] dark:text-blue-400">
+                <td className="px-3.5 py-2.5 text-right font-bold text-sm text-[#0051C3] dark:text-blue-400 whitespace-nowrap">
                   {formatNaira(selectedBOM.total_batch_cost)}
                 </td>
-                <td />
+                <td className="whitespace-nowrap" />
               </tr>
             </tfoot>
           </table>

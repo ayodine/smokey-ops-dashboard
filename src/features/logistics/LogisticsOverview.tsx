@@ -68,6 +68,7 @@ export const LogisticsOverview: React.FC = () => {
     {
       key: 'status',
       header: 'Dispatch State',
+      defaultWidth: 160,
       accessor: d => <StatusBadge status={d.status} size="sm" />,
     },
   ]

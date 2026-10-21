@@ -325,7 +325,7 @@ export const RiderDashboardPage: React.FC = () => {
       header: 'Status',
       defaultWidth: 130,
       accessor: () => (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-sans">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-sans whitespace-nowrap shrink-0">
           <Check className="w-3 h-3" />
           Delivered
         </span>
@@ -398,9 +398,9 @@ export const RiderDashboardPage: React.FC = () => {
     {
       key: 'status',
       header: 'Settlement Status',
-      defaultWidth: 160,
+      defaultWidth: 180,
       accessor: () => (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 font-sans">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 font-sans whitespace-nowrap shrink-0">
           <Check className="w-3 h-3" />
           Settled (₦0.00 Owed)
         </span>

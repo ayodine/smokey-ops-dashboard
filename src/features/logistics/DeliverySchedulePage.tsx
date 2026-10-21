@@ -115,21 +115,22 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 180,
       accessor: (o) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} className="shrink-0">
           {o.can_start_schedule ? (
             <Tooltip content="Send scheduled order to kitchen packaging queue">
               <button
                 type="button"
                 onClick={() => startScheduledOrder(o.id)}
-                className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 <Play className="w-3 h-3 fill-current" />
                 Send to Kitchen
               </button>
             </Tooltip>
           ) : (
-            <span className="text-xs text-kumo-subtle flex items-center gap-1 font-sans">
+            <span className="text-xs text-kumo-subtle flex items-center gap-1 font-sans whitespace-nowrap shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               In Packaging Queue
             </span>

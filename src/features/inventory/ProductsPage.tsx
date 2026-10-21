@@ -129,7 +129,7 @@ export const ProductsPage: React.FC = () => {
       key: 'bin_location',
       header: 'Bin Location',
       accessor: p => (
-        <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-kumo-tint ring ring-kumo-line text-kumo-default">
+        <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-kumo-tint ring ring-kumo-line text-kumo-default whitespace-nowrap shrink-0 inline-flex items-center">
           {p.bin_location}
         </span>
       ),
@@ -137,6 +137,7 @@ export const ProductsPage: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
+      defaultWidth: 160,
       accessor: p => <StatusBadge status={p.status} size="sm" />,
     },
   ]

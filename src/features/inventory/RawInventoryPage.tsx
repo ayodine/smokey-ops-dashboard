@@ -673,11 +673,12 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'movement_type',
       header: 'Type',
+      defaultWidth: 160,
       accessor: (m) => {
         const isConsumption = m.movement_type === 'consumption'
         const isWaste = m.movement_type === 'waste'
         return (
-          <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium border ${
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap shrink-0 ${
             isConsumption ? 'bg-blue-50 text-blue-700 border-blue-200' :
             isWaste ? 'bg-rose-50 text-rose-700 border-rose-200' :
             'bg-amber-50 text-amber-700 border-amber-200'
@@ -778,8 +779,9 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'variance_qty',
       header: 'Discrepancy (Delta)',
+      defaultWidth: 200,
       accessor: (v) => (
-        <span className={`font-semibold text-xs font-sans ${v.variance_qty < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+        <span className={`font-semibold text-xs font-sans whitespace-nowrap shrink-0 ${v.variance_qty < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
           {v.variance_qty > 0 ? `+${v.variance_qty}` : v.variance_qty} {v.unit} ({formatNaira(v.variance_value)})
         </span>
       ),
@@ -793,8 +795,9 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'status',
       header: 'Audit Status',
+      defaultWidth: 150,
       accessor: (v) => (
-        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-semibold border ${
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border whitespace-nowrap shrink-0 ${
           v.status === 'reconciled'
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
             : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -806,19 +809,20 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Escrow Action',
+      defaultWidth: 150,
       accessor: (v) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} className="shrink-0">
           {v.status === 'pending_review' ? (
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleOpenResolve(v)}
-              className="text-xs py-1 h-7"
+              className="text-xs py-1 h-7 whitespace-nowrap shrink-0 flex-none"
             >
               Sign-Off
             </Button>
           ) : (
-            <span className="text-[11px] text-kumo-subtle italic">Resolved</span>
+            <span className="text-[11px] text-kumo-subtle italic whitespace-nowrap shrink-0">Resolved</span>
           )}
         </div>
       ),

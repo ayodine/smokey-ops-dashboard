@@ -81,6 +81,7 @@ export const WarehousesPage: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
+      defaultWidth: 140,
       accessor: w => <StatusBadge status={w.is_active ? 'ACTIVE' : 'INACTIVE'} size="sm" />,
     },
   ]

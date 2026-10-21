@@ -104,15 +104,16 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
     {
       key: 'breakdown',
       header: 'Variance Breakdown',
+      defaultWidth: 200,
       accessor: (w) => (
-        <div className="flex items-center gap-1.5 text-xs font-sans">
-          <span className="px-1.5 py-0.5 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium">
+        <div className="flex items-center gap-1.5 text-xs font-sans shrink-0">
+          <span className="px-1.5 py-0.5 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium whitespace-nowrap shrink-0">
             {w.loss_count} loss
           </span>
-          <span className="px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 font-medium">
+          <span className="px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 font-medium whitespace-nowrap shrink-0">
             {w.gain_count} gain
           </span>
-          <span className="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 font-medium">
+          <span className="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 font-medium whitespace-nowrap shrink-0">
             {w.even_count} even
           </span>
         </div>
@@ -175,11 +176,12 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 160,
       accessor: (d) => (
         <button
           type="button"
           onClick={() => handleOpenEvidence(d)}
-          className="px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10 border border-primary/30 rounded-lg cursor-pointer transition-colors flex items-center gap-1"
+          className="px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10 border border-primary/30 rounded-lg cursor-pointer transition-colors flex items-center gap-1 whitespace-nowrap shrink-0 flex-none"
         >
           <Receipt className="w-3.5 h-3.5" />
           Audit Invoice

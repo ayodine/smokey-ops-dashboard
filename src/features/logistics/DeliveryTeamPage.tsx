@@ -219,24 +219,25 @@ export const DeliveryTeamPage: React.FC = () => {
     {
       key: 'net_balance',
       header: 'Net Balance',
+      defaultWidth: 200,
       accessor: (r) => {
         const net = r.net_balance
         if (net < 0) {
           return (
-            <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900 rounded-lg">
+            <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900 rounded-lg whitespace-nowrap shrink-0">
               Driver Remits: {formatNaira(Math.abs(net))}
             </span>
           )
         }
         if (net > 0) {
           return (
-            <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900 rounded-lg">
+            <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900 rounded-lg whitespace-nowrap shrink-0">
               Pay Driver: {formatNaira(net)}
             </span>
           )
         }
         return (
-          <span className="inline-flex px-2 py-0.5 text-[11px] font-medium bg-kumo-surface text-kumo-subtle border border-kumo-line rounded-lg">
+          <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-medium bg-kumo-surface text-kumo-subtle border border-kumo-line rounded-lg whitespace-nowrap shrink-0">
             Settled (₦0)
           </span>
         )
@@ -246,26 +247,27 @@ export const DeliveryTeamPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
+      defaultWidth: 260,
       accessor: (r) => {
         const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
         return (
-          <div className="flex items-center gap-1.5 w-full justify-center" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2 w-full justify-center" onClick={e => e.stopPropagation()}>
             {unremitted > 0 ? (
-              <Tooltip content="Record cash collected by driver" className="flex-1 w-full">
+              <Tooltip content="Record cash collected by driver">
                 <button
                   type="button"
                   onClick={() => handleOpenRemitModal(r)}
-                  className="w-full px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs justify-center text-center"
+                  className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
                 >
                   Remit Cash
                 </button>
               </Tooltip>
             ) : null}
-            <Tooltip content="View driver account ledger & full profile" className="flex-1 w-full">
+            <Tooltip content="View driver account ledger & full profile">
               <button
                 type="button"
                 onClick={() => handleOpenAccount(r, 'ledger')}
-                className="w-full px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs justify-center text-center"
+                className="px-3 py-1.5 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
               >
                 View Account
               </button>

@@ -192,17 +192,17 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
-                <th className="py-2.5 px-3">When</th>
-                <th className="py-2.5 px-3">User</th>
-                <th className="py-2.5 px-3">Country</th>
-                <th className="py-2.5 px-3">Device & Browser</th>
-                <th className="py-2.5 px-3">Action</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">When</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">User</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">Country</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">Device & Browser</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kumo-line/60">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-kumo-subtle">
+                  <td colSpan={5} className="py-6 text-center text-kumo-subtle whitespace-nowrap">
                     No sign-in records matched your search.
                   </td>
                 </tr>
@@ -216,7 +216,7 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
                     </td>
 
                     {/* User */}
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-semibold text-kumo-strong">{log.user}</div>
                       <div className="text-[11px] text-kumo-subtle">{log.email}</div>
                     </td>
@@ -228,12 +228,12 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
                     </td>
 
                     {/* Device */}
-                    <td className="py-2.5 px-3">
-                      <div className="text-kumo-strong font-medium flex items-center gap-1.5">
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="text-kumo-strong font-medium flex items-center gap-1.5 whitespace-nowrap">
                         {log.device.toLowerCase().includes('phone') ? (
-                          <Smartphone className="w-3.5 h-3.5 text-kumo-subtle" />
+                          <Smartphone className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                         ) : (
-                          <Laptop className="w-3.5 h-3.5 text-kumo-subtle" />
+                          <Laptop className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                         )}
                         <span>{log.device}</span>
                       </div>
@@ -242,8 +242,8 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
 
                     {/* Action */}
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900 whitespace-nowrap shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                         {log.action}
                       </span>
                     </td>

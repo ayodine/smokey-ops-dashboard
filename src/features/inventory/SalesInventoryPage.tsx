@@ -192,13 +192,14 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
+      defaultWidth: 180,
       accessor: (p) => (
-        <div className="flex items-center gap-1.5 font-sans" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Manually adjust on-hand stock">
             <button
               type="button"
               onClick={() => handleOpenAdjust(p)}
-              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs"
+              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Adjust
             </button>
@@ -207,7 +208,7 @@ export const SalesInventoryPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenEdit(p)}
-              className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-opacity hover:opacity-85 font-sans shadow-2xs bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300"
+              className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-opacity hover:opacity-85 font-sans shadow-2xs bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300 whitespace-nowrap shrink-0 flex-none"
             >
               Edit
             </button>

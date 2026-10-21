@@ -169,12 +169,13 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 160,
       accessor: (d) => (
         <Tooltip content="Assign order to an in-house driver or courier">
           <button
             type="button"
             onClick={() => handleOpenAssign(d)}
-            className="px-3 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+            className="px-3 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0"
           >
             <UserCheck className="w-3.5 h-3.5" />
             Assign Driver
@@ -248,14 +249,15 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 200,
       accessor: (d) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           {d.status === 'assigned' && (
             <Tooltip content="Confirm driver collected food from kitchen">
               <button
                 type="button"
                 onClick={() => confirmRiderCollect(d.id)}
-                className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 rounded-lg cursor-pointer transition-colors shadow-2xs font-sans"
+                className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 rounded-lg cursor-pointer transition-colors shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 Driver Collect
               </button>
@@ -268,7 +270,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => markDelivered(d.id)}
-                  className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+                  className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Delivered
@@ -278,7 +280,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSendWhatsApp(d)}
-                  className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer"
+                  className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer shrink-0 flex-none"
                 >
                   <MessageSquareShare className="w-4 h-4" />
                 </button>
@@ -287,7 +289,7 @@ export const LogisticsBoardPage: React.FC = () => {
           )}
 
           {d.status === 'delivered' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 whitespace-nowrap shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled
             </span>
           )}

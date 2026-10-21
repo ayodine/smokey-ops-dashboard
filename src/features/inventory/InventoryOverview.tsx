@@ -135,6 +135,7 @@ export const InventoryOverview: React.FC = () => {
     {
       key: 'status',
       header: 'Stock Status',
+      defaultWidth: 160,
       sortable: true,
       sortValue: p => p.status,
       accessor: p => <StatusBadge status={p.status} size="sm" />,

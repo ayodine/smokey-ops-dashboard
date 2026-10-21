@@ -110,19 +110,20 @@ export const StorePickupPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 160,
       accessor: (p) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} className="shrink-0">
           {p.order_status === 'ready_for_pickup' ? (
             <button
               type="button"
               onClick={() => handleOpenCollect(p)}
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg cursor-pointer transition-colors flex items-center gap-1"
+              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg cursor-pointer transition-colors flex items-center gap-1 whitespace-nowrap shrink-0 flex-none"
             >
               <UserCheck className="w-3.5 h-3.5" />
               Hand Over
             </button>
           ) : (
-            <div className="text-xs text-kumo-subtle">
+            <div className="text-xs text-kumo-subtle whitespace-nowrap shrink-0">
               Handed by <span className="text-kumo-strong font-medium">{p.handover_staff || 'Staff'}</span>
             </div>
           )}

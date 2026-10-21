@@ -596,7 +596,7 @@ export const AccountHomePage: React.FC = () => {
       {/* Main Split Grid: Left 72% Table, Right 28% Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (8 cols ~ 70%): Stock items Table Area */}
-        <div className="lg:col-span-8 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
+        <div className="lg:col-span-8 min-w-0 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
           {/* Table Toolbar Header */}
           <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
             {/* Title & Alerts Badge in Plain English */}
@@ -769,13 +769,13 @@ export const AccountHomePage: React.FC = () => {
 
           {/* Table Container (Inherited from other pages with interactive Column Sorting) */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[700px]">
               <thead>
                 <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
                   {/* Item Name Column Header */}
                   <th
                     onClick={() => handleSort('name')}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Item name</span>
@@ -790,7 +790,7 @@ export const AccountHomePage: React.FC = () => {
                   {/* Category Column Header */}
                   <th
                     onClick={() => handleSort('category')}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Category</span>
@@ -805,7 +805,7 @@ export const AccountHomePage: React.FC = () => {
                   {/* Stock Column Header */}
                   <th
                     onClick={() => handleSort('currentStock')}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>In stock</span>
@@ -820,7 +820,7 @@ export const AccountHomePage: React.FC = () => {
                   {/* Expiration Column Header */}
                   <th
                     onClick={() => handleSort('daysToExpiry')}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Expires</span>
@@ -835,7 +835,7 @@ export const AccountHomePage: React.FC = () => {
                   {/* Status Column Header */}
                   <th
                     onClick={() => handleSort('status')}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:text-kumo-strong transition-colors whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Status</span>
@@ -848,7 +848,7 @@ export const AccountHomePage: React.FC = () => {
                   </th>
 
                   {/* Action Column Header */}
-                  <th className="py-2.5 px-4 font-semibold text-right">Action</th>
+                  <th className="py-2.5 px-4 font-semibold text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-kumo-line/60">
@@ -880,7 +880,7 @@ export const AccountHomePage: React.FC = () => {
                         className="hover:bg-kumo-tint/40 transition-colors group"
                       >
                         {/* Item Name & SKU / Batch */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className={cn(
                             'font-semibold text-xs',
                             item.status === 'critical' ? 'text-rose-600 dark:text-rose-400' :
@@ -895,12 +895,12 @@ export const AccountHomePage: React.FC = () => {
                         </td>
 
                         {/* Category */}
-                        <td className="py-3 px-4 text-kumo-subtle text-xs">
+                        <td className="py-3 px-4 text-kumo-subtle text-xs whitespace-nowrap">
                           {item.category}
                         </td>
 
                         {/* Stock with Mini Progress Bar */}
-                        <td className="py-3 px-4 min-w-[130px]">
+                        <td className="py-3 px-4 min-w-[130px] whitespace-nowrap">
                           <div className="font-medium text-kumo-strong flex items-center gap-1 text-xs">
                             <span>{formatQuantity(item.currentStock)}</span>
                             <span className="text-kumo-subtle text-[11px]">/ {formatQuantity(item.maxStock)} {item.unit.toLowerCase()}</span>
@@ -914,7 +914,7 @@ export const AccountHomePage: React.FC = () => {
                         </td>
 
                         {/* Expiration date */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className="text-kumo-strong font-medium text-xs">
                             {item.expiryDate}
                           </div>
@@ -929,47 +929,47 @@ export const AccountHomePage: React.FC = () => {
                         </td>
 
                         {/* Status Dot Pill in Plain English */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           {item.status === 'critical' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
-                              <span className="size-1.5 rounded-full bg-rose-600" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900 whitespace-nowrap shrink-0">
+                              <span className="size-1.5 rounded-full bg-rose-600 shrink-0" />
                               Critical
                             </span>
                           )}
                           {item.status === 'low' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-900">
-                              <span className="size-1.5 rounded-full bg-yellow-500" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-900 whitespace-nowrap shrink-0">
+                              <span className="size-1.5 rounded-full bg-yellow-500 shrink-0" />
                               Running low
                             </span>
                           )}
                           {item.status === 'out_of_stock' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-900/60 dark:text-slate-300 dark:border-slate-800">
-                              <span className="size-1.5 rounded-full bg-slate-500" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-900/60 dark:text-slate-300 dark:border-slate-800 whitespace-nowrap shrink-0">
+                              <span className="size-1.5 rounded-full bg-slate-500 shrink-0" />
                               Out of stock
                             </span>
                           )}
                           {item.status === 'expiring' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900">
-                              <span className="size-1.5 rounded-full bg-orange-500" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900 whitespace-nowrap shrink-0">
+                              <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
                               Expiring soon
                             </span>
                           )}
                           {item.status === 'healthy' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900">
-                              <span className="size-1.5 rounded-full bg-emerald-600" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900 whitespace-nowrap shrink-0">
+                              <span className="size-1.5 rounded-full bg-emerald-600 shrink-0" />
                               Healthy
                             </span>
                           )}
                         </td>
 
                         {/* Action Buttons: Consistent Width (w-[80px]), View Button Style (Outline) for All Actions */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end">
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex justify-end shrink-0">
                             {item.status === 'critical' || item.status === 'low' || item.status === 'out_of_stock' ? (
                               <button
                                 type="button"
                                 onClick={() => handleOpenAction(item, item.status === 'out_of_stock' ? 'Restock' : 'Reorder')}
-                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                                className="min-w-[80px] px-3 h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer whitespace-nowrap shrink-0 flex-none"
                               >
                                 {item.status === 'out_of_stock' ? 'Restock' : 'Reorder'}
                               </button>
@@ -977,7 +977,7 @@ export const AccountHomePage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleOpenAction(item, 'Inspect')}
-                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                                className="min-w-[80px] px-3 h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer whitespace-nowrap shrink-0 flex-none"
                               >
                                 Inspect
                               </button>
@@ -985,7 +985,7 @@ export const AccountHomePage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleOpenAction(item, 'View')}
-                                className="w-[80px] h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                                className="min-w-[80px] px-3 h-7 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer whitespace-nowrap shrink-0 flex-none"
                               >
                                 View
                               </button>

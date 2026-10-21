@@ -156,48 +156,48 @@ export const ExecutiveOverview: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="text-[11px] font-medium text-kumo-subtle border-b border-kumo-line">
               <tr>
-                <th className="py-2.5 px-5 font-normal">Version ID</th>
-                <th className="py-2.5 px-4 font-normal">Deployed</th>
-                <th className="py-2.5 px-4 font-normal">
+                <th className="py-2.5 px-5 font-normal whitespace-nowrap">Version ID</th>
+                <th className="py-2.5 px-4 font-normal whitespace-nowrap">Deployed</th>
+                <th className="py-2.5 px-4 font-normal whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <span>Traffic %</span>
                     <Info className="w-3 h-3 text-kumo-subtle/70" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 font-normal">Requests/sec</th>
-                <th className="py-2.5 px-4 font-normal">Error rate</th>
-                <th className="py-2.5 px-5 font-normal">Median CPU time</th>
+                <th className="py-2.5 px-4 font-normal whitespace-nowrap">Requests/sec</th>
+                <th className="py-2.5 px-4 font-normal whitespace-nowrap">Error rate</th>
+                <th className="py-2.5 px-5 font-normal whitespace-nowrap">Median CPU time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kumo-line/50">
               <tr className="hover:bg-kumo-tint/50 transition-colors">
-                <td className="py-3 px-5 font-mono text-xs font-medium text-kumo-strong">
+                <td className="py-3 px-5 font-mono text-xs font-medium text-kumo-strong whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <GitCommit className="w-3.5 h-3.5 text-kumo-subtle" />
+                    <GitCommit className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                     <span>c3945e13</span>
                   </div>
                 </td>
-                <td className="py-3 px-4 text-kumo-subtle">
+                <td className="py-3 px-4 text-kumo-subtle whitespace-nowrap">
                   2 days ago
                 </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3 max-w-[200px]">
-                    <span className="font-mono text-xs text-kumo-strong w-10">100%</span>
+                <td className="py-3 px-4 whitespace-nowrap">
+                  <div className="flex items-center gap-3 min-w-[160px] max-w-[200px]">
+                    <span className="font-mono text-xs text-kumo-strong w-10 shrink-0">100%</span>
                     <div className="h-1.5 flex-1 bg-kumo-tint rounded-full overflow-hidden">
                       <div className="h-full bg-kumo-brand rounded-full w-full" />
                     </div>
                   </div>
                 </td>
-                <td className="py-3 px-4 font-mono text-kumo-strong">
+                <td className="py-3 px-4 font-mono text-kumo-strong whitespace-nowrap">
                   0 req/sec
                 </td>
-                <td className="py-3 px-4 font-mono text-kumo-strong">
+                <td className="py-3 px-4 font-mono text-kumo-strong whitespace-nowrap">
                   0%
                 </td>
-                <td className="py-3 px-5">
+                <td className="py-3 px-5 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-kumo-strong">347.32 ms</span>
-                    <div className="w-28 h-5 flex items-center">
+                    <span className="font-mono text-xs text-kumo-strong shrink-0">347.32 ms</span>
+                    <div className="w-28 h-5 flex items-center shrink-0">
                       <svg className="w-full h-4 overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 24">
                         <path
                           d="M 0 14 L 10 12 L 20 18 L 30 8 L 40 15 L 50 11 L 60 17 L 70 5 L 80 14 L 90 9 L 100 12"

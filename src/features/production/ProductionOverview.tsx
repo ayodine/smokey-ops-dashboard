@@ -86,6 +86,7 @@ export const ProductionOverview: React.FC = () => {
     {
       key: 'status',
       header: 'Lifecycle Status',
+      defaultWidth: 160,
       accessor: o => <StatusBadge status={o.status} size="sm" />,
     },
   ]

@@ -200,13 +200,14 @@ export const PackagingInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
+      defaultWidth: 180,
       accessor: (p) => (
-        <div className="flex items-center gap-1.5 font-sans" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record incoming packaging containers">
             <button
               type="button"
               onClick={() => handleOpenReceive(p)}
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs"
+              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               + Intake
             </button>
@@ -215,7 +216,7 @@ export const PackagingInventoryPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenAdjust(p)}
-              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs"
+              className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded-lg cursor-pointer transition-colors font-sans shadow-2xs whitespace-nowrap shrink-0 flex-none"
             >
               Audit
             </button>

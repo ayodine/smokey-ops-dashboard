@@ -113,14 +113,15 @@ export const KitchenTasksPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 160,
       accessor: (t) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           {t.status === 'pending' && (
             <Tooltip content="Start working on this task">
               <button
                 type="button"
                 onClick={() => updateTaskStatus(t.id, 'in_progress')}
-                className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 <Play className="w-3 h-3 fill-current" />
                 Start Task
@@ -132,7 +133,7 @@ export const KitchenTasksPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => updateTaskStatus(t.id, 'done')}
-                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans"
+                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 <Check className="w-3.5 h-3.5" />
                 Mark Done
@@ -140,7 +141,7 @@ export const KitchenTasksPage: React.FC = () => {
             </Tooltip>
           )}
           {t.status === 'done' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans">
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans whitespace-nowrap shrink-0">
               <Check className="w-3.5 h-3.5" /> Passed
             </span>
           )}

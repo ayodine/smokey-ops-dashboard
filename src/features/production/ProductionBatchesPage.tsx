@@ -382,14 +382,15 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
+      defaultWidth: 220,
       accessor: (b) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           {b.status === 'draft' ? (
             <Tooltip content="Begin cooking this batch">
               <button
                 type="button"
                 onClick={() => startBatch(b.id)}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Start Cooking</span>
@@ -400,7 +401,7 @@ export const ProductionBatchesPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleOpenComplete(b)}
-                className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans"
+                className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs font-sans whitespace-nowrap shrink-0 flex-none"
               >
                 <CheckSquare className="w-3.5 h-3.5" />
                 <span>Complete Cooking</span>
@@ -412,7 +413,7 @@ export const ProductionBatchesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenEdit(b)}
-              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line"
+              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -466,17 +467,19 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'status',
       header: 'QC Result',
+      defaultWidth: 190,
       accessor: (b) => <StatusBadge status="active" label="PASSED & DEPOSITED" />,
     },
     {
       key: 'actions',
       header: 'Inspection',
+      defaultWidth: 180,
       accessor: (b) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => handleOpenPreview(b)}
-            className="px-2 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded cursor-pointer transition-colors"
+            className="px-2.5 py-1 text-xs font-medium text-kumo-default bg-kumo-surface hover:bg-kumo-control border border-kumo-line rounded cursor-pointer transition-colors whitespace-nowrap shrink-0 flex-none"
           >
             View BOM & QC
           </button>
@@ -484,7 +487,7 @@ export const ProductionBatchesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOpenEdit(b)}
-              className="p-1 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line"
+              className="p-1 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
