@@ -350,11 +350,11 @@ export const DeliveryTeamPage: React.FC = () => {
         onClose={() => setIsAccountModalOpen(false)}
         title={`Driver Account: ${selectedRider?.rider_name || 'Driver'}`}
         description="Comprehensive earnings analysis, two-way cash reconciliation, and verified driver profile."
-        maxWidth="3xl"
+        maxWidth="4xl"
       >
-        <div className="space-y-5 font-sans">
+        <div className="flex flex-col h-[540px] max-h-[calc(88vh-120px)] font-sans">
           {/* Driver Sub-Tabs */}
-          <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
+          <div className="shrink-0 pb-3 border-b border-kumo-line max-w-full overflow-x-auto [scrollbar-width:none]">
             <KumoTabs
               activeTab={modalTab}
               onChange={(val: string) => setModalTab(val as 'ledger' | 'profile' | 'trips')}
@@ -368,8 +368,10 @@ export const DeliveryTeamPage: React.FC = () => {
             />
           </div>
 
-          {/* TAB 1: EARNINGS & CASH LEDGER */}
-          {modalTab === 'ledger' && (
+          {/* Fixed-Height Tab Content (Scrollable) */}
+          <div className="flex-1 min-h-0 overflow-y-auto py-3 pr-1 [scrollbar-width:thin]">
+            {/* TAB 1: EARNINGS & CASH LEDGER */}
+            {modalTab === 'ledger' && (
             <div className="space-y-4">
               {/* Earnings Breakdown Cards (Spacious with room for large amounts) */}
               <div>
@@ -625,7 +627,7 @@ export const DeliveryTeamPage: React.FC = () => {
                 <span className="text-[11px] text-kumo-subtle">Recent order runs assigned</span>
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
+              <div className="space-y-2">
                 {riderTrips.map((trip) => (
                   <div
                     key={trip.id}
@@ -664,9 +666,10 @@ export const DeliveryTeamPage: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
 
           {/* Modal Footer */}
-          <div className="flex justify-end pt-3 border-t border-kumo-line">
+          <div className="shrink-0 flex justify-end pt-3 border-t border-kumo-line bg-kumo-base">
             <Button
               variant="outline"
               size="md"
