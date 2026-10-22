@@ -1242,7 +1242,7 @@ export const ManageAccountsPage: React.FC = () => {
                       variant="primary"
                       type="button"
                       onClick={() => handleSaveRouteAndPolicies()}
-                      className="h-9 px-5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                      className="h-9 px-5 text-xs font-semibold shadow-xs"
                     >
                       Save
                     </Button>
@@ -1455,7 +1455,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-9 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+              className="h-9 px-4 text-xs font-semibold shadow-xs"
             >
               Create policy
             </Button>
@@ -1644,7 +1644,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-10 px-6 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+              className="h-10 px-6 text-xs font-semibold shadow-xs"
             >
               Create policy
             </Button>
@@ -1678,7 +1678,7 @@ export const ManageAccountsPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => navigate('/accounts/matrix')}
-              leftIcon={<Shield className="w-4 h-4 text-blue-600" />}
+              leftIcon={<Shield className="w-4 h-4 text-kumo-subtle" />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
             >
               Role Matrix
