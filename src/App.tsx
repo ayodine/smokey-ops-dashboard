@@ -28,6 +28,9 @@ import { RiderDashboardPage } from '@/features/logistics/RiderDashboardPage'
 // Overview Domain
 import { AccountHomePage } from '@/features/overview/AccountHomePage'
 
+// Sales Domain
+import { WebsiteOrdersPage } from '@/features/sales/WebsiteOrdersPage'
+
 // Admin Domain
 import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
 
@@ -52,6 +55,10 @@ export function App() {
                 {/* Default Landing Page directs to Account Overview */}
                 <Route index element={<Navigate to="/overview" replace />} />
                 <Route path="overview" element={<AccountHomePage />} />
+
+                {/* 0. SALES DOMAIN */}
+                <Route path="sales" element={<Navigate to="/sales/orders" replace />} />
+                <Route path="sales/orders" element={<WebsiteOrdersPage />} />
 
                 {/* 1. INVENTORY DOMAIN */}
                 <Route path="inventory" element={<Navigate to="/inventory/raw" replace />} />

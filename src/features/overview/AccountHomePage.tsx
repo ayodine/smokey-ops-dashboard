@@ -120,6 +120,25 @@ export const AccountHomePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
+  // Sales Inventory Table State (Under Stock Table)
+  const [salesSearchQuery, setSalesSearchQuery] = useState('')
+  const [salesCurrentPage, setSalesCurrentPage] = useState(1)
+  const salesPageSize = 8
+
+  const filteredSalesProducts = useMemo(() => {
+    return salesProducts.filter((p) => {
+      if (!salesSearchQuery.trim()) return true
+      const q = salesSearchQuery.toLowerCase()
+      return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+    })
+  }, [salesProducts, salesSearchQuery])
+
+  const totalSalesPages = Math.ceil(filteredSalesProducts.length / salesPageSize) || 1
+  const paginatedSalesProducts = useMemo(() => {
+    const start = (salesCurrentPage - 1) * salesPageSize
+    return filteredSalesProducts.slice(start, start + salesPageSize)
+  }, [filteredSalesProducts, salesCurrentPage])
+
   // Action Modals State
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false)
   const [actionItem, setActionItem] = useState<{ item: SmokeyInventoryItem; action: string } | null>(null)
@@ -612,8 +631,9 @@ export const AccountHomePage: React.FC = () => {
 
       {/* Main Split Grid: Left 72% Table, Right 28% Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (8 cols ~ 70%): Stock items Table Area */}
-        <div className="lg:col-span-8 min-w-0 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
+        {/* Left Column (8 cols ~ 70%): Stock items Table Area & Sale Inventory Table */}
+        <div className="lg:col-span-8 min-w-0 space-y-6">
+          <div className="rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
           {/* Table Toolbar Header */}
           <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
             {/* Title & Alerts Badge in Plain English */}
@@ -1057,6 +1077,144 @@ export const AccountHomePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Sale Inventory Table under the Stock Table */}
+        <div className="rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
+          {/* Toolbar Header */}
+          <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm font-bold text-kumo-strong">
+                Sales Inventory
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900">
+                {salesProducts.length} finished goods
+              </span>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-2 text-xs">
+              <div className="relative min-w-[200px] sm:min-w-[240px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search sales dishes or SKU..."
+                  value={salesSearchQuery}
+                  onChange={(e) => {
+                    setSalesSearchQuery(e.target.value)
+                    setSalesCurrentPage(1)
+                  }}
+                  className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
+                />
+              </div>
+              <Link
+                to="/inventory/sales"
+                className="px-2.5 py-1.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs font-medium text-kumo-strong flex items-center gap-1 transition-colors"
+              >
+                <span>Manage</span>
+                <ExternalLink className="w-3 h-3 text-kumo-subtle" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-kumo-line bg-kumo-canvas/50 text-kumo-subtle font-medium">
+                  <th className="py-2.5 px-4">Dish / Product Name</th>
+                  <th className="py-2.5 px-4 text-right">On-Hand</th>
+                  <th className="py-2.5 px-4 text-right">Allocated</th>
+                  <th className="py-2.5 px-4 text-right">Available</th>
+                  <th className="py-2.5 px-4 text-right">Price</th>
+                  <th className="py-2.5 px-4 text-right">Valuation</th>
+                  <th className="py-2.5 px-4 text-center">Status</th>
+                  <th className="py-2.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-kumo-line">
+                {paginatedSalesProducts.map((p) => {
+                  const isLow = p.stock_qty <= p.reorder_level
+                  const isOut = p.stock_qty === 0
+                  return (
+                    <tr key={p.id} className="hover:bg-kumo-tint/50 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-kumo-strong text-xs">{p.name}</div>
+                        <div className="text-[11px] text-kumo-subtle font-mono">{p.sku}</div>
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-kumo-strong">
+                        {formatQuantity(p.stock_qty)} {p.unit}
+                      </td>
+                      <td className="py-3 px-4 text-right text-amber-600 dark:text-amber-400 font-medium">
+                        {formatQuantity(p.qty_allocated)} {p.unit}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatQuantity(p.qty_available)} {p.unit}
+                      </td>
+                      <td className="py-3 px-4 text-right text-kumo-default">
+                        {formatNaira(p.selling_price)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-kumo-strong">
+                        {formatNaira(p.inventory_value || p.stock_qty * p.unit_cost)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {isOut ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            Out of Stock
+                          </span>
+                        ) : isLow ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            Low Stock
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Healthy
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          to="/inventory/sales"
+                          className="inline-flex items-center justify-center min-w-[70px] px-2.5 h-6 rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="p-3 border-t border-kumo-line bg-kumo-canvas/30 flex items-center justify-between text-xs text-kumo-subtle">
+            <div>
+              Showing {paginatedSalesProducts.length > 0 ? (salesCurrentPage - 1) * salesPageSize + 1 : 0} to {Math.min(salesCurrentPage * salesPageSize, filteredSalesProducts.length)} of {filteredSalesProducts.length} items
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSalesCurrentPage(p => Math.max(1, p - 1))}
+                disabled={salesCurrentPage === 1}
+                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              <span className="px-2 font-medium text-kumo-strong">
+                {salesCurrentPage} / {totalSalesPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSalesCurrentPage(p => Math.min(totalSalesPages, p + 1))}
+                disabled={salesCurrentPage === totalSalesPages}
+                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Right Column (4 cols ~ 30%): Expiring Soon & Low Stock Alerts */}
         <div className="lg:col-span-4 space-y-6">

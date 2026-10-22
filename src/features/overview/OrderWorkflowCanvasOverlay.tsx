@@ -7,7 +7,8 @@ import {
   Zap,
   RefreshCw,
   Layers,
-  Network
+  Network,
+  Search
 } from 'lucide-react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn, formatNaira } from '@/lib/utils'
@@ -171,13 +172,13 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border shrink-0 leading-normal select-none',
+        'inline-flex items-center justify-center w-[92px] py-0.5 rounded-[4px] text-[11px] font-medium border shrink-0 leading-normal select-none text-center',
         variantStyles[variant],
         className
       )}
     >
-      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColors[variant])} />}
-      <span className="whitespace-nowrap">{label}</span>
+      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 mr-1', dotColors[variant])} />}
+      <span className="truncate">{label}</span>
     </span>
   )
 }
@@ -237,6 +238,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   // Orders in pipeline state
   const [orders, setOrders] = useState<PipelineOrder[]>(SMOKEY_OPERATIONAL_ORDERS)
   const [selectedOrderId, setSelectedOrderId] = useState<string>('SHD-09853')
+  const [orderSearchInput, setOrderSearchInput] = useState<string>('')
+
+  const handleOrderSearch = (query: string) => {
+    setOrderSearchInput(query)
+    if (!query.trim()) return
+    const cleanQ = query.trim().toLowerCase()
+    const matched = orders.find(o => 
+      o.id.toLowerCase().includes(cleanQ) || 
+      o.id.replace('shd-', '').replace('0', '').includes(cleanQ) ||
+      o.customerName.toLowerCase().includes(cleanQ) ||
+      o.dishName.toLowerCase().includes(cleanQ)
+    )
+    if (matched) {
+      setSelectedOrderId(matched.id)
+    }
+  }
 
   // Accordion expansion state matching Screenshot 1 (collapsed) vs Screenshot 2 & 5 (expanded)
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
@@ -722,137 +739,92 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   return (
     <div className="space-y-3 font-sans transition-all">
       {/* =========================================================================
-          1. TOP BAR (MATCHING CLOUDFLARE SCREENSHOT 1 & 2 - WITH VIEW TOGGLE)
+          MAIN WORKFLOW CONTAINER
          ========================================================================= */}
-      <div className="rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
-        {/* Left: Globe & Plain English Route Info */}
-        <div className="flex items-center gap-2.5 text-[#18181b]">
-          <Globe className="w-4 h-4 text-[#71717a] shrink-0" />
-          <span className="font-medium text-[13px] tracking-tight">
-            Smokey Hut Order Flow Pipeline
-          </span>
-          <span className="text-[#a1a1aa] text-[11px] hidden md:inline">
-            Order Intake to Kitchen to Packaging to Customer Handover
-          </span>
-        </div>
-
-        {/* Right: View mode switcher, order switcher & step controls */}
-        <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
-            <button
-              type="button"
-              onClick={() => setViewMode('canvas')}
-              className={cn(
-                "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
-                viewMode === 'canvas'
-                  ? "bg-white text-[#18181b] shadow-xs font-semibold"
-                  : "text-[#71717a] hover:text-[#18181b]"
-              )}
-            >
-              <Network className="w-3 h-3 text-[#2563eb]" />
-              <span>Node Canvas</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('tree')}
-              className={cn(
-                "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
-                viewMode === 'tree'
-                  ? "bg-white text-[#18181b] shadow-xs font-semibold"
-                  : "text-[#71717a] hover:text-[#18181b]"
-              )}
-            >
-              <Layers className="w-3 h-3 text-[#10b981]" />
-              <span>Flow Tree</span>
-            </button>
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
+        {/* ACTIVE ORDER SEARCH & TOOLBAR (DESIGN SYSTEM STANDARD) */}
+        <div className="flex flex-wrap items-center justify-between pb-5 mb-6 border-b border-[#e4e4e7] gap-3">
+          {/* Left: Design System Search Field to Search Orders by ID */}
+          <div className="flex items-center gap-3 flex-1 min-w-[260px] max-w-md">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search order ID (e.g. 9853, SHD-07662)..."
+                value={orderSearchInput}
+                onChange={(e) => handleOrderSearch(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link transition-all"
+              />
+            </div>
+            {orderSearchInput && (
+              <button
+                type="button"
+                onClick={() => setOrderSearchInput('')}
+                className="text-[11px] text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
-          {/* Active Order Switcher */}
-          <div className="flex items-center gap-1.5 bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
-            {orders.slice(0, 4).map((ord) => (
+          {/* Center / Right: Order Info Chip, View Mode Switcher, and Stage Indicator */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#f4f4f5] border border-[#e4e4e7] text-xs">
+              <span className="font-semibold text-[#18181b]">
+                {activeOrder?.id.replace('SHD-0', 'Order ').replace('SHD-', 'Order ')}
+              </span>
+              <span className="text-[#a1a1aa] hidden md:inline">|</span>
+              <span className="text-[#52525b] hidden md:inline truncate max-w-[180px]">
+                {activeOrder?.dishName}
+              </span>
+              <span className="text-[#a1a1aa] hidden sm:inline">|</span>
+              <span className="font-medium text-[#18181b] hidden sm:inline">
+                {formatNaira(activeOrder?.totalAmount || 0)}
+              </span>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
               <button
-                key={ord.id}
                 type="button"
-                onClick={() => setSelectedOrderId(ord.id)}
+                onClick={() => setViewMode('canvas')}
                 className={cn(
-                  "px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer",
-                  selectedOrderId === ord.id
+                  "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
+                  viewMode === 'canvas'
                     ? "bg-white text-[#18181b] shadow-xs font-semibold"
                     : "text-[#71717a] hover:text-[#18181b]"
                 )}
               >
-                {ord.id.replace('SHD-0', 'Order ').replace('SHD-', 'Order ')}
-                {!ord.hasStock && (
-                  <span className="ml-1 text-[9px] text-[#f59e0b] font-bold" title="Batch Cook Required">★</span>
-                )}
+                <Network className="w-3 h-3 text-[#2563eb]" />
+                <span>Node Canvas</span>
               </button>
-            ))}
-          </div>
+              <button
+                type="button"
+                onClick={() => setViewMode('tree')}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
+                  viewMode === 'tree'
+                    ? "bg-white text-[#18181b] shadow-xs font-semibold"
+                    : "text-[#71717a] hover:text-[#18181b]"
+                )}
+              >
+                <Layers className="w-3 h-3 text-[#10b981]" />
+                <span>Flow Tree</span>
+              </button>
+            </div>
 
-          {/* Stepper Buttons */}
-          <div className="flex items-center gap-1.5">
+            {/* Stepper Button */}
             <button
               type="button"
               onClick={stepOrderForward}
               disabled={activeOrder?.currentStage === 'p3_settled_closed'}
-              className="h-7 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[12px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+              className="h-8 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[11px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+              title="Advance order to next pipeline stage"
             >
-              <Play className="w-3 h-3 text-[#2563eb] fill-[#2563eb]" />
-              <span>Step Stage</span>
+              <Play className="w-3 h-3 text-[#dc2626] fill-[#dc2626]" />
+              <span className="hidden sm:inline">Step Stage</span>
             </button>
 
-            <button
-              type="button"
-              onClick={triggerNewWebhookOrder}
-              className="h-7 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[12px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-            >
-              <Zap className="w-3 h-3 text-[#f59e0b]" />
-              <span>Ingest New Order</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsAutoStreamActive(!isAutoStreamActive)}
-              className={cn(
-                "h-7 px-2.5 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs",
-                isAutoStreamActive
-                  ? "bg-[#2563eb] text-white border-[#2563eb]"
-                  : "bg-white border-[#d4d4d8] text-[#18181b] hover:bg-[#f4f4f5]"
-              )}
-            >
-              <RefreshCw className={cn("w-3 h-3", isAutoStreamActive && "animate-spin")} />
-              <span>{isAutoStreamActive ? 'Streaming' : 'Auto Stream'}</span>
-            </button>
-          </div>
-
-          <span className="text-[12px] text-[#71717a] hidden xl:inline">
-            Live Order Stream
-          </span>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          2. MAIN WORKFLOW CONTAINER
-         ========================================================================= */}
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
-        {/* ACTIVE ORDER SUB-BAR (PLAIN ENGLISH ONLY) */}
-        <div className="flex flex-wrap items-center justify-between pb-5 mb-6 border-b border-[#e4e4e7] gap-3">
-          <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
-            <span className="text-[#71717a]">Active Order</span>
-            <span className="font-semibold text-[#18181b]">
-              {activeOrder?.id.replace('SHD-0', 'Order ').replace('SHD-', 'Order ')}
-            </span>
-            <span className="text-[#d4d4d8]">|</span>
-            <span className="text-[#52525b]">{activeOrder?.dishName}</span>
-            <span className="text-[#d4d4d8]">|</span>
-            <span className="font-medium text-[#18181b]">{formatNaira(activeOrder?.totalAmount || 0)}</span>
-            <span className="text-[#d4d4d8]">|</span>
-            <span className="text-[#71717a]">{activeOrder?.channel}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[#71717a]">Current Stage:</span>
             <StatusPill
               label={getStageLabel(activeOrder?.currentStage)}
               dot={true}
@@ -897,7 +869,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       <polygon points="0 2, 7 5, 0 8" fill="#9ca3af" />
                     </marker>
                     <marker
-                      id="cf-arrow-blue"
+                      id="cf-arrow-red"
                       viewBox="0 0 10 10"
                       refX="6"
                       refY="5"
@@ -905,59 +877,48 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       markerHeight="6"
                       orient="auto"
                     >
-                      <polygon points="0 2, 7 5, 0 8" fill="#2563eb" />
-                    </marker>
-                    <marker
-                      id="cf-arrow-emerald"
-                      viewBox="0 0 10 10"
-                      refX="6"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto"
-                    >
-                      <polygon points="0 2, 7 5, 0 8" fill="#10b981" />
+                      <polygon points="0 2, 7 5, 0 8" fill="#dc2626" />
                     </marker>
                   </defs>
 
                   {svgPaths && (
                     <>
-                      {/* Path 1A: From Ingestion down to trunk */}
+                      {/* Path 1A: From Ingestion down to trunk (Red when active, Grey when uninitiated) */}
                       <path
                         d={svgPaths.path1A}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p1_ingestion') ? '#2563eb' : '#9ca3af'}
+                        stroke={activeOrder?.history.includes('p1_ingestion') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
                       />
                       {/* Path 1B: From Stock/BOM into trunk */}
                       <path
                         d={svgPaths.path1B}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p1_inventory_deduct') ? '#2563eb' : '#9ca3af'}
+                        stroke={activeOrder?.history.includes('p1_inventory_deduct') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
                       />
                       {/* Path 1C: From Production Batches up to trunk */}
                       <path
                         d={svgPaths.path1C}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p1_production_batch') ? '#2563eb' : '#9ca3af'}
+                        stroke={activeOrder?.history.includes('p1_production_batch') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
                       />
-                      {/* Arrow from Pillar 1 into Pillar 2 */}
+                      {/* Arrow from Column 1 into Column 2 */}
                       <path
                         d={svgPaths.trunkToPillar2}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p2_in_packaging') ? '#2563eb' : '#9ca3af'}
+                        stroke={activeOrder?.history.includes('p2_in_packaging') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
-                        markerEnd={activeOrder?.history.includes('p2_in_packaging') ? 'url(#cf-arrow-blue)' : 'url(#cf-arrow-default)'}
+                        markerEnd={activeOrder?.history.includes('p2_in_packaging') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
                       />
-                      {/* Arrow from Pillar 2 into Pillar 3 */}
+                      {/* Arrow from Column 2 into Column 3 */}
                       <path
                         d={svgPaths.pillar2ToPillar3}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p3_delivery_assigned') ? '#10b981' : '#9ca3af'}
+                        stroke={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
-                        markerEnd={activeOrder?.history.includes('p3_delivery_assigned') ? 'url(#cf-arrow-emerald)' : 'url(#cf-arrow-default)'}
+                        markerEnd={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
                       />
                     </>
                   )}
@@ -970,11 +931,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                      ===================================================================== */}
                   <div className="w-[260px] sm:w-[290px] shrink-0 space-y-3.5">
                     {/* Node 1A: Order Intake */}
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1AHeaderRef}
                         onClick={() => toggleNodeExpansion('node1A')}
-                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
@@ -990,21 +951,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1A && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Validation</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Order Validation</span>
                             <StatusPill
                               label={pipelineMetrics.intake.validation}
                               variant={getStatusVariant(pipelineMetrics.intake.validation)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Payment</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Payment Check</span>
                             <StatusPill
                               label={pipelineMetrics.intake.payment}
                               variant={getStatusVariant(pipelineMetrics.intake.payment)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Channel</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Sales Channel</span>
                             <StatusPill
                               label={pipelineMetrics.intake.channel}
                               variant={getStatusVariant(pipelineMetrics.intake.channel)}
@@ -1015,11 +976,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1B: Inventory Allocation */}
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1BHeaderRef}
                         onClick={() => toggleNodeExpansion('node1B')}
-                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
@@ -1035,21 +996,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1B && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Stock</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Stock Check</span>
                             <StatusPill
                               label={pipelineMetrics.inventory.stock}
                               variant={getStatusVariant(pipelineMetrics.inventory.stock)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Allocation</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Item Reserve</span>
                             <StatusPill
                               label={pipelineMetrics.inventory.allocation}
                               variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Ingredients</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Recipe Ingredients</span>
                             <StatusPill
                               label={pipelineMetrics.inventory.ingredients}
                               variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
@@ -1060,11 +1021,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1C: Kitchen Cooking */}
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1CHeaderRef}
                         onClick={() => toggleNodeExpansion('node1C')}
-                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
@@ -1080,21 +1041,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1C && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Cooking</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Batch Cooking</span>
                             <StatusPill
                               label={pipelineMetrics.cooking.cooking}
                               variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Output</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Output</span>
                             <StatusPill
                               label={pipelineMetrics.cooking.output}
                               variant={getStatusVariant(pipelineMetrics.cooking.output)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Batch</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Portion Control</span>
                             <StatusPill
                               label={pipelineMetrics.cooking.batch}
                               variant={getStatusVariant(pipelineMetrics.cooking.batch)}
@@ -1109,11 +1070,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={centerHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar2')}
-                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
@@ -1129,28 +1090,28 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.pillar2 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Queue</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Packing Queue</span>
                             <StatusPill
                               label={pipelineMetrics.packaging.queue}
                               variant={getStatusVariant(pipelineMetrics.packaging.queue)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Materials</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Packaging Items</span>
                             <StatusPill
                               label={pipelineMetrics.packaging.materials}
                               variant={getStatusVariant(pipelineMetrics.packaging.materials)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Deduction</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Package Deduction</span>
                             <StatusPill
                               label={pipelineMetrics.packaging.deduction}
                               variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Sealing</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Bag Sealing</span>
                             <StatusPill
                               label={pipelineMetrics.packaging.sealing}
                               variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
@@ -1165,11 +1126,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 3: DELIVERY AND CUSTOMER HANDOVER
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={bindingsHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar3')}
-                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
@@ -1185,49 +1146,49 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.pillar3 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver Assign</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.driver}
                               variant={getStatusVariant(pipelineMetrics.delivery.driver)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Pickup</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Pickup</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.pickup}
                               variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Transit</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Transit Route</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.transit}
                               variant={getStatusVariant(pipelineMetrics.delivery.transit)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Arrival</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Customer Arrival</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.arrival}
                               variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Verification</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Delivery Confirm</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.verification}
                               variant={getStatusVariant(pipelineMetrics.delivery.verification)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Payout</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver Payment</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.payout}
                               variant={getStatusVariant(pipelineMetrics.delivery.payout)}
                             />
                           </div>
                           <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Completion</span>
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Order Complete</span>
                             <StatusPill
                               label={pipelineMetrics.delivery.completion}
                               variant={getStatusVariant(pipelineMetrics.delivery.completion)}
@@ -1245,10 +1206,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                  ===================================================================== */
               <div className="max-w-4xl mx-auto space-y-6 py-2">
                 {/* 1. ORDER INTAKE */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree1')}
-                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
@@ -1264,21 +1225,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree1 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Validation</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Order Validation</span>
                         <StatusPill
                           label={pipelineMetrics.intake.validation}
                           variant={getStatusVariant(pipelineMetrics.intake.validation)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Payment</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Payment Check</span>
                         <StatusPill
                           label={pipelineMetrics.intake.payment}
                           variant={getStatusVariant(pipelineMetrics.intake.payment)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Channel</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Sales Channel</span>
                         <StatusPill
                           label={pipelineMetrics.intake.channel}
                           variant={getStatusVariant(pipelineMetrics.intake.channel)}
@@ -1295,10 +1256,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 2. INVENTORY ALLOCATION */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree2')}
-                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
@@ -1314,21 +1275,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree2 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Stock</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Stock Check</span>
                         <StatusPill
                           label={pipelineMetrics.inventory.stock}
                           variant={getStatusVariant(pipelineMetrics.inventory.stock)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Allocation</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Item Reserve</span>
                         <StatusPill
                           label={pipelineMetrics.inventory.allocation}
                           variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Ingredients</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Recipe Ingredients</span>
                         <StatusPill
                           label={pipelineMetrics.inventory.ingredients}
                           variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
@@ -1345,10 +1306,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 3. KITCHEN COOKING */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree3')}
-                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
@@ -1364,21 +1325,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree3 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Cooking</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Batch Cooking</span>
                         <StatusPill
                           label={pipelineMetrics.cooking.cooking}
                           variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Output</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Output</span>
                         <StatusPill
                           label={pipelineMetrics.cooking.output}
                           variant={getStatusVariant(pipelineMetrics.cooking.output)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Batch</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Portion Control</span>
                         <StatusPill
                           label={pipelineMetrics.cooking.batch}
                           variant={getStatusVariant(pipelineMetrics.cooking.batch)}
@@ -1395,10 +1356,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 4. PACKAGING AND ASSEMBLY */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree4')}
-                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
@@ -1414,28 +1375,28 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree4 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Queue</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Packing Queue</span>
                         <StatusPill
                           label={pipelineMetrics.packaging.queue}
                           variant={getStatusVariant(pipelineMetrics.packaging.queue)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Materials</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Packaging Items</span>
                         <StatusPill
                           label={pipelineMetrics.packaging.materials}
                           variant={getStatusVariant(pipelineMetrics.packaging.materials)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Deduction</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Package Deduction</span>
                         <StatusPill
                           label={pipelineMetrics.packaging.deduction}
                           variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Sealing</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Bag Sealing</span>
                         <StatusPill
                           label={pipelineMetrics.packaging.sealing}
                           variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
@@ -1452,10 +1413,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 5. DELIVERY AND CUSTOMER HANDOVER */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree5')}
-                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
@@ -1471,49 +1432,49 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree5 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver Assign</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.driver}
                           variant={getStatusVariant(pipelineMetrics.delivery.driver)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Pickup</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Pickup</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.pickup}
                           variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Transit</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Transit Route</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.transit}
                           variant={getStatusVariant(pipelineMetrics.delivery.transit)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Arrival</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Customer Arrival</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.arrival}
                           variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Verification</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Delivery Confirm</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.verification}
                           variant={getStatusVariant(pipelineMetrics.delivery.verification)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Payout</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver Payment</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.payout}
                           variant={getStatusVariant(pipelineMetrics.delivery.payout)}
                         />
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Completion</span>
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Order Complete</span>
                         <StatusPill
                           label={pipelineMetrics.delivery.completion}
                           variant={getStatusVariant(pipelineMetrics.delivery.completion)}

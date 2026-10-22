@@ -27,6 +27,7 @@ import {
   EyeOff,
   RefreshCw,
   UserCheck,
+  ShoppingBag,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
@@ -58,6 +59,16 @@ const RECENT_NAV_ITEMS = [
 ]
 
 const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'sale',
+    title: 'Sale',
+    icon: ShoppingBag,
+    defaultHref: '/sales/orders',
+    items: [
+      { label: 'Website Orders', href: '/sales/orders', badge: '14' },
+      { label: 'Sales Inventory', href: '/inventory/sales', badge: '15' },
+    ],
+  },
   {
     id: 'inventory',
     title: 'Inventory Control',
@@ -580,27 +591,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       <div className="border-t border-kumo-line p-2 shrink-0 bg-kumo-canvas">
         {!isCollapsed ? (
           <div className="flex flex-col gap-1">
-            {currentAccount.role === 'admin' && (
-              <Link
-                to="/accounts"
-                onClick={onCloseMobile}
-                className={cn(
-                  "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-                  location.pathname.startsWith('/accounts') || location.pathname.startsWith('/admin/accounts')
-                    ? "bg-kumo-tint text-kumo-strong font-semibold"
-                    : "text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
-                )}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <UserCheck className="w-4 h-4 text-primary shrink-0" />
-                  <span className="truncate">Manage accounts</span>
-                </div>
-                <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/10 text-primary px-1.5 py-0.2 rounded shrink-0">
-                  Admin
-                </span>
-              </Link>
-            )}
-
             <button
               type="button"
               onClick={() => setIsActivityModalOpen(true)}
