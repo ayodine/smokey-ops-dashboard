@@ -145,8 +145,8 @@ export const ManageAccountsPage: React.FC = () => {
   const [showInfoBanner, setShowInfoBanner] = useState<boolean>(true)
 
   // Form State for Policy Scope
-  const [policyScope, setPolicyScope] = useState<string>('Individual Domains')
-  const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('thecentralreport.com')
+  const [policyScope, setPolicyScope] = useState<string>('Operating Office')
+  const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('Central Kitchen (Ikeja Office)')
   const [editRole, setEditRole] = useState<UserRole>('kitchen')
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -157,11 +157,11 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Accordion Expand/Collapse state
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    'Overall roles': true,
-    'Developer Platform': false,
-    'App Security': false,
-    'App Performance': false,
-    'Finance & Remittance': false,
+    'Kitchen & Production Operations': true,
+    'Inventory & Warehouse Control': true,
+    'Logistics & Fleet Dispatch': false,
+    'Finance & Cash Remittance': false,
+    'Administration & Security Controls': false,
   })
 
   // Initialize Edit Route State when target staff changes
@@ -170,8 +170,11 @@ export const ManageAccountsPage: React.FC = () => {
       setEditRole(targetStaff.role)
       setEditName(targetStaff.name)
       setEditEmail(targetStaff.email)
-      setEditOffice(targetStaff.assigned_hub ? `${targetStaff.assigned_hub} Office` : 'Central Kitchen (Ikeja Office)')
+      const officeName = targetStaff.assigned_hub ? `${targetStaff.assigned_hub} Office` : 'Central Kitchen (Ikeja Office)'
+      setEditOffice(officeName)
       setEditZone('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
+      setPolicyScope('Operating Office')
+      setPolicyAppliesTo(officeName)
       setEditPermissions(targetStaff.permissions || ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || [])
     }
   }, [targetStaff])
@@ -184,11 +187,11 @@ export const ManageAccountsPage: React.FC = () => {
   const [matrixSearchQuery, setMatrixSearchQuery] = useState('')
   const [matrixPermissions, setMatrixPermissions] = useState<string[]>([])
   const [matrixExpandedCats, setMatrixExpandedCats] = useState<Record<string, boolean>>({
-    'Overall roles': true,
-    'Developer Platform': false,
-    'App Security': false,
-    'App Performance': false,
-    'Finance & Remittance': false,
+    'Kitchen & Production Operations': true,
+    'Inventory & Warehouse Control': true,
+    'Logistics & Fleet Dispatch': false,
+    'Finance & Cash Remittance': false,
+    'Administration & Security Controls': false,
   })
 
   const handleMatrixScopeChange = (scopeId: string) => {
@@ -216,150 +219,192 @@ export const ManageAccountsPage: React.FC = () => {
   const [newPasswordVal, setNewPasswordVal] = useState('')
   const [requirePassReset, setRequirePassReset] = useState(true)
 
-  // Categorized policies matching Screenshot 1 & 2 categories
+  // Real SmokeyOps Operational Policy Categories matching core modules
   const policyCategoryGroups = useMemo<PolicyCategoryGroup[]>(() => {
     return [
       {
-        id: 'overall',
-        name: 'Overall roles',
+        id: 'production',
+        name: 'Kitchen & Production Operations',
         permissions: [
           {
-            id: 'domain_admin',
-            label: 'Domain Administrator',
-            category: 'Administration',
-            description: 'Grants full access to zones in an account, as well as account-wide Firewall, Access, and Worker resources. Does not include domain registration.'
+            id: 'perm_batches',
+            label: 'Batch Scheduling & Cook Approvals',
+            category: 'Production',
+            description: 'Schedule pit smoke cooks, modify recipes, and sign off completed operational runs.'
           },
           {
-            id: 'domain_admin_ro',
-            label: 'Domain Administrator Read Only',
-            category: 'Administration',
-            description: 'Grants read-only access to zones in an account, as well as account-wide Firewall, Access, and Worker resources.'
+            id: 'perm_cook',
+            label: 'Start & Complete Batches',
+            category: 'Production',
+            description: 'Record real-time cook progress, internal meat temps, pit smoker timings, and yield outputs.'
           },
           {
-            id: 'ai_crawl_ro',
-            label: 'AI Crawl Control Read Only',
-            category: 'Administration',
-            description: "Grants read-only access to a zone's AI Crawl Control metrics and settings."
+            id: 'perm_raw_deplete',
+            label: 'Raw Materials Depletion',
+            category: 'Production',
+            description: 'Auto-deplete raw cuts of meat, seasoning packs, marinades, and wood chips during runs.'
           },
           {
-            id: 'zone_versioning',
-            label: 'Zone Versioning',
-            category: 'Administration',
-            description: 'Grants full access to Zone Versioning.'
+            id: 'perm_packout',
+            label: 'Portion Pack-out Logging',
+            category: 'Production',
+            description: 'Log sealed units into vacuum pouches and carton cases ready for sales inventory.'
           },
           {
-            id: 'zone_versioning_ro',
-            label: 'Zone Versioning Read',
-            category: 'Administration',
-            description: 'Grants read-only access to Zone Versioning.'
+            id: 'perm_spoilage',
+            label: 'Waste & Spoilage Incident Reports',
+            category: 'Production',
+            description: 'Submit and approve burned portions, expired cuts, or compromised kitchen batches.'
           }
         ]
       },
       {
-        id: 'developer',
-        name: 'Developer Platform',
+        id: 'inventory',
+        name: 'Inventory & Warehouse Control',
         permissions: [
           {
-            id: 'workers_routes_write',
-            label: 'Workers Routes Write',
-            category: 'Production',
-            description: 'Grants access to create, update and delete route bindings for kitchen execution and web services.'
+            id: 'perm_intake',
+            label: 'Stock Intake PO Receipts',
+            category: 'Inventory',
+            description: 'Receive vendor deliveries at loading dock, confirm item quantities, and verify lot batch numbers.'
           },
           {
-            id: 'workers_routes_read',
-            label: 'Workers Routes Read',
-            category: 'Production',
-            description: 'Grants read-only access to route bindings, dispatch queues and worker logs.'
+            id: 'perm_cycle_counts',
+            label: 'Periodic Cycle Counts',
+            category: 'Inventory',
+            description: 'Perform physical warehouse stock reconciliations and adjustments against system tallies.'
+          },
+          {
+            id: 'perm_transfers',
+            label: 'Packaging Unit Transfers',
+            category: 'Inventory',
+            description: 'Transfer foil trays, branded thermal bags, and boxes across kitchens, depots, and hubs.'
+          },
+          {
+            id: 'perm_expiry',
+            label: 'Lot Expiry Monitoring',
+            category: 'Inventory',
+            description: 'Track meat and spice freshness dates, send urgent reorder notifications, and quarantine aging lots.'
+          },
+          {
+            id: 'perm_thresholds',
+            label: 'Inventory Threshold Overrides',
+            category: 'Inventory',
+            description: 'Adjust safety stock minimums, maximum storage capacities, and critical reorder threshold parameters.'
           }
         ]
       },
       {
-        id: 'security',
-        name: 'App Security',
+        id: 'logistics',
+        name: 'Logistics & Fleet Dispatch',
         permissions: [
           {
-            id: 'firewall_ai_read',
-            label: 'Firewall for AI Read',
-            category: 'Administration',
-            description: 'Grants read-only access to Firewall for AI configurations, detection logs, and policy events.'
-          },
-          {
-            id: 'firewall_ai_write',
-            label: 'Firewall for AI Write',
-            category: 'Administration',
-            description: 'Grants write access to modify Firewall for AI security policies and mitigation triggers.'
-          },
-          {
-            id: 'fraud_detect_read',
-            label: 'Fraud Detection Read',
-            category: 'Finance',
-            description: 'Grants read access to fraud detection scores, transaction risk evaluation, and order checks.'
-          },
-          {
-            id: 'fraud_detect_write',
-            label: 'Fraud Detection Write',
-            category: 'Finance',
-            description: 'Grants write access to configure customer risk scoring and checkout validation thresholds.'
-          },
-          {
-            id: 'bot_management_read',
-            label: 'Bot Management Read',
-            category: 'Administration',
-            description: 'Grants read-only access to Bot Management telemetry and automated traffic diagnostics.'
-          }
-        ]
-      },
-      {
-        id: 'performance',
-        name: 'App Performance',
-        permissions: [
-          {
-            id: 'load_balance_admin',
-            label: 'Load Balancing Domain Admin',
+            id: 'perm_dispatch_ctrl',
+            label: 'Logistics Dispatch Controls',
             category: 'Logistics',
-            description: 'Grants full administrative access to multi-hub load balancers, health monitors, and fallback pools.'
+            description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.'
           },
           {
-            id: 'load_balance_read',
-            label: 'Load Balancing Domain Read',
+            id: 'perm_queue_assign',
+            label: 'Dispatch Queue Assignment',
             category: 'Logistics',
-            description: 'Grants read-only access to load balancer configuration, pool distribution, and routing health.'
+            description: 'Assign ready cooked orders to available couriers waiting at the dispatch staging dock.'
           },
           {
-            id: 'domain_cache_purge',
-            label: 'Cache Domain Purge',
-            category: 'Production',
-            description: 'Grants permissions to clear cached menu items, operational assets, and dispatch queues.'
-          },
-          {
-            id: 'domain_api_gateway',
-            label: 'Domain API Gateway',
+            id: 'perm_tracking',
+            label: 'Rider Location & Route Tracking',
             category: 'Logistics',
-            description: 'Grants full access to rider mobile endpoints, 3PL webhook bridges, and telemetry pipelines.'
+            description: 'Live GPS tracking of delivery couriers, transit ETA monitoring, and delivery route compliance.'
+          },
+          {
+            id: 'perm_3pl',
+            label: 'Third-party Courier Bookings',
+            category: 'Logistics',
+            description: 'Dispatch overflow delivery orders to Gozem, Gokada, or private 3PL courier fleets.'
+          },
+          {
+            id: 'perm_delivery_transit',
+            label: 'Accept & Transit Delivery',
+            category: 'Logistics',
+            description: 'Rider interface permissions to accept assigned trips and initiate waypoint delivery transit.'
+          },
+          {
+            id: 'perm_otp_dropoff',
+            label: 'Customer OTP Drop-off Sign-off',
+            category: 'Logistics',
+            description: 'Validate customer delivery OTP code and electronic signature before concluding drop-off handover.'
+          },
+          {
+            id: 'perm_shifts',
+            label: 'Staff Shift Assignments',
+            category: 'Logistics',
+            description: 'Manage courier shift rotas, check-in schedules, and dispatch station coverage plans.'
           }
         ]
       },
       {
         id: 'finance',
-        name: 'Finance & Remittance',
+        name: 'Finance & Cash Remittance',
         permissions: [
           {
-            id: 'cod_remittance_checkin',
-            label: 'COD Cash Remittance Check-in',
+            id: 'perm_finance',
+            label: 'Finance & Payout Remittances',
             category: 'Finance',
-            description: 'Verify and reconcile physical cash turned in by delivery couriers at dispatch hub counters.'
+            description: 'Process batch payouts, approve cash disbursements, and clear delivery rider ledgers.'
           },
           {
-            id: 'supplier_invoice_verification',
+            id: 'perm_invoices',
             label: 'Supplier Invoice Verification',
             category: 'Finance',
             description: 'Review purchase order billing, confirm line item unit costs, and approve inventory payments.'
           },
           {
-            id: 'finance_batch_payout',
-            label: 'Finance & Payout Remittances',
+            id: 'perm_cod_checkin',
+            label: 'COD Cash Remittance Check-in',
             category: 'Finance',
-            description: 'Process batch payouts, approve driver wage remittances, and close operational ledgers.'
+            description: 'Verify and reconcile physical cash turned in by delivery couriers at dispatch hub counters.'
+          },
+          {
+            id: 'perm_cod_collect',
+            label: 'COD Cash Collection',
+            category: 'Finance',
+            description: 'Collect physical cash payment from customers upon arrival at delivery destinations.'
+          },
+          {
+            id: 'perm_wallet',
+            label: 'Wallet & Payout History',
+            category: 'Finance',
+            description: 'Inspect individual courier earnings ledger, trip commissions, tips, and account deductions.'
+          }
+        ]
+      },
+      {
+        id: 'admin',
+        name: 'Administration & Security Controls',
+        permissions: [
+          {
+            id: 'perm_rbac',
+            label: 'Role & Permission Management',
+            category: 'Administration',
+            description: 'Assign roles, adjust privilege scopes, and configure custom operational security grants.'
+          },
+          {
+            id: 'perm_users',
+            label: 'User Onboarding & Deletion',
+            category: 'Administration',
+            description: 'Create, update credentials, deactivate and delete dashboard operator accounts.'
+          },
+          {
+            id: 'perm_records',
+            label: 'Full Database & Records Access',
+            category: 'Administration',
+            description: 'Access master database records, audit trails, and operational raw data tables.'
+          },
+          {
+            id: 'perm_facility_config',
+            label: 'Office & Facility Settings',
+            category: 'Administration',
+            description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.'
           }
         ]
       }
@@ -825,7 +870,7 @@ export const ManageAccountsPage: React.FC = () => {
     // Semicolon-separated string of active policy labels matching Screenshot 3
     const activePoliciesString = editPermissions.length > 0
       ? editPermissions.join('; ')
-      : 'Workers Routes Read; Workers Routes Write; Load Balancing Domain Admin; Domain Administrator Read Only'
+      : 'Batch Scheduling & Cook Approvals; Stock Intake PO Receipts; Logistics Dispatch Controls; Role & Permission Management'
 
     return (
       <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
@@ -881,18 +926,19 @@ export const ManageAccountsPage: React.FC = () => {
 
                 {/* Table of assigned policies matching Screenshot 3 */}
                 <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="grid grid-cols-[1.5fr_1.8fr_4fr_1fr_44px] items-center px-5 py-3 bg-kumo-canvas/50 border-b border-kumo-line text-[11px] font-semibold text-kumo-subtle select-none">
+                  <div className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-3 bg-kumo-canvas/50 border-b border-kumo-line text-[11px] font-semibold text-kumo-subtle select-none">
                     <span>Scope ↑</span>
                     <span>Applies to ⇅</span>
-                    <span>Roles ⇅</span>
+                    <span>Roles & Permissions ⇅</span>
                     <span className="flex items-center gap-1">Granted by <Info className="w-3 h-3" /></span>
+                    <span>Date Added</span>
                     <span className="sr-only">Actions</span>
                   </div>
 
                   <div className="divide-y divide-kumo-line/60">
                     <div
                       onClick={() => setIsEditingPolicy(true)}
-                      className="grid grid-cols-[1.5fr_1.8fr_4fr_1fr_44px] items-center px-5 py-4 hover:bg-kumo-tint/40 transition-colors cursor-pointer text-xs"
+                      className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-4 hover:bg-kumo-tint/40 transition-colors cursor-pointer text-xs"
                     >
                       <div className="font-semibold text-kumo-strong">
                         {policyScope}
@@ -900,7 +946,7 @@ export const ManageAccountsPage: React.FC = () => {
 
                       <div className="flex items-center">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-xs font-sans text-kumo-strong">
-                          <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
+                          <Building2 className="w-3.5 h-3.5 text-kumo-subtle" />
                           <span>{policyAppliesTo}</span>
                         </span>
                       </div>
@@ -910,7 +956,11 @@ export const ManageAccountsPage: React.FC = () => {
                       </div>
 
                       <div className="text-kumo-subtle font-medium">
-                        Account
+                        Office Admin
+                      </div>
+
+                      <div className="text-kumo-default font-sans text-xs">
+                        {targetStaff.created_at || '10 Jan 2026'}
                       </div>
 
                       <div className="text-right">
@@ -934,15 +984,19 @@ export const ManageAccountsPage: React.FC = () => {
               <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs animate-in fade-in duration-200">
                 {/* Header matching Screenshot 1: "Edit policy ✎" */}
                 <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <h2 className="text-sm font-bold text-kumo-strong">Edit policy</h2>
                     <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-[11px] font-sans font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>Active · Added {targetStaff.created_at || '10 Jan 2026'}</span>
+                    </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setIsEditingPolicy(false)}
-                    className="text-xs text-kumo-subtle hover:text-kumo-strong flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-kumo-subtle hover:text-kumo-strong flex items-center gap-1 cursor-pointer font-sans"
                   >
                     <span>View all policies</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -950,41 +1004,87 @@ export const ManageAccountsPage: React.FC = () => {
                 </div>
 
                 <div className="p-6 space-y-5">
-                  {/* Scope Selector Dropdown & Tag Selection matching Screenshot 1 */}
+                  {/* Scope Selector Dropdown & Target Selector */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="w-full">
                       <Select
                         value={policyScope}
-                        onValueChange={(val) => setPolicyScope(String(val))}
+                        onValueChange={(val) => {
+                          const newScope = String(val)
+                          setPolicyScope(newScope)
+                          if (newScope === 'Operating Office') {
+                            setPolicyAppliesTo(editOffice || 'Central Kitchen (Ikeja Office)')
+                          } else if (newScope === 'Delivery Zone') {
+                            setPolicyAppliesTo(editZone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
+                          } else if (newScope === 'All Facilities') {
+                            setPolicyAppliesTo('All Facilities (Central Kitchen, Lekki, VI, Yaba)')
+                          } else {
+                            setPolicyAppliesTo('Entire SmokeyOps Organization')
+                          }
+                        }}
                         options={[
-                          { value: 'Individual Domains', label: 'Individual Domains' },
-                          { value: 'Operating Offices', label: 'Operating Offices' },
-                          { value: 'Account-level Scope', label: 'Account-level Scope' },
+                          { value: 'Operating Office', label: 'Operating Office' },
+                          { value: 'All Facilities', label: 'All Operating Facilities' },
+                          { value: 'Delivery Zone', label: 'Delivery Zone' },
+                          { value: 'Enterprise Account', label: 'Entire Account Scope' },
                         ]}
+                        className="w-full"
+                        buttonClassName="h-10 rounded-xl"
                       />
                     </div>
 
-                    <div className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-xs font-sans">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-kumo-tint text-kumo-strong text-xs font-sans">
-                        <span>{policyAppliesTo}</span>
-                        <button
-                          type="button"
-                          onClick={() => setPolicyAppliesTo('smokeyhut.com')}
-                          className="text-kumo-subtle hover:text-kumo-strong cursor-pointer"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
+                    <div className="w-full">
+                      {policyScope === 'Operating Office' ? (
+                        <Select
+                          value={policyAppliesTo}
+                          onValueChange={(val) => {
+                            setPolicyAppliesTo(String(val))
+                            setEditOffice(String(val))
+                          }}
+                          options={[
+                            { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
+                            { value: 'Yaba Head Office', label: 'Yaba Head Office' },
+                            { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
+                            { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
+                            { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
+                            ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
+                          ]}
+                          className="w-full"
+                          buttonClassName="h-10 rounded-xl"
+                        />
+                      ) : policyScope === 'Delivery Zone' ? (
+                        <Select
+                          value={policyAppliesTo}
+                          onValueChange={(val) => {
+                            setPolicyAppliesTo(String(val))
+                            setEditZone(String(val))
+                          }}
+                          options={[
+                            { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
+                            { value: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)', label: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)' },
+                            { value: 'Zone 3: Greater Lagos & Inter-hub Trunk', label: 'Zone 3: Greater Lagos & Inter-hub Trunk' },
+                          ]}
+                          className="w-full"
+                          buttonClassName="h-10 rounded-xl"
+                        />
+                      ) : (
+                        <div className="w-full flex items-center justify-between px-3 h-10 rounded-xl border border-kumo-line bg-kumo-base text-xs font-sans">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-kumo-tint text-kumo-strong text-xs font-sans">
+                            <Building2 className="w-3.5 h-3.5 text-kumo-subtle" />
+                            <span>{policyAppliesTo}</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Light Blue Info Banner with (i) circle and dismiss (x) matching Screenshot 1 */}
+                  {/* Light Blue Info Banner with (i) circle and dismiss (x) */}
                   {showInfoBanner && (
                     <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in">
                       <div className="flex items-start gap-2.5">
                         <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                         <p className="leading-relaxed">
-                          These roles only grant access to the Domains selected above. To grant access to all Domains in this account, change the scope to <strong className="font-semibold">{targetStaff.email}'s Account</strong>.
+                          These role permissions only grant access within the selected scope: <strong className="font-semibold">{policyAppliesTo}</strong>. To grant access across all operational kitchens, inventory facilities, and dispatch stations, change the scope to <strong className="font-semibold">All Operating Facilities</strong>.
                         </p>
                       </div>
                       <button
@@ -997,9 +1097,9 @@ export const ManageAccountsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Explanatory text matching Screenshot 1 */}
+                  {/* Explanatory text */}
                   <p className="text-xs text-kumo-default leading-relaxed">
-                    Define what permissions <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> should have within the resource-specific scope: <strong className="text-kumo-strong font-semibold">{policyScope}</strong>.
+                    Define what operational permissions <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> should have within the resource-specific scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
                   </p>
 
                   {/* Search bar matching Screenshot 1 */}
@@ -1009,7 +1109,7 @@ export const ManageAccountsPage: React.FC = () => {
                       type="text"
                       value={policySearchQuery}
                       onChange={(e) => setPolicySearchQuery(e.target.value)}
-                      placeholder="Search by role name..."
+                      placeholder="Search by role or permission name..."
                       className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
                     />
                     {policySearchQuery && (
@@ -1206,7 +1306,7 @@ export const ManageAccountsPage: React.FC = () => {
                     required
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="e.g. www.thecentralreport.com/*"
+                    placeholder="e.g. ops.smokeyhut.com/kitchen/*"
                     className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -1214,7 +1314,7 @@ export const ManageAccountsPage: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-[11px] text-kumo-subtle leading-relaxed">
-                  Use an asterisk (*) character to create dynamic patterns that match multiple URLs.
+                  Use wildcard patterns (*) to define operator terminal bindings and station routing.
                 </p>
               </div>
 
@@ -1397,6 +1497,8 @@ export const ManageAccountsPage: React.FC = () => {
                     { value: 'Yaba Head Office', label: 'Yaba Head Office' },
                     { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
                     { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
+                    { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
+                    ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
                   ]}
                   placeholder="Applies to..."
                 />
@@ -1424,7 +1526,7 @@ export const ManageAccountsPage: React.FC = () => {
                     type="text"
                     value={matrixSearchQuery}
                     onChange={(e) => setMatrixSearchQuery(e.target.value)}
-                    placeholder="Search by role name..."
+                    placeholder="Search by role or permission name..."
                     className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
                   />
                   {matrixSearchQuery && (
