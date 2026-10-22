@@ -13,6 +13,8 @@ import {
   AlertTitle,
 } from '@/components/reui/alert'
 import { OrderWorkflowCanvasOverlay } from './OrderWorkflowCanvasOverlay'
+import { KumoTabs } from '@/components/ui/KumoTabs'
+import { INITIAL_WEBSITE_ORDERS, WebsiteOrder } from '@/features/sales/WebsiteOrdersPage'
 import {
   Boxes,
   Flame,
@@ -89,6 +91,50 @@ const statusFilterOptions = [
   { value: 'healthy', label: 'Healthy' },
 ]
 
+const ordersStatusOptions = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'in_intake', label: 'In Intake' },
+  { value: 'cooking', label: 'Cooking' },
+  { value: 'packaging', label: 'Packaging' },
+  { value: 'in_transit', label: 'Out for delivery' },
+  { value: 'delivered', label: 'Delivered' },
+]
+
+const getOrderFulfillmentBadge = (status: WebsiteOrder['fulfillment_status']) => {
+  switch (status) {
+    case 'in_intake':
+      return {
+        label: 'In Intake',
+        className: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
+      }
+    case 'cooking':
+      return {
+        label: 'Cooking',
+        className: 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-400'
+      }
+    case 'packaging':
+      return {
+        label: 'Packaging',
+        className: 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-400'
+      }
+    case 'in_transit':
+      return {
+        label: 'Out for Delivery',
+        className: 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400'
+      }
+    case 'delivered':
+      return {
+        label: 'Delivered',
+        className: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
+      }
+    default:
+      return {
+        label: status,
+        className: 'bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+      }
+  }
+}
+
 export const AccountHomePage: React.FC = () => {
   const navigate = useNavigate()
   const {
@@ -100,9 +146,16 @@ export const AccountHomePage: React.FC = () => {
     receiveRawStock,
     receivePackaging,
     saveRawProduct,
+    productionBatches,
+    logisticsDeliveries,
+    riders,
+    kitchenTasks,
   } = useSmokeyOps()
 
-  // Search & Filter state
+  // Active Main Overview Tab State (Sales Inventory, Raw Inventory, Orders)
+  const [activeOverviewTab, setActiveOverviewTab] = useState<'sales' | 'raw' | 'orders'>('sales')
+
+  // Search & Filter state for Raw Inventory
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -116,11 +169,11 @@ export const AccountHomePage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('currentStock')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
 
-  // Pagination: Strictly 10 rows per table as requested
+  // Pagination for Raw Inventory: Strictly 10 rows per table as requested
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
-  // Sales Inventory Table State (Under Stock Table)
+  // Sales Inventory Table State
   const [salesSearchQuery, setSalesSearchQuery] = useState('')
   const [salesCurrentPage, setSalesCurrentPage] = useState(1)
   const salesPageSize = 8
@@ -138,6 +191,38 @@ export const AccountHomePage: React.FC = () => {
     const start = (salesCurrentPage - 1) * salesPageSize
     return filteredSalesProducts.slice(start, start + salesPageSize)
   }, [filteredSalesProducts, salesCurrentPage])
+
+  // Orders Tab State (Website Orders)
+  const [ordersSearchQuery, setOrdersSearchQuery] = useState('')
+  const [ordersStatusFilter, setOrdersStatusFilter] = useState('all')
+  const [isOrdersStatusDropdownOpen, setIsOrdersStatusDropdownOpen] = useState(false)
+  const [ordersCurrentPage, setOrdersCurrentPage] = useState(1)
+  const ordersPageSize = 8
+
+  const filteredOrders = useMemo(() => {
+    return INITIAL_WEBSITE_ORDERS.filter(order => {
+      const q = ordersSearchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        order.order_ref.toLowerCase().includes(q) ||
+        order.customer_name.toLowerCase().includes(q) ||
+        order.phone.includes(q) ||
+        order.items_summary.toLowerCase().includes(q) ||
+        order.address.toLowerCase().includes(q) ||
+        order.rider_name.toLowerCase().includes(q)
+
+      const matchesStatus =
+        ordersStatusFilter === 'all' || order.fulfillment_status === ordersStatusFilter
+
+      return matchesSearch && matchesStatus
+    })
+  }, [ordersSearchQuery, ordersStatusFilter])
+
+  const totalOrdersPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize))
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (ordersCurrentPage - 1) * ordersPageSize
+    return filteredOrders.slice(startIndex, startIndex + ordersPageSize)
+  }, [filteredOrders, ordersCurrentPage, ordersPageSize])
 
   // Action Modals State
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false)
@@ -417,25 +502,94 @@ export const AccountHomePage: React.FC = () => {
     })
   }, [allInventoryItems])
 
-  // 5. Low Stock Alerts list (Items running low)
-  const lowStockAlertsList = useMemo(() => {
-    const lows = allInventoryItems
-      .filter(i => i.status === 'critical' || i.status === 'low' || i.currentStock <= i.reorderLevel)
-      .sort((a, b) => (a.currentStock / a.maxStock) - (b.currentStock / b.maxStock))
+  // 5. Rider Dispatch Progress summary (consolidated from logistics & dispatch)
+  const riderSummary = useMemo(() => {
+    const onTripDeliveries = logisticsDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery')
+    const deliveredDeliveries = logisticsDeliveries.filter(d => d.status === 'delivered')
+    const activeTrips = logisticsDeliveries
+      .filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery' || d.status === 'assigned')
+      .slice(0, 4)
 
-    return lows.slice(0, 4).map(item => {
-      const percentage = Math.round((item.currentStock / item.maxStock) * 100)
-      const isCritical = item.status === 'critical' || percentage <= 15
-      return {
-        item,
-        name: item.name,
-        sku: item.sku,
-        stockText: `${formatQuantity(item.currentStock)} / ${formatQuantity(item.maxStock)} ${item.unit.toLowerCase()} (${percentage}%)`,
-        percentage,
-        barColor: isCritical ? 'bg-[#c0201f]' : 'bg-amber-500'
-      }
-    })
-  }, [allInventoryItems])
+    const activeRiderNames = new Set(
+      logisticsDeliveries
+        .filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery')
+        .map(d => d.assigned_rider)
+    )
+    const availableRiders = riders.filter(r => !activeRiderNames.has(r.rider_name) && r.status === 'active')
+
+    return {
+      onTripCount: onTripDeliveries.length,
+      deliveredCount: deliveredDeliveries.length,
+      availableCount: availableRiders.length,
+      trips: activeTrips.map(d => {
+        let progress = 35
+        let statusLabel = 'Assigned'
+        let statusBadge = 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+        let barColor = 'bg-zinc-400'
+
+        if (d.status === 'in_transit' || d.status === 'out_for_delivery') {
+          progress = 75
+          statusLabel = 'Out on Trip'
+          statusBadge = 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400'
+          barColor = 'bg-blue-600'
+        } else if (d.status === 'delivered') {
+          progress = 100
+          statusLabel = 'Delivered'
+          statusBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
+          barColor = 'bg-emerald-500'
+        }
+
+        return {
+          id: d.id,
+          deliveryRef: d.delivery_ref,
+          orderRef: d.order_ref,
+          riderName: d.assigned_rider,
+          address: d.address,
+          statusLabel,
+          statusBadge,
+          barColor,
+          progress,
+          items: d.items_summary
+        }
+      })
+    }
+  }, [logisticsDeliveries, riders])
+
+  // 6. Production Runs summary (consolidated from kitchen & smoker batches)
+  const productionSummary = useMemo(() => {
+    const inProduction = productionBatches.filter(b => b.status === 'in_production')
+    const completedBatches = productionBatches.filter(b => b.status === 'completed')
+
+    const recentBatches = [...productionBatches]
+      .sort((a, b) => (b.status === 'in_production' ? 1 : 0) - (a.status === 'in_production' ? 1 : 0))
+      .slice(0, 4)
+
+    return {
+      inSmokerCount: inProduction.length,
+      completedCount: completedBatches.length,
+      efficiencyPct: '98.4%',
+      batches: recentBatches.map(b => {
+        const isInProg = b.status === 'in_production'
+        const pct = b.expected_output > 0 ? Math.min(100, Math.round((b.actual_output / b.expected_output) * 100)) : 100
+        return {
+          id: b.id,
+          batchRef: b.batch_ref,
+          dishName: b.output_product_name,
+          pitmaster: b.created_by_name || 'Pitmaster Segun',
+          status: b.status,
+          statusLabel: isInProg ? 'In Smoker' : b.status === 'completed' ? 'Completed' : 'Draft',
+          badgeClass: isInProg
+            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
+            : b.status === 'completed'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
+            : 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300',
+          outputSummary: `${b.actual_output} / ${b.expected_output} portions`,
+          progressPct: isInProg ? 65 : pct,
+          barColor: isInProg ? 'bg-amber-500' : 'bg-emerald-500'
+        }
+      })
+    }
+  }, [productionBatches])
 
   // Action Handlers
   const handleOpenAction = (item: SmokeyInventoryItem, action: string) => {
@@ -631,181 +785,255 @@ export const AccountHomePage: React.FC = () => {
 
       {/* Main Split Grid: Left 72% Table, Right 28% Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (8 cols ~ 70%): Stock items Table Area & Sale Inventory Table */}
-        <div className="lg:col-span-8 min-w-0 space-y-6">
+        {/* Left Column (8 cols): Single Unified Card with KumoTabs */}
+        <div className="lg:col-span-8 min-w-0">
           <div className="rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
-          {/* Table Toolbar Header */}
-          <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
-            {/* Title & Alerts Badge in Plain English */}
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm font-bold text-kumo-strong">
-                Stock items
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
-                {lowStockCount + outOfStockCount} need attention
-              </span>
-            </div>
+            {/* Unified Card Header Toolbar */}
+            <div className="p-3.5 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
+              <KumoTabs
+                tabs={[
+                  { id: 'sales', label: 'Sales Inventory', badge: filteredSalesProducts.length },
+                  { id: 'raw', label: 'Raw Inventory', badge: filteredAndSortedItems.length },
+                  { id: 'orders', label: 'Orders', badge: filteredOrders.length },
+                ]}
+                activeTab={activeOverviewTab}
+                onChange={(id) => setActiveOverviewTab(id as 'sales' | 'raw' | 'orders')}
+                className="shrink-0"
+              />
 
-            {/* Controls: Search input, Category filter, Status filter, Reset */}
-            <div className="flex items-center flex-wrap gap-2 text-xs">
-              {/* Search Bar */}
-              <div className="relative min-w-[190px]">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search meat, spices, packaging..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
-                />
-              </div>
-
-              {/* Custom Category Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryDropdownOpen(prev => !prev)
-                    setIsStatusDropdownOpen(false)
-                  }}
-                  className={cn(
-                    "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
-                    categoryFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
-                  )}
-                >
-                  <span className="truncate max-w-[115px]">
-                    {categoryFilterOptions.find(c => c.value === categoryFilter)?.label || 'All categories'}
-                  </span>
-                  <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isCategoryDropdownOpen && "rotate-180 text-kumo-strong")} />
-                </button>
-
-                {isCategoryDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-30 cursor-default"
-                      onClick={() => setIsCategoryDropdownOpen(false)}
+              {/* Tab-specific contextual header actions */}
+              {activeOverviewTab === 'sales' && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="relative min-w-[200px] sm:min-w-[220px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search sales dishes or SKU..."
+                      value={salesSearchQuery}
+                      onChange={(e) => {
+                        setSalesSearchQuery(e.target.value)
+                        setSalesCurrentPage(1)
+                      }}
+                      className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
                     />
-                    <div className="absolute left-0 top-full mt-1.5 w-48 bg-kumo-base border border-kumo-line shadow-xl rounded-lg z-40 py-1 animate-in fade-in zoom-in-95 font-sans">
-                      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
-                        Category filter
-                      </div>
-                      <div className="py-0.5 max-h-56 overflow-y-auto">
-                        {categoryFilterOptions.map(opt => {
-                          const isSelected = categoryFilter === opt.value
-                          return (
+                  </div>
+                  <Link
+                    to="/inventory/sales"
+                    className="px-2.5 py-1.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs font-medium text-kumo-strong flex items-center gap-1 transition-colors shadow-2xs"
+                  >
+                    <span>Manage</span>
+                    <ExternalLink className="w-3 h-3 text-kumo-subtle" />
+                  </Link>
+                </div>
+              )}
+
+              {activeOverviewTab === 'raw' && (
+                <div className="flex items-center flex-wrap gap-2 text-xs">
+                  <div className="relative min-w-[170px] sm:min-w-[190px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search raw items, spices..."
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                      className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
+                    />
+                  </div>
+
+                  {/* Category Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryDropdownOpen(prev => !prev)
+                        setIsStatusDropdownOpen(false)
+                      }}
+                      className={cn(
+                        "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
+                        categoryFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
+                      )}
+                    >
+                      <span className="truncate max-w-[110px]">
+                        {categoryFilterOptions.find(c => c.value === categoryFilter)?.label || 'All categories'}
+                      </span>
+                      <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isCategoryDropdownOpen && "rotate-180 text-kumo-strong")} />
+                    </button>
+                    {isCategoryDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30 cursor-default"
+                          onClick={() => setIsCategoryDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-1.5 w-48 rounded-lg border border-kumo-line bg-kumo-base p-1 shadow-lg z-40">
+                          {categoryFilterOptions.map((opt) => (
                             <button
                               key={opt.value}
                               type="button"
                               onClick={() => {
                                 setCategoryFilter(opt.value)
-                                setCurrentPage(1)
                                 setIsCategoryDropdownOpen(false)
+                                setCurrentPage(1)
                               }}
                               className={cn(
-                                "w-full px-3 py-1.5 text-left text-xs hover:bg-kumo-tint flex items-center justify-between cursor-pointer transition-colors",
-                                isSelected
-                                  ? "bg-primary/10 text-primary font-semibold"
-                                  : "text-kumo-default hover:text-kumo-strong"
+                                "w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer",
+                                categoryFilter === opt.value && "font-semibold text-kumo-strong bg-kumo-tint"
                               )}
                             >
                               <span>{opt.label}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              {categoryFilter === opt.value && <Check className="w-3.5 h-3.5 text-kumo-strong" />}
                             </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
 
-              {/* Custom Status Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsStatusDropdownOpen(prev => !prev)
-                    setIsCategoryDropdownOpen(false)
-                  }}
-                  className={cn(
-                    "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
-                    statusFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
-                  )}
-                >
-                  <span className="truncate max-w-[115px]">
-                    {statusFilterOptions.find(s => s.value === statusFilter)?.label || 'All statuses'}
-                  </span>
-                  <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isStatusDropdownOpen && "rotate-180 text-kumo-strong")} />
-                </button>
-
-                {isStatusDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-30 cursor-default"
-                      onClick={() => setIsStatusDropdownOpen(false)}
-                    />
-                    <div className="absolute left-0 top-full mt-1.5 w-44 bg-kumo-base border border-kumo-line shadow-xl rounded-lg z-40 py-1 animate-in fade-in zoom-in-95 font-sans">
-                      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
-                        Status filter
-                      </div>
-                      <div className="py-0.5">
-                        {statusFilterOptions.map(opt => {
-                          const isSelected = statusFilter === opt.value
-                          return (
+                  {/* Status Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsStatusDropdownOpen(prev => !prev)
+                        setIsCategoryDropdownOpen(false)
+                      }}
+                      className={cn(
+                        "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
+                        statusFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
+                      )}
+                    >
+                      <span className="truncate max-w-[95px]">
+                        {statusFilterOptions.find(s => s.value === statusFilter)?.label || 'All statuses'}
+                      </span>
+                      <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isStatusDropdownOpen && "rotate-180 text-kumo-strong")} />
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30 cursor-default"
+                          onClick={() => setIsStatusDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-1.5 w-44 rounded-lg border border-kumo-line bg-kumo-base p-1 shadow-lg z-40">
+                          {statusFilterOptions.map((opt) => (
                             <button
                               key={opt.value}
                               type="button"
                               onClick={() => {
                                 setStatusFilter(opt.value)
-                                setCurrentPage(1)
                                 setIsStatusDropdownOpen(false)
+                                setCurrentPage(1)
                               }}
                               className={cn(
-                                "w-full px-3 py-1.5 text-left text-xs hover:bg-kumo-tint flex items-center justify-between cursor-pointer transition-colors",
-                                isSelected
-                                  ? "bg-primary/10 text-primary font-semibold"
-                                  : "text-kumo-default hover:text-kumo-strong"
+                                "w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer",
+                                statusFilter === opt.value && "font-semibold text-kumo-strong bg-kumo-tint"
                               )}
                             >
                               <span>{opt.label}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              {statusFilter === opt.value && <Check className="w-3.5 h-3.5 text-kumo-strong" />}
                             </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
 
-              {/* Reset Filter Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('')
-                  setStatusFilter('all')
-                  setCategoryFilter('all')
-                  setPriorityFilter('all')
-                  setSortField('currentStock')
-                  setSortOrder('asc')
-                  setCurrentPage(1)
-                  setIsCategoryDropdownOpen(false)
-                  setIsStatusDropdownOpen(false)
-                  setToastMessage('Filters reset to default')
-                }}
-                className="size-8 rounded-lg border border-kumo-line bg-kumo-canvas hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center transition-colors cursor-pointer"
-                title="Reset Filters"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
+                  {(categoryFilter !== 'all' || statusFilter !== 'all' || searchQuery) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCategoryFilter('all')
+                        setStatusFilter('all')
+                        setSearchQuery('')
+                        setCurrentPage(1)
+                      }}
+                      className="h-8 px-2 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint transition-colors"
+                      title="Reset filters"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {activeOverviewTab === 'orders' && (
+                <div className="flex items-center flex-wrap gap-2 text-xs">
+                  <div className="relative min-w-[180px] sm:min-w-[210px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search order ref, customer, rider..."
+                      value={ordersSearchQuery}
+                      onChange={(e) => {
+                        setOrdersSearchQuery(e.target.value)
+                        setOrdersCurrentPage(1)
+                      }}
+                      className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
+                    />
+                  </div>
+
+                  {/* Orders Status Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsOrdersStatusDropdownOpen(prev => !prev)}
+                      className={cn(
+                        "h-8 px-2.5 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint flex items-center gap-1.5 transition-colors cursor-pointer select-none shadow-2xs",
+                        ordersStatusFilter !== 'all' && "border-kumo-strong text-kumo-strong font-medium bg-kumo-tint"
+                      )}
+                    >
+                      <span className="truncate max-w-[110px]">
+                        {ordersStatusOptions.find(o => o.value === ordersStatusFilter)?.label || 'All statuses'}
+                      </span>
+                      <ChevronDown className={cn("w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200", isOrdersStatusDropdownOpen && "rotate-180 text-kumo-strong")} />
+                    </button>
+                    {isOrdersStatusDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30 cursor-default"
+                          onClick={() => setIsOrdersStatusDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-1.5 w-44 rounded-lg border border-kumo-line bg-kumo-base p-1 shadow-lg z-40">
+                          {ordersStatusOptions.map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setOrdersStatusFilter(opt.value)
+                                setIsOrdersStatusDropdownOpen(false)
+                                setOrdersCurrentPage(1)
+                              }}
+                              className={cn(
+                                "w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer",
+                                ordersStatusFilter === opt.value && "font-semibold text-kumo-strong bg-kumo-tint"
+                              )}
+                            >
+                              <span>{opt.label}</span>
+                              {ordersStatusFilter === opt.value && <Check className="w-3.5 h-3.5 text-kumo-strong" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <Link
+                    to="/sales/orders"
+                    className="px-2.5 py-1.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs font-medium text-kumo-strong flex items-center gap-1 transition-colors shadow-2xs"
+                  >
+                    <span>Website Orders</span>
+                    <ExternalLink className="w-3 h-3 text-kumo-subtle" />
+                  </Link>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Table Container (Inherited from other pages with interactive Column Sorting) */}
-          <div className="overflow-x-auto">
+            {/* Tab: Raw Inventory */}
+            {activeOverviewTab === 'raw' && (
+              <>
+                {/* Table Container (Inherited from other pages with interactive Column Sorting) */}
+                <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[700px]">
               <thead>
                 <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
@@ -1076,47 +1304,12 @@ export const AccountHomePage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </>
+      )}
 
-        {/* Sale Inventory Table under the Stock Table */}
-        <div className="rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
-          {/* Toolbar Header */}
-          <div className="p-4 border-b border-kumo-line flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm font-bold text-kumo-strong">
-                Sales Inventory
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900">
-                {salesProducts.length} finished goods
-              </span>
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center gap-2 text-xs">
-              <div className="relative min-w-[200px] sm:min-w-[240px]">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search sales dishes or SKU..."
-                  value={salesSearchQuery}
-                  onChange={(e) => {
-                    setSalesSearchQuery(e.target.value)
-                    setSalesCurrentPage(1)
-                  }}
-                  className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
-                />
-              </div>
-              <Link
-                to="/inventory/sales"
-                className="px-2.5 py-1.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs font-medium text-kumo-strong flex items-center gap-1 transition-colors"
-              >
-                <span>Manage</span>
-                <ExternalLink className="w-3 h-3 text-kumo-subtle" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Table */}
+      {/* Tab: Sales Inventory */}
+      {activeOverviewTab === 'sales' && (
+        <>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -1213,12 +1406,261 @@ export const AccountHomePage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
-        {/* Right Column (4 cols ~ 30%): Expiring Soon & Low Stock Alerts */}
+      {/* Tab: Website Orders */}
+      {activeOverviewTab === 'orders' && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-kumo-line bg-kumo-canvas/50 text-kumo-subtle font-medium">
+                  <th className="py-2.5 px-4">Order Ref</th>
+                  <th className="py-2.5 px-4">Customer</th>
+                  <th className="py-2.5 px-4">Dishes Ordered</th>
+                  <th className="py-2.5 px-4 text-right">Amount</th>
+                  <th className="py-2.5 px-4 text-center">Fulfillment</th>
+                  <th className="py-2.5 px-4">Assigned Rider</th>
+                  <th className="py-2.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-kumo-line">
+                {paginatedOrders.map((order) => {
+                  const badge = getOrderFulfillmentBadge(order.fulfillment_status)
+                  return (
+                    <tr key={order.id} className="hover:bg-kumo-tint/50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-semibold text-kumo-strong">
+                        {order.order_ref}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-kumo-strong">{order.customer_name}</div>
+                        <div className="text-[11px] text-kumo-subtle">{order.phone}</div>
+                      </td>
+                      <td className="py-3 px-4 max-w-[240px]">
+                        <div className="truncate text-kumo-default font-medium" title={order.items_summary}>
+                          {order.items_summary}
+                        </div>
+                        <div className="text-[11px] text-kumo-subtle truncate" title={order.address}>
+                          📍 {order.address}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-kumo-strong">
+                        {formatNaira(order.total_amount)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-semibold', badge.className)}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5 text-xs text-kumo-strong">
+                          <Bike className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="font-medium truncate">{order.rider_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          to="/sales/orders"
+                          className="inline-flex items-center justify-center min-w-[70px] px-2.5 h-6 rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Orders Pagination Footer */}
+          <div className="p-3 border-t border-kumo-line bg-kumo-canvas/30 flex items-center justify-between text-xs text-kumo-subtle">
+            <div>
+              Showing {paginatedOrders.length > 0 ? (ordersCurrentPage - 1) * ordersPageSize + 1 : 0} to {Math.min(ordersCurrentPage * ordersPageSize, filteredOrders.length)} of {filteredOrders.length} orders
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setOrdersCurrentPage(p => Math.max(1, p - 1))}
+                disabled={ordersCurrentPage === 1}
+                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              <span className="px-2 font-medium text-kumo-strong">
+                {ordersCurrentPage} / {totalOrdersPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOrdersCurrentPage(p => Math.min(totalOrdersPages, p + 1))}
+                disabled={ordersCurrentPage === totalOrdersPages}
+                className="px-2.5 py-1 rounded-md border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-default transition-colors cursor-pointer disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+
+        {/* Right Column (4 cols): Dispatch Progress, Production Runs, and Expiring Soon */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Widget 1: Expiring Soon */}
+          {/* Card 1: Rider Dispatch Progress (Consolidated summary from Logistics & Dispatch) */}
+          <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center justify-center">
+                  <Bike className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-kumo-strong">
+                    Rider Dispatch Progress
+                  </h3>
+                  <p className="text-[10px] text-kumo-subtle">Logistics & real-time delivery tracking</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400">
+                {riderSummary.onTripCount} on trip
+              </span>
+            </div>
+
+            {/* Quick KPI stats row */}
+            <div className="grid grid-cols-3 gap-2 py-1 px-2.5 rounded-lg bg-kumo-canvas/60 border border-kumo-line/60 text-center text-xs">
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">On Trip</div>
+                <div className="font-bold text-blue-600 dark:text-blue-400 text-sm">{riderSummary.onTripCount}</div>
+              </div>
+              <div className="border-x border-kumo-line/60">
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">Delivered</div>
+                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{riderSummary.deliveredCount}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">Available</div>
+                <div className="font-bold text-kumo-strong text-sm">{riderSummary.availableCount}</div>
+              </div>
+            </div>
+
+            {/* Rider Trips List */}
+            <div className="space-y-3">
+              {riderSummary.trips.map((trip) => (
+                <div key={trip.id} className="space-y-1.5 text-xs p-2.5 rounded-lg border border-kumo-line/70 bg-kumo-canvas/30 hover:bg-kumo-tint/40 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-kumo-strong">{trip.riderName}</span>
+                      <span className="font-mono text-[11px] text-kumo-subtle">({trip.orderRef})</span>
+                    </div>
+                    <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold border', trip.statusBadge)}>
+                      {trip.statusLabel}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-kumo-subtle truncate flex items-center gap-1">
+                    <span>📍</span>
+                    <span className="truncate">{trip.address}</span>
+                  </div>
+
+                  <div className="w-full h-1.5 rounded-full bg-kumo-line overflow-hidden mt-1">
+                    <div
+                      className={cn('h-full rounded-full transition-all duration-300', trip.barColor)}
+                      style={{ width: `${trip.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-kumo-line/60">
+              <Link
+                to="/logistics/dispatch"
+                className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors"
+              >
+                <span>View all delivery assignments</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Card 2: Production Runs (Consolidated summary from kitchen & smoker batches) */}
+          <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex items-center justify-center">
+                  <Flame className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-kumo-strong">
+                    Production Runs
+                  </h3>
+                  <p className="text-[10px] text-kumo-subtle">Pitmaster smoker & kitchen batches</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400">
+                {productionSummary.inSmokerCount} active
+              </span>
+            </div>
+
+            {/* Quick KPI stats row */}
+            <div className="grid grid-cols-3 gap-2 py-1 px-2.5 rounded-lg bg-kumo-canvas/60 border border-kumo-line/60 text-center text-xs">
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">In Smoker</div>
+                <div className="font-bold text-amber-600 dark:text-amber-400 text-sm">{productionSummary.inSmokerCount}</div>
+              </div>
+              <div className="border-x border-kumo-line/60">
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">Completed</div>
+                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{productionSummary.completedCount}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-kumo-subtle">Efficiency</div>
+                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{productionSummary.efficiencyPct}</div>
+              </div>
+            </div>
+
+            {/* Production Batches List */}
+            <div className="space-y-3">
+              {productionSummary.batches.map((batch) => (
+                <div key={batch.id} className="space-y-1.5 text-xs p-2.5 rounded-lg border border-kumo-line/70 bg-kumo-canvas/30 hover:bg-kumo-tint/40 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-kumo-strong truncate pr-2">{batch.dishName}</span>
+                    <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold border shrink-0', batch.badgeClass)}>
+                      {batch.statusLabel}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-kumo-subtle">
+                    <span className="font-mono">{batch.batchRef}</span>
+                    <span className="truncate">{batch.pitmaster}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] font-medium text-kumo-default">
+                    <span>Yield</span>
+                    <span>{batch.outputSummary}</span>
+                  </div>
+
+                  <div className="w-full h-1.5 rounded-full bg-kumo-line overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all duration-300', batch.barColor)}
+                      style={{ width: `${batch.progressPct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-kumo-line/60">
+              <Link
+                to="/production/batches"
+                className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors"
+              >
+                <span>View all production batches</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Card 3: Expiring soon (Perishable lots safety countdown) */}
           <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
               <h3 className="text-sm font-bold text-kumo-strong">
@@ -1259,6 +1701,7 @@ export const AccountHomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  setActiveOverviewTab('raw')
                   setStatusFilter('expiring')
                   setCurrentPage(1)
                   setToastMessage('Filtered table to show expiring items')
@@ -1266,69 +1709,6 @@ export const AccountHomePage: React.FC = () => {
                 className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
                 <span>View all expiring items</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Widget 2: Items running low (Uniform Brand Red Buttons, No Black/Orange) */}
-          <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-kumo-line">
-              <h3 className="text-sm font-bold text-kumo-strong">
-                Items running low
-              </h3>
-              <span className="text-[11px] text-kumo-subtle font-medium">
-                {lowStockCount} need reorder
-              </span>
-            </div>
-
-            <div className="space-y-3.5">
-              {lowStockAlertsList.length === 0 ? (
-                <p className="text-xs text-kumo-subtle py-2 text-center">All inventory above safety buffer.</p>
-              ) : (
-                lowStockAlertsList.map((entry, idx) => (
-                  <div key={idx} className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-kumo-strong">{entry.name}</div>
-                        <div className="text-[11px] text-kumo-subtle">{entry.sku}</div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAction(entry.item, 'Reorder')}
-                        className="w-[76px] h-6 flex items-center justify-center rounded-md text-xs font-medium border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-strong transition-colors cursor-pointer shadow-2xs"
-                      >
-                        Reorder
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-kumo-subtle font-medium">
-                      <span>{entry.stockText}</span>
-                    </div>
-
-                    <div className="w-full h-1.5 rounded-full bg-kumo-line overflow-hidden">
-                      <div
-                        className={cn('h-full rounded-full transition-all duration-300', entry.barColor)}
-                        style={{ width: `${entry.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-kumo-line/60">
-              <button
-                type="button"
-                onClick={() => {
-                  setStatusFilter('low')
-                  setCurrentPage(1)
-                  setToastMessage('Filtered table to show items running low')
-                }}
-                className="w-full text-center text-xs font-semibold text-kumo-subtle hover:text-kumo-strong py-1 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <span>View all low stock alerts</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
