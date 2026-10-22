@@ -9,28 +9,28 @@ import {
   RefreshCw,
   Flame,
   Check,
-  CreditCard,
-  ShieldCheck,
-  ShoppingBag,
-  PackageCheck,
-  Truck
+  CheckCircle2,
+  Clock,
+  ArrowDown,
+  Layers,
+  Network
 } from 'lucide-react'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn, formatNaira } from '@/lib/utils'
 
 export type PipelineStage =
-  | 'sales_webhook'
-  | 'payment_verification'
-  | 'fraud_check'
-  | 'inventory_check'
-  | 'production_queue'
-  | 'production_cook'
-  | 'production_qa'
-  | 'logistics_packing'
-  | 'logistics_dispatch'
-  | 'logistics_delivery'
-  | 'completed'
+  | 'p1_ingestion'
+  | 'p1_inventory_deduct'
+  | 'p1_production_batch'
+  | 'p2_in_packaging'
+  | 'p2_materials_picked'
+  | 'p2_dispatched'
+  | 'p3_delivery_assigned'
+  | 'p3_in_transit'
+  | 'p3_doorstep_handover'
+  | 'p3_delivered'
+  | 'p3_settled_closed'
 
 export interface PipelineOrder {
   id: string
@@ -47,6 +47,7 @@ export interface PipelineOrder {
   destinationAddress: string
   etaMinutes?: number
   otpCode: string
+  deliveryFee: number
   history: PipelineStage[]
 }
 
@@ -58,15 +59,16 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     totalAmount: 18500,
     portions: 3,
     channel: 'Website Storefront',
-    hasStock: false, // Stockout fallback into Production Kitchen Batches!
-    currentStage: 'production_cook',
+    hasStock: false, // Required kitchen production batch!
+    currentStage: 'p1_production_batch',
     paymentRef: 'pay_smk_99182',
     batchId: 'BAT-SMK-402',
     riderName: 'Rider Yusuf (Internal Fleet)',
     destinationAddress: '8c Taiwo Osipitan Way, Ogba, Lagos',
     etaMinutes: 22,
     otpCode: '4821',
-    history: ['sales_webhook', 'payment_verification', 'fraud_check', 'inventory_check', 'production_queue', 'production_cook']
+    deliveryFee: 4000,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
   },
   {
     id: 'SHD-09854',
@@ -75,14 +77,15 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     totalAmount: 24000,
     portions: 2,
     channel: 'Website Storefront',
-    hasStock: true, // In stock: direct path to Packaging Dock!
-    currentStage: 'logistics_packing',
+    hasStock: true, // In stock: directly decremented from sales inventory
+    currentStage: 'p2_in_packaging',
     paymentRef: 'pay_smk_99183',
     riderName: 'Rider Yusuf (Internal Fleet)',
     destinationAddress: 'Plot 12 Admiralty Way, Lekki Phase 1',
     etaMinutes: 28,
     otpCode: '7239',
-    history: ['sales_webhook', 'payment_verification', 'fraud_check', 'inventory_check', 'logistics_packing']
+    deliveryFee: 3500,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
   },
   {
     id: 'SHD-09855',
@@ -92,11 +95,12 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     portions: 1,
     channel: 'WhatsApp Direct',
     hasStock: true,
-    currentStage: 'payment_verification',
+    currentStage: 'p1_ingestion',
     paymentRef: 'pay_smk_99184',
     destinationAddress: 'Akowonjo Roundabout, Egbeda, Lagos',
     otpCode: '1092',
-    history: ['sales_webhook', 'payment_verification']
+    deliveryFee: 2500,
+    history: ['p1_ingestion']
   },
   {
     id: 'SHD-09856',
@@ -106,13 +110,25 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     portions: 2,
     channel: 'Walk-in POS',
     hasStock: true,
-    currentStage: 'completed',
+    currentStage: 'p3_settled_closed',
     paymentRef: 'pay_smk_99180',
     riderName: 'Rider Yusuf (Internal Fleet)',
     destinationAddress: 'Isaac John Street, GRA Ikeja',
     etaMinutes: 0,
     otpCode: '8834',
-    history: ['sales_webhook', 'payment_verification', 'fraud_check', 'inventory_check', 'logistics_packing', 'logistics_dispatch', 'logistics_delivery', 'completed']
+    deliveryFee: 4000,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned',
+      'p3_in_transit',
+      'p3_doorstep_handover',
+      'p3_delivered',
+      'p3_settled_closed'
+    ]
   }
 ]
 
@@ -122,14 +138,11 @@ interface AnchorPoint {
 }
 
 interface CanvasCoordinates {
-  domains: AnchorPoint
-  workers: AnchorPoint
-  queues: AnchorPoint
+  node1A: AnchorPoint
+  node1B: AnchorPoint
+  node1C: AnchorPoint
   centerLeft: AnchorPoint
   centerRight: AnchorPoint
-  centerBottom: AnchorPoint
-  productionTop: AnchorPoint
-  productionRight: AnchorPoint
   bindingsLeft: AnchorPoint
 }
 
@@ -139,6 +152,9 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   // Full canvas collapse/expand state (matching Screenshot 2 bottom chevron)
   const [isCanvasExpanded, setIsCanvasExpanded] = useState<boolean>(true)
 
+  // View Mode: 'canvas' (Cloudflare 3-column node canvas) vs 'tree' (Vertical 3-pillar hierarchy)
+  const [viewMode, setViewMode] = useState<'canvas' | 'tree'>('canvas')
+
   // Auto-stream interval toggle
   const [isAutoStreamActive, setIsAutoStreamActive] = useState<boolean>(false)
 
@@ -146,26 +162,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const [orders, setOrders] = useState<PipelineOrder[]>(SMOKEY_OPERATIONAL_ORDERS)
   const [selectedOrderId, setSelectedOrderId] = useState<string>('SHD-09853')
 
-  // Node cards expansion state matching Screenshot 1 (collapsed) vs Screenshot 2 & 5 (expanded)
+  // Accordion expansion state matching Screenshot 1 (collapsed) vs Screenshot 2 & 5 (expanded)
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
-    webhooks: false,
-    payments: false,
-    fraud: false,
-    inventory: true,
-    production: true,
-    fulfillment: true
+    node1A: false,
+    node1B: false,
+    node1C: true,
+    pillar2: true,
+    pillar3: true
   })
 
   // DOM Refs for dynamic anchor alignment
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const webhooksHeaderRef = useRef<HTMLDivElement | null>(null)
-  const paymentsHeaderRef = useRef<HTMLDivElement | null>(null)
-  const fraudHeaderRef = useRef<HTMLDivElement | null>(null)
-  const centerCardRef = useRef<HTMLDivElement | null>(null)
+  const node1AHeaderRef = useRef<HTMLDivElement | null>(null)
+  const node1BHeaderRef = useRef<HTMLDivElement | null>(null)
+  const node1CHeaderRef = useRef<HTMLDivElement | null>(null)
   const centerHeaderRef = useRef<HTMLDivElement | null>(null)
-  const productionCardRef = useRef<HTMLDivElement | null>(null)
-  const productionHeaderRef = useRef<HTMLDivElement | null>(null)
-  const fulfillmentHeaderRef = useRef<HTMLDivElement | null>(null)
+  const bindingsHeaderRef = useRef<HTMLDivElement | null>(null)
 
   // Measured coordinates state
   const [coords, setCoords] = useState<CanvasCoordinates | null>(null)
@@ -179,35 +191,33 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     return orders.find((o) => o.id === selectedOrderId) || orders[0]
   }, [orders, selectedOrderId])
 
-  // Sequential Stage Progression Logic
+  // Sequential Stage Progression Logic matching the 3-pillar flow tree:
   const getNextStage = (current: PipelineStage, hasStock: boolean): PipelineStage => {
     switch (current) {
-      case 'sales_webhook':
-        return 'payment_verification'
-      case 'payment_verification':
-        return 'fraud_check'
-      case 'fraud_check':
-        return 'inventory_check'
-      case 'inventory_check':
-        // Fallback branching: stockout goes to production queue; in-stock goes directly to packaging dock
-        return hasStock ? 'logistics_packing' : 'production_queue'
-      case 'production_queue':
-        return 'production_cook'
-      case 'production_cook':
-        return 'production_qa'
-      case 'production_qa':
-        // QA Passed: replenish sales inventory and merge branch into packaging dock
-        return 'logistics_packing'
-      case 'logistics_packing':
-        return 'logistics_dispatch'
-      case 'logistics_dispatch':
-        return 'logistics_delivery'
-      case 'logistics_delivery':
-        return 'completed'
-      case 'completed':
-        return 'completed'
+      case 'p1_ingestion':
+        return 'p1_inventory_deduct'
+      case 'p1_inventory_deduct':
+        return hasStock ? 'p2_in_packaging' : 'p1_production_batch'
+      case 'p1_production_batch':
+        return 'p2_in_packaging'
+      case 'p2_in_packaging':
+        return 'p2_materials_picked'
+      case 'p2_materials_picked':
+        return 'p2_dispatched'
+      case 'p2_dispatched':
+        return 'p3_delivery_assigned'
+      case 'p3_delivery_assigned':
+        return 'p3_in_transit'
+      case 'p3_in_transit':
+        return 'p3_doorstep_handover'
+      case 'p3_doorstep_handover':
+        return 'p3_delivered'
+      case 'p3_delivered':
+        return 'p3_settled_closed'
+      case 'p3_settled_closed':
+        return 'p3_settled_closed'
       default:
-        return 'sales_webhook'
+        return 'p1_ingestion'
     }
   }
 
@@ -215,8 +225,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const stepOrderForward = () => {
     if (!activeOrder) return
 
-    if (activeOrder.currentStage === 'completed') {
-      showToast(`Order ${activeOrder.id} is already completed. Terminal customer webhook triggered.`, 'info')
+    if (activeOrder.currentStage === 'p3_settled_closed') {
+      showToast(`Order ${activeOrder.id} is already closed. Delivery fee settled into rider ledger.`, 'info')
       return
     }
 
@@ -236,14 +246,14 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       })
     )
 
-    if (next === 'completed') {
-      showToast(`Terminal Node Fired: Customer ${activeOrder.customerName} verified OTP #${activeOrder.otpCode}. SMS & WhatsApp receipt dispatched!`, 'success')
-    } else if (next === 'production_queue' && !activeOrder.hasStock) {
-      showToast(`Stockout Fallback: Order ${activeOrder.id} dynamically routed to Kitchen Smoking Pit BAT-SMK-402!`, 'info')
-    } else if (next === 'logistics_packing') {
-      showToast(`Order ${activeOrder.id} ready at Packaging Dock: Packaging materials decremented!`, 'success')
+    if (next === 'p3_settled_closed') {
+      showToast(`Settlement Complete: ₦${activeOrder.deliveryFee.toLocaleString()} credited to Rider Yusuf ledger. Order closed!`, 'success')
+    } else if (next === 'p3_doorstep_handover') {
+      showToast(`Doorstep Handover: Customer verified OTP #${activeOrder.otpCode}. Handover confirmed!`, 'success')
+    } else if (next === 'p2_in_packaging') {
+      showToast(`Fulfillment Initiated: Order ${activeOrder.id} status = 'in_packaging'.`, 'info')
     } else {
-      showToast(`Order ${activeOrder.id} transitioned to ${next.replace(/_/g, ' ').toUpperCase()}`, 'info')
+      showToast(`Order ${activeOrder.id} progressed to ${next.replace(/_/g, ' ').toUpperCase()}`, 'info')
     }
   }
 
@@ -273,11 +283,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       portions: Math.floor(1 + Math.random() * 3),
       channel: chosenChannel,
       hasStock: chosen.stock,
-      currentStage: 'sales_webhook',
+      currentStage: 'p1_ingestion',
       paymentRef: `pay_smk_${Math.floor(10000 + Math.random() * 90000)}`,
       destinationAddress: 'Victoria Island, Lagos',
       otpCode: `${Math.floor(1000 + Math.random() * 9000)}`,
-      history: ['sales_webhook']
+      deliveryFee: 4000,
+      history: ['p1_ingestion']
     }
 
     setOrders((prev) => [newOrder, ...prev])
@@ -292,7 +303,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     const interval = setInterval(() => {
       setOrders((prevOrders) => {
         return prevOrders.map((ord) => {
-          if (ord.currentStage === 'completed') return ord
+          if (ord.currentStage === 'p3_settled_closed') return ord
           const next = getNextStage(ord.currentStage, ord.hasStock)
           return {
             ...ord,
@@ -308,7 +319,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
   // Precise dynamic measurement function
   const updateCoordinates = () => {
-    if (!containerRef.current) return
+    if (!containerRef.current || viewMode !== 'canvas') return
     const cRect = containerRef.current.getBoundingClientRect()
 
     const getRightMiddle = (el: HTMLElement | null): AnchorPoint => {
@@ -329,53 +340,28 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       }
     }
 
-    const getBottomCenter = (el: HTMLElement | null): AnchorPoint => {
-      if (!el) return { x: 0, y: 0 }
-      const r = el.getBoundingClientRect()
-      return {
-        x: r.left + r.width / 2 - cRect.left,
-        y: r.bottom - cRect.top
-      }
-    }
-
-    const getTopCenter = (el: HTMLElement | null): AnchorPoint => {
-      if (!el) return { x: 0, y: 0 }
-      const r = el.getBoundingClientRect()
-      return {
-        x: r.left + r.width / 2 - cRect.left,
-        y: r.top - cRect.top
-      }
-    }
-
-    const domains = getRightMiddle(webhooksHeaderRef.current)
-    const workers = getRightMiddle(paymentsHeaderRef.current)
-    const queues = getRightMiddle(fraudHeaderRef.current)
+    const node1A = getRightMiddle(node1AHeaderRef.current)
+    const node1B = getRightMiddle(node1BHeaderRef.current)
+    const node1C = getRightMiddle(node1CHeaderRef.current)
     const centerLeft = getLeftMiddle(centerHeaderRef.current)
     const centerRight = getRightMiddle(centerHeaderRef.current)
-    const centerBottom = getBottomCenter(centerCardRef.current)
-    const productionTop = getTopCenter(productionCardRef.current)
-    const productionRight = getRightMiddle(productionHeaderRef.current)
-    const bindingsLeft = getLeftMiddle(fulfillmentHeaderRef.current)
+    const bindingsLeft = getLeftMiddle(bindingsHeaderRef.current)
 
     setCoords({
-      domains,
-      workers,
-      queues,
+      node1A,
+      node1B,
+      node1C,
       centerLeft,
       centerRight,
-      centerBottom,
-      productionTop,
-      productionRight,
       bindingsLeft
     })
   }
 
-  // Recalculate coordinates on mount, resize, expansion toggle, and DOM mutation
   useLayoutEffect(() => {
     updateCoordinates()
     const timeout = setTimeout(updateCoordinates, 40)
     return () => clearTimeout(timeout)
-  }, [expandedNodes, isCanvasExpanded, activeOrder?.hasStock, selectedOrderId])
+  }, [expandedNodes, isCanvasExpanded, activeOrder?.hasStock, selectedOrderId, viewMode])
 
   useEffect(() => {
     window.addEventListener('resize', updateCoordinates)
@@ -390,95 +376,106 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       window.removeEventListener('resize', updateCoordinates)
       ro?.disconnect()
     }
-  }, [])
+  }, [viewMode])
 
-  // Live Counts for Triggers matching Smokey Ops data
-  const incomingWebhooksCount = orders.filter((o) => o.currentStage === 'sales_webhook').length + 2
-  const pendingPaymentsCount = orders.filter((o) => o.currentStage === 'payment_verification').length
-  const fraudEvaluationsCount = 0
-
-  // Calculate SVG paths based on measured coordinates
+  // SVG paths calculation
   const svgPaths = useMemo(() => {
-    if (!coords || coords.centerLeft.x === 0) {
-      return null
-    }
+    if (!coords || coords.centerLeft.x === 0) return null
 
     const {
-      domains: d,
-      workers: w,
-      queues: q,
+      node1A: a,
+      node1B: b,
+      node1C: c,
       centerLeft: cL,
       centerRight: cR,
-      centerBottom: cB,
-      productionTop: pT,
-      productionRight: pR,
       bindingsLeft: bL
     } = coords
 
-    const maxTriggerX = Math.max(d.x, w.x, q.x)
+    const maxTriggerX = Math.max(a.x, b.x, c.x)
     const trunkGap = Math.max(16, cL.x - maxTriggerX)
     const trunkX = Math.round(maxTriggerX + trunkGap * 0.42)
     const radius = 10
 
-    // Path 1: From Storefront Webhooks right edge to bus trunk and down to centerLeft y
-    const domainsPath = `M ${d.x} ${d.y} H ${trunkX - radius} Q ${trunkX} ${d.y} ${trunkX} ${d.y + radius} V ${cL.y}`
+    // Path 1A: From Ingestion down to trunk
+    const path1A = `M ${a.x} ${a.y} H ${trunkX - radius} Q ${trunkX} ${a.y} ${trunkX} ${a.y + radius} V ${cL.y}`
 
-    // Path 2: From Payments right edge into bus trunk
-    let workersPath = `M ${w.x} ${w.y} H ${trunkX}`
-    if (Math.abs(w.y - cL.y) > 4) {
-      if (w.y > cL.y) {
-        workersPath = `M ${w.x} ${w.y} H ${trunkX - radius} Q ${trunkX} ${w.y} ${trunkX} ${w.y - radius} V ${cL.y}`
+    // Path 1B: From Inventory/BOM into trunk
+    let path1B = `M ${b.x} ${b.y} H ${trunkX}`
+    if (Math.abs(b.y - cL.y) > 4) {
+      if (b.y > cL.y) {
+        path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius} V ${cL.y}`
       } else {
-        workersPath = `M ${w.x} ${w.y} H ${trunkX - radius} Q ${trunkX} ${w.y} ${trunkX} ${w.y + radius} V ${cL.y}`
+        path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y + radius} V ${cL.y}`
       }
     }
 
-    // Path 3: From Fraud Checks right edge to bus trunk and up to centerLeft y
-    const queuesPath = `M ${q.x} ${q.y} H ${trunkX - radius} Q ${trunkX} ${q.y} ${trunkX} ${q.y - radius} V ${cL.y}`
+    // Path 1C: From Production Batches up to trunk
+    const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${cL.y}`
 
-    // Path 4: Trunk arrow horizontally straight into the left edge of Inventory Management Node
-    const trunkToCenterPath = `M ${trunkX} ${cL.y} H ${cL.x}`
+    // Stem from trunk into Pillar 2 (Packaging & Assembly)
+    const trunkToPillar2 = `M ${trunkX} ${cL.y} H ${cL.x}`
 
-    // Path 5: Center Right to Packaging Dock & Logistics Left (Direct In-Stock Path)
-    const centerToBindingsPath = `M ${cR.x} ${cR.y} H ${bL.x}`
-
-    // Path 6: Center Bottom to Production Batches Top (Fallback Path)
-    const centerToProdPath = `M ${cB.x} ${cB.y} V ${pT.y}`
-
-    // Path 7: Production Right to Packaging Dock Left (Merge upon QA clearance)
-    const mergeMidX = Math.round(pR.x + (bL.x - pR.x) * 0.5)
-    const prodToBindingsPath = `M ${pR.x} ${pR.y} H ${mergeMidX - radius} Q ${mergeMidX} ${pR.y} ${mergeMidX} ${pR.y - radius} V ${cL.y + radius} Q ${mergeMidX} ${cL.y} ${mergeMidX + radius} ${cL.y} H ${bL.x}`
+    // Stem from Pillar 2 to Pillar 3 (Logistics & Handover)
+    const pillar2ToPillar3 = `M ${cR.x} ${cR.y} H ${bL.x}`
 
     return {
-      domainsPath,
-      workersPath,
-      queuesPath,
-      trunkToCenterPath,
-      centerToBindingsPath,
-      centerToProdPath,
-      prodToBindingsPath
+      path1A,
+      path1B,
+      path1C,
+      trunkToPillar2,
+      pillar2ToPillar3
     }
   }, [coords])
 
   return (
     <div className="space-y-3 font-sans transition-all">
       {/* =========================================================================
-          1. TOP BAR (MATCHING SCREENSHOT 1 & 2 TOP BAR - WITH REAL SMOKEY OPERATIONAL DATA)
+          1. TOP BAR (MATCHING CLOUDFLARE SCREENSHOT 1 & 2 - WITH VIEW TOGGLE)
          ========================================================================= */}
       <div className="rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
-        {/* Left: Globe and Route Text */}
+        {/* Left: Globe & Route info */}
         <div className="flex items-center gap-2.5 text-[#18181b]">
           <Globe className="w-4 h-4 text-[#71717a] shrink-0" />
           <span className="font-normal text-[13px] tracking-tight">
-            smokeyhut.streetmbasolution.com/orders/pipeline/*+4 pillars
+            smokeyhut.streetmbasolution.com/orders/pipeline/*+3 pillars
           </span>
-          <span className="text-[#a1a1aa] font-mono text-[11px] hidden sm:inline">
-            (End-to-End Visual Order Stream)
+          <span className="text-[#a1a1aa] font-mono text-[11px] hidden md:inline">
+            (Pillar 1 $\rightarrow$ Pillar 2 $\rightarrow$ Pillar 3)
           </span>
         </div>
 
-        {/* Right: Controls + Author info */}
+        {/* Right: View mode switcher, order switcher & step controls */}
         <div className="flex items-center gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
+            <button
+              type="button"
+              onClick={() => setViewMode('canvas')}
+              className={cn(
+                "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
+                viewMode === 'canvas'
+                  ? "bg-white text-[#18181b] shadow-xs font-semibold"
+                  : "text-[#71717a] hover:text-[#18181b]"
+              )}
+            >
+              <Network className="w-3 h-3 text-[#2563eb]" />
+              <span>Node Canvas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('tree')}
+              className={cn(
+                "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
+                viewMode === 'tree'
+                  ? "bg-white text-[#18181b] shadow-xs font-semibold"
+                  : "text-[#71717a] hover:text-[#18181b]"
+              )}
+            >
+              <Layers className="w-3 h-3 text-[#10b981]" />
+              <span>Flow Tree</span>
+            </button>
+          </div>
+
           {/* Active Order Switcher */}
           <div className="flex items-center gap-1.5 bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
             {orders.slice(0, 4).map((ord) => (
@@ -495,7 +492,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               >
                 {ord.id}
                 {!ord.hasStock && (
-                  <span className="ml-1 text-[9px] text-[#f59e0b] font-bold" title="Stockout Fallback">★</span>
+                  <span className="ml-1 text-[9px] text-[#f59e0b] font-bold" title="Batch Cook Required">★</span>
                 )}
               </button>
             ))}
@@ -506,7 +503,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
             <button
               type="button"
               onClick={stepOrderForward}
-              disabled={activeOrder?.currentStage === 'completed'}
+              disabled={activeOrder?.currentStage === 'p3_settled_closed'}
               className="h-7 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[12px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
             >
               <Play className="w-3 h-3 text-[#2563eb] fill-[#2563eb]" />
@@ -537,18 +534,18 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
             </button>
           </div>
 
-          <span className="text-[12px] text-[#71717a] hidden lg:inline">
+          <span className="text-[12px] text-[#71717a] hidden xl:inline">
             by ayodine47 <span className="text-[#a1a1aa]">3 days ago</span>
           </span>
         </div>
       </div>
 
       {/* =========================================================================
-          2. MAIN WORKFLOW CANVAS (EXACT CLOUDFLARE REFERENCE SCREENSHOT CARD)
+          2. MAIN WORKFLOW CONTAINER
          ========================================================================= */}
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
         {/* ACTIVE ORDER SUB-BAR */}
-        <div className="flex flex-wrap items-center justify-between pb-6 mb-6 border-b border-[#f4f4f5] gap-3">
+        <div className="flex flex-wrap items-center justify-between pb-5 mb-6 border-b border-[#f4f4f5] gap-3">
           <div className="flex items-center gap-2">
             <span className="text-[13px] text-[#71717a]">Order Payload:</span>
             <span className="font-semibold text-[13px] text-[#18181b]">{activeOrder?.id}</span>
@@ -561,571 +558,572 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[#71717a]">Branch State:</span>
-            {activeOrder?.hasStock ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                In Stock (Direct to Packaging)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Stockout Fallback (Production Batch Required)
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#f4f4f5] text-[#18181b] border border-[#e4e4e7] capitalize">
-              Phase: {activeOrder?.currentStage.replace(/_/g, ' ')}
+            <span className="text-[12px] text-[#71717a]">Current Stage:</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#f4f4f5] text-[#18181b] border border-[#e4e4e7]">
+              {activeOrder?.currentStage}
             </span>
           </div>
         </div>
 
-        {/* WORKFLOW CANVAS GRAPH CONTAINER */}
+        {/* WORKFLOW INTERFACE */}
         {isCanvasExpanded && (
-          <div ref={containerRef} className="relative min-h-[460px] pb-4">
-            {/* SVG DIRECTIONAL CONNECTING PATHS (DYNAMICALLY LOCKED TO CARD REFS) */}
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none z-0"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                {/* Gray Default Arrowhead */}
-                <marker
-                  id="cf-arrow-default"
-                  viewBox="0 0 10 10"
-                  refX="6"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto"
+          <>
+            {/* =====================================================================
+                MODE A: INTERACTIVE NODE CANVAS (CLOUDFLARE 3-COLUMN MAPPING)
+               ===================================================================== */}
+            {viewMode === 'canvas' ? (
+              <div ref={containerRef} className="relative min-h-[460px] pb-4">
+                {/* SVG DIRECTIONAL CONNECTING PATHS */}
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none z-0"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <polygon points="0 2, 7 5, 0 8" fill="#9ca3af" />
-                </marker>
+                  <defs>
+                    <marker
+                      id="cf-arrow-default"
+                      viewBox="0 0 10 10"
+                      refX="6"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <polygon points="0 2, 7 5, 0 8" fill="#9ca3af" />
+                    </marker>
+                    <marker
+                      id="cf-arrow-blue"
+                      viewBox="0 0 10 10"
+                      refX="6"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <polygon points="0 2, 7 5, 0 8" fill="#2563eb" />
+                    </marker>
+                    <marker
+                      id="cf-arrow-emerald"
+                      viewBox="0 0 10 10"
+                      refX="6"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <polygon points="0 2, 7 5, 0 8" fill="#10b981" />
+                    </marker>
+                  </defs>
 
-                {/* Blue Active Glowing Arrowhead */}
-                <marker
-                  id="cf-arrow-blue"
-                  viewBox="0 0 10 10"
-                  refX="6"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto"
-                >
-                  <polygon points="0 2, 7 5, 0 8" fill="#2563eb" />
-                </marker>
-
-                {/* Amber Production Fallback Arrowhead */}
-                <marker
-                  id="cf-arrow-amber"
-                  viewBox="0 0 10 10"
-                  refX="6"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto"
-                >
-                  <polygon points="0 2, 7 5, 0 8" fill="#f59e0b" />
-                </marker>
-
-                {/* Emerald Completed Arrowhead */}
-                <marker
-                  id="cf-arrow-emerald"
-                  viewBox="0 0 10 10"
-                  refX="6"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto"
-                >
-                  <polygon points="0 2, 7 5, 0 8" fill="#10b981" />
-                </marker>
-              </defs>
-
-              {svgPaths && (
-                <>
-                  {/* Curve 1: From Storefront Webhooks down to bus trunk */}
-                  <path
-                    d={svgPaths.domainsPath}
-                    fill="none"
-                    stroke={activeOrder?.history.includes('sales_webhook') ? '#2563eb' : '#9ca3af'}
-                    strokeWidth={1.75}
-                  />
-
-                  {/* Curve 2: From Payments straight into bus trunk */}
-                  <path
-                    d={svgPaths.workersPath}
-                    fill="none"
-                    stroke={activeOrder?.history.includes('payment_verification') ? '#2563eb' : '#9ca3af'}
-                    strokeWidth={1.75}
-                  />
-
-                  {/* Curve 3: From Fraud Checks up to bus trunk */}
-                  <path
-                    d={svgPaths.queuesPath}
-                    fill="none"
-                    stroke={activeOrder?.history.includes('fraud_check') ? '#2563eb' : '#9ca3af'}
-                    strokeWidth={1.75}
-                  />
-
-                  {/* Single Arrow Stem from bus trunk into thecentralreport / Inventory Node */}
-                  <path
-                    d={svgPaths.trunkToCenterPath}
-                    fill="none"
-                    stroke={activeOrder?.history.includes('inventory_check') ? '#2563eb' : '#9ca3af'}
-                    strokeWidth={1.75}
-                    markerEnd={
-                      activeOrder?.history.includes('inventory_check')
-                        ? 'url(#cf-arrow-blue)'
-                        : 'url(#cf-arrow-default)'
-                    }
-                  />
-
-                  {/* Direct Path (In-stock flow) from Inventory Management to Fulfillment Dock */}
-                  <path
-                    d={svgPaths.centerToBindingsPath}
-                    fill="none"
-                    stroke={
-                      activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                        ? '#10b981'
-                        : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
-                        ? '#2563eb'
-                        : '#9ca3af'
-                    }
-                    strokeWidth={activeOrder?.hasStock ? 2 : 1.75}
-                    strokeDasharray={activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
-                    markerEnd={
-                      activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                        ? 'url(#cf-arrow-emerald)'
-                        : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
-                        ? 'url(#cf-arrow-blue)'
-                        : 'url(#cf-arrow-default)'
-                    }
-                  />
-
-                  {/* Dynamic Fallback Branch: Inventory -> Production Batches */}
-                  {!activeOrder?.hasStock && (
+                  {svgPaths && (
                     <>
-                      {/* Branch down from center engine to production pit engine */}
+                      {/* Path 1A: From Ingestion down to trunk */}
                       <path
-                        d={svgPaths.centerToProdPath}
+                        d={svgPaths.path1A}
                         fill="none"
-                        stroke={
-                          activeOrder?.history.includes('production_queue') || activeOrder?.currentStage.startsWith('production')
-                            ? '#f59e0b'
-                            : '#9ca3af'
-                        }
-                        strokeWidth={2}
-                        strokeDasharray={activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
-                        markerEnd="url(#cf-arrow-amber)"
+                        stroke={activeOrder?.history.includes('p1_ingestion') ? '#2563eb' : '#9ca3af'}
+                        strokeWidth={1.75}
                       />
-
-                      {/* Branch from production engine QA Pass back up and into Fulfillment */}
+                      {/* Path 1B: From Stock/BOM into trunk */}
                       <path
-                        d={svgPaths.prodToBindingsPath}
+                        d={svgPaths.path1B}
                         fill="none"
-                        stroke={
-                          activeOrder?.history.includes('logistics_packing')
-                            ? '#10b981'
-                            : activeOrder?.currentStage === 'production_qa'
-                            ? '#2563eb'
-                            : '#9ca3af'
-                        }
-                        strokeWidth={2}
-                        strokeDasharray={activeOrder?.currentStage === 'production_qa' ? '5,5' : 'none'}
-                        markerEnd={
-                          activeOrder?.history.includes('logistics_packing')
-                            ? 'url(#cf-arrow-emerald)'
-                            : 'url(#cf-arrow-default)'
-                        }
+                        stroke={activeOrder?.history.includes('p1_inventory_deduct') ? '#2563eb' : '#9ca3af'}
+                        strokeWidth={1.75}
+                      />
+                      {/* Path 1C: From Production Batches up to trunk */}
+                      <path
+                        d={svgPaths.path1C}
+                        fill="none"
+                        stroke={activeOrder?.history.includes('p1_production_batch') ? '#2563eb' : '#9ca3af'}
+                        strokeWidth={1.75}
+                      />
+                      {/* Arrow from Pillar 1 into Pillar 2 */}
+                      <path
+                        d={svgPaths.trunkToPillar2}
+                        fill="none"
+                        stroke={activeOrder?.history.includes('p2_in_packaging') ? '#2563eb' : '#9ca3af'}
+                        strokeWidth={1.75}
+                        markerEnd={activeOrder?.history.includes('p2_in_packaging') ? 'url(#cf-arrow-blue)' : 'url(#cf-arrow-default)'}
+                      />
+                      {/* Arrow from Pillar 2 into Pillar 3 */}
+                      <path
+                        d={svgPaths.pillar2ToPillar3}
+                        fill="none"
+                        stroke={activeOrder?.history.includes('p3_delivery_assigned') ? '#10b981' : '#9ca3af'}
+                        strokeWidth={1.75}
+                        markerEnd={activeOrder?.history.includes('p3_delivery_assigned') ? 'url(#cf-arrow-emerald)' : 'url(#cf-arrow-default)'}
                       />
                     </>
                   )}
-                </>
-              )}
-            </svg>
+                </svg>
 
-            {/* THREE-COLUMN HORIZONTAL WORKFLOW FLOW (EXACT SCREENSHOT LAYOUT WITH REAL SMOKEY DATA) */}
-            <div className="flex flex-row items-start justify-between gap-10 sm:gap-14 relative z-10 overflow-x-auto pb-4">
-              {/* =========================================================================
-                  COLUMN 1: THE 3 TRIGGER CARDS (PILLAR 1: SALES & ENTRY TRIGGERS)
-                  (Domains -> Storefront Ingestion, Workers -> Payment Clearance, Queues -> Fraud & Geofence)
-                 ========================================================================= */}
-              <div className="w-[215px] sm:w-[230px] shrink-0 space-y-3.5">
-                {/* 1A. STOREFRONT INGESTION (Replaces Domains) */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    {/* Header */}
-                    <div
-                      ref={webhooksHeaderRef}
-                      onClick={() => toggleNodeExpansion('webhooks')}
-                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[15px] font-normal text-[#18181b]">Webhooks</span>
-                        <span className="bg-[#52525b] text-white text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
-                          {incomingWebhooksCount}
-                        </span>
-                      </div>
-                      {expandedNodes.webhooks ? (
-                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      )}
+                {/* THREE COLUMNS (MATCHING CLOUDFLARE 3-NODE ARCHITECTURE) */}
+                <div className="flex flex-row items-start justify-between gap-10 sm:gap-14 relative z-10 overflow-x-auto pb-4">
+                  {/* =====================================================================
+                      COLUMN 1: PILLAR 1: INGESTION & PRODUCTION
+                     ===================================================================== */}
+                  <div className="w-[230px] sm:w-[250px] shrink-0 space-y-3.5">
+                    <div className="text-[11px] font-bold text-[#71717a] uppercase tracking-wider px-1">
+                      Pillar 1: Ingestion & Production
                     </div>
 
-                    {/* Expanded Content (Smokey Hut Order Ingestion Endpoints) */}
-                    {expandedNodes.webhooks && (
-                      <div className="border-t border-[#f4f4f5] bg-white">
-                        {/* Section 1: Ingestion API */}
-                        <div className="px-4 py-2.5 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-[#52525b]">paystack.webhook</span>
-                            <span className="bg-[#e4e4e7] text-[#52525b] text-[11px] px-2 py-0.5 rounded-full font-medium">
-                              Active
+                    {/* Node 1A: Ingestion State */}
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                        <div
+                          ref={node1AHeaderRef}
+                          onClick={() => toggleNodeExpansion('node1A')}
+                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[14px] font-normal text-[#18181b]">Order Ingestion</span>
+                            <span className="bg-[#52525b] text-white text-[11px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                              paid
                             </span>
                           </div>
-                          <p className="text-[12px] text-[#71717a] font-normal truncate">
-                            smokeyhut.streetmbasolution.com/api/v1/orders
-                          </p>
+                          {expandedNodes.node1A ? (
+                            <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          )}
                         </div>
 
-                        {/* Section 2: Active Payload */}
-                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
-                          <div className="text-[13px] text-[#71717a]">Order Payload</div>
-                          <div className="flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
-                            <span className="font-mono text-xs">{activeOrder?.id} · {formatNaira(activeOrder?.totalAmount || 0)}</span>
-                            <Plus className="w-3.5 h-3.5 text-[#71717a]" />
+                        {expandedNodes.node1A && (
+                          <div className="border-t border-[#f4f4f5] px-3.5 py-2.5 bg-white space-y-1 text-xs">
+                            <p className="font-mono text-[11px] text-[#18181b]">
+                              orders.order_status = <strong className="text-emerald-700">'ready_for_fulfillment'</strong>
+                            </p>
+                            <p className="font-mono text-[11px] text-[#18181b]">
+                              orders.payment_status = <strong className="text-emerald-700">'paid'</strong>
+                            </p>
+                            <p className="text-[11px] text-[#71717a] pt-1">
+                              Paystack ref: {activeOrder?.paymentRef}
+                            </p>
                           </div>
-                        </div>
-
-                        {/* Section 3: Ingestion Channels */}
-                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-[#71717a]">Channels</span>
-                            <Plus className="w-3.5 h-3.5 text-[#71717a] cursor-pointer" />
-                          </div>
-                          <p className="text-[13px] text-[#18181b] font-normal leading-snug">
-                            website.smokeyhut.com/*
-                          </p>
-                          <p className="text-[13px] text-[#18181b] font-normal leading-snug">
-                            whatsapp.smokeyhut.com/menu/*
-                          </p>
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 1B. PAYMENT CLEARANCE (Replaces Workers) */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    {/* Header */}
-                    <div
-                      ref={paymentsHeaderRef}
-                      onClick={() => toggleNodeExpansion('payments')}
-                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[15px] font-normal text-[#18181b]">Payments</span>
-                        <span className="bg-[#e4e4e7] text-[#71717a] text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
-                          {pendingPaymentsCount}
-                        </span>
-                      </div>
-                      {expandedNodes.payments ? (
-                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      )}
                     </div>
 
-                    {/* Expanded Content */}
-                    {expandedNodes.payments && (
-                      <div className="border-t border-[#f4f4f5] px-4 py-3 bg-white">
-                        <p className="text-[13px] text-[#71717a] font-normal">
-                          Paystack Escrow Settlement Verified
-                        </p>
-                        <div className="mt-2 pt-2 border-t border-[#f4f4f5] text-[11px] text-[#a1a1aa]">
-                          Ref: <strong className="font-mono text-[#18181b]">{activeOrder?.paymentRef}</strong> (3DS Secured)
+                    {/* Node 1B: Products Sales / BOM Deduction */}
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                        <div
+                          ref={node1BHeaderRef}
+                          onClick={() => toggleNodeExpansion('node1B')}
+                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[14px] font-normal text-[#18181b]">Inventory Allocation</span>
+                            <span className={cn(
+                              "text-[11px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight",
+                              activeOrder?.hasStock ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+                            )}>
+                              {activeOrder?.hasStock ? 'sales' : 'raw BOM'}
+                            </span>
+                          </div>
+                          {expandedNodes.node1B ? (
+                            <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* 1C. FRAUD & GEOFENCE CHECKS (Replaces Queues) */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    {/* Header */}
-                    <div
-                      ref={fraudHeaderRef}
-                      onClick={() => toggleNodeExpansion('fraud')}
-                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[15px] font-normal text-[#18181b]">Risk & Geo</span>
-                        <span className="bg-[#e4e4e7] text-[#71717a] text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
-                          {fraudEvaluationsCount}
-                        </span>
+                        {expandedNodes.node1B && (
+                          <div className="border-t border-[#f4f4f5] px-3.5 py-2.5 bg-white space-y-1 text-xs">
+                            <p className="font-mono text-[11px] text-[#18181b]">
+                              products (sales): <span className="text-emerald-700 font-semibold">stock_qty decremented</span>
+                            </p>
+                            <p className="font-mono text-[11px] text-[#71717a]">
+                              OR recipe_ingredients decremented from products (raw)
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      {expandedNodes.fraud ? (
-                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      )}
                     </div>
 
-                    {/* Expanded Content */}
-                    {expandedNodes.fraud && (
-                      <div className="border-t border-[#f4f4f5] px-4 py-3 bg-white">
-                        <div className="flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
-                          <span>Address Geofence Check</span>
-                          <Plus className="w-3.5 h-3.5 text-[#71717a]" />
+                    {/* Node 1C: Production Batches */}
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                        <div
+                          ref={node1CHeaderRef}
+                          onClick={() => toggleNodeExpansion('node1C')}
+                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[14px] font-normal text-[#18181b]">Production Batches</span>
+                            <span className="bg-[#52525b] text-white text-[11px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                              BAT
+                            </span>
+                          </div>
+                          {expandedNodes.node1C ? (
+                            <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          )}
                         </div>
-                        <div className="mt-2 pt-2 border-t border-[#f4f4f5] text-[11px] text-[#a1a1aa]">
-                          {activeOrder?.destinationAddress} · <span className="font-bold text-emerald-600">Risk Score 0.01 (Safe)</span>
-                        </div>
+
+                        {expandedNodes.node1C && (
+                          <div className="border-t border-[#f4f4f5] px-3.5 py-2.5 bg-white space-y-1 text-xs">
+                            <p className="font-mono text-[11px] text-[#18181b]">
+                              production_batches: status = <strong className="text-emerald-700">'completed'</strong>
+                            </p>
+                            <p className="font-mono text-[11px] text-[#18181b]">
+                              actual_output = <strong className="text-emerald-700">recorded</strong> ({activeOrder?.batchId || 'BAT-SMK-402'})
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* =====================================================================
+                      COLUMN 2: PILLAR 2: FULFILLMENT ASSEMBLY & PACKAGING (CENTER ENGINE)
+                     ===================================================================== */}
+                  <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
+                    <div className="text-[11px] font-bold text-[#71717a] uppercase tracking-wider px-1">
+                      Pillar 2: Assembly & Packaging
+                    </div>
+
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs">
+                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                        {/* Header */}
+                        <div
+                          ref={centerHeaderRef}
+                          onClick={() => toggleNodeExpansion('pillar2')}
+                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa]"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <svg
+                              className="w-5 h-5 text-[#18181b] shrink-0"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="7 8 3 12 7 16" />
+                              <polyline points="11 6 15 12 11 18" />
+                              <polyline points="17 8 21 12 17 16" />
+                            </svg>
+                            <span className="text-[15px] font-normal text-[#18181b]">
+                              assembly-packaging
+                            </span>
+                          </div>
+
+                          <span className="w-4 h-4 rounded-full bg-[#bfdbfe]/60 flex items-center justify-center">
+                            <span className="w-2 h-2 rounded-full bg-[#2563eb]" />
+                          </span>
+                        </div>
+
+                        {/* Observability Rows with Leader lines */}
+                        {expandedNodes.pillar2 && (
+                          <div className="border-t border-[#f4f4f5] px-4 py-3 space-y-2.5 bg-white text-[13px]">
+                            {/* Step 2.1 */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#18181b] font-mono text-[11px]">orders.order_status</span>
+                              <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                              <span className="border border-[#d4d4d8] rounded-full px-2 py-0.5 text-[11px] text-[#52525b] bg-white font-mono">
+                                'in_packaging'
+                              </span>
+                            </div>
+
+                            {/* Step 2.2 */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#18181b] font-mono text-[11px]">materials_pick</span>
+                              <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                1L bowls & tape
+                              </span>
+                            </div>
+
+                            {/* Step 2.3 */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#18181b] font-mono text-[11px]">products (packaging)</span>
+                              <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                              <span className="text-[10px] text-[#52525b] bg-[#f4f4f5] px-1.5 py-0.5 rounded">
+                                decremented
+                              </span>
+                            </div>
+
+                            {/* Step 2.4 */}
+                            <div className="pt-2 border-t border-[#f4f4f5] flex items-center justify-between">
+                              <span className="text-[#18181b] font-mono text-[11px]">orders.order_status</span>
+                              <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                              <span className={cn(
+                                "border rounded-full px-2 py-0.5 text-[11px] font-mono font-medium",
+                                activeOrder?.history.includes('p2_dispatched')
+                                  ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                                  : "border-[#d4d4d8] text-[#52525b] bg-white"
+                              )}>
+                                'dispatched'
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-mono text-[#a1a1aa] text-right">
+                              packaged_at = NOW()
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* =====================================================================
+                      COLUMN 3: PILLAR 3: LAST-MILE LOGISTICS & CONSUMER HANDOVER
+                     ===================================================================== */}
+                  <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
+                    <div className="text-[11px] font-bold text-[#71717a] uppercase tracking-wider px-1">
+                      Pillar 3: Last-Mile & Settlement
+                    </div>
+
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                        {/* Header */}
+                        <div
+                          ref={bindingsHeaderRef}
+                          onClick={() => toggleNodeExpansion('pillar3')}
+                          className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-[15px] font-normal text-[#18181b]">Last-Mile Logistics</span>
+                            <span className="bg-[#52525b] text-white text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                              4
+                            </span>
+                          </div>
+                          {expandedNodes.pillar3 ? (
+                            <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                          )}
+                        </div>
+
+                        {expandedNodes.pillar3 && (
+                          <div className="border-t border-[#f4f4f5] bg-white text-xs divide-y divide-[#f4f4f5]">
+                            {/* 3.1 & 3.2 Assignment & In Transit */}
+                            <div className="px-4 py-2.5 space-y-1">
+                              <div className="flex items-center justify-between font-mono text-[11px]">
+                                <span className="text-[#52525b]">logistics_deliveries:</span>
+                                <span className="font-semibold text-[#18181b]">'assigned' $\rightarrow$ 'in_transit'</span>
+                              </div>
+                              <p className="font-mono text-[10px] text-[#71717a]">
+                                orders.order_status = <strong className="text-blue-600">'in_transit'</strong>
+                              </p>
+                              <p className="text-[10px] text-[#a1a1aa]">
+                                assigned_at = NOW() · pickup_at = NOW()
+                              </p>
+                            </div>
+
+                            {/* 3.3 Doorstep Handover */}
+                            <div className="px-4 py-2.5 bg-emerald-50/30 space-y-1">
+                              <div className="flex items-center justify-between font-semibold text-[11px] text-[#18181b]">
+                                <span>[DOORSTEP HANDOVER TO CONSUMER]</span>
+                                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                  OTP #{activeOrder?.otpCode}
+                                </span>
+                              </div>
+                              <p className="font-mono text-[10px] text-[#52525b]">
+                                logistics_deliveries: <strong className="text-emerald-700">'delivered'</strong> (delivered_at = NOW())
+                              </p>
+                              <p className="font-mono text-[10px] text-[#52525b]">
+                                orders.order_status = <strong className="text-emerald-700">'delivered'</strong>
+                              </p>
+                            </div>
+
+                            {/* 3.4 Ledger Credit & Closed */}
+                            <div className="px-4 py-2.5 space-y-1 bg-[#fafafa]">
+                              <div className="flex items-center justify-between font-mono text-[11px]">
+                                <span className="text-[#52525b]">rider_financial_ledger:</span>
+                                <span className="text-emerald-700 font-bold">credit_commission</span>
+                              </div>
+                              <p className="font-mono text-[10px] text-[#18181b]">
+                                pending_payout += ₦{activeOrder?.deliveryFee.toLocaleString()}
+                              </p>
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="font-mono text-[11px] text-[#71717a]">orders.order_status:</span>
+                                <span className={cn(
+                                  "font-mono text-[10px] font-bold px-1.5 py-0.5 rounded",
+                                  activeOrder?.currentStage === 'p3_settled_closed'
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-[#e4e4e7] text-[#52525b]"
+                                )}>
+                                  'closed'
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* =========================================================================
-                  COLUMN 2: CENTER ENGINE (PILLAR 2: INVENTORY MANAGEMENT NODE)
-                  (thecentralreport -> smokeyhut-inventory-engine)
-                 ========================================================================= */}
-              <div className="w-[270px] sm:w-[300px] shrink-0 space-y-5">
-                {/* PRIMARY INVENTORY ENGINE CARD */}
-                <div
-                  ref={centerCardRef}
-                  className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs"
-                >
+            ) : (
+              /* =====================================================================
+                  MODE B: EXACT VERTICAL FLOW TREE (MATCHING USER DIAGRAM)
+                 ===================================================================== */
+              <div className="max-w-4xl mx-auto space-y-6 py-2">
+                {/* PILLAR 1 CARD */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    {/* Header: Exact match for Screenshot 4 with Smokey Engine branding */}
-                    <div
-                      ref={centerHeaderRef}
-                      className="px-4 py-3 flex items-center justify-between bg-white"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {/* Workers Diamond Code Icon */}
-                        <svg
-                          className="w-5 h-5 text-[#18181b] shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="7 8 3 12 7 16" />
-                          <polyline points="11 6 15 12 11 18" />
-                          <polyline points="17 8 21 12 17 16" />
-                        </svg>
-                        <span className="text-[15px] font-normal text-[#18181b]">
-                          smokeyhut-inventory
-                        </span>
+                    <div className="px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-600" />
+                        <h4 className="font-mono font-bold text-xs uppercase tracking-wider text-[#0f172a]">
+                          PILLAR 1: INGESTION & PRODUCTION
+                        </h4>
                       </div>
-
-                      {/* Blue Status Dot with Outer Aura */}
-                      <span className="w-4 h-4 rounded-full bg-[#bfdbfe]/60 flex items-center justify-center">
-                        <span className="w-2 h-2 rounded-full bg-[#2563eb]" />
+                      <span className="text-[11px] font-mono text-[#64748b]">
+                        orders · products (sales/raw) · production_batches
                       </span>
                     </div>
 
-                    {/* Body: Observability & Leader lines */}
-                    <div className="border-t border-[#f4f4f5] px-4 py-3 space-y-3 bg-white">
-                      <div className="text-[13px] text-[#71717a] font-normal">
-                        Sales Inventory Telemetry
+                    <div className="p-4 sm:p-5 space-y-2.5 font-mono text-xs text-[#334155] leading-relaxed">
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">'ready_for_fulfillment'</code>, payment_status = <code className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">'paid'</code>
+                        </div>
                       </div>
-
-                      {/* Row 1: Stock Database Check with Leader Line */}
-                      <div className="flex items-center justify-between text-[13px]">
-                        <span className="text-[#18181b] font-normal whitespace-nowrap">
-                          Stock Check
-                        </span>
-                        <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-3" />
-                        <span className={cn(
-                          "border rounded-full px-2.5 py-0.5 text-[12px] font-medium",
-                          activeOrder?.hasStock
-                            ? "border-emerald-300 text-emerald-700 bg-emerald-50"
-                            : "border-amber-300 text-amber-700 bg-amber-50"
-                        )}>
-                          {activeOrder?.hasStock ? 'Available' : 'Stockout'}
-                        </span>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>products (sales):</strong> stock_qty decremented <span className="text-[#64748b]">OR</span> recipe_ingredients decremented from <strong>products (raw)</strong>
+                        </div>
                       </div>
-
-                      {/* Row 2: Recipe & BOM Allocation with Leader Line */}
-                      <div className="flex items-center justify-between text-[13px]">
-                        <span className="text-[#18181b] font-normal whitespace-nowrap">
-                          BOM Deduct
-                        </span>
-                        <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-3" />
-                        <span className="border border-[#d4d4d8] rounded-full px-2.5 py-0.5 text-[12px] text-[#52525b] bg-white">
-                          Automated
-                        </span>
-                      </div>
-
-                      {/* Operational Stock Status Note */}
-                      <div className="pt-2 border-t border-[#f4f4f5] flex items-center justify-between text-[12px]">
-                        <span className="text-[#71717a]">Storage Bin Pick:</span>
-                        <span className={cn(
-                          "px-2 py-0.5 rounded font-medium text-[11px]",
-                          activeOrder?.hasStock
-                            ? "bg-emerald-50 text-emerald-700 font-semibold"
-                            : "bg-amber-50 text-amber-700 font-semibold"
-                        )}>
-                          {activeOrder?.hasStock ? 'Sales Bins Verified' : 'Branch to Smoking Pit'}
-                        </span>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>production_batches:</strong> status = <code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">'completed'</code>, actual_output recorded
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* =========================================================================
-                    PILLAR 3: PRODUCTION BATCHES NODE (Bulk Smoking Pit & QA Clearance)
-                    (Rendered when stockout fallback occurs)
-                   ========================================================================= */}
-                {!activeOrder?.hasStock && (
-                  <div
-                    ref={productionCardRef}
-                    className="p-[2.5px] rounded-[16px] border border-[#f59e0b]/50 bg-white transition-all shadow-2xs animate-in fade-in"
-                  >
-                    <div className="rounded-[12px] border border-[#f59e0b]/40 bg-white overflow-hidden">
-                      {/* Header */}
-                      <div
-                        ref={productionHeaderRef}
-                        className="px-4 py-3 flex items-center justify-between bg-white"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Flame className="w-5 h-5 text-[#f59e0b]" />
-                          <span className="text-[15px] font-normal text-[#18181b]">
-                            production-kitchen
-                          </span>
-                        </div>
-                        <span className="w-4 h-4 rounded-full bg-[#fed7aa]/60 flex items-center justify-center">
-                          <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
-                        </span>
-                      </div>
+                {/* STEM 1 -> 2 */}
+                <div className="flex flex-col items-center justify-center -my-3">
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
+                  <ArrowDown className="w-4 h-4 text-[#64748b] -mt-1" />
+                </div>
 
-                      {/* Sequential Processing Markers */}
-                      <div className="border-t border-[#f4f4f5] px-4 py-3 space-y-2.5 bg-white text-[13px]">
-                        <div className="text-[13px] text-[#71717a]">Sequential Processing Markers</div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[#18181b]">Queue Assignment</span>
-                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
-                          <span className="text-[11px] font-mono font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                            {activeOrder?.batchId || 'BAT-SMK-402'}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[#18181b]">Manufacturing Phase</span>
-                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
-                          <span className="text-[11px] font-mono text-[#f59e0b] bg-amber-50 px-1.5 py-0.5 rounded">
-                            110°C / Smoke
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[#18181b]">Quality Assurance</span>
-                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
-                          <span className={cn(
-                            "text-[11px] font-semibold px-1.5 py-0.5 rounded",
-                            activeOrder?.history.includes('production_qa')
-                              ? "text-emerald-700 bg-emerald-50"
-                              : "text-[#71717a] bg-[#f4f4f5]"
-                          )}>
-                            {activeOrder?.history.includes('production_qa') ? 'QA Passed' : 'In Smoker'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* =========================================================================
-                  COLUMN 3: BINDINGS CARD (PILLAR 4: LOGISTICS & FULFILLMENT NODE)
-                  (Bindings -> Fulfillment Dock)
-                 ========================================================================= */}
-              <div className="w-[280px] sm:w-[320px] shrink-0">
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                {/* PILLAR 2 CARD */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    {/* Header */}
-                    <div
-                      ref={fulfillmentHeaderRef}
-                      onClick={() => toggleNodeExpansion('fulfillment')}
-                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[15px] font-normal text-[#18181b]">Fulfillment</span>
-                        <span className="bg-[#52525b] text-white text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
-                          2
-                        </span>
+                    <div className="px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <h4 className="font-mono font-bold text-xs uppercase tracking-wider text-[#0f172a]">
+                          PILLAR 2: FULFILLMENT ASSEMBLY & PACKAGING
+                        </h4>
                       </div>
-                      {expandedNodes.fulfillment ? (
-                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
-                      )}
+                      <span className="text-[11px] font-mono text-[#64748b]">
+                        orders · packaging_materials_pick · products (packaging)
+                      </span>
                     </div>
 
-                    {/* Body: Action + Packaging Materials + Carrier Fleet Dispatch */}
-                    {expandedNodes.fulfillment && (
-                      <div className="border-t border-[#f4f4f5] bg-white">
-                        {/* Action Row */}
-                        <div className="px-4 py-2.5 flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
-                          <span>Add a dispatch assignment</span>
-                          <Plus className="w-3.5 h-3.5 text-[#71717a]" />
-                        </div>
-
-                        {/* Section 1: Packaging Materials (Replaces Assets) */}
-                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
-                          <div className="text-[12px] text-[#71717a]">Packaging Materials</div>
-                          <div className="text-[13px] font-mono font-bold text-[#18181b] tracking-wider">
-                            BAG_SEALED_CONFIRMED
-                          </div>
-                          <p className="text-[11px] text-[#a1a1aa]">
-                            Thermal insulated box · Packaging inventory decremented
-                          </p>
-                        </div>
-
-                        {/* Section 2: Fleet Carrier API (Replaces Images) */}
-                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
-                          <div className="text-[12px] text-[#71717a]">Logistics Dispatch Board</div>
-                          <div className="text-[13px] font-mono font-bold text-[#18181b] tracking-wider">
-                            RIDER_YUSUF_ASSIGNED
-                          </div>
-                          <p className="text-[11px] text-[#a1a1aa]">
-                            Assignee: <strong className="text-[#18181b]">{activeOrder?.riderName || 'Rider Yusuf (Fleet)'}</strong> · GPS Active
-                          </p>
-                        </div>
-
-                        {/* Terminal Webhook Trigger Row */}
-                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 bg-[#fafafa]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[12px] text-[#71717a]">Doorstep Handover:</span>
-                            <span className={cn(
-                              "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                              activeOrder?.currentStage === 'completed'
-                                ? "bg-emerald-600 text-white"
-                                : "bg-[#e4e4e7] text-[#52525b]"
-                            )}>
-                              {activeOrder?.currentStage === 'completed' ? 'Delivered & Settled' : `Awaiting OTP: ${activeOrder?.otpCode}`}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-[#71717a] mt-1">
-                            Fires instant customer receipt & auto-credits ₦4,000 delivery fee to Rider wallet upon sign-off.
-                          </p>
+                    <div className="p-4 sm:p-5 space-y-2.5 font-mono text-xs text-[#334155] leading-relaxed">
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">'in_packaging'</code>
                         </div>
                       </div>
-                    )}
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>packaging_materials_pick:</strong> 1L bowls & tamper tape picked
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>products (packaging):</strong> packaging inventory stock decremented
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200">'dispatched'</code>, packaged_at = NOW()
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* STEM 2 -> 3 */}
+                <div className="flex flex-col items-center justify-center -my-3">
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
+                  <ArrowDown className="w-4 h-4 text-[#64748b] -mt-1" />
+                </div>
+
+                {/* PILLAR 3 CARD */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    <div className="px-5 py-3 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                        <h4 className="font-mono font-bold text-xs uppercase tracking-wider text-[#0f172a]">
+                          PILLAR 3: LAST-MILE LOGISTICS & CONSUMER HANDOVER
+                        </h4>
+                      </div>
+                      <span className="text-[11px] font-mono text-[#64748b]">
+                        logistics_deliveries · orders · rider_financial_ledger
+                      </span>
+                    </div>
+
+                    <div className="p-4 sm:p-5 space-y-2.5 font-mono text-xs text-[#334155] leading-relaxed">
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>logistics_deliveries:</strong> status = <code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">'assigned'</code>, assigned_at = NOW()
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>logistics_deliveries:</strong> status = <code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">'in_transit'</code>, pickup_at = NOW()
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">'in_transit'</code>
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-emerald-900 font-bold flex items-center justify-between">
+                        <span>• [DOORSTEP HANDOVER TO CONSUMER]</span>
+                        <span className="text-[11px] font-normal text-emerald-700">Doorstep OTP verification</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>logistics_deliveries:</strong> status = <code className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">'delivered'</code>, delivered_at = NOW()
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">'delivered'</code>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>rider_financial_ledger:</strong> credit_commission written, pending_payout += delivery_fee (₦{activeOrder?.deliveryFee.toLocaleString()})
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#64748b]">•</span>
+                        <div>
+                          <strong>orders:</strong> order_status = <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300 font-bold">'closed'</code>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
         {/* =========================================================================
