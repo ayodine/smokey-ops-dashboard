@@ -72,6 +72,7 @@ export const ManageAccountsPage: React.FC = () => {
   // Route detection
   const isRoutePage = location.pathname.includes('/accounts/route')
   const isMatrixPage = location.pathname.includes('/accounts/matrix')
+  const isInvitePage = location.pathname.includes('/accounts/invite')
 
   // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive' | 'matrix'
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive' | 'matrix'>('all')
@@ -86,7 +87,23 @@ export const ManageAccountsPage: React.FC = () => {
   const [accountToDelete, setAccountToDelete] = useState<AppUserAccount | null>(null)
   const [accountToChangeRole, setAccountToChangeRole] = useState<AppUserAccount | null>(null)
   const [inspectPermissionsAccount, setInspectPermissionsAccount] = useState<AppUserAccount | null>(null)
-  const [isOnboardOpen, setIsOnboardOpen] = useState(false)
+
+  // -------------------------------------------------------------
+  // INVITE MEMBERS PAGE STATE (Matching Reference Screenshot)
+  // -------------------------------------------------------------
+  const [inviteEmails, setInviteEmails] = useState<string>('')
+  const [inviteScope, setInviteScope] = useState<string>("Ayodine47@gmail.com's Account")
+  const [inviteResourceScope, setInviteResourceScope] = useState<string>('Entire account')
+  const [inviteSearchQuery, setInviteSearchQuery] = useState<string>('')
+  const [invitePermissions, setInvitePermissions] = useState<string[]>([])
+  const [inviteExpandedCats, setInviteExpandedCats] = useState<Record<string, boolean>>({
+    'overall': true,
+    'Kitchen & Production Operations': true,
+    'Inventory & Warehouse Control': false,
+    'Logistics & Fleet Dispatch': false,
+    'Finance & Cash Remittance': false,
+    'Administration & Security Controls': false,
+  })
 
   // -------------------------------------------------------------
   // EDIT ROUTE & PERMISSION POLICIES PAGE STATE (Screenshots 1, 2, 3)
@@ -166,17 +183,6 @@ export const ManageAccountsPage: React.FC = () => {
       setMatrixPermissions([])
     }
   }
-
-  // Onboard Account Form State
-  const [onboardForm, setOnboardForm] = useState({
-    name: '',
-    email: '',
-    role: 'kitchen' as UserRole,
-    office: 'Central Kitchen (Ikeja Office)',
-    temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
-    permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
-  })
-  const [showOnboardCustomPerms, setShowOnboardCustomPerms] = useState(false)
 
   // Change Password Form State
   const [newPasswordVal, setNewPasswordVal] = useState('')
@@ -493,53 +499,141 @@ export const ManageAccountsPage: React.FC = () => {
     navigate('/accounts')
   }
 
-  // Handle Onboard Submit
-  const handleSaveOnboard = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!onboardForm.name.trim() || !onboardForm.email.trim()) {
-      showToast('Please enter both name and email address', 'error')
+  // Overall roles list for Invite Members page matching Screenshot
+  const overallRolesList = useMemo<Array<{ id: string; label: string; description: string; permissions: string[] }>>(() => [
+    {
+      id: 'super_admin',
+      label: 'Super Administrator - All Privileges',
+      description: 'Can edit any SmokeyOps platform setting, make purchases, update billing, and manage staff memberships. Super Administrators can revoke access of other Super Administrators.',
+      permissions: ALL_SYSTEM_PERMISSIONS.map(p => p.label)
+    },
+    {
+      id: 'minimal_access',
+      label: 'Minimal Account Access',
+      description: 'Can view account, and nothing else',
+      permissions: ['Full Database & Records Access']
+    },
+    {
+      id: 'ops_manager',
+      label: 'Operations General Manager',
+      description: 'Can access full operational hubs, supervise multi-hub kitchens, modify menus, and oversee dispatch shifts.',
+      permissions: ROLE_DEFAULT_PERMISSIONS['manager'] || []
+    },
+    {
+      id: 'kitchen_lead',
+      label: 'Central Kitchen Production Lead',
+      description: 'Can manage kitchen queue, log cooking batches, deplete raw materials, and override station alerts.',
+      permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
+    },
+    {
+      id: 'warehouse_lead',
+      label: 'Inventory & Warehouse Custodian',
+      description: 'Can manage purchase order receipts, inventory intake, transfer manifests, and cycle counts.',
+      permissions: ROLE_DEFAULT_PERMISSIONS['inventory'] || []
+    },
+    {
+      id: 'fleet_lead',
+      label: 'Logistics & Fleet Dispatcher',
+      description: 'Can manage rider assignments, dispatch queue, live transit monitoring, and third-party courier integrations.',
+      permissions: ROLE_DEFAULT_PERMISSIONS['dispatcher'] || []
+    },
+    {
+      id: 'delivery_courier',
+      label: 'Delivery Courier / Rider',
+      description: 'Can view assigned delivery drops, update waypoint progress, and sign off customer OTP handovers.',
+      permissions: ROLE_DEFAULT_PERMISSIONS['rider'] || []
+    },
+    {
+      id: 'read_only',
+      label: 'Operations Read Only Auditor',
+      description: 'Can access the full account in read only mode without modification privileges.',
+      permissions: ['Full Database & Records Access']
+    }
+  ], [])
+
+  // Parse comma / space / newline separated emails
+  const parsedInviteEmails = useMemo(() => {
+    if (!inviteEmails.trim()) return []
+    return inviteEmails
+      .split(/[\s,;]+/)
+      .map(e => e.trim())
+      .filter(e => e.length > 0)
+  }, [inviteEmails])
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const validEmails = useMemo(() => {
+    return parsedInviteEmails.filter(e => emailRegex.test(e))
+  }, [parsedInviteEmails])
+
+  // Handle Invite Members Submit
+  const handleInviteSubmit = () => {
+    if (validEmails.length === 0) {
+      showToast('Please enter at least one valid email address', 'error')
       return
     }
 
-    const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === onboardForm.role)
-    const roleLabel = roleConfig ? roleConfig.label : onboardForm.role
-    const finalPermissions = onboardForm.permissions.length > 0
-      ? onboardForm.permissions
-      : ROLE_DEFAULT_PERMISSIONS[onboardForm.role] || []
-    const cleanedOffice = onboardForm.office.replace(/\s+Office$/i, '')
+    const finalPermissions = invitePermissions.length > 0
+      ? invitePermissions
+      : ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
 
-    const newAcc: AppUserAccount = {
-      email: onboardForm.email.trim(),
-      name: onboardForm.name.trim(),
-      role: onboardForm.role,
-      roleLabel,
-      assigned_hub: cleanedOffice,
-      permissions: finalPermissions,
-      department:
-        onboardForm.role === 'kitchen'
-          ? 'Culinary Operations'
-          : onboardForm.role === 'rider' || onboardForm.role === 'dispatcher'
-          ? 'Logistics'
-          : onboardForm.role === 'inventory'
-          ? 'Warehouse'
-          : 'Administration',
-      staff_id: `SHD-${onboardForm.role.toUpperCase().slice(0, 3)}-${Math.floor(100 + Math.random() * 900)}`,
-      status: 'active',
-      last_active: 'Invited just now',
-      temporary_password: onboardForm.temporaryPassword,
-      created_at: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-    }
+    const cleanedOffice = inviteScope.includes('Office')
+      ? inviteScope.replace(/\s+Office$/i, '').trim()
+      : 'Central Kitchen'
 
-    createAccount(newAcc)
-    setIsOnboardOpen(false)
-    setOnboardForm({
-      name: '',
-      email: '',
-      role: 'kitchen',
-      office: 'Central Kitchen (Ikeja Office)',
-      temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
-      permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
+    validEmails.forEach((emailStr) => {
+      const email = emailStr.trim()
+      const username = email.split('@')[0]
+      const derivedName = username
+        .split(/[._-]/)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') || 'Team Member'
+
+      let derivedRole: UserRole = 'kitchen'
+      if (invitePermissions.some(p => p.includes('Super Administrator') || p.includes('Role & Permission') || p.includes('User Onboarding'))) {
+        derivedRole = 'admin'
+      } else if (invitePermissions.some(p => p.includes('Supervise') || p.includes('Variance') || p.includes('Operations General Manager'))) {
+        derivedRole = 'manager'
+      } else if (invitePermissions.some(p => p.includes('Logistics') || p.includes('Dispatch'))) {
+        derivedRole = 'dispatcher'
+      } else if (invitePermissions.some(p => p.includes('Transit') || p.includes('Delivery Courier') || p.includes('OTP'))) {
+        derivedRole = 'rider'
+      } else if (invitePermissions.some(p => p.includes('Stock Intake') || p.includes('Warehouse'))) {
+        derivedRole = 'inventory'
+      } else if (invitePermissions.some(p => p.includes('Read Only') || p.includes('Auditor'))) {
+        derivedRole = 'admin'
+      }
+
+      const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === derivedRole)
+      const roleLabel = roleConfig ? roleConfig.label : derivedRole
+
+      const newAccount: AppUserAccount = {
+        email,
+        name: derivedName,
+        role: derivedRole,
+        roleLabel,
+        assigned_hub: cleanedOffice,
+        permissions: finalPermissions,
+        department:
+          derivedRole === 'kitchen'
+            ? 'Culinary Operations'
+            : derivedRole === 'rider' || derivedRole === 'dispatcher'
+            ? 'Logistics'
+            : derivedRole === 'inventory'
+            ? 'Warehouse'
+            : 'Administration',
+        staff_id: `SHD-${derivedRole.toUpperCase().slice(0, 3)}-${Math.floor(100 + Math.random() * 900)}`,
+        status: 'active',
+        last_active: 'Invited just now',
+        temporary_password: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
+        created_at: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      }
+
+      createAccount(newAccount)
     })
+
+    showToast(`Successfully invited ${validEmails.length} member${validEmails.length === 1 ? '' : 's'} to ${inviteScope}`, 'success')
+    navigate('/accounts')
   }
 
   // Handle Change Password Submit
@@ -1656,6 +1750,412 @@ export const ManageAccountsPage: React.FC = () => {
   }
 
   // =========================================================================
+  // VIEW: DEDICATED INVITE MEMBERS PAGE (Matching Reference Screenshot)
+  // =========================================================================
+  if (isInvitePage) {
+    const activeOverallRolesCount = overallRolesList.filter(
+      (r) => r.permissions.length > 0 && r.permissions.every((p: string) => invitePermissions.includes(p))
+    ).length
+    const isOverallMasterActive =
+      overallRolesList.length > 0 && activeOverallRolesCount === overallRolesList.length
+
+    const handleToggleOverallMaster = (checked: boolean) => {
+      if (checked) {
+        const allRolesPerms = overallRolesList.flatMap((r) => r.permissions)
+        setInvitePermissions((prev) => Array.from(new Set([...prev, ...allRolesPerms])))
+      } else {
+        const allRolesPerms = new Set(overallRolesList.flatMap((r) => r.permissions))
+        setInvitePermissions((prev) => prev.filter((p) => !allRolesPerms.has(p)))
+      }
+    }
+
+    const filteredOverallRoles = overallRolesList.filter((r) => {
+      if (!inviteSearchQuery.trim()) return true
+      const q = inviteSearchQuery.toLowerCase()
+      return r.label.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
+    })
+
+    const filteredCategories = policyCategoryGroups.filter((cat) => {
+      if (!inviteSearchQuery.trim()) return true
+      const q = inviteSearchQuery.toLowerCase()
+      return (
+        cat.name.toLowerCase().includes(q) ||
+        cat.permissions.some(
+          (p) => p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+        )
+      )
+    })
+
+    return (
+      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
+        {/* Navigation Breadcrumb & Header */}
+        <div className="flex items-center justify-between gap-4 pt-1">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/accounts')}
+              className="w-9 h-9 rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs shrink-0"
+              aria-label="Back to team accounts"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h1 className="text-2xl font-bold tracking-tight text-kumo-strong">
+              Invite members
+            </h1>
+          </div>
+        </div>
+
+        {/* 1. CARD: Add email addresses */}
+        <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-xs space-y-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-kumo-strong">
+            <span>Add email addresses</span>
+            <Tooltip content="Enter one or multiple email addresses separated by commas, spaces, or lines.">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-kumo-line text-[11px] font-medium text-kumo-subtle hover:text-kumo-strong cursor-help transition-colors">
+                i
+              </span>
+            </Tooltip>
+          </div>
+          <div>
+            <textarea
+              rows={2}
+              value={inviteEmails}
+              onChange={(e) => setInviteEmails(e.target.value)}
+              placeholder="first@example.com, second@example.com"
+              className="w-full px-4 py-3 text-sm font-sans rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none shadow-2xs"
+            />
+            {parsedInviteEmails.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                <span className="text-[11px] font-medium text-kumo-subtle mr-1">
+                  {validEmails.length} valid {validEmails.length === 1 ? 'recipient' : 'recipients'}:
+                </span>
+                {parsedInviteEmails.map((email, idx) => {
+                  const isValid = emailRegex.test(email)
+                  return (
+                    <span
+                      key={idx}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                        isValid
+                          ? "bg-kumo-tint border-kumo-line text-kumo-strong"
+                          : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      <span>{email}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = parsedInviteEmails.filter((_, i) => i !== idx).join(', ')
+                          setInviteEmails(updated)
+                        }}
+                        className="hover:text-red-500 ml-0.5 cursor-pointer"
+                        aria-label={`Remove ${email}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. CARD: Add permission policies */}
+        <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-kumo-strong">
+            <span>Add permission policies</span>
+            <Tooltip content="Define access boundaries and operational permissions granted to the invited members.">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-kumo-line text-[11px] font-medium text-kumo-subtle hover:text-kumo-strong cursor-help transition-colors">
+                i
+              </span>
+            </Tooltip>
+          </div>
+
+          {/* Top Scope Dropdowns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Select
+              value={inviteScope}
+              onValueChange={(val) => setInviteScope(String(val))}
+              groups={[
+                {
+                  label: 'ACCOUNT-LEVEL',
+                  options: [
+                    { label: "Ayodine47@gmail.com's Account", value: "Ayodine47@gmail.com's Account" },
+                    { label: 'SmokeyOps Core Enterprise', value: 'SmokeyOps Core Enterprise' },
+                  ]
+                },
+                {
+                  label: 'RESOURCE-SPECIFIC',
+                  options: [
+                    { label: 'Central Kitchen (Ikeja Office)', value: 'Central Kitchen (Ikeja Office)' },
+                    { label: 'Yaba Head Office', value: 'Yaba Head Office' },
+                    { label: 'Lekki Dispatch Staging Office', value: 'Lekki Dispatch Staging Office' },
+                    { label: 'Main Storage Warehouse Office', value: 'Main Storage Warehouse Office' }
+                  ]
+                }
+              ]}
+              className="w-full"
+            />
+            <Select
+              value={inviteResourceScope}
+              onValueChange={(val) => setInviteResourceScope(String(val))}
+              options={[
+                { label: 'Entire account', value: 'Entire account' },
+                { label: 'Central Kitchen Production Unit', value: 'Central Kitchen Production Unit' },
+                { label: 'Logistics & Fleet Dispatch Staging', value: 'Logistics & Fleet Dispatch Staging' },
+                { label: 'Main Storage Warehouse & Cold Depots', value: 'Main Storage Warehouse & Cold Depots' },
+                { label: 'Retail & Counter Ordering', value: 'Retail & Counter Ordering' }
+              ]}
+              className="w-full"
+            />
+          </div>
+
+          {/* Dynamic description matching screenshot */}
+          <p className="text-xs text-kumo-subtle font-normal">
+            Define what permissions <strong className="text-kumo-strong font-semibold">{validEmails.length} {validEmails.length === 1 ? 'member' : 'members'}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{inviteScope}</strong>.
+          </p>
+
+          {/* Search by role name */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={inviteSearchQuery}
+              onChange={(e) => setInviteSearchQuery(e.target.value)}
+              placeholder="Search by role name..."
+              className="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-2xs"
+            />
+            {inviteSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setInviteSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Accordion Categories */}
+          <div className="border border-kumo-line rounded-xl overflow-hidden divide-y divide-kumo-line bg-kumo-base">
+            {/* 1. OVERALL ROLES ACCORDION */}
+            {filteredOverallRoles.length > 0 && (
+              <div className="transition-colors">
+                <div className="flex items-center justify-between px-4 py-3 bg-kumo-tint/20 hover:bg-kumo-tint/30 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setInviteExpandedCats((prev) => ({ ...prev, overall: !prev['overall'] }))
+                    }
+                    className="flex items-center gap-2 text-left cursor-pointer grow select-none"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-kumo-subtle transition-transform duration-200",
+                        !inviteExpandedCats['overall'] && "-rotate-90"
+                      )}
+                    />
+                    <span className="text-sm font-semibold text-kumo-strong">Overall roles</span>
+                  </button>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs font-mono text-kumo-subtle font-medium">
+                      {activeOverallRolesCount}/{overallRolesList.length}
+                    </span>
+                    <Toggle
+                      checked={isOverallMasterActive}
+                      onChange={handleToggleOverallMaster}
+                      size="sm"
+                    />
+                  </div>
+                </div>
+
+                {inviteExpandedCats['overall'] && (
+                  <div className="px-4 py-1 divide-y divide-dashed divide-kumo-line/60">
+                    {filteredOverallRoles.map((role) => {
+                      const isRoleActive =
+                        role.permissions.length > 0 &&
+                        role.permissions.every((p: string) => invitePermissions.includes(p))
+
+                      const handleRoleToggle = (checked: boolean) => {
+                        if (checked) {
+                          setInvitePermissions((prev) => Array.from(new Set([...prev, ...role.permissions])))
+                        } else {
+                          const removeSet = new Set(role.permissions)
+                          setInvitePermissions((prev) => prev.filter((p) => !removeSet.has(p)))
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={role.id}
+                          className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center py-3.5 hover:bg-kumo-tint/10 transition-colors"
+                        >
+                          <div className="md:col-span-4">
+                            <span className="text-sm font-semibold text-kumo-strong block">
+                              {role.label}
+                            </span>
+                          </div>
+                          <div className="md:col-span-7">
+                            <span className="text-xs text-kumo-subtle leading-relaxed block">
+                              {role.description}
+                            </span>
+                          </div>
+                          <div className="md:col-span-1 flex justify-end">
+                            <Toggle
+                              checked={isRoleActive}
+                              onChange={handleRoleToggle}
+                              size="md"
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. OPERATIONAL POLICY CATEGORIES */}
+            {filteredCategories.map((category) => {
+              const totalInCat = category.permissions.length
+              const activeInCat = category.permissions.filter((p) =>
+                invitePermissions.includes(p.label)
+              ).length
+              const isCategoryMasterActive = totalInCat > 0 && activeInCat === totalInCat
+              const isCatExpanded = Boolean(inviteExpandedCats[category.name])
+
+              const handleCategoryMasterToggle = (checked: boolean) => {
+                const labels = category.permissions.map((p) => p.label)
+                if (checked) {
+                  setInvitePermissions((prev) => Array.from(new Set([...prev, ...labels])))
+                } else {
+                  const set = new Set(labels)
+                  setInvitePermissions((prev) => prev.filter((p) => !set.has(p)))
+                }
+              }
+
+              const visiblePermissions = category.permissions.filter((p) => {
+                if (!inviteSearchQuery.trim()) return true
+                const q = inviteSearchQuery.toLowerCase()
+                return p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+              })
+
+              if (visiblePermissions.length === 0) return null
+
+              return (
+                <div key={category.id} className="transition-colors">
+                  <div className="flex items-center justify-between px-4 py-3 bg-kumo-tint/20 hover:bg-kumo-tint/30 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setInviteExpandedCats((prev) => ({
+                          ...prev,
+                          [category.name]: !prev[category.name],
+                        }))
+                      }
+                      className="flex items-center gap-2 text-left cursor-pointer grow select-none"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "w-4 h-4 text-kumo-subtle transition-transform duration-200",
+                          !isCatExpanded && "-rotate-90"
+                        )}
+                      />
+                      <span className="text-sm font-semibold text-kumo-strong">{category.name}</span>
+                    </button>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs font-mono text-kumo-subtle font-medium">
+                        {activeInCat}/{totalInCat}
+                      </span>
+                      <Toggle
+                        checked={isCategoryMasterActive}
+                        onChange={handleCategoryMasterToggle}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+
+                  {isCatExpanded && (
+                    <div className="px-4 py-1 divide-y divide-dashed divide-kumo-line/60">
+                      {visiblePermissions.map((perm) => {
+                        const isPermActive = invitePermissions.includes(perm.label)
+
+                        const handlePermToggle = (checked: boolean) => {
+                          if (checked) {
+                            setInvitePermissions((prev) => Array.from(new Set([...prev, perm.label])))
+                          } else {
+                            setInvitePermissions((prev) => prev.filter((p) => p !== perm.label))
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={perm.id}
+                            className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center py-3.5 hover:bg-kumo-tint/10 transition-colors"
+                          >
+                            <div className="md:col-span-4">
+                              <span className="text-sm font-semibold text-kumo-strong block">
+                                {perm.label}
+                              </span>
+                            </div>
+                            <div className="md:col-span-7">
+                              <span className="text-xs text-kumo-subtle leading-relaxed block">
+                                {perm.description}
+                              </span>
+                            </div>
+                            <div className="md:col-span-1 flex justify-end">
+                              <Toggle
+                                checked={isPermActive}
+                                onChange={handlePermToggle}
+                                size="md"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Action buttons footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-kumo-line">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/accounts')}
+              className="h-10 px-5 text-sm font-medium"
+            >
+              Cancel
+            </Button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-kumo-subtle hidden sm:inline">
+                {validEmails.length > 0
+                  ? `Ready to invite ${validEmails.length} member${validEmails.length === 1 ? '' : 's'}`
+                  : 'Enter email address to continue'}
+              </span>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={validEmails.length === 0}
+                onClick={handleInviteSubmit}
+                leftIcon={<UserPlus className="w-4 h-4" />}
+                className="h-10 px-6 text-sm font-semibold shadow-xs"
+              >
+                Invite members
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // =========================================================================
   // VIEW 3: MAIN TEAM ACCOUNTS TABLE PAGE
   // =========================================================================
   return (
@@ -1687,18 +2187,11 @@ export const ManageAccountsPage: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => {
-                setOnboardForm((prev) => ({
-                  ...prev,
-                  temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
-                  permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
-                }))
-                setIsOnboardOpen(true)
-              }}
+              onClick={() => navigate('/accounts/invite')}
               leftIcon={<UserPlus className="w-4 h-4" />}
               className="h-10 px-4 text-sm font-semibold shadow-xs"
             >
-              Add Member
+              Invite Members
             </Button>
           </>
         }
@@ -1780,159 +2273,6 @@ export const ManageAccountsPage: React.FC = () => {
       </div>
 
       {/* 4. SUB-MODALS */}
-
-      {/* ONBOARD NEW OPERATOR MODAL */}
-      <Dialog
-        isOpen={isOnboardOpen}
-        onClose={() => setIsOnboardOpen(false)}
-        title="Onboard New Team Member"
-        description="Register a new staff member or operator, provision their credentials, and assign role authority."
-        maxWidth="lg"
-      >
-        <form onSubmit={handleSaveOnboard} className="space-y-4 font-sans text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-kumo-strong">Full Name</label>
-              <input
-                type="text"
-                required
-                value={onboardForm.name}
-                onChange={(e) => setOnboardForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Samuel Adeleke"
-                className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-kumo-strong">Email Address</label>
-              <input
-                type="email"
-                required
-                value={onboardForm.email}
-                onChange={(e) => setOnboardForm(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="samuel@smokeyhut.com"
-                className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-kumo-strong">Designated Role</label>
-              <select
-                value={onboardForm.role}
-                onChange={(e) => {
-                  const r = e.target.value as UserRole
-                  setOnboardForm(prev => ({
-                    ...prev,
-                    role: r,
-                    permissions: ROLE_DEFAULT_PERMISSIONS[r] || []
-                  }))
-                }}
-                className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand"
-              >
-                {SYSTEM_ROLE_CONFIGS.map(r => (
-                  <option key={r.id} value={r.id}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-kumo-strong">Office</label>
-              <select
-                value={onboardForm.office}
-                onChange={(e) => setOnboardForm(prev => ({ ...prev, office: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand"
-              >
-                <option value="Central Kitchen (Ikeja Office)">Central Kitchen (Ikeja Office)</option>
-                <option value="Yaba Head Office">Yaba Head Office</option>
-                <option value="Lekki Dispatch Staging Office">Lekki Dispatch Staging Office</option>
-                <option value="Main Storage Warehouse Office">Main Storage Warehouse Office</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Temporary Password */}
-          <div className="p-3 bg-kumo-canvas/60 border border-kumo-line rounded-xl space-y-1 text-left">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-kumo-strong">Temporary Password</label>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(onboardForm.temporaryPassword)
-                  showToast('Temporary password copied to clipboard', 'success')
-                }}
-                className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Copy className="w-3 h-3" />
-                <span>Copy</span>
-              </button>
-            </div>
-            <p className="font-sans text-xs font-bold text-kumo-strong bg-kumo-base px-2.5 py-1.5 rounded border border-kumo-line/80 inline-block">
-              {onboardForm.temporaryPassword}
-            </p>
-            <p className="text-[10px] text-kumo-subtle">
-              Operator will be prompted to set a permanent password upon first login.
-            </p>
-          </div>
-
-          {/* Custom Permissions Toggle */}
-          <div className="space-y-2 text-left">
-            <button
-              type="button"
-              onClick={() => setShowOnboardCustomPerms(!showOnboardCustomPerms)}
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>{showOnboardCustomPerms ? 'Hide custom permissions' : 'Customize granular permissions'}</span>
-              <span>({onboardForm.permissions.length} active)</span>
-            </button>
-
-            {showOnboardCustomPerms && (
-              <div className="p-3 bg-kumo-canvas border border-kumo-line rounded-xl max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {ALL_SYSTEM_PERMISSIONS.map((perm) => {
-                  const checked = onboardForm.permissions.includes(perm.label)
-                  return (
-                    <label key={perm.id} className="flex items-start gap-2 text-left cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setOnboardForm(prev => ({
-                            ...prev,
-                            permissions: checked
-                              ? prev.permissions.filter(p => p !== perm.label)
-                              : [...prev.permissions, perm.label]
-                          }))
-                        }}
-                        className="mt-0.5 rounded border-kumo-line text-primary focus:ring-primary size-3.5 shrink-0"
-                      />
-                      <span className="text-[11px] text-kumo-strong leading-tight">{perm.label}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-kumo-line">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setIsOnboardOpen(false)}
-              className="h-9 px-4 text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              className="h-9 px-4 text-xs font-semibold"
-            >
-              Create Account
-            </Button>
-          </div>
-        </form>
-      </Dialog>
 
       {/* CHANGE PASSWORD MODAL */}
       <Dialog

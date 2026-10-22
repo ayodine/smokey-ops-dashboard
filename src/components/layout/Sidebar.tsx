@@ -586,7 +586,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 onClick={onCloseMobile}
                 className={cn(
                   "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
-                  location.pathname === '/accounts' || location.pathname === '/admin/accounts'
+                  location.pathname.startsWith('/accounts') || location.pathname.startsWith('/admin/accounts')
                     ? "bg-kumo-tint text-kumo-strong font-semibold"
                     : "text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
                 )}
