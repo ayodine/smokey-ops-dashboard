@@ -202,6 +202,31 @@
   [data-kumo-component],
   .font-sans,
   .kpi-title,
+  /* Strict SF Pro Text for Tables, Actions, Labels, Forms, Dropdowns, Inputs, Badges */
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  button,
+  label,
+  input,
+  select,
+  textarea,
+  p,
+  span,
+  div,
+  a,
+  li,
+  ul,
+  ol,
+  .tooltip,
+  [role="tooltip"],
+  [data-kumo-component],
+  .font-sans,
+  .kpi-title,
   .kpi-description,
   .form-label {
     font-family: var(--font-sf-text);
@@ -218,11 +243,17 @@
   [data-kumo-component="DataTable"],
   [data-kumo-component="DataTable"] *,
   [data-kumo-component="DataTable"] .font-mono,
-  table .font-mono {
+  table .font-mono,
+  .data-table,
+  .data-table *,
+  [role="table"],
+  [role="table"] *,
+  [role="grid"],
+  [role="grid"] * {
     font-family: var(--font-sf-text) !important;
   }
 
-  /* Code & Monospace numbers outside of tables */
+  /* Code & Monospace strictly restricted to raw code blocks */
   code, pre {
     font-family: var(--font-sf-mono) !important;
   }
@@ -328,3 +359,113 @@
   border-color: rgba(243, 176, 187, 0.4) !important;
   color: #fca5a5 !important;
 }
+
+/* =========================================================================
+   STRICT SF PRO TYPOGRAPHY ENFORCEMENT
+   Strictly enforce SF Pro on ALL tables, actions, labels, and badges.
+   ========================================================================= */
+
+/* 1. All Tables (HTML tables, DataTable components, data grids, headers, rows, cells, and all contents) */
+table,
+table *,
+thead,
+thead *,
+tbody,
+tbody *,
+tfoot,
+tfoot *,
+tr,
+th,
+th *,
+td,
+td *,
+[data-kumo-component="DataTable"],
+[data-kumo-component="DataTable"] *,
+[data-kumo-component="DataTable"] .font-mono,
+table .font-mono,
+.data-table,
+.data-table *,
+.table-grid,
+.table-grid *,
+[role="table"],
+[role="table"] *,
+[role="grid"],
+[role="grid"] *,
+[role="row"],
+[role="row"] *,
+[role="cell"],
+[role="cell"] *,
+[role="columnheader"],
+[role="columnheader"] *,
+[role="rowheader"],
+[role="rowheader"] * {
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+/* 2. All Actions (Buttons, Table Action Buttons, Dropdown Triggers/Items, Tabs, Toggles, Action Bars) */
+button,
+button *,
+[role="button"],
+[role="button"] *,
+.table-action-button,
+.table-action-button *,
+[data-kumo-component="Button"],
+[data-kumo-component="Button"] *,
+[data-kumo-component="Tabs"],
+[data-kumo-component="Tabs"] *,
+[role="tab"],
+[role="tab"] *,
+[role="menuitem"],
+[role="menuitem"] *,
+[role="switch"],
+[role="switch"] *,
+.action-button,
+.action-button *,
+button.font-mono,
+.table-action-button.font-mono {
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+/* 3. All Labels (Form labels, Field labels, Caption labels, Filter labels, Option labels, Inputs, Selects) */
+label,
+label *,
+.form-label,
+.form-label *,
+[data-kumo-component="Label"],
+[data-kumo-component="Label"] *,
+.input-label,
+.input-label *,
+.field-label,
+.field-label *,
+input,
+select,
+textarea,
+label.font-mono,
+.form-label.font-mono,
+input.font-mono {
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+/* 4. All Badges (StatusBadge, Badge component, status pills, count tags, role pills, kpi tags) */
+[data-kumo-component="Badge"],
+[data-kumo-component="Badge"] *,
+.badge,
+.badge *,
+.status-badge,
+.status-badge *,
+.badge-red-pill,
+.badge-red-pill *,
+[data-badge],
+[data-badge] *,
+.status-pill,
+.status-pill *,
+.count-badge,
+.count-badge *,
+.role-badge,
+.role-badge *,
+[data-kumo-component="Badge"].font-mono,
+.badge.font-mono,
+.status-pill.font-mono {
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+

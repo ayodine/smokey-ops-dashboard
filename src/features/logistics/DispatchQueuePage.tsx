@@ -91,7 +91,7 @@ export const DispatchQueuePage: React.FC = () => {
         const isExpress = d.urgency === 'EXPRESS'
         return (
           <span
-            className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center ${
+            className={`font-sans text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center ${
               isExpress
                 ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300'
                 : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'

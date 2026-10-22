@@ -630,7 +630,7 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Email Address',
       defaultWidth: 220,
       accessor: (acc) => (
-        <span className="text-xs text-kumo-subtle font-mono">
+        <span className="text-xs text-kumo-subtle font-sans">
           {acc.email}
         </span>
       ),
@@ -838,7 +838,7 @@ export const ManageAccountsPage: React.FC = () => {
               Members
             </Link>
             <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            <span className="text-kumo-default font-mono">{targetStaff.email}</span>
+            <span className="text-kumo-default font-sans">{targetStaff.email}</span>
             <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             <span className="text-kumo-strong font-semibold">Edit permission policies</span>
           </div>
@@ -910,7 +910,7 @@ export const ManageAccountsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-kumo-subtle font-mono hidden sm:inline-flex items-center gap-1.5">
+            <span className="text-xs text-kumo-subtle font-sans hidden sm:inline-flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5" />
               <span>View member ID:</span>
               <strong className="text-kumo-strong">{targetStaff.staff_id || 'SHD-STAFF'}</strong>
@@ -966,7 +966,7 @@ export const ManageAccountsPage: React.FC = () => {
                       </div>
 
                       <div className="flex items-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-xs font-mono text-kumo-strong">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-xs font-sans text-kumo-strong">
                           <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
                           <span>{policyAppliesTo}</span>
                         </span>
@@ -1031,7 +1031,7 @@ export const ManageAccountsPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-xs font-mono">
+                    <div className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-xs font-sans">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-kumo-tint text-kumo-strong text-xs font-sans">
                         <span>{policyAppliesTo}</span>
                         <button
@@ -1129,7 +1129,7 @@ export const ManageAccountsPage: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                              <span className="text-xs font-mono text-kumo-subtle">
+                              <span className="text-xs font-sans text-kumo-subtle font-medium">
                                 {activeInGroup.length}/{group.permissions.length}
                               </span>
                               <ToggleSwitch
@@ -1274,7 +1274,7 @@ export const ManageAccountsPage: React.FC = () => {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="e.g. www.thecentralreport.com/*"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-mono"
+                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
@@ -1295,7 +1295,7 @@ export const ManageAccountsPage: React.FC = () => {
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
                     placeholder="operator@smokeyhut.com"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-mono"
+                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
@@ -1542,7 +1542,7 @@ export const ManageAccountsPage: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-xs font-mono text-kumo-subtle">
+                            <span className="text-xs font-sans text-kumo-subtle font-medium">
                               {activeInGroup.length}/{group.permissions.length}
                             </span>
                             <ToggleSwitch
@@ -1832,7 +1832,7 @@ export const ManageAccountsPage: React.FC = () => {
                 <span>Copy</span>
               </button>
             </div>
-            <p className="font-mono text-xs font-bold text-kumo-strong bg-kumo-base px-2.5 py-1.5 rounded border border-kumo-line/80 inline-block">
+            <p className="font-sans text-xs font-bold text-kumo-strong bg-kumo-base px-2.5 py-1.5 rounded border border-kumo-line/80 inline-block">
               {onboardForm.temporaryPassword}
             </p>
             <p className="text-[10px] text-kumo-subtle">
@@ -1916,7 +1916,7 @@ export const ManageAccountsPage: React.FC = () => {
                   required
                   value={newPasswordVal}
                   onChange={(e) => setNewPasswordVal(e.target.value)}
-                  className="w-full h-9 pl-3 pr-20 rounded-lg border border-kumo-line bg-kumo-base text-xs font-mono text-kumo-strong focus:outline-none focus:border-kumo-brand"
+                  className="w-full h-9 pl-3 pr-20 rounded-lg border border-kumo-line bg-kumo-base text-xs font-sans text-kumo-strong focus:outline-none focus:border-kumo-brand"
                 />
                 <button
                   type="button"

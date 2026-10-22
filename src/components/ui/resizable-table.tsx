@@ -707,7 +707,7 @@ export function ResizableTable({
                       <div className="flex items-center min-w-0 border-r border-border px-3" style={{ width: columnWidths.email }}>
                         <a 
                           href={`mailto:${employee.email}`}
-                          className="text-sm text-kumo-brand hover:underline truncate font-mono text-xs"
+                          className="text-sm text-kumo-brand hover:underline truncate font-sans text-xs"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {employee.email}
@@ -727,13 +727,13 @@ export function ResizableTable({
                       </div>
 
                       <div className="flex items-center border-r border-border px-3" style={{ width: columnWidths.salary }}>
-                        <span className="text-sm font-semibold text-foreground/90 font-mono">
+                        <span className="text-sm font-semibold text-foreground/90 font-sans">
                           {formatCurrency(employee.salary)}
                         </span>
                       </div>
 
                       <div className="flex items-center border-r border-border px-3" style={{ width: columnWidths.hireDate }}>
-                        <span className="text-sm text-foreground/80 font-mono text-xs">
+                        <span className="text-sm text-foreground/80 font-sans text-xs">
                           {formatDate(employee.hireDate)}
                         </span>
                       </div>

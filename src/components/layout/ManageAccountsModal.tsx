@@ -1296,7 +1296,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 type="text"
                 readOnly
                 value={onboardForm.temporaryPassword}
-                className="font-mono font-bold text-xs h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong flex-1"
+                className="font-sans font-bold text-xs h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong flex-1"
               />
               <Button
                 variant="outline"
@@ -1374,7 +1374,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   value={newPasswordVal}
                   onChange={(e) => setNewPasswordVal(e.target.value)}
                   placeholder="Enter new password"
-                  className="w-full h-10 pl-3.5 pr-20 font-mono text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong focus:outline-none focus:border-kumo-brand"
+                  className="w-full h-10 pl-3.5 pr-20 font-sans text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong focus:outline-none focus:border-kumo-brand"
                 />
                 <button
                   type="button"

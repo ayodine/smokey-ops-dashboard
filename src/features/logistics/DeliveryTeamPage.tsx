@@ -276,7 +276,7 @@ export const DeliveryTeamPage: React.FC = () => {
       header: 'KYC Record',
       defaultWidth: 200,
       accessor: (r) => (
-        <span className="font-mono text-xs text-kumo-strong font-medium bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line inline-block">
+        <span className="font-sans text-xs text-kumo-strong font-medium bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line inline-block">
           {r.value}
         </span>
       ),
@@ -299,7 +299,7 @@ export const DeliveryTeamPage: React.FC = () => {
       header: 'Order Ref',
       defaultWidth: 130,
       accessor: (t) => (
-        <span className="px-2 py-0.5 bg-kumo-tint text-kumo-strong font-mono font-semibold rounded text-xs border border-kumo-line">
+        <span className="px-2 py-0.5 bg-kumo-tint text-kumo-strong font-sans font-semibold rounded text-xs border border-kumo-line">
           {t.order_ref}
         </span>
       ),
@@ -369,7 +369,7 @@ export const DeliveryTeamPage: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-kumo-strong font-sans">{r.rider_name}</span>
               {r.staff_id && (
-                <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-kumo-tint text-kumo-strong rounded border border-kumo-line font-mono">
+                <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-kumo-tint text-kumo-strong rounded border border-kumo-line font-sans">
                   {r.staff_id}
                 </span>
               )}
@@ -766,7 +766,7 @@ export const DeliveryTeamPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-base text-kumo-strong">{selectedRider.rider_name}</h3>
-                      <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-kumo-tint border border-kumo-line rounded">
+                      <span className="px-2 py-0.5 text-xs font-sans font-semibold bg-kumo-tint border border-kumo-line rounded">
                         {selectedRider.staff_id || 'RDR-001'}
                       </span>
                     </div>

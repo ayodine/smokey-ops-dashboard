@@ -68,7 +68,7 @@ export const ReturnsPage: React.FC = () => {
         const isRestocked = r.disposition === 'RESTOCKED'
         return (
           <span
-            className={`font-mono text-xs font-semibold px-2.5 py-1 rounded-full border whitespace-nowrap shrink-0 inline-flex items-center ${
+            className={`font-sans text-xs font-semibold px-2.5 py-1 rounded-full border whitespace-nowrap shrink-0 inline-flex items-center ${
               isRestocked
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
                 : 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300'
