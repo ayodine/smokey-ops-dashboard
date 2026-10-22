@@ -149,7 +149,7 @@ interface StatusPillProps {
 export const StatusPill: React.FC<StatusPillProps> = ({
   label,
   variant = 'zinc',
-  dot = true,
+  dot = false,
   className
 }) => {
   const variantStyles = {
@@ -157,7 +157,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
     blue: 'bg-blue-50 text-blue-700 border-blue-200/80',
     amber: 'bg-amber-50 text-amber-700 border-amber-200/80',
     purple: 'bg-purple-50 text-purple-700 border-purple-200/80',
-    zinc: 'bg-zinc-100 text-zinc-700 border-zinc-200/80'
+    zinc: 'bg-[#e4e4e7] text-[#18181b] border-transparent'
   }
 
   const dotColors = {
@@ -181,6 +181,17 @@ export const StatusPill: React.FC<StatusPillProps> = ({
     </span>
   )
 }
+
+export const CountBadge: React.FC<{ count: string | number; className?: string }> = ({ count, className }) => (
+  <span
+    className={cn(
+      'inline-flex items-center justify-center px-1.5 py-0.5 rounded-[6px] text-[11px] font-semibold bg-[#52525b] text-white min-w-[20px] leading-tight select-none',
+      className
+    )}
+  >
+    {count}
+  </span>
+)
 
 export const getStageLabel = (stage?: PipelineStage): string => {
   switch (stage) {
@@ -844,6 +855,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
             <span className="text-[12px] text-[#71717a]">Current Stage:</span>
             <StatusPill
               label={getStageLabel(activeOrder?.currentStage)}
+              dot={true}
               variant={
                 activeOrder?.currentStage === 'p3_settled_closed'
                   ? 'zinc'
@@ -959,158 +971,137 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-[260px] sm:w-[290px] shrink-0 space-y-3.5">
                     {/* Node 1A: Order Intake */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        <div
-                          ref={node1AHeaderRef}
-                          onClick={() => toggleNodeExpansion('node1A')}
-                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                        >
+                      <div
+                        ref={node1AHeaderRef}
+                        onClick={() => toggleNodeExpansion('node1A')}
+                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
-                          <div className="flex items-center gap-2">
-                            <StatusPill
-                              label={pipelineMetrics.intake.badgeLabel}
-                              variant={getCountVariant(pipelineMetrics.intake.doneCount, pipelineMetrics.intake.totalCount)}
-                            />
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
-                              {expandedNodes.node1A ? (
-                                <ChevronUp className="w-4 h-4 stroke-[2]" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 stroke-[2]" />
-                              )}
-                            </span>
-                          </div>
+                          <CountBadge count={pipelineMetrics.intake.badgeLabel} />
                         </div>
-
-                        {expandedNodes.node1A && (
-                          <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Validation</span>
-                              <StatusPill
-                                label={pipelineMetrics.intake.validation}
-                                variant={getStatusVariant(pipelineMetrics.intake.validation)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Payment</span>
-                              <StatusPill
-                                label={pipelineMetrics.intake.payment}
-                                variant={getStatusVariant(pipelineMetrics.intake.payment)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Channel</span>
-                              <StatusPill
-                                label={pipelineMetrics.intake.channel}
-                                variant={getStatusVariant(pipelineMetrics.intake.channel)}
-                              />
-                            </div>
-                          </div>
+                        {expandedNodes.node1A ? (
+                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                         )}
                       </div>
+
+                      {expandedNodes.node1A && (
+                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Validation</span>
+                            <StatusPill
+                              label={pipelineMetrics.intake.validation}
+                              variant={getStatusVariant(pipelineMetrics.intake.validation)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Payment</span>
+                            <StatusPill
+                              label={pipelineMetrics.intake.payment}
+                              variant={getStatusVariant(pipelineMetrics.intake.payment)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Channel</span>
+                            <StatusPill
+                              label={pipelineMetrics.intake.channel}
+                              variant={getStatusVariant(pipelineMetrics.intake.channel)}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Node 1B: Inventory Allocation */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        <div
-                          ref={node1BHeaderRef}
-                          onClick={() => toggleNodeExpansion('node1B')}
-                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                        >
+                      <div
+                        ref={node1BHeaderRef}
+                        onClick={() => toggleNodeExpansion('node1B')}
+                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
-                          <div className="flex items-center gap-2">
-                            <StatusPill
-                              label={pipelineMetrics.inventory.badgeLabel}
-                              variant={getCountVariant(pipelineMetrics.inventory.doneCount, pipelineMetrics.inventory.totalCount)}
-                            />
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
-                              {expandedNodes.node1B ? (
-                                <ChevronUp className="w-4 h-4 stroke-[2]" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 stroke-[2]" />
-                              )}
-                            </span>
-                          </div>
+                          <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                         </div>
-
-                        {expandedNodes.node1B && (
-                          <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Stock</span>
-                              <StatusPill
-                                label={pipelineMetrics.inventory.stock}
-                                variant={getStatusVariant(pipelineMetrics.inventory.stock)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Allocation</span>
-                              <StatusPill
-                                label={pipelineMetrics.inventory.allocation}
-                                variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Ingredients</span>
-                              <StatusPill
-                                label={pipelineMetrics.inventory.ingredients}
-                                variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
-                              />
-                            </div>
-                          </div>
+                        {expandedNodes.node1B ? (
+                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                         )}
                       </div>
+
+                      {expandedNodes.node1B && (
+                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Stock</span>
+                            <StatusPill
+                              label={pipelineMetrics.inventory.stock}
+                              variant={getStatusVariant(pipelineMetrics.inventory.stock)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Allocation</span>
+                            <StatusPill
+                              label={pipelineMetrics.inventory.allocation}
+                              variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Ingredients</span>
+                            <StatusPill
+                              label={pipelineMetrics.inventory.ingredients}
+                              variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Node 1C: Kitchen Cooking */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        <div
-                          ref={node1CHeaderRef}
-                          onClick={() => toggleNodeExpansion('node1C')}
-                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                        >
+                      <div
+                        ref={node1CHeaderRef}
+                        onClick={() => toggleNodeExpansion('node1C')}
+                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
-                          <div className="flex items-center gap-2">
-                            <StatusPill
-                              label={pipelineMetrics.cooking.badgeLabel}
-                              variant={getCountVariant(pipelineMetrics.cooking.doneCount, pipelineMetrics.cooking.totalCount)}
-                            />
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
-                              {expandedNodes.node1C ? (
-                                <ChevronUp className="w-4 h-4 stroke-[2]" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 stroke-[2]" />
-                              )}
-                            </span>
-                          </div>
+                          <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                         </div>
-
-                        {expandedNodes.node1C && (
-                          <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Cooking</span>
-                              <StatusPill
-                                label={pipelineMetrics.cooking.cooking}
-                                variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Output</span>
-                              <StatusPill
-                                label={pipelineMetrics.cooking.output}
-                                variant={getStatusVariant(pipelineMetrics.cooking.output)}
-                              />
-                            </div>
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Batch</span>
-                              <StatusPill
-                                label={pipelineMetrics.cooking.batch}
-                                variant={getStatusVariant(pipelineMetrics.cooking.batch)}
-                              />
-                            </div>
-                          </div>
+                        {expandedNodes.node1C ? (
+                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                         )}
                       </div>
+
+                      {expandedNodes.node1C && (
+                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Cooking</span>
+                            <StatusPill
+                              label={pipelineMetrics.cooking.cooking}
+                              variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Output</span>
+                            <StatusPill
+                              label={pipelineMetrics.cooking.output}
+                              variant={getStatusVariant(pipelineMetrics.cooking.output)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Batch</span>
+                            <StatusPill
+                              label={pipelineMetrics.cooking.batch}
+                              variant={getStatusVariant(pipelineMetrics.cooking.batch)}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1118,70 +1109,55 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
-                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs">
-                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        {/* Header */}
-                        <div
-                          ref={centerHeaderRef}
-                          onClick={() => toggleNodeExpansion('pillar2')}
-                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                        >
-                          <span className="text-[14px] font-semibold text-[#18181b]">
-                            Packaging and Assembly
-                          </span>
-
-                          <div className="flex items-center gap-2">
-                            <StatusPill
-                              label={pipelineMetrics.packaging.badgeLabel}
-                              variant={getCountVariant(pipelineMetrics.packaging.doneCount, pipelineMetrics.packaging.totalCount)}
-                            />
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
-                              {expandedNodes.pillar2 ? (
-                                <ChevronUp className="w-4 h-4 stroke-[2]" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 stroke-[2]" />
-                              )}
-                            </span>
-                          </div>
+                    <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                      <div
+                        ref={centerHeaderRef}
+                        onClick={() => toggleNodeExpansion('pillar2')}
+                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
+                          <CountBadge count={pipelineMetrics.packaging.badgeLabel} />
                         </div>
-
-                        {/* Observability Rows with Divider Lines */}
-                        {expandedNodes.pillar2 && (
-                          <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Queue</span>
-                              <StatusPill
-                                label={pipelineMetrics.packaging.queue}
-                                variant={getStatusVariant(pipelineMetrics.packaging.queue)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Materials</span>
-                              <StatusPill
-                                label={pipelineMetrics.packaging.materials}
-                                variant={getStatusVariant(pipelineMetrics.packaging.materials)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Deduction</span>
-                              <StatusPill
-                                label={pipelineMetrics.packaging.deduction}
-                                variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Sealing</span>
-                              <StatusPill
-                                label={pipelineMetrics.packaging.sealing}
-                                variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
-                              />
-                            </div>
-                          </div>
+                        {expandedNodes.pillar2 ? (
+                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                         )}
                       </div>
+
+                      {expandedNodes.pillar2 && (
+                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Queue</span>
+                            <StatusPill
+                              label={pipelineMetrics.packaging.queue}
+                              variant={getStatusVariant(pipelineMetrics.packaging.queue)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Materials</span>
+                            <StatusPill
+                              label={pipelineMetrics.packaging.materials}
+                              variant={getStatusVariant(pipelineMetrics.packaging.materials)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Deduction</span>
+                            <StatusPill
+                              label={pipelineMetrics.packaging.deduction}
+                              variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Sealing</span>
+                            <StatusPill
+                              label={pipelineMetrics.packaging.sealing}
+                              variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1190,89 +1166,75 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
-                      <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        {/* Header */}
-                        <div
-                          ref={bindingsHeaderRef}
-                          onClick={() => toggleNodeExpansion('pillar3')}
-                          className="px-4 py-3 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
-                        >
+                      <div
+                        ref={bindingsHeaderRef}
+                        onClick={() => toggleNodeExpansion('pillar3')}
+                        className="rounded-[10px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
                           <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
-                          <div className="flex items-center gap-2">
-                            <StatusPill
-                              label={pipelineMetrics.delivery.badgeLabel}
-                              variant={getCountVariant(pipelineMetrics.delivery.doneCount, pipelineMetrics.delivery.totalCount)}
-                            />
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
-                              {expandedNodes.pillar3 ? (
-                                <ChevronUp className="w-4 h-4 stroke-[2]" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 stroke-[2]" />
-                              )}
-                            </span>
-                          </div>
+                          <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                         </div>
-
-                        {expandedNodes.pillar3 && (
-                          <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Driver</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.driver}
-                                variant={getStatusVariant(pipelineMetrics.delivery.driver)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Pickup</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.pickup}
-                                variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Transit</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.transit}
-                                variant={getStatusVariant(pipelineMetrics.delivery.transit)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Arrival</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.arrival}
-                                variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Verification</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.verification}
-                                variant={getStatusVariant(pipelineMetrics.delivery.verification)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Payout</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.payout}
-                                variant={getStatusVariant(pipelineMetrics.delivery.payout)}
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Completion</span>
-                              <StatusPill
-                                label={pipelineMetrics.delivery.completion}
-                                variant={getStatusVariant(pipelineMetrics.delivery.completion)}
-                              />
-                            </div>
-                          </div>
+                        {expandedNodes.pillar3 ? (
+                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                         )}
                       </div>
+
+                      {expandedNodes.pillar3 && (
+                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.driver}
+                              variant={getStatusVariant(pipelineMetrics.delivery.driver)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Pickup</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.pickup}
+                              variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Transit</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.transit}
+                              variant={getStatusVariant(pipelineMetrics.delivery.transit)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Arrival</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.arrival}
+                              variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Verification</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.verification}
+                              variant={getStatusVariant(pipelineMetrics.delivery.verification)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Payout</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.payout}
+                              variant={getStatusVariant(pipelineMetrics.delivery.payout)}
+                            />
+                          </div>
+                          <div className="px-3.5 py-2.5 flex items-center justify-between">
+                            <span className="text-[#3f3f46] font-medium text-[13px]">Completion</span>
+                            <StatusPill
+                              label={pipelineMetrics.delivery.completion}
+                              variant={getStatusVariant(pipelineMetrics.delivery.completion)}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1283,59 +1245,47 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                  ===================================================================== */
               <div className="max-w-4xl mx-auto space-y-6 py-2">
                 {/* 1. ORDER INTAKE */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    <div
-                      onClick={() => toggleNodeExpansion('tree1')}
-                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-600" />
-                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Order Intake
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusPill
-                          label={pipelineMetrics.intake.badgeLabel}
-                          variant={getCountVariant(pipelineMetrics.intake.doneCount, pipelineMetrics.intake.totalCount)}
-                        />
-                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.tree1 !== false ? (
-                            <ChevronUp className="w-4 h-4 stroke-[2]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 stroke-[2]" />
-                          )}
-                        </span>
-                      </div>
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                  <div
+                    onClick={() => toggleNodeExpansion('tree1')}
+                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
+                      <CountBadge count={pipelineMetrics.intake.badgeLabel} />
                     </div>
-
-                    {expandedNodes.tree1 !== false && (
-                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Validation</span>
-                          <StatusPill
-                            label={pipelineMetrics.intake.validation}
-                            variant={getStatusVariant(pipelineMetrics.intake.validation)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Payment</span>
-                          <StatusPill
-                            label={pipelineMetrics.intake.payment}
-                            variant={getStatusVariant(pipelineMetrics.intake.payment)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Channel</span>
-                          <StatusPill
-                            label={pipelineMetrics.intake.channel}
-                            variant={getStatusVariant(pipelineMetrics.intake.channel)}
-                          />
-                        </div>
-                      </div>
+                    {expandedNodes.tree1 !== false ? (
+                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                     )}
                   </div>
+
+                  {expandedNodes.tree1 !== false && (
+                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Validation</span>
+                        <StatusPill
+                          label={pipelineMetrics.intake.validation}
+                          variant={getStatusVariant(pipelineMetrics.intake.validation)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Payment</span>
+                        <StatusPill
+                          label={pipelineMetrics.intake.payment}
+                          variant={getStatusVariant(pipelineMetrics.intake.payment)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Channel</span>
+                        <StatusPill
+                          label={pipelineMetrics.intake.channel}
+                          variant={getStatusVariant(pipelineMetrics.intake.channel)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* STEM 1 TO 2 */}
@@ -1345,59 +1295,47 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 2. INVENTORY ALLOCATION */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    <div
-                      onClick={() => toggleNodeExpansion('tree2')}
-                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-600" />
-                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Inventory Allocation
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusPill
-                          label={pipelineMetrics.inventory.badgeLabel}
-                          variant={getCountVariant(pipelineMetrics.inventory.doneCount, pipelineMetrics.inventory.totalCount)}
-                        />
-                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.tree2 !== false ? (
-                            <ChevronUp className="w-4 h-4 stroke-[2]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 stroke-[2]" />
-                          )}
-                        </span>
-                      </div>
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                  <div
+                    onClick={() => toggleNodeExpansion('tree2')}
+                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
+                      <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                     </div>
-
-                    {expandedNodes.tree2 !== false && (
-                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Stock</span>
-                          <StatusPill
-                            label={pipelineMetrics.inventory.stock}
-                            variant={getStatusVariant(pipelineMetrics.inventory.stock)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Allocation</span>
-                          <StatusPill
-                            label={pipelineMetrics.inventory.allocation}
-                            variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Ingredients</span>
-                          <StatusPill
-                            label={pipelineMetrics.inventory.ingredients}
-                            variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
-                          />
-                        </div>
-                      </div>
+                    {expandedNodes.tree2 !== false ? (
+                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                     )}
                   </div>
+
+                  {expandedNodes.tree2 !== false && (
+                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Stock</span>
+                        <StatusPill
+                          label={pipelineMetrics.inventory.stock}
+                          variant={getStatusVariant(pipelineMetrics.inventory.stock)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Allocation</span>
+                        <StatusPill
+                          label={pipelineMetrics.inventory.allocation}
+                          variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Ingredients</span>
+                        <StatusPill
+                          label={pipelineMetrics.inventory.ingredients}
+                          variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* STEM 2 TO 3 */}
@@ -1407,59 +1345,47 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 3. KITCHEN COOKING */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    <div
-                      onClick={() => toggleNodeExpansion('tree3')}
-                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-600" />
-                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Kitchen Cooking
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusPill
-                          label={pipelineMetrics.cooking.badgeLabel}
-                          variant={getCountVariant(pipelineMetrics.cooking.doneCount, pipelineMetrics.cooking.totalCount)}
-                        />
-                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.tree3 !== false ? (
-                            <ChevronUp className="w-4 h-4 stroke-[2]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 stroke-[2]" />
-                          )}
-                        </span>
-                      </div>
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                  <div
+                    onClick={() => toggleNodeExpansion('tree3')}
+                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
+                      <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                     </div>
-
-                    {expandedNodes.tree3 !== false && (
-                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Cooking</span>
-                          <StatusPill
-                            label={pipelineMetrics.cooking.cooking}
-                            variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Output</span>
-                          <StatusPill
-                            label={pipelineMetrics.cooking.output}
-                            variant={getStatusVariant(pipelineMetrics.cooking.output)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Batch</span>
-                          <StatusPill
-                            label={pipelineMetrics.cooking.batch}
-                            variant={getStatusVariant(pipelineMetrics.cooking.batch)}
-                          />
-                        </div>
-                      </div>
+                    {expandedNodes.tree3 !== false ? (
+                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                     )}
                   </div>
+
+                  {expandedNodes.tree3 !== false && (
+                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Cooking</span>
+                        <StatusPill
+                          label={pipelineMetrics.cooking.cooking}
+                          variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Output</span>
+                        <StatusPill
+                          label={pipelineMetrics.cooking.output}
+                          variant={getStatusVariant(pipelineMetrics.cooking.output)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Batch</span>
+                        <StatusPill
+                          label={pipelineMetrics.cooking.batch}
+                          variant={getStatusVariant(pipelineMetrics.cooking.batch)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* STEM 3 TO 4 */}
@@ -1469,66 +1395,54 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 4. PACKAGING AND ASSEMBLY */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    <div
-                      onClick={() => toggleNodeExpansion('tree4')}
-                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500" />
-                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Packaging and Assembly
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusPill
-                          label={pipelineMetrics.packaging.badgeLabel}
-                          variant={getCountVariant(pipelineMetrics.packaging.doneCount, pipelineMetrics.packaging.totalCount)}
-                        />
-                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.tree4 !== false ? (
-                            <ChevronUp className="w-4 h-4 stroke-[2]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 stroke-[2]" />
-                          )}
-                        </span>
-                      </div>
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                  <div
+                    onClick={() => toggleNodeExpansion('tree4')}
+                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
+                      <CountBadge count={pipelineMetrics.packaging.badgeLabel} />
                     </div>
-
-                    {expandedNodes.tree4 !== false && (
-                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Queue</span>
-                          <StatusPill
-                            label={pipelineMetrics.packaging.queue}
-                            variant={getStatusVariant(pipelineMetrics.packaging.queue)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Materials</span>
-                          <StatusPill
-                            label={pipelineMetrics.packaging.materials}
-                            variant={getStatusVariant(pipelineMetrics.packaging.materials)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Deduction</span>
-                          <StatusPill
-                            label={pipelineMetrics.packaging.deduction}
-                            variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Sealing</span>
-                          <StatusPill
-                            label={pipelineMetrics.packaging.sealing}
-                            variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
-                          />
-                        </div>
-                      </div>
+                    {expandedNodes.tree4 !== false ? (
+                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                     )}
                   </div>
+
+                  {expandedNodes.tree4 !== false && (
+                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Queue</span>
+                        <StatusPill
+                          label={pipelineMetrics.packaging.queue}
+                          variant={getStatusVariant(pipelineMetrics.packaging.queue)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Materials</span>
+                        <StatusPill
+                          label={pipelineMetrics.packaging.materials}
+                          variant={getStatusVariant(pipelineMetrics.packaging.materials)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Deduction</span>
+                        <StatusPill
+                          label={pipelineMetrics.packaging.deduction}
+                          variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Sealing</span>
+                        <StatusPill
+                          label={pipelineMetrics.packaging.sealing}
+                          variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* STEM 4 TO 5 */}
@@ -1538,87 +1452,75 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </div>
 
                 {/* 5. DELIVERY AND CUSTOMER HANDOVER */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
-                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                    <div
-                      onClick={() => toggleNodeExpansion('tree5')}
-                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Delivery and Handover
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusPill
-                          label={pipelineMetrics.delivery.badgeLabel}
-                          variant={getCountVariant(pipelineMetrics.delivery.doneCount, pipelineMetrics.delivery.totalCount)}
-                        />
-                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.tree5 !== false ? (
-                            <ChevronUp className="w-4 h-4 stroke-[2]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 stroke-[2]" />
-                          )}
-                        </span>
-                      </div>
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                  <div
+                    onClick={() => toggleNodeExpansion('tree5')}
+                    className="rounded-[10px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
+                      <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                     </div>
-
-                    {expandedNodes.tree5 !== false && (
-                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Driver</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.driver}
-                            variant={getStatusVariant(pipelineMetrics.delivery.driver)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Pickup</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.pickup}
-                            variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Transit</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.transit}
-                            variant={getStatusVariant(pipelineMetrics.delivery.transit)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Arrival</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.arrival}
-                            variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Verification</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.verification}
-                            variant={getStatusVariant(pipelineMetrics.delivery.verification)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Payout</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.payout}
-                            variant={getStatusVariant(pipelineMetrics.delivery.payout)}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Completion</span>
-                          <StatusPill
-                            label={pipelineMetrics.delivery.completion}
-                            variant={getStatusVariant(pipelineMetrics.delivery.completion)}
-                          />
-                        </div>
-                      </div>
+                    {expandedNodes.tree5 !== false ? (
+                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
                     )}
                   </div>
+
+                  {expandedNodes.tree5 !== false && (
+                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.driver}
+                          variant={getStatusVariant(pipelineMetrics.delivery.driver)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Pickup</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.pickup}
+                          variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Transit</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.transit}
+                          variant={getStatusVariant(pipelineMetrics.delivery.transit)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Arrival</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.arrival}
+                          variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Verification</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.verification}
+                          variant={getStatusVariant(pipelineMetrics.delivery.verification)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Payout</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.payout}
+                          variant={getStatusVariant(pipelineMetrics.delivery.payout)}
+                        />
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[#3f3f46] font-medium text-[13px]">Completion</span>
+                        <StatusPill
+                          label={pipelineMetrics.delivery.completion}
+                          variant={getStatusVariant(pipelineMetrics.delivery.completion)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
