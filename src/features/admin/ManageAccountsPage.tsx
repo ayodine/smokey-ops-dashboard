@@ -832,44 +832,15 @@ export const ManageAccountsPage: React.FC = () => {
 
         {/* Tab Switcher matching Screenshot 1 & 3: [ Permission policies | Groups | Settings ] */}
         <div className="flex items-center justify-between gap-4">
-          <div className="inline-flex items-center p-1 rounded-xl bg-kumo-canvas/80 border border-kumo-line/80 gap-1 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setStaffSubTab('policies')}
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
-                staffSubTab === 'policies'
-                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
-                  : 'text-kumo-subtle hover:text-kumo-strong'
-              )}
-            >
-              Permission policies
-            </button>
-            <button
-              type="button"
-              onClick={() => setStaffSubTab('groups')}
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
-                staffSubTab === 'groups'
-                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
-                  : 'text-kumo-subtle hover:text-kumo-strong'
-              )}
-            >
-              Groups & Zone
-            </button>
-            <button
-              type="button"
-              onClick={() => setStaffSubTab('settings')}
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
-                staffSubTab === 'settings'
-                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
-                  : 'text-kumo-subtle hover:text-kumo-strong'
-              )}
-            >
-              Settings
-            </button>
-          </div>
+          <KumoTabs
+            activeTab={staffSubTab}
+            onChange={(val) => setStaffSubTab(val as 'policies' | 'groups' | 'settings')}
+            tabs={[
+              { id: 'policies', label: 'Permission policies' },
+              { id: 'groups', label: 'Groups & Zone' },
+              { id: 'settings', label: 'Settings' },
+            ]}
+          />
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-kumo-subtle font-sans hidden sm:inline-flex items-center gap-1.5">
