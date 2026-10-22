@@ -731,17 +731,14 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
     const maxTriggerX = Math.max(a.x, b.x, c.x)
     const trunkGap = Math.max(24, cL.x - maxTriggerX)
-    const trunkX = Math.round(maxTriggerX + trunkGap * 0.45)
+    const trunkX = Math.round(maxTriggerX + trunkGap * 0.42)
     const radius = 12
 
     // Target Y is the vertical center of Pillar 2 header
     const targetY = cL.y
 
-    // Path 1A: From Node 1A across the top to trunkX + radius
+    // Path 1A: From Node 1A across the top to the merge point with the trunk curve
     const path1A = `M ${a.x} ${targetY} H ${trunkX + radius}`
-
-    // Branch from Node 1A turning DOWN into trunk (smooth curve of radius 12 on left side of trunk)
-    const path1ADown = `M ${a.x} ${targetY} H ${trunkX - radius} Q ${trunkX} ${targetY} ${trunkX} ${targetY + radius} V ${b.y}`
 
     // Path 1B: From Node 1B (middle) merging into trunk with smooth curve
     const path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius} V ${targetY + radius}`
@@ -749,20 +746,24 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     // Path 1C: From Node 1C (bottom) merging UP into trunk with smooth curve
     const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${b.y}`
 
-    // Trunk into Pillar 2:
-    // Curves smoothly from vertical trunk turning RIGHT into horizontal line entering Pillar 2 container
-    // Tip of arrowhead will touch exactly at cL.x (Pillar 2 outer border)
-    const trunkToPillar2 = `M ${trunkX} ${targetY + radius} Q ${trunkX} ${targetY} ${trunkX + radius} ${targetY} H ${cL.x}`
+    // Trunk Merge Curve: Smooth curve from vertical trunk turning RIGHT into horizontal flow
+    const trunkMergeCurve = `M ${trunkX} ${targetY + radius} Q ${trunkX} ${targetY} ${trunkX + radius} ${targetY}`
+
+    // Branch from merged joint directly into Pillar 2 container at cL.x
+    // Tip of arrowhead will touch exactly at cL.x
+    const trunkToPillar2 = `M ${trunkX + radius} ${targetY} H ${cL.x}`
 
     // Stem from Pillar 2 to Pillar 3 (Logistics and Handover)
     // Runs from right border of Pillar 2 to left border of Pillar 3 (touching at bL.x)
     const pillar2ToPillar3 = `M ${cR.x} ${cR.y} H ${bL.x}`
 
     return {
+      trunkMergeX: trunkX + radius,
+      targetY,
       path1A,
-      path1ADown,
       path1B,
       path1C,
+      trunkMergeCurve,
       trunkToPillar2,
       pillar2ToPillar3
     }
@@ -814,46 +815,60 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <defs>
+                    {/* Cloudflare Design System Rounded Bullet Arrowhead - Inactive / Default */}
                     <marker
                       id="cf-arrow-default"
-                      viewBox="0 0 10 10"
-                      refX="10"
-                      refY="5"
-                      markerWidth="8"
-                      markerHeight="8"
+                      viewBox="0 0 12 12"
+                      refX="10.5"
+                      refY="6"
+                      markerWidth="9"
+                      markerHeight="9"
                       orient="auto"
                       markerUnits="userSpaceOnUse"
                     >
-                      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#9ca3af" />
+                      <path
+                        d="M 1.5 2.0 C 1.5 0.9 2.7 0.3 3.7 0.9 L 10.5 5.0 C 11.4 5.5 11.4 6.5 10.5 7.0 L 3.7 11.1 C 2.7 11.7 1.5 11.1 1.5 10.0 Z"
+                        fill="#9ca3af"
+                      />
                     </marker>
+                    {/* Cloudflare Design System Rounded Bullet Arrowhead - Active Red */}
                     <marker
                       id="cf-arrow-red"
-                      viewBox="0 0 10 10"
-                      refX="10"
-                      refY="5"
-                      markerWidth="8"
-                      markerHeight="8"
+                      viewBox="0 0 12 12"
+                      refX="10.5"
+                      refY="6"
+                      markerWidth="9"
+                      markerHeight="9"
                       orient="auto"
                       markerUnits="userSpaceOnUse"
                     >
-                      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#dc2626" />
+                      <path
+                        d="M 1.5 2.0 C 1.5 0.9 2.7 0.3 3.7 0.9 L 10.5 5.0 C 11.4 5.5 11.4 6.5 10.5 7.0 L 3.7 11.1 C 2.7 11.7 1.5 11.1 1.5 10.0 Z"
+                        fill="#dc2626"
+                      />
                     </marker>
+
+                    {/* Linear gradient for flow link branching to Pillar 2 (fades from red to gray seamlessly) */}
+                    {svgPaths && coords && (
+                      <linearGradient
+                        id="cf-flow-gradient-p1-p2"
+                        gradientUnits="userSpaceOnUse"
+                        x1={svgPaths.trunkMergeX}
+                        y1={svgPaths.targetY}
+                        x2={coords.centerLeft.x}
+                        y2={svgPaths.targetY}
+                      >
+                        <stop offset="0%" stopColor="#dc2626" />
+                        <stop offset="100%" stopColor="#9ca3af" />
+                      </linearGradient>
+                    )}
                   </defs>
 
                   {svgPaths && (
                     <>
-                      {/* Path 1A: From Ingestion horizontal across to trunk */}
+                      {/* Path 1A: From Ingestion horizontal across to merged trunk */}
                       <path
                         d={svgPaths.path1A}
-                        fill="none"
-                        stroke={activeOrder?.history.includes('p1_ingestion') ? '#dc2626' : '#9ca3af'}
-                        strokeWidth={1.75}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {/* Branch from Node 1A turning down into trunk (smooth rounded curve) */}
-                      <path
-                        d={svgPaths.path1ADown}
                         fill="none"
                         stroke={activeOrder?.history.includes('p1_ingestion') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
@@ -878,25 +893,64 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
-                      {/* Arrow from Column 1 into Column 2 container (touching container border) */}
+                      {/* Trunk Merge Curve: Smooth curve merging upward trunk right into horizontal line */}
+                      <path
+                        d={svgPaths.trunkMergeCurve}
+                        fill="none"
+                        stroke={
+                          activeOrder?.history.includes('p1_inventory_deduct') ||
+                          activeOrder?.history.includes('p1_production_batch')
+                            ? '#dc2626'
+                            : '#9ca3af'
+                        }
+                        strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      {/* Branch from merged joint into Pillar 2 container with seamless linear gradient */}
                       <path
                         d={svgPaths.trunkToPillar2}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p2_in_packaging') ? '#dc2626' : '#9ca3af'}
+                        stroke={
+                          activeOrder?.history.includes('p2_in_packaging')
+                            ? '#dc2626'
+                            : activeOrder?.history.includes('p1_ingestion') ||
+                              activeOrder?.history.includes('p1_inventory_deduct')
+                            ? 'url(#cf-flow-gradient-p1-p2)'
+                            : '#9ca3af'
+                        }
                         strokeWidth={1.75}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        markerEnd={activeOrder?.history.includes('p2_in_packaging') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
+                        markerEnd={
+                          activeOrder?.history.includes('p2_in_packaging')
+                            ? 'url(#cf-arrow-red)'
+                            : 'url(#cf-arrow-default)'
+                        }
                       />
-                      {/* Arrow from Column 2 into Column 3 container (touching container border) */}
+                      {/* Arrow from Column 2 into Column 3 container */}
                       <path
                         d={svgPaths.pillar2ToPillar3}
                         fill="none"
-                        stroke={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? '#dc2626' : '#9ca3af'}
+                        stroke={
+                          activeOrder?.history.includes('p3_delivery_assigned') ||
+                          activeOrder?.history.includes('p3_in_transit') ||
+                          activeOrder?.history.includes('p3_delivered') ||
+                          activeOrder?.history.includes('p3_settled_closed')
+                            ? '#dc2626'
+                            : '#9ca3af'
+                        }
                         strokeWidth={1.75}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        markerEnd={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
+                        markerEnd={
+                          activeOrder?.history.includes('p3_delivery_assigned') ||
+                          activeOrder?.history.includes('p3_in_transit') ||
+                          activeOrder?.history.includes('p3_delivered') ||
+                          activeOrder?.history.includes('p3_settled_closed')
+                            ? 'url(#cf-arrow-red)'
+                            : 'url(#cf-arrow-default)'
+                        }
                       />
                     </>
                   )}

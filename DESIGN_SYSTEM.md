@@ -291,6 +291,27 @@ import { Toggle, ToggleSwitch } from '@/components/ui/Toggle'
 
 ---
 
+### 4.8 Workflow Canvas Connecting Links & Arrowheads (`OrderWorkflowCanvasOverlay`)
+
+The interactive pipeline topology canvas connects sequential operational pillars using high-precision SVG vector geometry, smooth curved junctions, and dynamic state-aware gradients.
+
+#### Visual Specifications:
+1. **Rounded Bullet Arrowhead (`#cf-arrow-default` & `#cf-arrow-red`)**:
+   - **Form Factor**: Curved bullet / rounded isosceles arrowhead matching modern Cloudflare workflow node architecture (NOT sharp equilateral triangles).
+   - **Tip & Barb Geometry**: `M 1.5 2.0 C 1.5 0.9 2.7 0.3 3.7 0.9 L 10.5 5.0 C 11.4 5.5 11.4 6.5 10.5 7.0 L 3.7 11.1 C 2.7 11.7 1.5 11.1 1.5 10.0 Z`.
+   - **Marker Metrics**: `viewBox="0 0 12 12"`, `refX="10.5"`, `refY="6"`, `markerWidth="9"`, `markerHeight="9"`, `orient="auto"`, `markerUnits="userSpaceOnUse"`.
+   - **Card Boundary Contact**: `refX="10.5"` guarantees the rounded tip touches the container border with zero overshoot or gap.
+   - **Color Modes**:
+     - Active / Completed: Crimson Red (`#dc2626`).
+     - Inactive / Pending: Neutral Cool Gray (`#9ca3af`).
+
+2. **Branch Merging & Seamless Linear Gradient**:
+   - **Junction Geometry**: The horizontal feed from Node 1A and the upward trunk from Node 1B/1C merge smoothly at `x = trunkX + radius, y = targetY` via an on-ramp curve (`M ${trunkX} ${targetY + radius} Q ${trunkX} ${targetY} ${trunkX + radius} ${targetY}`).
+   - **No Conflicting Overlaps**: Zero dual-drawn strokes, forks, or notched corners at the branch joint.
+   - **Gradient Transition (`#cf-flow-gradient-p1-p2`)**: When Pillar 1 is active and Pillar 2 is pending, the horizontal link from `trunkX + radius` to Pillar 2 fades seamlessly from solid Red (`#dc2626`) to Gray (`#9ca3af`) using a userSpaceOnUse `<linearGradient>` with stop offsets `0%` to `100%`.
+
+---
+
 ## 5. Checklist for Adding a New Feature or Page
 
 Before shipping or opening a pull request for a new page or component, verify the following checklist:
