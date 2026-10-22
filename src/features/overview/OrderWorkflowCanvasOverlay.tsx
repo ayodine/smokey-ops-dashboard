@@ -149,36 +149,78 @@ interface StatusPillProps {
 
 export const StatusPill: React.FC<StatusPillProps> = ({
   label,
-  variant = 'zinc',
-  dot = false,
+  variant,
   className
 }) => {
-  const variantStyles = {
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200/80',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200/80',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200/80',
-    zinc: 'bg-[#e4e4e7] text-[#18181b] border-transparent'
+  const norm = (label || '').toLowerCase().trim()
+
+  // Match one of the four reference states: draft | in-progress | in-review | completed
+  let state: 'draft' | 'in-progress' | 'in-review' | 'completed' = 'draft'
+  let displayLabel = label
+
+  if (norm === 'done' || norm === 'completed' || norm === 'delivered' || variant === 'emerald') {
+    state = 'completed'
+    displayLabel = norm === 'done' ? 'Completed' : label
+  } else if (norm === 'in progress' || norm === 'in-progress' || norm === 'active' || variant === 'amber') {
+    state = 'in-progress'
+    displayLabel = 'In-progress'
+  } else if (norm === 'in-review' || norm === 'in review' || variant === 'blue') {
+    state = 'in-review'
+    displayLabel = norm === 'in progress' ? 'In-progress' : (norm === 'in review' ? 'In-review' : label)
+  } else {
+    state = 'draft'
+    displayLabel = norm === 'pending' ? 'Draft' : label
   }
 
-  const dotColors = {
-    emerald: 'bg-emerald-500',
-    blue: 'bg-blue-500',
-    amber: 'bg-amber-500',
-    purple: 'bg-purple-500',
-    zinc: 'bg-zinc-400'
+  const renderIcon = () => {
+    switch (state) {
+      case 'draft':
+        return (
+          <svg className="w-3.5 h-3.5 text-[#4b5563] shrink-0" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 2.5" />
+          </svg>
+        )
+      case 'in-progress':
+        return (
+          <svg className="w-3.5 h-3.5 text-[#ea580c] shrink-0" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1.75 A6.25 6.25 0 0 1 8 14.25 Z" fill="currentColor" />
+          </svg>
+        )
+      case 'in-review':
+        return (
+          <svg className="w-3.5 h-3.5 text-[#2563eb] shrink-0" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 8 L8 1.75 A6.25 6.25 0 1 1 1.75 8 Z" fill="currentColor" />
+          </svg>
+        )
+      case 'completed':
+        return (
+          <svg className="w-3.5 h-3.5 text-[#16a34a] shrink-0" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" fill="currentColor" />
+            <path d="M5 8.2 L7 10.2 L11 5.8" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )
+    }
+  }
+
+  const styles = {
+    draft: 'bg-[#f1f3f7] text-[#374151]',
+    'in-progress': 'bg-[#ffedd5] text-[#c2410c]',
+    'in-review': 'bg-[#eff6ff] text-[#1d4ed8]',
+    completed: 'bg-[#dcfce7] text-[#15803d]'
   }
 
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border shrink-0 leading-normal select-none text-center whitespace-nowrap min-w-[70px]',
-        variantStyles[variant],
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none select-none shrink-0 transition-colors',
+        styles[state],
         className
       )}
     >
-      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 mr-1.5', dotColors[variant])} />}
-      <span>{label}</span>
+      {renderIcon()}
+      <span>{displayLabel}</span>
     </span>
   )
 }
@@ -775,6 +817,42 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           MAIN WORKFLOW CONTAINER
          ========================================================================= */}
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
+        {/* CONTAINER HEADING */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0051c3] flex items-center justify-center font-bold shrink-0">
+              <Network className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[17px] font-semibold text-[#18181b] tracking-tight">
+                  Order Tracking Diagram
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#ecfdf5] text-[#15803d]">
+                  Live Pipeline
+                </span>
+              </div>
+              <p className="text-xs text-[#71717a] mt-0.5">
+                End-to-end operational pipeline tracking from customer checkout through kitchen cooking to delivery
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[#71717a] hidden sm:inline">
+              Active Order: <span className="font-semibold text-[#18181b]">{activeOrder.id}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsCanvasExpanded(!isCanvasExpanded)}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#e4e4e7] bg-white text-xs font-medium text-[#18181b] hover:bg-[#fafafa] transition-colors"
+            >
+              <span>{isCanvasExpanded ? 'Collapse' : 'Expand'}</span>
+              {isCanvasExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
+            </button>
+          </div>
+        </div>
+
         {/* ACTIVE ORDER SEARCH (DESIGN SYSTEM STANDARD) */}
         <div className="flex items-center pb-5 mb-6 border-b border-[#e4e4e7]">
           {/* Left: Design System Search Field to Search Orders by ID */}
