@@ -12,6 +12,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/reui/alert'
+import { OrderWorkflowCanvasOverlay } from './OrderWorkflowCanvasOverlay'
 import {
   Boxes,
   Flame,
@@ -522,6 +523,9 @@ export const AccountHomePage: React.FC = () => {
           </>
         }
       />
+
+      {/* Interactive Node-Based Order Workflow Canvas Overlay (Visual Pipeline Flow) */}
+      <OrderWorkflowCanvasOverlay />
 
       {/* 4 Metric KPI Cards in Plain English */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
