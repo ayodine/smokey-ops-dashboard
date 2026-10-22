@@ -7,7 +7,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { StatusPill } from '@/features/overview/OrderWorkflowCanvasOverlay'
+import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { SEED_SCHEDULED_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate } from '@/lib/utils'
 import {
@@ -380,11 +380,12 @@ export const WebsiteOrdersPage: React.FC = () => {
     {
       key: 'payment',
       header: 'Payment',
-      defaultWidth: 110,
+      defaultWidth: 120,
       accessor: (o) => (
-        <StatusPill
+        <StatusBadge
+          status={o.payment_status === 'paid' ? 'PAID' : 'PENDING'}
           label={o.payment_status === 'paid' ? 'Paid' : 'Pending'}
-          variant={o.payment_status === 'paid' ? 'emerald' : 'zinc'}
+          size="sm"
         />
       ),
       sortValue: (o) => o.payment_status
@@ -392,17 +393,17 @@ export const WebsiteOrdersPage: React.FC = () => {
     {
       key: 'status',
       header: 'Fulfillment',
-      defaultWidth: 130,
+      defaultWidth: 145,
       accessor: (o) => {
-        const stageMap: Record<string, { label: string; variant: 'emerald' | 'blue' | 'amber' | 'zinc' }> = {
-          in_intake: { label: 'Order Intake', variant: 'blue' },
-          cooking: { label: 'Cooking', variant: 'amber' },
-          packaging: { label: 'Packaging', variant: 'amber' },
-          in_transit: { label: 'In Transit', variant: 'blue' },
-          delivered: { label: 'Delivered', variant: 'emerald' }
+        const stageMap: Record<string, { status: BadgeStatus | string; label: string }> = {
+          in_intake: { status: 'ORDER_INTAKE', label: 'Order Intake' },
+          cooking: { status: 'COOKING', label: 'Cooking' },
+          packaging: { status: 'PACKAGING', label: 'Packaging' },
+          in_transit: { status: 'IN_TRANSIT', label: 'In Transit' },
+          delivered: { status: 'DELIVERED', label: 'Delivered' }
         }
-        const config = stageMap[o.fulfillment_status] || { label: 'Pending', variant: 'zinc' }
-        return <StatusPill label={config.label} variant={config.variant} />
+        const config = stageMap[o.fulfillment_status] || { status: 'PENDING', label: 'Pending' }
+        return <StatusBadge status={config.status} label={config.label} size="sm" />
       },
       sortValue: (o) => o.fulfillment_status
     },
@@ -551,6 +552,8 @@ export const WebsiteOrdersPage: React.FC = () => {
           columns={columns}
           searchable={true}
           searchPlaceholder="Search order ID, customer name, phone, or address..."
+          tableId="website_orders_table"
+          exportFilename="website_orders.csv"
         />
       </div>
 
@@ -601,9 +604,28 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-kumo-subtle">Payment Status:</span>
-                <StatusPill
+                <StatusBadge
+                  status={selectedOrder.payment_status === 'paid' ? 'PAID' : 'PENDING'}
                   label={selectedOrder.payment_status === 'paid' ? 'Paid' : 'Pending'}
-                  variant={selectedOrder.payment_status === 'paid' ? 'emerald' : 'zinc'}
+                  size="sm"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-kumo-subtle">Fulfillment Stage:</span>
+                <StatusBadge
+                  status={
+                    selectedOrder.fulfillment_status === 'in_intake' ? 'ORDER_INTAKE' :
+                    selectedOrder.fulfillment_status === 'cooking' ? 'COOKING' :
+                    selectedOrder.fulfillment_status === 'packaging' ? 'PACKAGING' :
+                    selectedOrder.fulfillment_status === 'in_transit' ? 'IN_TRANSIT' : 'DELIVERED'
+                  }
+                  label={
+                    selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
+                    selectedOrder.fulfillment_status === 'cooking' ? 'Cooking' :
+                    selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
+                    selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
+                  }
+                  size="sm"
                 />
               </div>
               <div className="flex items-center justify-between">

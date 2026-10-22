@@ -172,13 +172,13 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center w-[92px] py-0.5 rounded-[4px] text-[11px] font-medium border shrink-0 leading-normal select-none text-center',
+        'inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border shrink-0 leading-normal select-none text-center whitespace-nowrap min-w-[70px]',
         variantStyles[variant],
         className
       )}
     >
-      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 mr-1', dotColors[variant])} />}
-      <span className="truncate">{label}</span>
+      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 mr-1.5', dotColors[variant])} />}
+      <span>{label}</span>
     </span>
   )
 }
