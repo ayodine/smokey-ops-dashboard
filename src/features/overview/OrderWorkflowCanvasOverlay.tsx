@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Globe,
   ChevronDown,
@@ -8,7 +8,6 @@ import {
   Zap,
   Plus,
   RefreshCw,
-  SlidersHorizontal,
   Flame,
   Check
 } from 'lucide-react'
@@ -109,6 +108,23 @@ const DEFAULT_ORDERS: PipelineOrder[] = [
   }
 ]
 
+interface AnchorPoint {
+  x: number
+  y: number
+}
+
+interface CanvasCoordinates {
+  domains: AnchorPoint
+  workers: AnchorPoint
+  queues: AnchorPoint
+  centerLeft: AnchorPoint
+  centerRight: AnchorPoint
+  centerBottom: AnchorPoint
+  productionTop: AnchorPoint
+  productionRight: AnchorPoint
+  bindingsLeft: AnchorPoint
+}
+
 export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const { showToast } = useSmokeyOps()
 
@@ -132,6 +148,20 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     bindings: true
   })
 
+  // DOM Refs for dynamic anchor alignment
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const domainsHeaderRef = useRef<HTMLDivElement | null>(null)
+  const workersHeaderRef = useRef<HTMLDivElement | null>(null)
+  const queuesHeaderRef = useRef<HTMLDivElement | null>(null)
+  const centerCardRef = useRef<HTMLDivElement | null>(null)
+  const centerHeaderRef = useRef<HTMLDivElement | null>(null)
+  const productionCardRef = useRef<HTMLDivElement | null>(null)
+  const productionHeaderRef = useRef<HTMLDivElement | null>(null)
+  const bindingsHeaderRef = useRef<HTMLDivElement | null>(null)
+
+  // Measured coordinates state
+  const [coords, setCoords] = useState<CanvasCoordinates | null>(null)
+
   const toggleNodeExpansion = (nodeKey: string) => {
     setExpandedNodes((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }))
   }
@@ -151,14 +181,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       case 'fraud_check':
         return 'inventory_check'
       case 'inventory_check':
-        // Fallback branching: stockout goes to production queue; in-stock goes directly to logistics
         return hasStock ? 'logistics_packing' : 'production_queue'
       case 'production_queue':
         return 'production_cook'
       case 'production_cook':
         return 'production_qa'
       case 'production_qa':
-        // QA Passed: merge branch into Logistics
         return 'logistics_packing'
       case 'logistics_packing':
         return 'logistics_dispatch'
@@ -265,10 +293,160 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     return () => clearInterval(interval)
   }, [isAutoStreamActive])
 
+  // Precise dynamic measurement function
+  const updateCoordinates = () => {
+    if (!containerRef.current) return
+    const cRect = containerRef.current.getBoundingClientRect()
+
+    const getRightMiddle = (el: HTMLElement | null): AnchorPoint => {
+      if (!el) return { x: 0, y: 0 }
+      const r = el.getBoundingClientRect()
+      return {
+        x: r.right - cRect.left,
+        y: r.top + r.height / 2 - cRect.top
+      }
+    }
+
+    const getLeftMiddle = (el: HTMLElement | null): AnchorPoint => {
+      if (!el) return { x: 0, y: 0 }
+      const r = el.getBoundingClientRect()
+      return {
+        x: r.left - cRect.left,
+        y: r.top + r.height / 2 - cRect.top
+      }
+    }
+
+    const getBottomCenter = (el: HTMLElement | null): AnchorPoint => {
+      if (!el) return { x: 0, y: 0 }
+      const r = el.getBoundingClientRect()
+      return {
+        x: r.left + r.width / 2 - cRect.left,
+        y: r.bottom - cRect.top
+      }
+    }
+
+    const getTopCenter = (el: HTMLElement | null): AnchorPoint => {
+      if (!el) return { x: 0, y: 0 }
+      const r = el.getBoundingClientRect()
+      return {
+        x: r.left + r.width / 2 - cRect.left,
+        y: r.top - cRect.top
+      }
+    }
+
+    const domains = getRightMiddle(domainsHeaderRef.current)
+    const workers = getRightMiddle(workersHeaderRef.current)
+    const queues = getRightMiddle(queuesHeaderRef.current)
+    const centerLeft = getLeftMiddle(centerHeaderRef.current)
+    const centerRight = getRightMiddle(centerHeaderRef.current)
+    const centerBottom = getBottomCenter(centerCardRef.current)
+    const productionTop = getTopCenter(productionCardRef.current)
+    const productionRight = getRightMiddle(productionHeaderRef.current)
+    const bindingsLeft = getLeftMiddle(bindingsHeaderRef.current)
+
+    setCoords({
+      domains,
+      workers,
+      queues,
+      centerLeft,
+      centerRight,
+      centerBottom,
+      productionTop,
+      productionRight,
+      bindingsLeft
+    })
+  }
+
+  // Recalculate coordinates on mount, resize, expansion toggle, and DOM mutation
+  useLayoutEffect(() => {
+    updateCoordinates()
+    const timeout = setTimeout(updateCoordinates, 40)
+    return () => clearTimeout(timeout)
+  }, [expandedNodes, isCanvasExpanded, activeOrder?.hasStock, selectedOrderId])
+
+  useEffect(() => {
+    window.addEventListener('resize', updateCoordinates)
+    let ro: ResizeObserver | null = null
+    if (containerRef.current && window.ResizeObserver) {
+      ro = new ResizeObserver(() => {
+        updateCoordinates()
+      })
+      ro.observe(containerRef.current)
+    }
+    return () => {
+      window.removeEventListener('resize', updateCoordinates)
+      ro?.disconnect()
+    }
+  }, [])
+
   // Count states for trigger badges matching screenshot
   const webhookCount = 2
   const workersCount = 0
   const queuesCount = 0
+
+  // Calculate SVG paths based on measured coordinates
+  const svgPaths = useMemo(() => {
+    if (!coords || coords.centerLeft.x === 0) {
+      return null
+    }
+
+    const {
+      domains: d,
+      workers: w,
+      queues: q,
+      centerLeft: cL,
+      centerRight: cR,
+      centerBottom: cB,
+      productionTop: pT,
+      productionRight: pR,
+      bindingsLeft: bL
+    } = coords
+
+    // Determine the vertical bus trunk position between triggers and center
+    const maxTriggerX = Math.max(d.x, w.x, q.x)
+    const trunkGap = Math.max(16, cL.x - maxTriggerX)
+    const trunkX = Math.round(maxTriggerX + trunkGap * 0.42)
+    const radius = 10
+
+    // Path 1: From Domains right edge to bus trunk and down to centerLeft y
+    const domainsPath = `M ${d.x} ${d.y} H ${trunkX - radius} Q ${trunkX} ${d.y} ${trunkX} ${d.y + radius} V ${cL.y}`
+
+    // Path 2: From Workers right edge into bus trunk
+    let workersPath = `M ${w.x} ${w.y} H ${trunkX}`
+    if (Math.abs(w.y - cL.y) > 4) {
+      if (w.y > cL.y) {
+        workersPath = `M ${w.x} ${w.y} H ${trunkX - radius} Q ${trunkX} ${w.y} ${trunkX} ${w.y - radius} V ${cL.y}`
+      } else {
+        workersPath = `M ${w.x} ${w.y} H ${trunkX - radius} Q ${trunkX} ${w.y} ${trunkX} ${w.y + radius} V ${cL.y}`
+      }
+    }
+
+    // Path 3: From Queues right edge to bus trunk and up to centerLeft y
+    const queuesPath = `M ${q.x} ${q.y} H ${trunkX - radius} Q ${trunkX} ${q.y} ${trunkX} ${q.y - radius} V ${cL.y}`
+
+    // Path 4: Trunk arrow horizontally straight into the left edge of thecentralreport
+    const trunkToCenterPath = `M ${trunkX} ${cL.y} H ${cL.x}`
+
+    // Path 5: Center Right to Bindings Left (Direct In-Stock Path)
+    const centerToBindingsPath = `M ${cR.x} ${cR.y} H ${bL.x}`
+
+    // Path 6: Center Bottom to Production Top (Fallback Path)
+    const centerToProdPath = `M ${cB.x} ${cB.y} V ${pT.y}`
+
+    // Path 7: Production Right to Bindings Left (Merge upon QA clearance)
+    const mergeMidX = Math.round(pR.x + (bL.x - pR.x) * 0.5)
+    const prodToBindingsPath = `M ${pR.x} ${pR.y} H ${mergeMidX - radius} Q ${mergeMidX} ${pR.y} ${mergeMidX} ${pR.y - radius} V ${cL.y + radius} Q ${mergeMidX} ${cL.y} ${mergeMidX + radius} ${cL.y} H ${bL.x}`
+
+    return {
+      domainsPath,
+      workersPath,
+      queuesPath,
+      trunkToCenterPath,
+      centerToBindingsPath,
+      centerToProdPath,
+      prodToBindingsPath
+    }
+  }, [coords])
 
   return (
     <div className="space-y-3 font-sans transition-all">
@@ -356,7 +534,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       {/* =========================================================================
           2. MAIN WORKFLOW CANVAS (EXACT CLOUDFLARE REFERENCE SCREENSHOT CARD)
          ========================================================================= */}
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-8 relative shadow-2xs transition-all overflow-hidden">
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
         {/* ACTIVE ORDER SUB-BAR */}
         <div className="flex flex-wrap items-center justify-between pb-6 mb-6 border-b border-[#f4f4f5] gap-3">
           <div className="flex items-center gap-2">
@@ -389,10 +567,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* WORKFLOW CANVAS GRAPH */}
+        {/* WORKFLOW CANVAS GRAPH CONTAINER */}
         {isCanvasExpanded && (
-          <div className="relative min-h-[460px] pb-4">
-            {/* SVG DIRECTIONAL CONNECTING PATHS (EXACT SHAPE & CURVES FROM SCREENSHOT 3) */}
+          <div ref={containerRef} className="relative min-h-[460px] pb-4">
+            {/* SVG DIRECTIONAL CONNECTING PATHS (DYNAMICALLY LOCKED TO CARD REFS) */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-0"
               xmlns="http://www.w3.org/2000/svg"
@@ -451,126 +629,122 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 </marker>
               </defs>
 
-              {/* -----------------------------------------------------------------
-                  TRIGGER BUS TO CENTER ENGINE (Exact Match for Screenshot 3)
-                  3 cards feed horizontally, curve into a vertical trunk, then arrow to center
-                 ----------------------------------------------------------------- */}
-              {/* Curve 1: From Domains (y ≈ 26) down to bus trunk (y = 86) */}
-              <path
-                d="M 230 26 H 252 Q 262 26 262 36 V 86"
-                fill="none"
-                stroke={activeOrder?.history.includes('sales_webhook') ? '#2563eb' : '#9ca3af'}
-                strokeWidth={1.75}
-              />
-
-              {/* Curve 2: From Workers (y ≈ 86) straight into bus trunk */}
-              <path
-                d="M 230 86 H 262"
-                fill="none"
-                stroke={activeOrder?.history.includes('payment_verification') ? '#2563eb' : '#9ca3af'}
-                strokeWidth={1.75}
-              />
-
-              {/* Curve 3: From Queues (y ≈ 146) up to bus trunk (y = 86) */}
-              <path
-                d="M 230 146 H 252 Q 262 146 262 136 V 86"
-                fill="none"
-                stroke={activeOrder?.history.includes('fraud_check') ? '#2563eb' : '#9ca3af'}
-                strokeWidth={1.75}
-              />
-
-              {/* Single Arrow Stem from bus trunk into thecentralreport / center node (y = 86) */}
-              <path
-                d="M 262 86 H 312"
-                fill="none"
-                stroke={activeOrder?.history.includes('inventory_check') ? '#2563eb' : '#9ca3af'}
-                strokeWidth={1.75}
-                markerEnd={
-                  activeOrder?.history.includes('inventory_check')
-                    ? 'url(#cf-arrow-blue)'
-                    : 'url(#cf-arrow-default)'
-                }
-              />
-
-              {/* -----------------------------------------------------------------
-                  PATH FROM CENTER ENGINE TO RIGHT (BINDINGS / LOGISTICS)
-                 ----------------------------------------------------------------- */}
-              {/* Direct Path (In-stock flow) from thecentralreport (right edge x ≈ 570) to Bindings (x ≈ 640) */}
-              <path
-                d="M 570 86 H 638"
-                fill="none"
-                stroke={
-                  activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                    ? '#10b981'
-                    : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
-                    ? '#2563eb'
-                    : '#9ca3af'
-                }
-                strokeWidth={activeOrder?.hasStock ? 2 : 1.75}
-                strokeDasharray={activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
-                markerEnd={
-                  activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                    ? 'url(#cf-arrow-emerald)'
-                    : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
-                    ? 'url(#cf-arrow-blue)'
-                    : 'url(#cf-arrow-default)'
-                }
-              />
-
-              {/* -----------------------------------------------------------------
-                  FALLBACK BRANCH: INVENTORY -> PRODUCTION BATCHES (When Out of Stock)
-                 ----------------------------------------------------------------- */}
-              {!activeOrder?.hasStock && (
+              {svgPaths && (
                 <>
-                  {/* Branch down from center engine to production engine (x ≈ 445, y from 160 to 240) */}
+                  {/* Curve 1: From Domains down to bus trunk */}
                   <path
-                    d="M 445 160 V 238"
+                    d={svgPaths.domainsPath}
                     fill="none"
-                    stroke={
-                      activeOrder?.history.includes('production_queue') || activeOrder?.currentStage.startsWith('production')
-                        ? '#f59e0b'
-                        : '#9ca3af'
-                    }
-                    strokeWidth={2}
-                    strokeDasharray={activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
-                    markerEnd="url(#cf-arrow-amber)"
+                    stroke={activeOrder?.history.includes('sales_webhook') ? '#2563eb' : '#9ca3af'}
+                    strokeWidth={1.75}
                   />
 
-                  {/* Branch from production engine QA Pass back up and into Logistics (x ≈ 570, y ≈ 290 to x ≈ 638, y ≈ 110) */}
+                  {/* Curve 2: From Workers straight into bus trunk */}
                   <path
-                    d="M 570 290 H 598 Q 608 290 608 280 V 118 Q 608 108 618 108 H 638"
+                    d={svgPaths.workersPath}
                     fill="none"
-                    stroke={
-                      activeOrder?.history.includes('logistics_packing')
-                        ? '#10b981'
-                        : activeOrder?.currentStage === 'production_qa'
-                        ? '#2563eb'
-                        : '#9ca3af'
-                    }
-                    strokeWidth={2}
-                    strokeDasharray={activeOrder?.currentStage === 'production_qa' ? '5,5' : 'none'}
+                    stroke={activeOrder?.history.includes('payment_verification') ? '#2563eb' : '#9ca3af'}
+                    strokeWidth={1.75}
+                  />
+
+                  {/* Curve 3: From Queues up to bus trunk */}
+                  <path
+                    d={svgPaths.queuesPath}
+                    fill="none"
+                    stroke={activeOrder?.history.includes('fraud_check') ? '#2563eb' : '#9ca3af'}
+                    strokeWidth={1.75}
+                  />
+
+                  {/* Single Arrow Stem from bus trunk into thecentralreport / center node */}
+                  <path
+                    d={svgPaths.trunkToCenterPath}
+                    fill="none"
+                    stroke={activeOrder?.history.includes('inventory_check') ? '#2563eb' : '#9ca3af'}
+                    strokeWidth={1.75}
                     markerEnd={
-                      activeOrder?.history.includes('logistics_packing')
-                        ? 'url(#cf-arrow-emerald)'
+                      activeOrder?.history.includes('inventory_check')
+                        ? 'url(#cf-arrow-blue)'
                         : 'url(#cf-arrow-default)'
                     }
                   />
+
+                  {/* Direct Path (In-stock flow) from thecentralreport to Bindings */}
+                  <path
+                    d={svgPaths.centerToBindingsPath}
+                    fill="none"
+                    stroke={
+                      activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
+                        ? '#10b981'
+                        : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
+                        ? '#2563eb'
+                        : '#9ca3af'
+                    }
+                    strokeWidth={activeOrder?.hasStock ? 2 : 1.75}
+                    strokeDasharray={activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
+                    markerEnd={
+                      activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
+                        ? 'url(#cf-arrow-emerald)'
+                        : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
+                        ? 'url(#cf-arrow-blue)'
+                        : 'url(#cf-arrow-default)'
+                    }
+                  />
+
+                  {/* Dynamic Fallback Branch: Inventory -> Production Batches */}
+                  {!activeOrder?.hasStock && (
+                    <>
+                      {/* Branch down from center engine to production engine */}
+                      <path
+                        d={svgPaths.centerToProdPath}
+                        fill="none"
+                        stroke={
+                          activeOrder?.history.includes('production_queue') || activeOrder?.currentStage.startsWith('production')
+                            ? '#f59e0b'
+                            : '#9ca3af'
+                        }
+                        strokeWidth={2}
+                        strokeDasharray={activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
+                        markerEnd="url(#cf-arrow-amber)"
+                      />
+
+                      {/* Branch from production engine QA Pass back up and into Logistics */}
+                      <path
+                        d={svgPaths.prodToBindingsPath}
+                        fill="none"
+                        stroke={
+                          activeOrder?.history.includes('logistics_packing')
+                            ? '#10b981'
+                            : activeOrder?.currentStage === 'production_qa'
+                            ? '#2563eb'
+                            : '#9ca3af'
+                        }
+                        strokeWidth={2}
+                        strokeDasharray={activeOrder?.currentStage === 'production_qa' ? '5,5' : 'none'}
+                        markerEnd={
+                          activeOrder?.history.includes('logistics_packing')
+                            ? 'url(#cf-arrow-emerald)'
+                            : 'url(#cf-arrow-default)'
+                        }
+                      />
+                    </>
+                  )}
                 </>
               )}
             </svg>
 
-            {/* NODE GRID COLUMNS */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 relative z-10 items-start">
+            {/* THREE-COLUMN HORIZONTAL WORKFLOW FLOW (MATCHING SCREENSHOT 1 & 2 HORIZONTAL LAYOUT) */}
+            <div className="flex flex-row items-start justify-between gap-10 sm:gap-14 relative z-10 overflow-x-auto pb-4">
               {/* =========================================================================
                   COLUMN 1: THE 3 TRIGGER CARDS (PILLAR 1: SALES & TRIGGERS)
                   (EXACT MATCH FOR SCREENSHOT 1, 2, 3, 5 - DOUBLE CONCENTRIC BORDERS)
                  ========================================================================= */}
-              <div className="md:col-span-3 space-y-3.5 max-w-[230px]">
+              <div className="w-[215px] sm:w-[230px] shrink-0 space-y-3.5">
                 {/* 1A. DOMAINS CARD (Storefront Checkout Webhook) */}
                 <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     {/* Header */}
                     <div
+                      ref={domainsHeaderRef}
                       onClick={() => toggleNodeExpansion('domains')}
                       className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
                     >
@@ -635,6 +809,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     {/* Header */}
                     <div
+                      ref={workersHeaderRef}
                       onClick={() => toggleNodeExpansion('workers')}
                       className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
                     >
@@ -670,6 +845,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     {/* Header */}
                     <div
+                      ref={queuesHeaderRef}
                       onClick={() => toggleNodeExpansion('queues')}
                       className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
                     >
@@ -706,12 +882,18 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   COLUMN 2: CENTER ENGINE (PILLAR 2: INVENTORY MANAGEMENT NODE)
                   (EXACT MATCH FOR SCREENSHOT 1, 2, 4 - thecentralreport & OBSERVABILITY)
                  ========================================================================= */}
-              <div className="md:col-span-5 space-y-5">
+              <div className="w-[270px] sm:w-[300px] shrink-0 space-y-5">
                 {/* PRIMARY INVENTORY ENGINE CARD */}
-                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs max-w-[310px]">
+                <div
+                  ref={centerCardRef}
+                  className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs"
+                >
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     {/* Header: Exact match for Screenshot 4 */}
-                    <div className="px-4 py-3 flex items-center justify-between bg-white">
+                    <div
+                      ref={centerHeaderRef}
+                      className="px-4 py-3 flex items-center justify-between bg-white"
+                    >
                       <div className="flex items-center gap-2.5">
                         {/* Cloudflare Workers Code Icon */}
                         <svg
@@ -787,10 +969,16 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     (Rendered when stockout fallback occurs, matching concentric styling)
                    ========================================================================= */}
                 {!activeOrder?.hasStock && (
-                  <div className="p-[2.5px] rounded-[16px] border border-[#f59e0b]/50 bg-white transition-all shadow-2xs max-w-[310px] animate-in fade-in">
+                  <div
+                    ref={productionCardRef}
+                    className="p-[2.5px] rounded-[16px] border border-[#f59e0b]/50 bg-white transition-all shadow-2xs animate-in fade-in"
+                  >
                     <div className="rounded-[12px] border border-[#f59e0b]/40 bg-white overflow-hidden">
                       {/* Header */}
-                      <div className="px-4 py-3 flex items-center justify-between bg-white">
+                      <div
+                        ref={productionHeaderRef}
+                        className="px-4 py-3 flex items-center justify-between bg-white"
+                      >
                         <div className="flex items-center gap-2.5">
                           <Flame className="w-5 h-5 text-[#f59e0b]" />
                           <span className="text-[15px] font-normal text-[#18181b]">
@@ -844,11 +1032,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   COLUMN 3: BINDINGS CARD (PILLAR 4: LOGISTICS NODE)
                   (EXACT MATCH FOR SCREENSHOT 1 & 2 BINDINGS 2 CARD)
                  ========================================================================= */}
-              <div className="md:col-span-4 max-w-[310px]">
+              <div className="w-[280px] sm:w-[320px] shrink-0">
                 <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     {/* Header: Exact match for Screenshot 1 & 2 */}
                     <div
+                      ref={bindingsHeaderRef}
                       onClick={() => toggleNodeExpansion('bindings')}
                       className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
                     >
