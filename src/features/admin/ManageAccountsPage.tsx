@@ -985,11 +985,24 @@ export const ManageAccountsPage: React.FC = () => {
                             setPolicyAppliesTo('Entire SmokeyOps Organization')
                           }
                         }}
-                        options={[
-                          { value: 'Operating Office', label: 'Operating Office' },
-                          { value: 'All Facilities', label: 'All Operating Facilities' },
-                          { value: 'Delivery Zone', label: 'Delivery Zone' },
-                          { value: 'Enterprise Account', label: 'Entire Account Scope' },
+                        groups={[
+                          {
+                            label: 'ACCOUNT-LEVEL',
+                            options: [
+                              {
+                                value: 'Enterprise Account',
+                                label: `${targetStaff.email}'s Account`
+                              }
+                            ]
+                          },
+                          {
+                            label: 'RESOURCE-SPECIFIC',
+                            options: [
+                              { value: 'Operating Office', label: 'Individual Offices' },
+                              { value: 'Delivery Zone', label: 'Individual Delivery Zones' },
+                              { value: 'All Facilities', label: 'All Operating Facilities' },
+                            ]
+                          }
                         ]}
                         className="w-full"
                         buttonClassName="h-10 rounded-xl"
@@ -1004,13 +1017,23 @@ export const ManageAccountsPage: React.FC = () => {
                             setPolicyAppliesTo(String(val))
                             setEditOffice(String(val))
                           }}
-                          options={[
-                            { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                            { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                            { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                            { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                            { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
-                            ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
+                          groups={[
+                            {
+                              label: 'PRODUCTION KITCHENS',
+                              options: [
+                                { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
+                                { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' }
+                              ]
+                            },
+                            {
+                              label: 'DISPATCH & LOGISTICS HUBS',
+                              options: [
+                                { value: 'Yaba Head Office', label: 'Yaba Head Office' },
+                                { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
+                                { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
+                                ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
+                              ]
+                            }
                           ]}
                           className="w-full"
                           buttonClassName="h-10 rounded-xl"
@@ -1022,10 +1045,15 @@ export const ManageAccountsPage: React.FC = () => {
                             setPolicyAppliesTo(String(val))
                             setEditZone(String(val))
                           }}
-                          options={[
-                            { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
-                            { value: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)', label: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)' },
-                            { value: 'Zone 3: Greater Lagos & Inter-hub Trunk', label: 'Zone 3: Greater Lagos & Inter-hub Trunk' },
+                          groups={[
+                            {
+                              label: 'DELIVERY METROPOLITAN ZONES',
+                              options: [
+                                { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
+                                { value: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)', label: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)' },
+                                { value: 'Zone 3: Greater Lagos & Inter-hub Trunk', label: 'Zone 3: Greater Lagos & Inter-hub Trunk' },
+                              ]
+                            }
                           ]}
                           className="w-full"
                           buttonClassName="h-10 rounded-xl"
@@ -1454,14 +1482,24 @@ export const ManageAccountsPage: React.FC = () => {
                 <Select
                   value={matrixAppliesTo}
                   onValueChange={(val) => setMatrixAppliesTo(String(val))}
-                  options={[
-                    { value: 'Entire account', label: 'Entire account' },
-                    { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                    { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                    { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                    { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                    { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
-                    ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
+                  groups={[
+                    {
+                      label: 'ACCOUNT-LEVEL',
+                      options: [
+                        { value: 'Entire account', label: 'Entire account' },
+                      ]
+                    },
+                    {
+                      label: 'RESOURCE-SPECIFIC',
+                      options: [
+                        { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
+                        { value: 'Yaba Head Office', label: 'Yaba Head Office' },
+                        { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
+                        { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
+                        { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
+                        ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
+                      ]
+                    }
                   ]}
                   placeholder="Applies to..."
                 />
