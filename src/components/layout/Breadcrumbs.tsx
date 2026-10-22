@@ -35,6 +35,8 @@ export const Breadcrumbs: React.FC = () => {
     returns: 'Returns & RMA',
     accounts: 'Manage accounts',
     admin: 'Admin',
+    route: 'Edit route',
+    matrix: 'Role matrix',
   }
 
   // Helper for sentence case fallback

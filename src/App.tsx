@@ -79,6 +79,8 @@ export function App() {
 
                 {/* 4. SUPER ADMIN & ACCOUNT MANAGEMENT */}
                 <Route path="accounts" element={<ManageAccountsPage />} />
+                <Route path="accounts/route/:email?" element={<ManageAccountsPage />} />
+                <Route path="accounts/matrix" element={<ManageAccountsPage />} />
                 <Route path="admin/accounts" element={<ManageAccountsPage />} />
 
                 {/* Catch-all Fallback */}
