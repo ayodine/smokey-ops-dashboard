@@ -271,6 +271,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
   // DOM Refs for dynamic anchor alignment
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const node1ACardRef = useRef<HTMLDivElement | null>(null)
+  const node1BCardRef = useRef<HTMLDivElement | null>(null)
+  const node1CCardRef = useRef<HTMLDivElement | null>(null)
+  const centerCardRef = useRef<HTMLDivElement | null>(null)
+  const bindingsCardRef = useRef<HTMLDivElement | null>(null)
+
   const node1AHeaderRef = useRef<HTMLDivElement | null>(null)
   const node1BHeaderRef = useRef<HTMLDivElement | null>(null)
   const node1CHeaderRef = useRef<HTMLDivElement | null>(null)
@@ -649,12 +655,35 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       }
     }
 
-    const node1A = getRightMiddle(node1AHeaderRef.current)
-    const node1B = getRightMiddle(node1BHeaderRef.current)
-    const node1C = getRightMiddle(node1CHeaderRef.current)
-    const centerLeft = getLeftMiddle(centerHeaderRef.current)
-    const centerRight = getRightMiddle(centerHeaderRef.current)
-    const bindingsLeft = getLeftMiddle(bindingsHeaderRef.current)
+    // Outer right edge for Column 1 cards, aligned with header vertical center
+    const node1A: AnchorPoint = {
+      x: node1ACardRef.current ? node1ACardRef.current.getBoundingClientRect().right - cRect.left : getRightMiddle(node1AHeaderRef.current).x,
+      y: node1AHeaderRef.current ? node1AHeaderRef.current.getBoundingClientRect().top + node1AHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
+    const node1B: AnchorPoint = {
+      x: node1BCardRef.current ? node1BCardRef.current.getBoundingClientRect().right - cRect.left : getRightMiddle(node1BHeaderRef.current).x,
+      y: node1BHeaderRef.current ? node1BHeaderRef.current.getBoundingClientRect().top + node1BHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
+    const node1C: AnchorPoint = {
+      x: node1CCardRef.current ? node1CCardRef.current.getBoundingClientRect().right - cRect.left : getRightMiddle(node1CHeaderRef.current).x,
+      y: node1CHeaderRef.current ? node1CHeaderRef.current.getBoundingClientRect().top + node1CHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
+
+    // Outer left and right edges for Pillar 2 (Packaging) container, aligned with header vertical center
+    const centerLeft: AnchorPoint = {
+      x: centerCardRef.current ? centerCardRef.current.getBoundingClientRect().left - cRect.left : getLeftMiddle(centerHeaderRef.current).x,
+      y: centerHeaderRef.current ? centerHeaderRef.current.getBoundingClientRect().top + centerHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
+    const centerRight: AnchorPoint = {
+      x: centerCardRef.current ? centerCardRef.current.getBoundingClientRect().right - cRect.left : getRightMiddle(centerHeaderRef.current).x,
+      y: centerHeaderRef.current ? centerHeaderRef.current.getBoundingClientRect().top + centerHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
+
+    // Outer left edge for Pillar 3 (Delivery) container, aligned with header vertical center
+    const bindingsLeft: AnchorPoint = {
+      x: bindingsCardRef.current ? bindingsCardRef.current.getBoundingClientRect().left - cRect.left : getLeftMiddle(bindingsHeaderRef.current).x,
+      y: bindingsHeaderRef.current ? bindingsHeaderRef.current.getBoundingClientRect().top + bindingsHeaderRef.current.getBoundingClientRect().height / 2 - cRect.top : 0
+    }
 
     setCoords({
       node1A,
@@ -687,7 +716,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     }
   }, [viewMode])
 
-  // SVG paths calculation
+  // SVG paths calculation with smooth rounded corners and container-touching arrowheads
   const svgPaths = useMemo(() => {
     if (!coords || coords.centerLeft.x === 0) return null
 
@@ -701,34 +730,37 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     } = coords
 
     const maxTriggerX = Math.max(a.x, b.x, c.x)
-    const trunkGap = Math.max(16, cL.x - maxTriggerX)
-    const trunkX = Math.round(maxTriggerX + trunkGap * 0.42)
-    const radius = 10
+    const trunkGap = Math.max(24, cL.x - maxTriggerX)
+    const trunkX = Math.round(maxTriggerX + trunkGap * 0.45)
+    const radius = 12
 
-    // Path 1A: From Ingestion down to trunk
-    const path1A = `M ${a.x} ${a.y} H ${trunkX - radius} Q ${trunkX} ${a.y} ${trunkX} ${a.y + radius} V ${cL.y}`
+    // Target Y is the vertical center of Pillar 2 header
+    const targetY = cL.y
 
-    // Path 1B: From Stock/BOM into trunk
-    let path1B = `M ${b.x} ${b.y} H ${trunkX}`
-    if (Math.abs(b.y - cL.y) > 4) {
-      if (b.y > cL.y) {
-        path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius} V ${cL.y}`
-      } else {
-        path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y + radius} V ${cL.y}`
-      }
-    }
+    // Path 1A: From Node 1A across the top to trunkX + radius
+    const path1A = `M ${a.x} ${targetY} H ${trunkX + radius}`
 
-    // Path 1C: From Production Batches up to trunk
-    const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${cL.y}`
+    // Branch from Node 1A turning DOWN into trunk (smooth curve of radius 12 on left side of trunk)
+    const path1ADown = `M ${a.x} ${targetY} H ${trunkX - radius} Q ${trunkX} ${targetY} ${trunkX} ${targetY + radius} V ${b.y}`
 
-    // Stem from trunk into Pillar 2 (Packaging and Assembly)
-    const trunkToPillar2 = `M ${trunkX} ${cL.y} H ${cL.x}`
+    // Path 1B: From Node 1B (middle) merging into trunk with smooth curve
+    const path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius} V ${targetY + radius}`
+
+    // Path 1C: From Node 1C (bottom) merging UP into trunk with smooth curve
+    const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${b.y}`
+
+    // Trunk into Pillar 2:
+    // Curves smoothly from vertical trunk turning RIGHT into horizontal line entering Pillar 2 container
+    // Tip of arrowhead will touch exactly at cL.x (Pillar 2 outer border)
+    const trunkToPillar2 = `M ${trunkX} ${targetY + radius} Q ${trunkX} ${targetY} ${trunkX + radius} ${targetY} H ${cL.x}`
 
     // Stem from Pillar 2 to Pillar 3 (Logistics and Handover)
+    // Runs from right border of Pillar 2 to left border of Pillar 3 (touching at bL.x)
     const pillar2ToPillar3 = `M ${cR.x} ${cR.y} H ${bL.x}`
 
     return {
       path1A,
+      path1ADown,
       path1B,
       path1C,
       trunkToPillar2,
@@ -742,8 +774,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           MAIN WORKFLOW CONTAINER
          ========================================================================= */}
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
-        {/* ACTIVE ORDER SEARCH & TOOLBAR (DESIGN SYSTEM STANDARD) */}
-        <div className="flex flex-wrap items-center justify-between pb-5 mb-6 border-b border-[#e4e4e7] gap-3">
+        {/* ACTIVE ORDER SEARCH (DESIGN SYSTEM STANDARD) */}
+        <div className="flex items-center pb-5 mb-6 border-b border-[#e4e4e7]">
           {/* Left: Design System Search Field to Search Orders by ID */}
           <div className="flex items-center gap-3 flex-1 min-w-[260px] max-w-md">
             <div className="relative flex-1">
@@ -766,81 +798,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               </button>
             )}
           </div>
-
-          {/* Center / Right: Order Info Chip, View Mode Switcher, and Stage Indicator */}
-          <div className="flex items-center flex-wrap gap-2.5">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#f4f4f5] border border-[#e4e4e7] text-xs">
-              <span className="font-semibold text-[#18181b]">
-                {activeOrder?.id.replace('SHD-0', 'Order ').replace('SHD-', 'Order ')}
-              </span>
-              <span className="text-[#a1a1aa] hidden md:inline">|</span>
-              <span className="text-[#52525b] hidden md:inline truncate max-w-[180px]">
-                {activeOrder?.dishName}
-              </span>
-              <span className="text-[#a1a1aa] hidden sm:inline">|</span>
-              <span className="font-medium text-[#18181b] hidden sm:inline">
-                {formatNaira(activeOrder?.totalAmount || 0)}
-              </span>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
-              <button
-                type="button"
-                onClick={() => setViewMode('canvas')}
-                className={cn(
-                  "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
-                  viewMode === 'canvas'
-                    ? "bg-white text-[#18181b] shadow-xs font-semibold"
-                    : "text-[#71717a] hover:text-[#18181b]"
-                )}
-              >
-                <Network className="w-3 h-3 text-[#2563eb]" />
-                <span>Node Canvas</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('tree')}
-                className={cn(
-                  "px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer",
-                  viewMode === 'tree'
-                    ? "bg-white text-[#18181b] shadow-xs font-semibold"
-                    : "text-[#71717a] hover:text-[#18181b]"
-                )}
-              >
-                <Layers className="w-3 h-3 text-[#10b981]" />
-                <span>Flow Tree</span>
-              </button>
-            </div>
-
-            {/* Stepper Button */}
-            <button
-              type="button"
-              onClick={stepOrderForward}
-              disabled={activeOrder?.currentStage === 'p3_settled_closed'}
-              className="h-8 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[11px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-              title="Advance order to next pipeline stage"
-            >
-              <Play className="w-3 h-3 text-[#dc2626] fill-[#dc2626]" />
-              <span className="hidden sm:inline">Step Stage</span>
-            </button>
-
-            <StatusPill
-              label={getStageLabel(activeOrder?.currentStage)}
-              dot={true}
-              variant={
-                activeOrder?.currentStage === 'p3_settled_closed'
-                  ? 'zinc'
-                  : activeOrder?.currentStage === 'p3_delivered'
-                  ? 'emerald'
-                  : activeOrder?.currentStage.startsWith('p3_')
-                  ? 'blue'
-                  : activeOrder?.currentStage.startsWith('p2_')
-                  ? 'amber'
-                  : 'emerald'
-              }
-            />
-          </div>
         </div>
 
         {/* WORKFLOW INTERFACE */}
@@ -853,42 +810,55 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               <div ref={containerRef} className="relative min-h-[460px] pb-4">
                 {/* SVG DIRECTIONAL CONNECTING PATHS */}
                 <svg
-                  className="absolute inset-0 w-full h-full pointer-events-none z-0"
+                  className="absolute inset-0 w-full h-full pointer-events-none z-10"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <defs>
                     <marker
                       id="cf-arrow-default"
                       viewBox="0 0 10 10"
-                      refX="6"
+                      refX="10"
                       refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
+                      markerWidth="8"
+                      markerHeight="8"
                       orient="auto"
+                      markerUnits="userSpaceOnUse"
                     >
-                      <polygon points="0 2, 7 5, 0 8" fill="#9ca3af" />
+                      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#9ca3af" />
                     </marker>
                     <marker
                       id="cf-arrow-red"
                       viewBox="0 0 10 10"
-                      refX="6"
+                      refX="10"
                       refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
+                      markerWidth="8"
+                      markerHeight="8"
                       orient="auto"
+                      markerUnits="userSpaceOnUse"
                     >
-                      <polygon points="0 2, 7 5, 0 8" fill="#dc2626" />
+                      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#dc2626" />
                     </marker>
                   </defs>
 
                   {svgPaths && (
                     <>
-                      {/* Path 1A: From Ingestion down to trunk (Red when active, Grey when uninitiated) */}
+                      {/* Path 1A: From Ingestion horizontal across to trunk */}
                       <path
                         d={svgPaths.path1A}
                         fill="none"
                         stroke={activeOrder?.history.includes('p1_ingestion') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      {/* Branch from Node 1A turning down into trunk (smooth rounded curve) */}
+                      <path
+                        d={svgPaths.path1ADown}
+                        fill="none"
+                        stroke={activeOrder?.history.includes('p1_ingestion') ? '#dc2626' : '#9ca3af'}
+                        strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                       {/* Path 1B: From Stock/BOM into trunk */}
                       <path
@@ -896,6 +866,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         fill="none"
                         stroke={activeOrder?.history.includes('p1_inventory_deduct') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                       {/* Path 1C: From Production Batches up to trunk */}
                       <path
@@ -903,21 +875,27 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         fill="none"
                         stroke={activeOrder?.history.includes('p1_production_batch') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                      {/* Arrow from Column 1 into Column 2 */}
+                      {/* Arrow from Column 1 into Column 2 container (touching container border) */}
                       <path
                         d={svgPaths.trunkToPillar2}
                         fill="none"
                         stroke={activeOrder?.history.includes('p2_in_packaging') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                         markerEnd={activeOrder?.history.includes('p2_in_packaging') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
                       />
-                      {/* Arrow from Column 2 into Column 3 */}
+                      {/* Arrow from Column 2 into Column 3 container (touching container border) */}
                       <path
                         d={svgPaths.pillar2ToPillar3}
                         fill="none"
                         stroke={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? '#dc2626' : '#9ca3af'}
                         strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                         markerEnd={activeOrder?.history.includes('p3_delivery_assigned') || activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivered') || activeOrder?.history.includes('p3_settled_closed') ? 'url(#cf-arrow-red)' : 'url(#cf-arrow-default)'}
                       />
                     </>
@@ -931,7 +909,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                      ===================================================================== */}
                   <div className="w-[260px] sm:w-[290px] shrink-0 space-y-3.5">
                     {/* Node 1A: Order Intake */}
-                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1ACardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1AHeaderRef}
                         onClick={() => toggleNodeExpansion('node1A')}
@@ -976,7 +954,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1B: Inventory Allocation */}
-                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1BCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1BHeaderRef}
                         onClick={() => toggleNodeExpansion('node1B')}
@@ -1021,7 +999,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1C: Kitchen Cooking */}
-                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1CCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1CHeaderRef}
                         onClick={() => toggleNodeExpansion('node1C')}
@@ -1070,7 +1048,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
-                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={centerCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={centerHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar2')}
@@ -1126,7 +1104,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 3: DELIVERY AND CUSTOMER HANDOVER
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
-                    <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={bindingsCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={bindingsHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar3')}
