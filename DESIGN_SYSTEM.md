@@ -244,6 +244,53 @@ Every data table in the application must satisfy:
 
 ---
 
+### 4.7 Cloudflare Kumo Toggle Switch (`Toggle` / `ToggleSwitch`)
+
+The authoritative toggle switch across all permissions, settings, accounts, and operational controls. Modeled directly from Cloudflare Console (`dash.cloudflare.com/members/.../policies/.../edit`).
+
+#### Visual & Behavioral Specifications:
+1. **Form Factor (Squircle, NOT Capsule Pill)**:
+   - **Track**: Distinct rounded-rectangle squircle with continuous curvature (`rounded-[6px]` for `md`), avoiding generic capsule pills (`rounded-full`).
+   - **Thumb**: Concentric rounded-rectangle squircle (`rounded-[5px]` for `md`) that fills the full inner track height.
+2. **Dimension Standards**:
+   - **`sm` (Compact)**: Track `w-[32px] h-[18px] rounded-[5px]`, Thumb `w-[15px] h-[16px] rounded-[4px]`, Active translate `translate-x-[15px]`.
+   - **`md` (Standard / Default)**: Track `w-[38px] h-[20px] rounded-[6px]`, Thumb `w-[18px] h-[18px] rounded-[5px]`, Active translate `translate-x-[18px]`.
+   - **`lg` (Prominent)**: Track `w-[44px] h-[24px] rounded-[7px]`, Thumb `w-[21px] h-[22px] rounded-[6px]`, Active translate `translate-x-[21px]`.
+3. **State Matrices & Palette**:
+   - **Active (ON)**:
+     - Track: Background `#737373` (`rgb(115, 115, 115)`), Border `1px solid #525252` (`rgb(82, 82, 82)`). Hover: `#686868`.
+     - Thumb: Solid white `#ffffff` with subtle elevation `shadow-[0_1px_2px_rgba(0,0,0,0.18)]`. Zero dark outer ring.
+   - **Inactive (OFF)**:
+     - Track: Background `#f2f2f2` (`rgb(242, 242, 242)`), Border `1px solid #d4d4d8` (`rgb(212, 212, 216)`). Hover: `#eaeaea`.
+     - Thumb: Solid crisp white `#ffffff` with downward drop shadow `shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)]`. Zero ghost ring.
+   - **Dark Mode**:
+     - Active: Track `dark:bg-[#666666] dark:border-[#444444]`, Thumb `bg-white`.
+     - Inactive: Track `dark:bg-zinc-800 dark:border-zinc-700`, Thumb `bg-white`.
+4. **Transition Physics**:
+   - Track color transition: `transition-colors duration-150 ease-in-out`.
+   - Thumb translation: `transform transition-transform duration-150 ease-in-out`.
+
+```tsx
+import { Toggle, ToggleSwitch } from '@/components/ui/Toggle'
+
+// Standalone Switch
+<Toggle
+  checked={isActive}
+  onChange={(checked) => setIsActive(checked)}
+  ariaLabel="Enable policy"
+/>
+
+// Switch with Label & Description
+<Toggle
+  checked={isEnabled}
+  onChange={setIsEnabled}
+  label="Domain Administrator"
+  description="Grants full access to zones and worker resources"
+/>
+```
+
+---
+
 ## 5. Checklist for Adding a New Feature or Page
 
 Before shipping or opening a pull request for a new page or component, verify the following checklist:
