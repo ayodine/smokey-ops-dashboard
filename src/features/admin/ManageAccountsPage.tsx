@@ -715,10 +715,10 @@ export const ManageAccountsPage: React.FC = () => {
       defaultWidth: 240,
       accessor: (acc) => (
         <div>
-          <div className="font-semibold text-kumo-strong text-xs font-sans">
+          <div className="font-semibold text-kumo-strong text-sm font-sans">
             {acc.name}
           </div>
-          <div className="text-[11px] text-kumo-subtle font-sans mt-0.5">
+          <div className="text-[13px] text-kumo-subtle font-sans mt-0.5">
             {acc.staff_id || acc.department || 'Operations'}
           </div>
         </div>
@@ -730,7 +730,7 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Email Address',
       defaultWidth: 220,
       accessor: (acc) => (
-        <span className="text-xs text-kumo-subtle font-sans">
+        <span className="text-[13px] text-kumo-subtle font-sans">
           {acc.email}
         </span>
       ),
@@ -741,7 +741,7 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Last Activity',
       defaultWidth: 160,
       accessor: (acc) => (
-        <span className="text-xs text-kumo-default font-sans whitespace-nowrap">
+        <span className="text-[13px] text-kumo-default font-sans whitespace-nowrap">
           {getActivityTimestamp(acc)}
         </span>
       ),
@@ -752,7 +752,7 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Role',
       defaultWidth: 180,
       accessor: (acc) => (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-kumo-line bg-kumo-base text-xs font-medium text-kumo-strong shadow-2xs whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-kumo-line bg-kumo-base text-[13px] font-medium text-kumo-strong shadow-2xs whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
           <span>{acc.roleLabel}</span>
         </span>
@@ -764,7 +764,7 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Office',
       defaultWidth: 200,
       accessor: (acc) => (
-        <span className="text-xs text-kumo-default font-sans whitespace-nowrap">
+        <span className="text-[13px] text-kumo-default font-sans whitespace-nowrap">
           {acc.assigned_hub ? `${acc.assigned_hub} Office` : 'Central Kitchen Office'}
         </span>
       ),
@@ -778,7 +778,7 @@ export const ManageAccountsPage: React.FC = () => {
         const isActive = acc.status !== 'suspended'
         return (
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap shrink-0 ${
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border whitespace-nowrap shrink-0 ${
               isActive
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
                 : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'
@@ -829,7 +829,7 @@ export const ManageAccountsPage: React.FC = () => {
                     setOpenMenuEmail(null)
                   }}
                 />
-                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-xl z-50 p-1 font-sans text-xs animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60">
+                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-xl z-50 p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60">
                   <div className="py-0.5">
                     <button
                       type="button"
@@ -945,7 +945,7 @@ export const ManageAccountsPage: React.FC = () => {
           />
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-kumo-subtle font-sans hidden sm:inline-flex items-center gap-1.5">
+            <span className="text-[13px] text-kumo-subtle font-sans hidden sm:inline-flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5" />
               <span>View member ID:</span>
               <strong className="text-kumo-strong">{targetStaff.staff_id || 'SHD-STAFF'}</strong>
@@ -966,7 +966,7 @@ export const ManageAccountsPage: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Search policies..."
-                      className="w-full h-9 pl-9 pr-4 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand"
+                      className="w-full h-9 pl-9 pr-4 rounded-xl border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand"
                     />
                   </div>
 
@@ -975,7 +975,7 @@ export const ManageAccountsPage: React.FC = () => {
                     size="sm"
                     onClick={() => setIsEditingPolicy(true)}
                     leftIcon={<Plus className="w-3.5 h-3.5" />}
-                    className="h-9 px-4 text-xs font-semibold rounded-xl"
+                    className="h-9 px-4 text-[13px] font-semibold rounded-xl"
                   >
                     Create a policy
                   </Button>
@@ -983,7 +983,7 @@ export const ManageAccountsPage: React.FC = () => {
 
                 {/* Table of assigned policies matching Screenshot 3 */}
                 <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-3 bg-kumo-canvas/50 border-b border-kumo-line text-[11px] font-semibold text-kumo-subtle select-none">
+                  <div className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-3 bg-kumo-canvas/50 border-b border-kumo-line text-[13px] font-semibold text-kumo-subtle select-none">
                     <span>Scope ↑</span>
                     <span>Applies to ⇅</span>
                     <span>Roles & Permissions ⇅</span>
@@ -995,28 +995,28 @@ export const ManageAccountsPage: React.FC = () => {
                   <div className="divide-y divide-kumo-line/60">
                     <div
                       onClick={() => setIsEditingPolicy(true)}
-                      className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-4 hover:bg-kumo-tint/40 transition-colors cursor-pointer text-xs"
+                      className="grid grid-cols-[1.2fr_1.8fr_3.5fr_1fr_1fr_44px] items-center px-5 py-4 hover:bg-kumo-tint/40 transition-colors cursor-pointer text-[13px]"
                     >
-                      <div className="font-semibold text-kumo-strong">
+                      <div className="font-semibold text-kumo-strong text-sm">
                         {policyScope}
                       </div>
 
                       <div className="flex items-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-xs font-sans text-kumo-strong">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-[13px] font-sans text-kumo-strong">
                           <Building2 className="w-3.5 h-3.5 text-kumo-subtle" />
                           <span>{policyAppliesTo}</span>
                         </span>
                       </div>
 
-                      <div className="pr-4 text-kumo-default text-xs leading-relaxed line-clamp-3">
+                      <div className="pr-4 text-kumo-default text-[13px] leading-relaxed line-clamp-3">
                         {activePoliciesString}
                       </div>
 
-                      <div className="text-kumo-subtle font-medium">
+                      <div className="text-kumo-subtle font-medium text-[13px]">
                         Office Admin
                       </div>
 
-                      <div className="text-kumo-default font-sans text-xs">
+                      <div className="text-kumo-default font-sans text-[13px]">
                         {targetStaff.created_at || '10 Jan 2026'}
                       </div>
 
@@ -1044,7 +1044,7 @@ export const ManageAccountsPage: React.FC = () => {
                   <div className="flex items-center gap-2.5">
                     <h2 className="text-sm font-bold text-kumo-strong">Edit policy</h2>
                     <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-[11px] font-sans font-medium">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-[12px] font-sans font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       <span>Active · Added {targetStaff.created_at || '10 Jan 2026'}</span>
                     </span>
@@ -1053,7 +1053,7 @@ export const ManageAccountsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsEditingPolicy(false)}
-                    className="text-xs text-kumo-subtle hover:text-kumo-strong flex items-center gap-1 cursor-pointer font-sans"
+                    className="text-[13px] text-kumo-subtle hover:text-kumo-strong flex items-center gap-1 cursor-pointer font-sans"
                   >
                     <span>View all policies</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -1153,8 +1153,8 @@ export const ManageAccountsPage: React.FC = () => {
                           buttonClassName="h-10 rounded-xl"
                         />
                       ) : (
-                        <div className="w-full flex items-center justify-between px-3 h-10 rounded-xl border border-kumo-line bg-kumo-base text-xs font-sans">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-kumo-tint text-kumo-strong text-xs font-sans">
+                        <div className="w-full flex items-center justify-between px-3 h-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] font-sans">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-kumo-tint text-kumo-strong text-[13px] font-sans">
                             <Building2 className="w-3.5 h-3.5 text-kumo-subtle" />
                             <span>{policyAppliesTo}</span>
                           </span>
@@ -1165,7 +1165,7 @@ export const ManageAccountsPage: React.FC = () => {
 
                   {/* Light Blue Info Banner with (i) circle and dismiss (x) */}
                   {showInfoBanner && (
-                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in">
+                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-[13px] text-blue-900 dark:text-blue-200 animate-in fade-in">
                       <div className="flex items-start gap-2.5">
                         <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                         <p className="leading-relaxed">
@@ -1183,7 +1183,7 @@ export const ManageAccountsPage: React.FC = () => {
                   )}
 
                   {/* Explanatory text */}
-                  <p className="text-xs text-kumo-default leading-relaxed">
+                  <p className="text-[13px] text-kumo-default leading-relaxed">
                     Define what operational permissions <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> should have within the resource-specific scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
                   </p>
 
@@ -1195,7 +1195,7 @@ export const ManageAccountsPage: React.FC = () => {
                       value={policySearchQuery}
                       onChange={(e) => setPolicySearchQuery(e.target.value)}
                       placeholder="Search by role or permission name..."
-                      className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
+                      className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
                     />
                     {policySearchQuery && (
                       <button
@@ -1243,11 +1243,11 @@ export const ManageAccountsPage: React.FC = () => {
                               ) : (
                                 <ChevronRight className="w-4 h-4 text-kumo-subtle" />
                               )}
-                              <span className="font-semibold text-xs text-kumo-strong">{group.name}</span>
+                              <span className="font-semibold text-sm text-kumo-strong">{group.name}</span>
                             </div>
 
                             <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                              <span className="text-xs font-sans text-kumo-subtle font-medium">
+                              <span className="text-[13px] font-sans text-kumo-subtle font-medium">
                                 {activeInGroup.length}/{group.permissions.length}
                               </span>
                               <ToggleSwitch
@@ -1270,14 +1270,14 @@ export const ManageAccountsPage: React.FC = () => {
                                   >
                                     {/* Role Name (Left) */}
                                     <div className="min-w-0 pr-2">
-                                      <span className="font-semibold text-xs text-kumo-strong block leading-tight">
+                                      <span className="font-semibold text-sm text-kumo-strong block leading-tight">
                                         {perm.label}
                                       </span>
                                     </div>
 
                                     {/* Description (Center) */}
                                     <div className="min-w-0 pr-3">
-                                      <p className="text-xs text-kumo-default leading-relaxed">
+                                      <p className="text-[13px] text-kumo-default leading-relaxed">
                                         {perm.description}
                                       </p>
                                     </div>
@@ -1308,7 +1308,7 @@ export const ManageAccountsPage: React.FC = () => {
                     variant="destructive"
                     type="button"
                     onClick={handleDeletePolicy}
-                    className="h-9 px-4 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-2xs"
+                    className="h-9 px-4 text-[13px] font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-2xs"
                   >
                     Delete
                   </Button>
@@ -1319,7 +1319,7 @@ export const ManageAccountsPage: React.FC = () => {
                       variant="outline"
                       type="button"
                       onClick={() => setIsEditingPolicy(false)}
-                      className="h-9 px-4 text-xs font-medium"
+                      className="h-9 px-4 text-[13px] font-medium"
                     >
                       Cancel
                     </Button>
@@ -1327,7 +1327,7 @@ export const ManageAccountsPage: React.FC = () => {
                       variant="primary"
                       type="button"
                       onClick={() => handleSaveRouteAndPolicies()}
-                      className="h-9 px-5 text-xs font-semibold shadow-xs"
+                      className="h-9 px-5 text-[13px] font-semibold shadow-xs"
                     >
                       Save
                     </Button>
@@ -1343,7 +1343,7 @@ export const ManageAccountsPage: React.FC = () => {
           <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
             <div className="pb-3 border-b border-kumo-line">
               <h2 className="text-sm font-bold text-kumo-strong">Zone & Operating Office Assignment</h2>
-              <p className="text-xs text-kumo-subtle mt-0.5">
+              <p className="text-[13px] text-kumo-subtle mt-0.5">
                 Configure physical office presence, dynamic routing patterns, and logistics delivery zone.
               </p>
             </div>
@@ -1351,7 +1351,7 @@ export const ManageAccountsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Zone */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Operating Zone</label>
+                <label className="text-sm font-semibold text-kumo-strong">Operating Zone</label>
                 <Select
                   value={editZone}
                   onValueChange={(val) => setEditZone(String(val))}
@@ -1367,7 +1367,7 @@ export const ManageAccountsPage: React.FC = () => {
 
               {/* Office */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Office</label>
+                <label className="text-sm font-semibold text-kumo-strong">Office</label>
                 <Select
                   value={editOffice}
                   onValueChange={(val) => setEditOffice(String(val))}
@@ -1384,7 +1384,7 @@ export const ManageAccountsPage: React.FC = () => {
 
               {/* Route Input with Green Validation Checkmark */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Route Pattern</label>
+                <label className="text-sm font-semibold text-kumo-strong">Route Pattern</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -1392,20 +1392,20 @@ export const ManageAccountsPage: React.FC = () => {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="e.g. ops.smokeyhut.com/kitchen/*"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
+                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
                   </div>
                 </div>
-                <p className="text-[11px] text-kumo-subtle leading-relaxed">
+                <p className="text-[13px] text-kumo-subtle leading-relaxed">
                   Use wildcard patterns (*) to define operator terminal bindings and station routing.
                 </p>
               </div>
 
               {/* Email Address with Green Checkmark */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Email Address</label>
+                <label className="text-sm font-semibold text-kumo-strong">Email Address</label>
                 <div className="relative">
                   <input
                     type="email"
@@ -1413,7 +1413,7 @@ export const ManageAccountsPage: React.FC = () => {
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
                     placeholder="operator@smokeyhut.com"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
+                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
@@ -1427,7 +1427,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="primary"
                 type="button"
                 onClick={() => handleSaveRouteAndPolicies()}
-                className="h-9 px-5 text-xs font-semibold shadow-xs"
+                className="h-9 px-5 text-[13px] font-semibold shadow-xs"
               >
                 Save Group Changes
               </Button>
@@ -1440,7 +1440,7 @@ export const ManageAccountsPage: React.FC = () => {
           <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
             <div className="pb-3 border-b border-kumo-line">
               <h2 className="text-sm font-bold text-kumo-strong">Account Security & Credentials</h2>
-              <p className="text-xs text-kumo-subtle mt-0.5">
+              <p className="text-[13px] text-kumo-subtle mt-0.5">
                 Reset passwords, inspect audit logs, and toggle account access state.
               </p>
             </div>
@@ -1448,8 +1448,8 @@ export const ManageAccountsPage: React.FC = () => {
             <div className="space-y-4 max-w-xl">
               <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
                 <div>
-                  <h3 className="text-xs font-bold text-kumo-strong">Change Staff Password</h3>
-                  <p className="text-[11px] text-kumo-subtle mt-0.5">
+                  <h3 className="text-sm font-bold text-kumo-strong">Change Staff Password</h3>
+                  <p className="text-[13px] text-kumo-subtle mt-0.5">
                     Issue a temporary password or generate a random high-entropy token.
                   </p>
                 </div>
@@ -1461,7 +1461,7 @@ export const ManageAccountsPage: React.FC = () => {
                     setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
                   }}
                   leftIcon={<Key className="w-3.5 h-3.5" />}
-                  className="text-xs"
+                  className="text-[13px]"
                 >
                   Reset
                 </Button>
@@ -1469,8 +1469,8 @@ export const ManageAccountsPage: React.FC = () => {
 
               <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
                 <div>
-                  <h3 className="text-xs font-bold text-kumo-strong">Account Status</h3>
-                  <p className="text-[11px] text-kumo-subtle mt-0.5">
+                  <h3 className="text-sm font-bold text-kumo-strong">Account Status</h3>
+                  <p className="text-[13px] text-kumo-subtle mt-0.5">
                     Currently <strong>{targetStaff.status === 'suspended' ? 'Suspended' : 'Active'}</strong>.
                   </p>
                 </div>
@@ -1483,7 +1483,7 @@ export const ManageAccountsPage: React.FC = () => {
                     })
                     showToast(`Updated account status to ${targetStaff.status === 'suspended' ? 'active' : 'suspended'}`, 'info')
                   }}
-                  className="text-xs"
+                  className="text-[13px]"
                 >
                   {targetStaff.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
                 </Button>
@@ -1518,7 +1518,7 @@ export const ManageAccountsPage: React.FC = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role Matrix & Policies</h1>
-              <p className="text-xs text-kumo-subtle mt-0.5">
+              <p className="text-[13px] text-kumo-subtle mt-0.5">
                 Define and manage system-wide role policies, authority scopes, and functional operational access across all offices.
               </p>
             </div>
@@ -1530,7 +1530,7 @@ export const ManageAccountsPage: React.FC = () => {
               size="sm"
               type="button"
               onClick={() => navigate('/accounts')}
-              className="h-9 px-4 text-xs font-medium"
+              className="h-9 px-4 text-[13px] font-medium"
             >
               Cancel
             </Button>
@@ -1540,7 +1540,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-9 px-4 text-xs font-semibold shadow-xs"
+              className="h-9 px-4 text-[13px] font-semibold shadow-xs"
             >
               Create policy
             </Button>
@@ -1603,14 +1603,14 @@ export const ManageAccountsPage: React.FC = () => {
             {/* When NO scope is selected yet: EXACT MATCH TO SCREENSHOT 2 */}
             {!isScopeSelected ? (
               <div className="border-2 border-dashed border-kumo-line rounded-2xl p-16 text-center my-6">
-                <p className="text-xs text-kumo-subtle select-none font-medium">
+                <p className="text-[13px] text-kumo-subtle select-none font-medium">
                   Roles will appear after you select a scope.
                 </p>
               </div>
             ) : (
               /* When Scope IS Selected: EXACT MATCH TO SCREENSHOT 1 */
               <div className="space-y-5 animate-in fade-in duration-200">
-                <p className="text-xs text-kumo-default leading-relaxed">
+                <p className="text-[13px] text-kumo-default leading-relaxed">
                   Define what permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)?.label || matrixScope}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{matrixAppliesTo}</strong>.
                 </p>
 
@@ -1622,7 +1622,7 @@ export const ManageAccountsPage: React.FC = () => {
                     value={matrixSearchQuery}
                     onChange={(e) => setMatrixSearchQuery(e.target.value)}
                     placeholder="Search by role or permission name..."
-                    className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
+                    className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
                   />
                   {matrixSearchQuery && (
                     <button
@@ -1668,11 +1668,11 @@ export const ManageAccountsPage: React.FC = () => {
                             ) : (
                               <ChevronRight className="w-4 h-4 text-kumo-subtle" />
                             )}
-                            <span className="font-semibold text-xs text-kumo-strong">{group.name}</span>
+                            <span className="font-semibold text-sm text-kumo-strong">{group.name}</span>
                           </div>
 
                           <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-xs font-sans text-kumo-subtle font-medium">
+                            <span className="text-[13px] font-sans text-kumo-subtle font-medium">
                               {activeInGroup.length}/{group.permissions.length}
                             </span>
                             <ToggleSwitch
@@ -1693,13 +1693,13 @@ export const ManageAccountsPage: React.FC = () => {
                                   className="grid grid-cols-[1.5fr_2.5fr_auto] items-center gap-4 px-6 py-4 hover:bg-kumo-tint/20 transition-colors"
                                 >
                                   <div className="min-w-0 pr-2">
-                                    <span className="font-semibold text-xs text-kumo-strong block leading-tight">
+                                    <span className="font-semibold text-sm text-kumo-strong block leading-tight">
                                       {perm.label}
                                     </span>
                                   </div>
 
                                   <div className="min-w-0 pr-3">
-                                    <p className="text-xs text-kumo-default leading-relaxed">
+                                    <p className="text-[13px] text-kumo-default leading-relaxed">
                                       {perm.description}
                                     </p>
                                   </div>
@@ -1730,7 +1730,7 @@ export const ManageAccountsPage: React.FC = () => {
               variant="outline"
               type="button"
               onClick={() => navigate('/accounts')}
-              className="h-10 px-5 text-xs font-medium"
+              className="h-10 px-5 text-[13px] font-medium"
             >
               Cancel
             </Button>
@@ -1739,7 +1739,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-10 px-6 text-xs font-semibold shadow-xs"
+              className="h-10 px-6 text-[13px] font-semibold shadow-xs"
             >
               Create policy
             </Button>
@@ -1821,11 +1821,11 @@ export const ManageAccountsPage: React.FC = () => {
               value={inviteEmails}
               onChange={(e) => setInviteEmails(e.target.value)}
               placeholder="first@example.com, second@example.com"
-              className="w-full px-4 py-3 text-sm font-sans rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none shadow-2xs"
+              className="w-full px-4 py-3 text-[13px] font-sans rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none shadow-2xs"
             />
             {parsedInviteEmails.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                <span className="text-[11px] font-medium text-kumo-subtle mr-1">
+                <span className="text-[13px] font-medium text-kumo-subtle mr-1">
                   {validEmails.length} valid {validEmails.length === 1 ? 'recipient' : 'recipients'}:
                 </span>
                 {parsedInviteEmails.map((email, idx) => {
@@ -1834,7 +1834,7 @@ export const ManageAccountsPage: React.FC = () => {
                     <span
                       key={idx}
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium border",
                         isValid
                           ? "bg-kumo-tint border-kumo-line text-kumo-strong"
                           : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
@@ -1911,7 +1911,7 @@ export const ManageAccountsPage: React.FC = () => {
           </div>
 
           {/* Dynamic description matching screenshot */}
-          <p className="text-xs text-kumo-subtle font-normal">
+          <p className="text-[13px] text-kumo-subtle font-normal">
             Define what permissions <strong className="text-kumo-strong font-semibold">{validEmails.length} {validEmails.length === 1 ? 'member' : 'members'}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{inviteScope}</strong>.
           </p>
 
@@ -1923,7 +1923,7 @@ export const ManageAccountsPage: React.FC = () => {
               value={inviteSearchQuery}
               onChange={(e) => setInviteSearchQuery(e.target.value)}
               placeholder="Search by role name..."
-              className="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-2xs"
+              className="w-full pl-9 pr-4 py-2.5 text-[13px] rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-2xs"
             />
             {inviteSearchQuery && (
               <button
@@ -1959,7 +1959,7 @@ export const ManageAccountsPage: React.FC = () => {
                   </button>
 
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs font-mono text-kumo-subtle font-medium">
+                    <span className="text-[13px] font-mono text-kumo-subtle font-medium">
                       {activeOverallRolesCount}/{overallRolesList.length}
                     </span>
                     <Toggle
@@ -1997,7 +1997,7 @@ export const ManageAccountsPage: React.FC = () => {
                             </span>
                           </div>
                           <div className="md:col-span-7">
-                            <span className="text-xs text-kumo-subtle leading-relaxed block">
+                            <span className="text-[13px] text-kumo-subtle leading-relaxed block">
                               {role.description}
                             </span>
                           </div>
@@ -2066,7 +2066,7 @@ export const ManageAccountsPage: React.FC = () => {
                     </button>
 
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs font-mono text-kumo-subtle font-medium">
+                      <span className="text-[13px] font-mono text-kumo-subtle font-medium">
                         {activeInCat}/{totalInCat}
                       </span>
                       <Toggle
@@ -2101,7 +2101,7 @@ export const ManageAccountsPage: React.FC = () => {
                               </span>
                             </div>
                             <div className="md:col-span-7">
-                              <span className="text-xs text-kumo-subtle leading-relaxed block">
+                              <span className="text-[13px] text-kumo-subtle leading-relaxed block">
                                 {perm.description}
                               </span>
                             </div>
@@ -2128,12 +2128,12 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               variant="outline"
               onClick={() => navigate('/accounts')}
-              className="h-10 px-5 text-sm font-medium"
+              className="h-10 px-5 text-[13px] font-medium"
             >
               Cancel
             </Button>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-kumo-subtle hidden sm:inline">
+              <span className="text-[13px] text-kumo-subtle hidden sm:inline">
                 {validEmails.length > 0
                   ? `Ready to invite ${validEmails.length} member${validEmails.length === 1 ? '' : 's'}`
                   : 'Enter email address to continue'}
@@ -2144,7 +2144,7 @@ export const ManageAccountsPage: React.FC = () => {
                 disabled={validEmails.length === 0}
                 onClick={handleInviteSubmit}
                 leftIcon={<UserPlus className="w-4 h-4" />}
-                className="h-10 px-6 text-sm font-semibold shadow-xs"
+                className="h-10 px-6 text-[13px] font-semibold shadow-xs"
               >
                 Invite members
               </Button>
@@ -2283,21 +2283,21 @@ export const ManageAccountsPage: React.FC = () => {
         maxWidth="md"
       >
         {accountToChangePassword && (
-          <form onSubmit={handleSavePassword} className="space-y-4 font-sans text-xs text-left">
+          <form onSubmit={handleSavePassword} className="space-y-4 font-sans text-left">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-kumo-strong">New Password</label>
+              <label className="text-sm font-semibold text-kumo-strong">New Password</label>
               <div className="relative">
                 <input
                   type="text"
                   required
                   value={newPasswordVal}
                   onChange={(e) => setNewPasswordVal(e.target.value)}
-                  className="w-full h-9 pl-3 pr-20 rounded-lg border border-kumo-line bg-kumo-base text-xs font-sans text-kumo-strong focus:outline-none focus:border-kumo-brand"
+                  className="w-full h-9 pl-3 pr-20 rounded-lg border border-kumo-line bg-kumo-base text-[13px] font-sans text-kumo-strong focus:outline-none focus:border-kumo-brand"
                 />
                 <button
                   type="button"
                   onClick={() => setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-primary hover:underline font-medium cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary hover:underline font-medium cursor-pointer"
                 >
                   Generate
                 </button>
@@ -2312,7 +2312,7 @@ export const ManageAccountsPage: React.FC = () => {
                 onChange={(e) => setRequirePassReset(e.target.checked)}
                 className="rounded border-kumo-line text-primary focus:ring-primary size-3.5"
               />
-              <label htmlFor="requireReset" className="text-xs text-kumo-default cursor-pointer select-none">
+              <label htmlFor="requireReset" className="text-[13px] text-kumo-default cursor-pointer select-none">
                 Require password change upon next login
               </label>
             </div>
@@ -2322,14 +2322,14 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="outline"
                 type="button"
                 onClick={() => setAccountToChangePassword(null)}
-                className="h-9 px-4 text-xs"
+                className="h-9 px-4 text-[13px]"
               >
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 type="submit"
-                className="h-9 px-4 text-xs font-semibold"
+                className="h-9 px-4 text-[13px] font-semibold"
               >
                 Update Password
               </Button>
@@ -2347,9 +2347,9 @@ export const ManageAccountsPage: React.FC = () => {
         maxWidth="md"
       >
         {accountToChangeRole && (
-          <div className="space-y-4 font-sans text-xs text-left">
+          <div className="space-y-4 font-sans text-left">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-kumo-strong">Select New Role</label>
+              <label className="text-sm font-semibold text-kumo-strong">Select New Role</label>
               <div className="space-y-2">
                 {SYSTEM_ROLE_CONFIGS.map((r) => {
                   const isSelected = editRole === r.id
@@ -2371,8 +2371,8 @@ export const ManageAccountsPage: React.FC = () => {
                         className="mt-0.5 text-primary focus:ring-primary"
                       />
                       <div className="min-w-0">
-                        <p className="font-semibold text-xs text-kumo-strong">{r.label}</p>
-                        <p className="text-[11px] text-kumo-subtle mt-0.5">{r.description}</p>
+                        <p className="font-semibold text-sm text-kumo-strong">{r.label}</p>
+                        <p className="text-[13px] text-kumo-subtle mt-0.5">{r.description}</p>
                       </div>
                     </div>
                   )
@@ -2385,7 +2385,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="outline"
                 type="button"
                 onClick={() => setAccountToChangeRole(null)}
-                className="h-9 px-4 text-xs"
+                className="h-9 px-4 text-[13px]"
               >
                 Cancel
               </Button>
@@ -2403,7 +2403,7 @@ export const ManageAccountsPage: React.FC = () => {
                   setAccountToChangeRole(null)
                   showToast(`Updated role to ${roleLabel}`, 'success')
                 }}
-                className="h-9 px-4 text-xs font-semibold"
+                className="h-9 px-4 text-[13px] font-semibold"
               >
                 Apply Role
               </Button>
@@ -2421,7 +2421,7 @@ export const ManageAccountsPage: React.FC = () => {
         maxWidth="lg"
       >
         {inspectPermissionsAccount && (
-          <div className="space-y-3 font-sans text-xs text-left">
+          <div className="space-y-3 font-sans text-left">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
               {(inspectPermissionsAccount.permissions || ROLE_DEFAULT_PERMISSIONS[inspectPermissionsAccount.role] || []).map((p) => (
                 <div
@@ -2429,7 +2429,7 @@ export const ManageAccountsPage: React.FC = () => {
                   className="flex items-center gap-2 p-2 rounded-lg border border-kumo-line bg-kumo-canvas/50"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="font-medium text-xs text-kumo-strong">{p}</span>
+                  <span className="font-medium text-[13px] text-kumo-strong">{p}</span>
                 </div>
               ))}
             </div>
@@ -2439,7 +2439,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setInspectPermissionsAccount(null)}
-                className="h-9 px-4 text-xs"
+                className="h-9 px-4 text-[13px]"
               >
                 Close
               </Button>
@@ -2457,13 +2457,13 @@ export const ManageAccountsPage: React.FC = () => {
         maxWidth="sm"
       >
         {accountToDelete && (
-          <div className="space-y-4 font-sans text-xs text-left">
+          <div className="space-y-4 font-sans text-left">
             <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div className="text-red-900 dark:text-red-200">
-                <p className="font-semibold text-xs">{accountToDelete.name}</p>
-                <p className="text-[11px] opacity-80">{accountToDelete.email}</p>
-                <p className="text-[11px] opacity-80 mt-1">
+                <p className="font-semibold text-sm">{accountToDelete.name}</p>
+                <p className="text-[13px] opacity-80">{accountToDelete.email}</p>
+                <p className="text-[13px] opacity-80 mt-1">
                   Assigned role: <strong>{accountToDelete.roleLabel}</strong>
                 </p>
               </div>
@@ -2474,7 +2474,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="outline"
                 type="button"
                 onClick={() => setAccountToDelete(null)}
-                className="h-9 px-4 text-xs"
+                className="h-9 px-4 text-[13px]"
               >
                 Cancel
               </Button>
@@ -2482,7 +2482,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="destructive"
                 type="button"
                 onClick={handleConfirmDelete}
-                className="h-9 px-4 text-xs font-semibold"
+                className="h-9 px-4 text-[13px] font-semibold"
               >
                 Confirm Delete
               </Button>
