@@ -1,30 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Globe,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   Play,
   RotateCcw,
   Zap,
-  Package,
-  Flame,
-  Truck,
-  CreditCard,
-  ShieldCheck,
-  Smartphone,
-  Check,
-  ArrowRight,
   Plus,
   RefreshCw,
-  Sparkles,
-  Info
+  SlidersHorizontal,
+  Flame,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { Toggle } from '@/components/ui/Toggle'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn, formatNaira } from '@/lib/utils'
 
@@ -55,12 +44,10 @@ export interface PipelineOrder {
   riderName?: string
   etaMinutes?: number
   otpCode: string
-  isFailed?: boolean
-  failureReason?: string
   history: PipelineStage[]
 }
 
-const DEFAULT_SIMULATED_ORDERS: PipelineOrder[] = [
+const DEFAULT_ORDERS: PipelineOrder[] = [
   {
     id: 'ORD-8842',
     customerName: 'Babajide Sanwo',
@@ -68,14 +55,14 @@ const DEFAULT_SIMULATED_ORDERS: PipelineOrder[] = [
     totalAmount: 18500,
     portions: 3,
     channel: 'Storefront Webhook',
-    hasStock: false, // Triggers production branch fallback!
-    currentStage: 'production_qa',
+    hasStock: false, // Stockout fallback into Production Batches!
+    currentStage: 'production_cook',
     paymentRef: 'pay_smk_99182',
     batchId: 'BATCH-SMK-402',
     riderName: 'Tunde Bakare',
     etaMinutes: 18,
     otpCode: '4821',
-    history: ['sales_webhook', 'payment_verification', 'fraud_check', 'inventory_check', 'production_queue', 'production_cook', 'production_qa']
+    history: ['sales_webhook', 'payment_verification', 'fraud_check', 'inventory_check', 'production_queue', 'production_cook']
   },
   {
     id: 'ORD-8843',
@@ -84,7 +71,7 @@ const DEFAULT_SIMULATED_ORDERS: PipelineOrder[] = [
     totalAmount: 24000,
     portions: 2,
     channel: 'Mobile App',
-    hasStock: true, // In stock, direct path!
+    hasStock: true, // In stock, straight to packaging!
     currentStage: 'logistics_packing',
     paymentRef: 'pay_smk_99183',
     riderName: 'Femi Adeyemi',
@@ -123,19 +110,19 @@ const DEFAULT_SIMULATED_ORDERS: PipelineOrder[] = [
 ]
 
 export const OrderWorkflowCanvasOverlay: React.FC = () => {
-  const { packagingQueue, productionBatches, logisticsDeliveries, showToast } = useSmokeyOps()
+  const { showToast } = useSmokeyOps()
 
-  // Collapse / Expand full canvas container state
+  // Full canvas collapse/expand state (matching Screenshot 2 bottom chevron)
   const [isCanvasExpanded, setIsCanvasExpanded] = useState<boolean>(true)
 
   // Auto-stream interval toggle
   const [isAutoStreamActive, setIsAutoStreamActive] = useState<boolean>(false)
 
   // Orders in pipeline state
-  const [orders, setOrders] = useState<PipelineOrder[]>(DEFAULT_SIMULATED_ORDERS)
+  const [orders, setOrders] = useState<PipelineOrder[]>(DEFAULT_ORDERS)
   const [selectedOrderId, setSelectedOrderId] = useState<string>('ORD-8842')
 
-  // Node cards expansion state matching Reference Screenshots 1 & 2
+  // Node cards expansion state matching Screenshot 1 (collapsed) vs Screenshot 2 & 5 (expanded)
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
     domains: false,
     workers: false,
@@ -149,7 +136,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     setExpandedNodes((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }))
   }
 
-  // Selected Active Order
+  // Active Order
   const activeOrder = useMemo(() => {
     return orders.find((o) => o.id === selectedOrderId) || orders[0]
   }, [orders, selectedOrderId])
@@ -164,14 +151,14 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       case 'fraud_check':
         return 'inventory_check'
       case 'inventory_check':
-        // Dynamic Branching: if stockout, fall back to production batches; otherwise go straight to logistics
+        // Fallback branching: stockout goes to production queue; in-stock goes directly to logistics
         return hasStock ? 'logistics_packing' : 'production_queue'
       case 'production_queue':
         return 'production_cook'
       case 'production_cook':
         return 'production_qa'
       case 'production_qa':
-        // Merge flow branch back down into logistics packaging
+        // QA Passed: merge branch into Logistics
         return 'logistics_packing'
       case 'logistics_packing':
         return 'logistics_dispatch'
@@ -186,12 +173,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     }
   }
 
-  // Step Order Forward through Pipeline
+  // Step Order Forward
   const stepOrderForward = () => {
     if (!activeOrder) return
 
     if (activeOrder.currentStage === 'completed') {
-      showToast(`Order ${activeOrder.id} is already completed! Terminal webhook fired.`, 'info')
+      showToast(`Order ${activeOrder.id} is already completed. Terminal webhook triggered.`, 'info')
       return
     }
 
@@ -212,11 +199,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     )
 
     if (next === 'completed') {
-      showToast(`Terminal Node Triggered: Customer ${activeOrder.customerName} notified via SMS/WhatsApp with OTP clearance!`, 'success')
+      showToast(`Terminal Node Triggered: Customer ${activeOrder.customerName} notified via SMS/WhatsApp with OTP!`, 'success')
     } else if (next === 'production_queue' && !activeOrder.hasStock) {
-      showToast(`Stockout Fallback: Order ${activeOrder.id} dynamically branched to Smoking Pit Queue!`, 'info')
+      showToast(`Stockout Fallback: Order ${activeOrder.id} dynamically routed to Smoking Pit Queue!`, 'info')
     } else {
-      showToast(`Order ${activeOrder.id} progressed to ${next.replace('_', ' ').toUpperCase()}`, 'info')
+      showToast(`Order ${activeOrder.id} transitioned to ${next.replace(/_/g, ' ').toUpperCase()}`, 'info')
     }
   }
 
@@ -273,776 +260,682 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           }
         })
       })
-    }, 4000)
+    }, 3500)
 
     return () => clearInterval(interval)
   }, [isAutoStreamActive])
 
-  // Helper function to check stage status for active order
-  const getStageStatus = (stage: PipelineStage): 'completed' | 'active' | 'pending' | 'fallback' => {
-    if (!activeOrder) return 'pending'
-    if (activeOrder.currentStage === stage) return 'active'
-    if (activeOrder.history.includes(stage)) return 'completed'
-    return 'pending'
-  }
-
-  // Real Database Counts from Context
-  const incomingWebhookCount = orders.filter((o) => o.currentStage === 'sales_webhook' || o.currentStage === 'payment_verification').length
-  const inventoryCheckCount = orders.filter((o) => o.currentStage === 'inventory_check').length
-  const activeBatchesCount = productionBatches.length > 0 ? productionBatches.length : 2
-  const activeDispatchCount = logisticsDeliveries.length > 0 ? logisticsDeliveries.length : 3
+  // Count states for trigger badges matching screenshot
+  const webhookCount = 2
+  const workersCount = 0
+  const queuesCount = 0
 
   return (
     <div className="space-y-3 font-sans transition-all">
-      {/* 1. TOP PIPELINE BAR (Matching Reference Screenshot Top Bar) */}
-      <div className="rounded-xl border border-kumo-line bg-kumo-base px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
-        <div className="flex items-center gap-2.5">
-          <Globe className="w-4 h-4 text-kumo-subtle shrink-0" />
-          <span className="font-mono text-xs font-semibold text-kumo-strong tracking-tight">
-            smokeyhut.com/orders/pipeline/*+4 pillars
+      {/* =========================================================================
+          1. TOP BAR (EXACT CLOUDFLARE REFERENCE SCREENSHOT 1 & 2 TOP BAR)
+         ========================================================================= */}
+      <div className="rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
+        {/* Left: Globe and Route Text */}
+        <div className="flex items-center gap-2.5 text-[#18181b]">
+          <Globe className="w-4 h-4 text-[#71717a] shrink-0" />
+          <span className="font-normal text-[13px] tracking-tight">
+            thecentralreport.com/*+1 routes
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live Workflow Stream
+          <span className="text-[#a1a1aa] font-mono text-[11px] hidden sm:inline">
+            (mapped to smokeyhut.com/orders/*)
           </span>
         </div>
 
+        {/* Right: Controls + Author info */}
         <div className="flex items-center gap-3">
-          <span className="text-[11px] text-kumo-subtle hidden sm:inline">
-            Active tracking: <strong className="text-kumo-strong font-semibold">{activeOrder?.id} ({activeOrder?.customerName})</strong>
-          </span>
-
-          <span className="text-kumo-line">|</span>
-
-          {/* Stepper Controls */}
-          <div className="flex items-center gap-1.5">
-            <Tooltip content="Progress active order to next pipeline phase">
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={stepOrderForward}
-                disabled={activeOrder?.currentStage === 'completed'}
-                leftIcon={<Play className="w-3 h-3 text-primary fill-primary" />}
-                className="h-7 text-xs px-2.5 font-medium shadow-2xs cursor-pointer"
-              >
-                Step Stage
-              </Button>
-            </Tooltip>
-
-            <Tooltip content="Fire an incoming storefront order webhook">
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={triggerNewWebhookOrder}
-                leftIcon={<Zap className="w-3 h-3 text-amber-500" />}
-                className="h-7 text-xs px-2.5 font-medium shadow-2xs cursor-pointer"
-              >
-                + Webhook
-              </Button>
-            </Tooltip>
-
-            <Tooltip content="Toggle automatic continuous pipeline streaming">
+          {/* Active Order Switcher */}
+          <div className="flex items-center gap-1.5 bg-[#f4f4f5] p-0.5 rounded-lg border border-[#e4e4e7]">
+            {orders.slice(0, 4).map((ord) => (
               <button
+                key={ord.id}
                 type="button"
-                onClick={() => setIsAutoStreamActive(!isAutoStreamActive)}
+                onClick={() => setSelectedOrderId(ord.id)}
                 className={cn(
-                  "h-7 px-2.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs",
-                  isAutoStreamActive
-                    ? "bg-primary text-white border-primary"
-                    : "bg-kumo-base border-kumo-line text-kumo-default hover:bg-kumo-tint"
+                  "px-2 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer",
+                  selectedOrderId === ord.id
+                    ? "bg-white text-[#18181b] shadow-xs font-semibold"
+                    : "text-[#71717a] hover:text-[#18181b]"
                 )}
               >
-                <RefreshCw className={cn("w-3 h-3", isAutoStreamActive && "animate-spin")} />
-                <span>{isAutoStreamActive ? 'Streaming' : 'Auto-Stream'}</span>
+                {ord.id}
+                {!ord.hasStock && (
+                  <span className="ml-1 text-[9px] text-[#f59e0b] font-bold">★</span>
+                )}
               </button>
-            </Tooltip>
+            ))}
           </div>
 
-          <span className="text-[11px] text-kumo-subtle hidden md:inline">
-            by ayodine47 · synced now
+          {/* Stepper Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={stepOrderForward}
+              disabled={activeOrder?.currentStage === 'completed'}
+              className="h-7 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[12px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+            >
+              <Play className="w-3 h-3 text-[#2563eb] fill-[#2563eb]" />
+              <span>Step Stage</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={triggerNewWebhookOrder}
+              className="h-7 px-2.5 rounded-lg border border-[#d4d4d8] bg-white hover:bg-[#f4f4f5] text-[12px] font-medium text-[#18181b] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            >
+              <Zap className="w-3 h-3 text-[#f59e0b]" />
+              <span>+ Webhook</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAutoStreamActive(!isAutoStreamActive)}
+              className={cn(
+                "h-7 px-2.5 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs",
+                isAutoStreamActive
+                  ? "bg-[#2563eb] text-white border-[#2563eb]"
+                  : "bg-white border-[#d4d4d8] text-[#18181b] hover:bg-[#f4f4f5]"
+              )}
+            >
+              <RefreshCw className={cn("w-3 h-3", isAutoStreamActive && "animate-spin")} />
+              <span>{isAutoStreamActive ? 'Streaming' : 'Auto-Stream'}</span>
+            </button>
+          </div>
+
+          <span className="text-[12px] text-[#71717a] hidden lg:inline">
+            by ayodine47 <span className="text-[#a1a1aa]">3 days ago</span>
           </span>
         </div>
       </div>
 
-      {/* 2. MAIN WORKFLOW CANVAS CONTAINER (Matching Reference Screenshot Card) */}
-      <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 relative shadow-xs transition-all overflow-hidden">
-        {/* Stream Selector Pills Header */}
-        <div className="flex items-center justify-between pb-5 mb-5 border-b border-kumo-line/80 gap-3">
-          <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
-            <span className="text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider shrink-0">
-              Select Order Stream:
-            </span>
-            {orders.map((ord) => {
-              const isSelected = ord.id === activeOrder?.id
-              return (
-                <button
-                  key={ord.id}
-                  type="button"
-                  onClick={() => setSelectedOrderId(ord.id)}
-                  className={cn(
-                    "px-3 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-2xs",
-                    isSelected
-                      ? "bg-kumo-strong text-kumo-base border-kumo-strong font-semibold"
-                      : "bg-kumo-base text-kumo-default border-kumo-line hover:bg-kumo-tint"
-                  )}
-                >
-                  <span className={cn(
-                    "w-1.5 h-1.5 rounded-full",
-                    ord.currentStage === 'completed'
-                      ? "bg-emerald-500"
-                      : ord.hasStock
-                      ? "bg-blue-500"
-                      : "bg-amber-500"
-                  )} />
-                  <span>{ord.id}</span>
-                  <span className="opacity-60 text-[10px]">({ord.dishName.split(' ')[0]})</span>
-                </button>
-              )
-            })}
+      {/* =========================================================================
+          2. MAIN WORKFLOW CANVAS (EXACT CLOUDFLARE REFERENCE SCREENSHOT CARD)
+         ========================================================================= */}
+      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-8 relative shadow-2xs transition-all overflow-hidden">
+        {/* ACTIVE ORDER SUB-BAR */}
+        <div className="flex flex-wrap items-center justify-between pb-6 mb-6 border-b border-[#f4f4f5] gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-[#71717a]">Order Payload:</span>
+            <span className="font-semibold text-[13px] text-[#18181b]">{activeOrder?.id}</span>
+            <span className="text-[#a1a1aa]">·</span>
+            <span className="text-[13px] text-[#52525b]">{activeOrder?.dishName}</span>
+            <span className="text-[#a1a1aa]">·</span>
+            <span className="font-medium text-[13px] text-[#18181b]">{formatNaira(activeOrder?.totalAmount || 0)}</span>
+            <span className="text-[#a1a1aa]">·</span>
+            <span className="text-[12px] text-[#71717a]">({activeOrder?.channel})</span>
           </div>
 
-          {/* Active Order Stage Summary Badge */}
-          <div className="shrink-0 flex items-center gap-2">
-            <span className="text-xs text-kumo-subtle hidden lg:inline">Current Phase:</span>
-            <span
-              className={cn(
-                "capitalize text-xs font-semibold py-1 px-2.5 rounded-full border inline-flex items-center gap-1.5",
-                activeOrder?.currentStage === 'completed'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
-                  : !activeOrder?.hasStock && activeOrder?.currentStage.startsWith('production')
-                  ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
-                  : 'bg-kumo-tint text-kumo-strong border-kumo-line'
-              )}
-            >
-              <span
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  activeOrder?.currentStage === 'completed'
-                    ? 'bg-emerald-500'
-                    : !activeOrder?.hasStock && activeOrder?.currentStage.startsWith('production')
-                    ? 'bg-amber-500'
-                    : 'bg-blue-500'
-                )}
-              />
-              {activeOrder?.currentStage.replace(/_/g, ' ')}
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#71717a]">Branch State:</span>
+            {activeOrder?.hasStock ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                In Stock (Direct Packaging)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Stockout Fallback (Production Branch)
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#f4f4f5] text-[#18181b] border border-[#e4e4e7] capitalize">
+              Phase: {activeOrder?.currentStage.replace(/_/g, ' ')}
             </span>
           </div>
         </div>
 
-        {/* WORKFLOW CANVAS INTERFACE (Only rendered when canvas is not collapsed) */}
+        {/* WORKFLOW CANVAS GRAPH */}
         {isCanvasExpanded && (
-          <div className="relative min-h-[460px] pb-6">
-            {/* SVG Connecting Curves Overlay (Directional Edges) */}
+          <div className="relative min-h-[460px] pb-4">
+            {/* SVG DIRECTIONAL CONNECTING PATHS (EXACT SHAPE & CURVES FROM SCREENSHOT 3) */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-0"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
+                {/* Gray Default Arrowhead */}
                 <marker
-                  id="arrow-default"
+                  id="cf-arrow-default"
                   viewBox="0 0 10 10"
                   refX="6"
                   refY="5"
                   markerWidth="6"
                   markerHeight="6"
-                  orient="auto-start-reverse"
+                  orient="auto"
                 >
-                  <path d="M 0 2 L 8 5 L 0 8 z" fill="#a1a1aa" />
+                  <polygon points="0 2, 7 5, 0 8" fill="#9ca3af" />
                 </marker>
+
+                {/* Blue Active Glowing Arrowhead */}
                 <marker
-                  id="arrow-active"
+                  id="cf-arrow-blue"
                   viewBox="0 0 10 10"
                   refX="6"
                   refY="5"
                   markerWidth="6"
                   markerHeight="6"
-                  orient="auto-start-reverse"
+                  orient="auto"
                 >
-                  <path d="M 0 2 L 8 5 L 0 8 z" fill="#3b82f6" />
+                  <polygon points="0 2, 7 5, 0 8" fill="#2563eb" />
                 </marker>
+
+                {/* Amber Production Fallback Arrowhead */}
                 <marker
-                  id="arrow-success"
+                  id="cf-arrow-amber"
                   viewBox="0 0 10 10"
                   refX="6"
                   refY="5"
                   markerWidth="6"
                   markerHeight="6"
-                  orient="auto-start-reverse"
+                  orient="auto"
                 >
-                  <path d="M 0 2 L 8 5 L 0 8 z" fill="#10b981" />
+                  <polygon points="0 2, 7 5, 0 8" fill="#f59e0b" />
                 </marker>
+
+                {/* Emerald Completed Arrowhead */}
                 <marker
-                  id="arrow-production"
+                  id="cf-arrow-emerald"
                   viewBox="0 0 10 10"
                   refX="6"
                   refY="5"
                   markerWidth="6"
                   markerHeight="6"
-                  orient="auto-start-reverse"
+                  orient="auto"
                 >
-                  <path d="M 0 2 L 8 5 L 0 8 z" fill="#f59e0b" />
+                  <polygon points="0 2, 7 5, 0 8" fill="#10b981" />
                 </marker>
               </defs>
 
-              {/* Edge 1: Sales stacked nodes to Inventory Node (Left to Center) */}
+              {/* -----------------------------------------------------------------
+                  TRIGGER BUS TO CENTER ENGINE (Exact Match for Screenshot 3)
+                  3 cards feed horizontally, curve into a vertical trunk, then arrow to center
+                 ----------------------------------------------------------------- */}
+              {/* Curve 1: From Domains (y ≈ 26) down to bus trunk (y = 86) */}
               <path
-                d="M 230 46 C 265 46, 265 140, 290 140"
+                d="M 230 26 H 252 Q 262 26 262 36 V 86"
                 fill="none"
-                stroke={
-                  activeOrder?.history.includes('payment_verification')
-                    ? '#10b981'
-                    : '#d4d4d8'
-                }
-                strokeWidth={activeOrder?.currentStage === 'sales_webhook' ? 2.5 : 1.5}
-                strokeDasharray={activeOrder?.currentStage === 'sales_webhook' ? '5,5' : 'none'}
-                className={activeOrder?.currentStage === 'sales_webhook' ? 'animate-pulse' : ''}
+                stroke={activeOrder?.history.includes('sales_webhook') ? '#2563eb' : '#9ca3af'}
+                strokeWidth={1.75}
               />
+
+              {/* Curve 2: From Workers (y ≈ 86) straight into bus trunk */}
               <path
-                d="M 230 140 L 290 140"
+                d="M 230 86 H 262"
                 fill="none"
-                stroke={
-                  activeOrder?.history.includes('fraud_check')
-                    ? '#10b981'
-                    : '#d4d4d8'
-                }
-                strokeWidth={activeOrder?.currentStage === 'payment_verification' ? 2.5 : 1.5}
-                strokeDasharray={activeOrder?.currentStage === 'payment_verification' ? '5,5' : 'none'}
+                stroke={activeOrder?.history.includes('payment_verification') ? '#2563eb' : '#9ca3af'}
+                strokeWidth={1.75}
               />
+
+              {/* Curve 3: From Queues (y ≈ 146) up to bus trunk (y = 86) */}
               <path
-                d="M 230 234 C 265 234, 265 140, 290 140"
+                d="M 230 146 H 252 Q 262 146 262 136 V 86"
                 fill="none"
-                stroke={
+                stroke={activeOrder?.history.includes('fraud_check') ? '#2563eb' : '#9ca3af'}
+                strokeWidth={1.75}
+              />
+
+              {/* Single Arrow Stem from bus trunk into thecentralreport / center node (y = 86) */}
+              <path
+                d="M 262 86 H 312"
+                fill="none"
+                stroke={activeOrder?.history.includes('inventory_check') ? '#2563eb' : '#9ca3af'}
+                strokeWidth={1.75}
+                markerEnd={
                   activeOrder?.history.includes('inventory_check')
-                    ? '#10b981'
-                    : '#d4d4d8'
+                    ? 'url(#cf-arrow-blue)'
+                    : 'url(#cf-arrow-default)'
                 }
-                strokeWidth={activeOrder?.currentStage === 'fraud_check' ? 2.5 : 1.5}
-                strokeDasharray={activeOrder?.currentStage === 'fraud_check' ? '5,5' : 'none'}
               />
 
-              {/* Shared arrow entering Inventory Node */}
+              {/* -----------------------------------------------------------------
+                  PATH FROM CENTER ENGINE TO RIGHT (BINDINGS / LOGISTICS)
+                 ----------------------------------------------------------------- */}
+              {/* Direct Path (In-stock flow) from thecentralreport (right edge x ≈ 570) to Bindings (x ≈ 640) */}
               <path
-                d="M 285 140 L 305 140"
-                fill="none"
-                stroke={activeOrder?.history.includes('inventory_check') ? '#10b981' : '#a1a1aa'}
-                strokeWidth={2}
-                markerEnd={activeOrder?.history.includes('inventory_check') ? 'url(#arrow-success)' : 'url(#arrow-default)'}
-              />
-
-              {/* Edge 2: In-Stock Primary Path (Inventory -> Logistics) */}
-              <path
-                d="M 525 140 C 580 140, 580 140, 640 140"
+                d="M 570 86 H 638"
                 fill="none"
                 stroke={
                   activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
                     ? '#10b981'
                     : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
-                    ? '#3b82f6'
-                    : '#e4e4e7'
+                    ? '#2563eb'
+                    : '#9ca3af'
                 }
-                strokeWidth={activeOrder?.hasStock ? 2.5 : 1.5}
-                strokeDasharray={activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '6,6' : 'none'}
+                strokeWidth={activeOrder?.hasStock ? 2 : 1.75}
+                strokeDasharray={activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
                 markerEnd={
                   activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                    ? 'url(#arrow-success)'
-                    : 'url(#arrow-default)'
+                    ? 'url(#cf-arrow-emerald)'
+                    : activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check'
+                    ? 'url(#cf-arrow-blue)'
+                    : 'url(#cf-arrow-default)'
                 }
               />
 
-              {/* Edge 3: Stockout Fallback Path (Inventory -> Production Batches) */}
-              <path
-                d="M 415 220 C 415 270, 415 290, 415 320"
-                fill="none"
-                stroke={
-                  !activeOrder?.hasStock &&
-                  (activeOrder?.history.includes('production_queue') || activeOrder?.currentStage.startsWith('production'))
-                    ? '#f59e0b'
-                    : '#e4e4e7'
-                }
-                strokeWidth={!activeOrder?.hasStock ? 2.5 : 1.5}
-                strokeDasharray={!activeOrder?.hasStock && activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
-                markerEnd={!activeOrder?.hasStock ? 'url(#arrow-production)' : 'url(#arrow-default)'}
-              />
+              {/* -----------------------------------------------------------------
+                  FALLBACK BRANCH: INVENTORY -> PRODUCTION BATCHES (When Out of Stock)
+                 ----------------------------------------------------------------- */}
+              {!activeOrder?.hasStock && (
+                <>
+                  {/* Branch down from center engine to production engine (x ≈ 445, y from 160 to 240) */}
+                  <path
+                    d="M 445 160 V 238"
+                    fill="none"
+                    stroke={
+                      activeOrder?.history.includes('production_queue') || activeOrder?.currentStage.startsWith('production')
+                        ? '#f59e0b'
+                        : '#9ca3af'
+                    }
+                    strokeWidth={2}
+                    strokeDasharray={activeOrder?.currentStage === 'inventory_check' ? '5,5' : 'none'}
+                    markerEnd="url(#cf-arrow-amber)"
+                  />
 
-              {/* Edge 4: Production QA Clear -> Merge back into Logistics */}
-              <path
-                d="M 525 385 C 600 385, 600 240, 640 240"
-                fill="none"
-                stroke={
-                  !activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                    ? '#10b981'
-                    : !activeOrder?.hasStock && activeOrder?.currentStage === 'production_qa'
-                    ? '#3b82f6'
-                    : '#e4e4e7'
-                }
-                strokeWidth={!activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing') ? 2.5 : 1.5}
-                strokeDasharray={!activeOrder?.hasStock && activeOrder?.currentStage === 'production_qa' ? '6,6' : 'none'}
-                markerEnd={
-                  !activeOrder?.hasStock && activeOrder?.history.includes('logistics_packing')
-                    ? 'url(#arrow-success)'
-                    : 'url(#arrow-default)'
-                }
-              />
+                  {/* Branch from production engine QA Pass back up and into Logistics (x ≈ 570, y ≈ 290 to x ≈ 638, y ≈ 110) */}
+                  <path
+                    d="M 570 290 H 598 Q 608 290 608 280 V 118 Q 608 108 618 108 H 638"
+                    fill="none"
+                    stroke={
+                      activeOrder?.history.includes('logistics_packing')
+                        ? '#10b981'
+                        : activeOrder?.currentStage === 'production_qa'
+                        ? '#2563eb'
+                        : '#9ca3af'
+                    }
+                    strokeWidth={2}
+                    strokeDasharray={activeOrder?.currentStage === 'production_qa' ? '5,5' : 'none'}
+                    markerEnd={
+                      activeOrder?.history.includes('logistics_packing')
+                        ? 'url(#cf-arrow-emerald)'
+                        : 'url(#cf-arrow-default)'
+                    }
+                  />
+                </>
+              )}
             </svg>
 
-            {/* 4-COLUMN LOGICAL PILLARS GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 items-start">
+            {/* NODE GRID COLUMNS */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 relative z-10 items-start">
               {/* =========================================================================
-                  PILLAR 1: SALES & ENTRY TRIGGER (STACKED PILL NODES - MATCHING SCREENSHOT)
+                  COLUMN 1: THE 3 TRIGGER CARDS (PILLAR 1: SALES & TRIGGERS)
+                  (EXACT MATCH FOR SCREENSHOT 1, 2, 3, 5 - DOUBLE CONCENTRIC BORDERS)
                  ========================================================================= */}
-              <div className="md:col-span-3 space-y-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-kumo-strong tracking-wide uppercase">
-                    1. Sales & Triggers
-                  </span>
-                  <span className="text-[10px] text-kumo-subtle font-mono">Webhooks</span>
-                </div>
-
-                {/* Node 1A: Storefront Webhooks (Matching 'Domains 2' in screenshot) */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-3.5 shadow-2xs transition-all",
-                  activeOrder?.currentStage === 'sales_webhook'
-                    ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10"
-                    : activeOrder?.history.includes('sales_webhook')
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div
-                    onClick={() => toggleNodeExpansion('domains')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-kumo-subtle" />
-                      <span className="text-xs font-semibold text-kumo-strong">Storefront Webhook</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-kumo-tint text-[10px] font-bold text-kumo-strong border border-kumo-line">
-                        3
-                      </span>
-                    </div>
-                    {expandedNodes.domains ? (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle" />
-                    )}
-                  </div>
-
-                  {expandedNodes.domains && (
-                    <div className="mt-3 pt-3 border-t border-kumo-line/60 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-kumo-subtle">checkout.webhook</span>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                          Active
+              <div className="md:col-span-3 space-y-3.5 max-w-[230px]">
+                {/* 1A. DOMAINS CARD (Storefront Checkout Webhook) */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    {/* Header */}
+                    <div
+                      onClick={() => toggleNodeExpansion('domains')}
+                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[15px] font-normal text-[#18181b]">Domains</span>
+                        <span className="bg-[#52525b] text-white text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                          {webhookCount}
                         </span>
                       </div>
-                      <p className="font-mono text-[11px] text-kumo-strong truncate">
-                        smokeyhut.com/api/v1/orders
-                      </p>
-                      <div className="pt-1 text-[11px] text-kumo-subtle">
-                        Channels: Online Cart, Mobile App, WhatsApp
-                      </div>
+                      {expandedNodes.domains ? (
+                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Node 1B: Payment Verification (Matching 'Workers 0' in screenshot) */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-3.5 shadow-2xs transition-all",
-                  activeOrder?.currentStage === 'payment_verification'
-                    ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10"
-                    : activeOrder?.history.includes('payment_verification')
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div
-                    onClick={() => toggleNodeExpansion('workers')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-kumo-subtle" />
-                      <span className="text-xs font-semibold text-kumo-strong">Payment Clearance</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-kumo-tint text-[10px] font-bold text-kumo-strong border border-kumo-line">
-                        2
-                      </span>
-                    </div>
-                    {expandedNodes.workers ? (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle" />
+                    {/* Expanded Content (Exact match for Screenshot 5) */}
+                    {expandedNodes.domains && (
+                      <div className="border-t border-[#f4f4f5] bg-white">
+                        {/* Section 1: workers.dev */}
+                        <div className="px-4 py-2.5 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[13px] text-[#52525b]">workers.dev</span>
+                            <span className="bg-[#e4e4e7] text-[#52525b] text-[11px] px-2 py-0.5 rounded-full font-medium">
+                              Disabled
+                            </span>
+                          </div>
+                          <p className="text-[12px] text-[#71717a] font-normal truncate">
+                            thecentralreport.ayodine47.workers.d...
+                          </p>
+                        </div>
+
+                        {/* Section 2: Custom domains */}
+                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
+                          <div className="text-[13px] text-[#71717a]">Custom domains</div>
+                          <div className="flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
+                            <span>Add a custom domain</span>
+                            <Plus className="w-3.5 h-3.5 text-[#71717a]" />
+                          </div>
+                        </div>
+
+                        {/* Section 3: Routes */}
+                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[13px] text-[#71717a]">Routes</span>
+                            <Plus className="w-3.5 h-3.5 text-[#71717a] cursor-pointer" />
+                          </div>
+                          <p className="text-[13px] text-[#18181b] font-normal leading-snug">
+                            thecentralreport.com/*
+                          </p>
+                          <p className="text-[13px] text-[#18181b] font-normal leading-snug">
+                            www.thecentralreport.com/*
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  {expandedNodes.workers && (
-                    <div className="mt-3 pt-3 border-t border-kumo-line/60 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-kumo-subtle">Paystack Gateway</span>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                          Cleared
-                        </span>
-                      </div>
-                      <p className="font-mono text-[11px] text-kumo-strong truncate">
-                        {activeOrder?.paymentRef}
-                      </p>
-                      <div className="text-[11px] text-kumo-subtle">
-                        Escrow settlement auto-verified
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Node 1C: Fraud & Risk Check (Matching 'Queues 0' in screenshot) */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-3.5 shadow-2xs transition-all",
-                  activeOrder?.currentStage === 'fraud_check'
-                    ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10"
-                    : activeOrder?.history.includes('fraud_check')
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div
-                    onClick={() => toggleNodeExpansion('queues')}
-                    className="flex items-center justify-between cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-kumo-subtle" />
-                      <span className="text-xs font-semibold text-kumo-strong">Fraud & Risk Check</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-kumo-tint text-[10px] font-bold text-kumo-strong border border-kumo-line">
-                        0
-                      </span>
-                    </div>
-                    {expandedNodes.queues ? (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle" />
-                    )}
-                  </div>
-
-                  {expandedNodes.queues && (
-                    <div className="mt-3 pt-3 border-t border-kumo-line/60 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-kumo-subtle">Address Geofence</span>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                          Zone 1 Passed
+                {/* 1B. WORKERS CARD (Payment Gateway Verification) */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    {/* Header */}
+                    <div
+                      onClick={() => toggleNodeExpansion('workers')}
+                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[15px] font-normal text-[#18181b]">Workers</span>
+                        <span className="bg-[#e4e4e7] text-[#71717a] text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                          {workersCount}
                         </span>
                       </div>
-                      <p className="text-[11px] text-kumo-subtle">
-                        Risk score: 0.02 (Safe) · OTP cleared
-                      </p>
+                      {expandedNodes.workers ? (
+                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      )}
                     </div>
-                  )}
+
+                    {/* Expanded Content (Exact match for Screenshot 2) */}
+                    {expandedNodes.workers && (
+                      <div className="border-t border-[#f4f4f5] px-4 py-3 bg-white">
+                        <p className="text-[13px] text-[#71717a] font-normal">
+                          No workers bound to this worker
+                        </p>
+                        <div className="mt-2 pt-2 border-t border-[#f4f4f5] text-[11px] text-[#a1a1aa]">
+                          Payment Ref: <strong className="font-mono text-[#18181b]">{activeOrder?.paymentRef}</strong> (3DS Verified)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 1C. QUEUES CARD (Fraud & Geofence Risk Evaluation) */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    {/* Header */}
+                    <div
+                      onClick={() => toggleNodeExpansion('queues')}
+                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[15px] font-normal text-[#18181b]">Queues</span>
+                        <span className="bg-[#e4e4e7] text-[#71717a] text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                          {queuesCount}
+                        </span>
+                      </div>
+                      {expandedNodes.queues ? (
+                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      )}
+                    </div>
+
+                    {/* Expanded Content (Exact match for Screenshot 2) */}
+                    {expandedNodes.queues && (
+                      <div className="border-t border-[#f4f4f5] px-4 py-3 bg-white">
+                        <div className="flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
+                          <span>Add a queue consumer</span>
+                          <Plus className="w-3.5 h-3.5 text-[#71717a]" />
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-[#f4f4f5] text-[11px] text-[#a1a1aa]">
+                          Fraud Score: <span className="font-bold text-emerald-600">0.02 (Safe)</span> · Victoria Island, Lagos
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* =========================================================================
-                  PILLAR 2: INVENTORY ALLOCATION ENGINE (CENTER CARD - MATCHING SCREENSHOT)
+                  COLUMN 2: CENTER ENGINE (PILLAR 2: INVENTORY MANAGEMENT NODE)
+                  (EXACT MATCH FOR SCREENSHOT 1, 2, 4 - thecentralreport & OBSERVABILITY)
                  ========================================================================= */}
-              <div className="md:col-span-4 space-y-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-kumo-strong tracking-wide uppercase">
-                    2. Inventory Engine
-                  </span>
-                  <span className="text-[10px] text-kumo-subtle font-mono">Stock Routing</span>
-                </div>
-
-                {/* Central Engine Card matching 'thecentralreport' card in screenshot */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-4 shadow-sm transition-all",
-                  activeOrder?.currentStage === 'inventory_check'
-                    ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10"
-                    : activeOrder?.history.includes('inventory_check')
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div className="flex items-center justify-between pb-3 border-b border-kumo-line/70">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-kumo-subtle" />
-                      <span className="font-mono text-xs font-semibold text-kumo-strong">
-                        smokey-inventory-allocator
-                      </span>
-                    </div>
-                    {/* Glowing status dot matching blue dot in screenshot */}
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className={cn(
-                        "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                        activeOrder?.currentStage === 'inventory_check'
-                          ? "bg-blue-400"
-                          : activeOrder?.hasStock
-                          ? "bg-emerald-400"
-                          : "bg-amber-400"
-                      )} />
-                      <span className={cn(
-                        "relative inline-flex rounded-full h-2.5 w-2.5",
-                        activeOrder?.currentStage === 'inventory_check'
-                          ? "bg-blue-500"
-                          : activeOrder?.hasStock
-                          ? "bg-emerald-500"
-                          : "bg-amber-500"
-                      )} />
-                    </span>
-                  </div>
-
-                  {/* Observability / Real-time Stock Routing Lines matching screenshot */}
-                  <div className="py-3 space-y-2.5 text-xs">
-                    <span className="text-[11px] font-semibold text-kumo-subtle block">
-                      Database Stock Verification
-                    </span>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-kumo-default">Target SKU Check</span>
-                      <span className="font-mono text-xs font-medium text-kumo-strong">
-                        {activeOrder?.hasStock ? 'IN_STOCK' : 'BACKORDER_OUT'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-kumo-default">Threshold Auto-Deduct</span>
-                      <span className="font-mono text-xs font-medium text-kumo-strong">
-                        {activeOrder?.portions} portions
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-kumo-default">Routing Path</span>
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                        activeOrder?.hasStock
-                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                          : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                      )}>
-                        {activeOrder?.hasStock ? 'Direct -> Logistics' : 'Fallback -> Kitchen Batches'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Branch Action Indicators */}
-                  <div className="pt-2 border-t border-kumo-line/60">
-                    {activeOrder?.hasStock ? (
-                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Ready in warehouse inventory · Forwarded to packaging</span>
+              <div className="md:col-span-5 space-y-5">
+                {/* PRIMARY INVENTORY ENGINE CARD */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs max-w-[310px]">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    {/* Header: Exact match for Screenshot 4 */}
+                    <div className="px-4 py-3 flex items-center justify-between bg-white">
+                      <div className="flex items-center gap-2.5">
+                        {/* Cloudflare Workers Code Icon */}
+                        <svg
+                          className="w-5 h-5 text-[#18181b] shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="7 8 3 12 7 16" />
+                          <polyline points="11 6 15 12 11 18" />
+                          <polyline points="17 8 21 12 17 16" />
+                        </svg>
+                        <span className="text-[15px] font-normal text-[#18181b]">
+                          thecentralreport
+                        </span>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span>Stockout trigger · Routed to Kitchen Smoking Pit Run</span>
+
+                      {/* Blue Indicator Dot with Outer Aura (Exact match for Screenshot 4) */}
+                      <span className="w-4 h-4 rounded-full bg-[#bfdbfe]/60 flex items-center justify-center">
+                        <span className="w-2 h-2 rounded-full bg-[#2563eb]" />
+                      </span>
+                    </div>
+
+                    {/* Body: Observability & Leader lines (Exact match for Screenshot 4) */}
+                    <div className="border-t border-[#f4f4f5] px-4 py-3 space-y-3 bg-white">
+                      <div className="text-[13px] text-[#71717a] font-normal">
+                        Observability
                       </div>
-                    )}
+
+                      {/* Row 1: Workers Logs with Leader Line */}
+                      <div className="flex items-center justify-between text-[13px]">
+                        <span className="text-[#18181b] font-normal whitespace-nowrap">
+                          Workers Logs
+                        </span>
+                        <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-3" />
+                        <span className="border border-[#d4d4d8] rounded-full px-2.5 py-0.5 text-[12px] text-[#52525b] bg-white">
+                          Disabled
+                        </span>
+                      </div>
+
+                      {/* Row 2: Workers Traces with Leader Line */}
+                      <div className="flex items-center justify-between text-[13px]">
+                        <span className="text-[#18181b] font-normal whitespace-nowrap">
+                          Workers Traces
+                        </span>
+                        <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-3" />
+                        <span className="border border-[#d4d4d8] rounded-full px-2.5 py-0.5 text-[12px] text-[#52525b] bg-white">
+                          Disabled
+                        </span>
+                      </div>
+
+                      {/* Operational Stock Mapping Row */}
+                      <div className="pt-2 border-t border-[#f4f4f5] flex items-center justify-between text-[12px]">
+                        <span className="text-[#71717a]">Stock Database Check:</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded font-medium text-[11px]",
+                          activeOrder?.hasStock
+                            ? "bg-emerald-50 text-emerald-700 font-semibold"
+                            : "bg-amber-50 text-amber-700 font-semibold"
+                        )}>
+                          {activeOrder?.hasStock ? 'Available (Deducted)' : 'Stockout (Fallback to Pit)'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* =========================================================================
-                    PILLAR 3: PRODUCTION BATCHES NODE (SEQUENTIAL PROCESSING LOOP)
+                    PILLAR 3: PRODUCTION BATCHES NODE (Bulk Smoking Pit & QA Pass)
+                    (Rendered when stockout fallback occurs, matching concentric styling)
                    ========================================================================= */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-4 shadow-sm transition-all mt-4",
-                  activeOrder?.currentStage.startsWith('production')
-                    ? "border-amber-500 ring-2 ring-amber-500/10 bg-amber-50/10"
-                    : activeOrder?.history.includes('production_qa')
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div
-                    onClick={() => toggleNodeExpansion('production')}
-                    className="flex items-center justify-between cursor-pointer select-none pb-2 border-b border-kumo-line/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-amber-500" />
-                      <span className="text-xs font-semibold text-kumo-strong">
-                        3. Kitchen Smoking Pit Run
-                      </span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold border border-amber-500/20">
-                        {activeOrder?.batchId || 'BATCH-SMK-402'}
-                      </span>
-                    </div>
-                    {expandedNodes.production ? (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle" />
-                    )}
-                  </div>
-
-                  {expandedNodes.production && (
-                    <div className="mt-3 space-y-2.5 text-xs">
-                      {/* Step 1: Queue Assignment */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            activeOrder?.history.includes('production_queue')
-                              ? "bg-emerald-500"
-                              : "bg-kumo-line"
-                          )} />
-                          <span className="text-kumo-default">Queue Assignment</span>
+                {!activeOrder?.hasStock && (
+                  <div className="p-[2.5px] rounded-[16px] border border-[#f59e0b]/50 bg-white transition-all shadow-2xs max-w-[310px] animate-in fade-in">
+                    <div className="rounded-[12px] border border-[#f59e0b]/40 bg-white overflow-hidden">
+                      {/* Header */}
+                      <div className="px-4 py-3 flex items-center justify-between bg-white">
+                        <div className="flex items-center gap-2.5">
+                          <Flame className="w-5 h-5 text-[#f59e0b]" />
+                          <span className="text-[15px] font-normal text-[#18181b]">
+                            production-pit-engine
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono text-kumo-subtle">
-                          Pitmaster Ade
+                        <span className="w-4 h-4 rounded-full bg-[#fed7aa]/60 flex items-center justify-center">
+                          <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
                         </span>
                       </div>
 
-                      {/* Step 2: Manufacturing Phase */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            activeOrder?.history.includes('production_cook')
-                              ? "bg-emerald-500"
-                              : activeOrder?.currentStage === 'production_cook'
-                              ? "bg-amber-500 animate-pulse"
-                              : "bg-kumo-line"
-                          )} />
-                          <span className="text-kumo-default">Manufacturing Phase</span>
-                        </div>
-                        <span className="text-[10px] font-mono text-kumo-subtle">
-                          Wood Smoking Run
-                        </span>
-                      </div>
+                      {/* Sequential Markers */}
+                      <div className="border-t border-[#f4f4f5] px-4 py-3 space-y-2.5 bg-white text-[13px]">
+                        <div className="text-[13px] text-[#71717a]">Sequential Phase Markers</div>
 
-                      {/* Step 3: Quality Assurance Pass */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#18181b]">Queue Assignment</span>
+                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                          <span className="text-[11px] font-mono font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                            {activeOrder?.batchId || 'BATCH-402'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#18181b]">Manufacturing Phase</span>
+                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
+                          <span className="text-[11px] font-mono text-[#f59e0b] bg-amber-50 px-1.5 py-0.5 rounded">
+                            110°C / Smoke
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#18181b]">Quality Assurance</span>
+                          <div className="flex-1 h-[1px] bg-[#e4e4e7] mx-2" />
                           <span className={cn(
-                            "w-2 h-2 rounded-full",
+                            "text-[11px] font-semibold px-1.5 py-0.5 rounded",
                             activeOrder?.history.includes('production_qa')
-                              ? "bg-emerald-500"
-                              : activeOrder?.currentStage === 'production_qa'
-                              ? "bg-blue-500 animate-pulse"
-                              : "bg-kumo-line"
-                          )} />
-                          <span className="text-kumo-default">Quality Assurance Pass</span>
+                              ? "text-emerald-700 bg-emerald-50"
+                              : "text-[#71717a] bg-[#f4f4f5]"
+                          )}>
+                            {activeOrder?.history.includes('production_qa') ? 'QA Passed' : 'In Smoker'}
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono text-emerald-600 font-semibold">
-                          Probe 76°C · Passed
-                        </span>
-                      </div>
-
-                      <div className="pt-2 border-t border-kumo-line/60 flex items-center justify-between text-[11px] text-kumo-subtle">
-                        <span>QA Output:</span>
-                        <span className="text-emerald-600 font-medium flex items-center gap-1">
-                          <span>Merge into Logistics Dock</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* =========================================================================
-                  PILLAR 4: LOGISTICS & FULFILLMENT (MATCHING 'BINDINGS' IN SCREENSHOT)
+                  COLUMN 3: BINDINGS CARD (PILLAR 4: LOGISTICS NODE)
+                  (EXACT MATCH FOR SCREENSHOT 1 & 2 BINDINGS 2 CARD)
                  ========================================================================= */}
-              <div className="md:col-span-5 space-y-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-kumo-strong tracking-wide uppercase">
-                    4. Logistics & Delivery
-                  </span>
-                  <span className="text-[10px] text-kumo-subtle font-mono">Terminal Handover</span>
-                </div>
-
-                {/* Logistics Node Card matching 'Bindings 2' in screenshot */}
-                <div className={cn(
-                  "rounded-2xl border bg-kumo-base p-4 shadow-sm transition-all",
-                  activeOrder?.currentStage.startsWith('logistics')
-                    ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/10"
-                    : activeOrder?.currentStage === 'completed'
-                    ? "border-emerald-500/60"
-                    : "border-kumo-line"
-                )}>
-                  <div
-                    onClick={() => toggleNodeExpansion('bindings')}
-                    className="flex items-center justify-between cursor-pointer select-none pb-2 border-b border-kumo-line/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-kumo-subtle" />
-                      <span className="text-xs font-semibold text-kumo-strong">Fulfillment Pipeline</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-kumo-tint text-[10px] font-bold text-kumo-strong border border-kumo-line">
-                        3
-                      </span>
+              <div className="md:col-span-4 max-w-[310px]">
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    {/* Header: Exact match for Screenshot 1 & 2 */}
+                    <div
+                      onClick={() => toggleNodeExpansion('bindings')}
+                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[15px] font-normal text-[#18181b]">Bindings</span>
+                        <span className="bg-[#52525b] text-white text-[12px] font-semibold px-2 py-0.5 rounded-[5px] min-w-[20px] text-center inline-block leading-tight">
+                          2
+                        </span>
+                      </div>
+                      {expandedNodes.bindings ? (
+                        <ChevronUp className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-[#71717a] stroke-[2]" />
+                      )}
                     </div>
-                    {expandedNodes.bindings ? (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle" />
+
+                    {/* Body: Add a binding + Assets + Images (Exact match for Screenshot 1 & 2) */}
+                    {expandedNodes.bindings && (
+                      <div className="border-t border-[#f4f4f5] bg-white">
+                        {/* Action Row */}
+                        <div className="px-4 py-2.5 flex items-center justify-between text-[13px] text-[#52525b] hover:text-[#18181b] cursor-pointer">
+                          <span>Add a binding</span>
+                          <Plus className="w-3.5 h-3.5 text-[#71717a]" />
+                        </div>
+
+                        {/* Section 1: Assets */}
+                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
+                          <div className="text-[12px] text-[#71717a]">Assets</div>
+                          <div className="text-[13px] font-mono font-bold text-[#18181b] tracking-wider">
+                            ASSETS
+                          </div>
+                          <p className="text-[11px] text-[#a1a1aa]">
+                            Packing Slip: Insulated Box · Slip generated
+                          </p>
+                        </div>
+
+                        {/* Section 2: Images */}
+                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 space-y-1">
+                          <div className="text-[12px] text-[#71717a]">Images</div>
+                          <div className="text-[13px] font-mono font-bold text-[#18181b] tracking-wider">
+                            IMAGES
+                          </div>
+                          <p className="text-[11px] text-[#a1a1aa]">
+                            Carrier Fleet: <strong className="text-[#18181b]">{activeOrder?.riderName || 'Tunde Bakare'}</strong> (SHD-TRK-8842)
+                          </p>
+                        </div>
+
+                        {/* Terminal Webhook Trigger Row */}
+                        <div className="border-t border-[#f4f4f5] px-4 py-2.5 bg-[#fafafa]">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] text-[#71717a]">Terminal Handover:</span>
+                            <span className={cn(
+                              "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                              activeOrder?.currentStage === 'completed'
+                                ? "bg-emerald-600 text-white"
+                                : "bg-[#e4e4e7] text-[#52525b]"
+                            )}>
+                              {activeOrder?.currentStage === 'completed' ? 'Delivered' : `OTP: ${activeOrder?.otpCode}`}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#71717a] mt-1">
+                            Webhook triggers instant customer SMS/WhatsApp receipt upon rider sign-off.
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  {expandedNodes.bindings && (
-                    <div className="mt-3 space-y-3 text-xs">
-                      {/* Sub-item 1: Picking & Packing Slip */}
-                      <div className={cn(
-                        "p-2.5 rounded-xl border transition-colors",
-                        activeOrder?.history.includes('logistics_packing')
-                          ? "bg-kumo-tint/20 border-emerald-500/30"
-                          : "bg-kumo-tint/10 border-kumo-line/60"
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-kumo-strong">Picking/Packing Slip</span>
-                          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                            {activeOrder?.history.includes('logistics_packing') ? 'Generated' : 'Queued'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] font-mono text-kumo-subtle mt-1">
-                          Thermal insulated bag · Vacuum seal confirmed
-                        </p>
-                      </div>
-
-                      {/* Sub-item 2: Carrier Tracking Labels */}
-                      <div className={cn(
-                        "p-2.5 rounded-xl border transition-colors",
-                        activeOrder?.history.includes('logistics_dispatch')
-                          ? "bg-kumo-tint/20 border-emerald-500/30"
-                          : "bg-kumo-tint/10 border-kumo-line/60"
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-kumo-strong">Carrier & Fleet API</span>
-                          <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                            {activeOrder?.riderName || 'Internal Fleet'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] font-mono text-kumo-subtle mt-1">
-                          Label: SHD-TRK-{activeOrder?.id.replace('ORD-', '')} · GPS Live
-                        </p>
-                      </div>
-
-                      {/* Sub-item 3: Terminal Node Handover Trigger */}
-                      <div className={cn(
-                        "p-2.5 rounded-xl border transition-colors",
-                        activeOrder?.currentStage === 'completed'
-                          ? "bg-emerald-500/10 border-emerald-500/40"
-                          : "bg-kumo-tint/10 border-kumo-line/60"
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-kumo-strong">Terminal Customer Handover</span>
-                          <span className={cn(
-                            "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                            activeOrder?.currentStage === 'completed'
-                              ? "bg-emerald-600 text-white"
-                              : "bg-kumo-tint text-kumo-subtle"
-                          )}>
-                            {activeOrder?.currentStage === 'completed' ? 'Delivered' : 'Awaiting OTP'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-kumo-subtle mt-1">
-                          OTP: <strong className="font-mono text-kumo-strong">{activeOrder?.otpCode}</strong> · Webhook fires instant SMS & WhatsApp receipt upon sign-off
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* 3. BOTTOM COLLAPSE / EXPAND CHEVRON BAR (Matching Reference Screenshot 2) */}
-        <div className="pt-2 border-t border-kumo-line/60 flex items-center justify-center">
+        {/* =========================================================================
+            3. BOTTOM COLLAPSE / EXPAND CHEVRON HANDLE (EXACT MATCH FOR SCREENSHOT 2)
+           ========================================================================= */}
+        <div className="mt-4 pt-2 border-t border-[#f4f4f5] flex items-center justify-center">
           <button
             type="button"
             onClick={() => setIsCanvasExpanded(!isCanvasExpanded)}
-            className="w-8 h-8 rounded-full border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs"
-            aria-label={isCanvasExpanded ? 'Collapse workflow canvas' : 'Expand workflow canvas'}
+            className="text-[#71717a] hover:text-[#18181b] transition-colors p-1 cursor-pointer"
+            aria-label={isCanvasExpanded ? 'Collapse canvas' : 'Expand canvas'}
           >
             {isCanvasExpanded ? (
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className="w-5 h-5 stroke-[1.75]" />
             ) : (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-5 h-5 stroke-[1.75]" />
             )}
           </button>
         </div>
