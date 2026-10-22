@@ -34,6 +34,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { Select } from '@/components/ui/Select'
+import { Toggle, ToggleSwitch } from '@/components/ui/Toggle'
 import { useSmokeyOps, AppUserAccount, UserRole, ROLE_DEFAULT_PERMISSIONS } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { cn } from '@/lib/utils'
@@ -42,44 +43,6 @@ import {
   SYSTEM_ROLE_CONFIGS,
   SystemPermissionItem
 } from '@/components/layout/ManageAccountsModal'
-
-// Reusable Cloudflare Kumo-style Toggle Switch matching screenshots
-const ToggleSwitch: React.FC<{
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-  id?: string
-  ariaLabel?: string
-}> = ({ checked, onChange, disabled, id, ariaLabel }) => {
-  return (
-    <button
-      type="button"
-      role="switch"
-      id={id}
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (!disabled) onChange(!checked)
-      }}
-      className={cn(
-        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 select-none',
-        checked ? 'bg-[#18181b] dark:bg-zinc-200' : 'bg-zinc-200 dark:bg-zinc-700',
-        disabled && 'opacity-40 cursor-not-allowed'
-      )}
-    >
-      <span
-        className={cn(
-          'pointer-events-none inline-block h-4 w-4 transform rounded-full shadow-sm ring-0 transition duration-200 ease-in-out',
-          checked
-            ? 'translate-x-4 bg-white dark:bg-zinc-900'
-            : 'translate-x-0 bg-white dark:bg-zinc-300'
-        )}
-      />
-    </button>
-  )
-}
 
 // Enterprise Policy Groupings matching the Cloudflare screenshots
 export interface PolicyCategoryGroup {
