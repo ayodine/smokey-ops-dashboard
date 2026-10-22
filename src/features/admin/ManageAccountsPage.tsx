@@ -1965,7 +1965,7 @@ export const ManageAccountsPage: React.FC = () => {
                     <Toggle
                       checked={isOverallMasterActive}
                       onChange={handleToggleOverallMaster}
-                      size="sm"
+                      size="md"
                     />
                   </div>
                 </div>
@@ -2072,7 +2072,7 @@ export const ManageAccountsPage: React.FC = () => {
                       <Toggle
                         checked={isCategoryMasterActive}
                         onChange={handleCategoryMasterToggle}
-                        size="sm"
+                        size="md"
                       />
                     </div>
                   </div>

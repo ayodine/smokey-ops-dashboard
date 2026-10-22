@@ -86,16 +86,16 @@ export const Toggle = React.forwardRef<HTMLButtonElement, ToggleProps>(
         onKeyDown={handleKeyDown}
         data-kumo-component="Toggle"
         className={cn(
-          'relative inline-flex items-center shrink-0 cursor-pointer rounded-full select-none transition-colors duration-200 ease-in-out',
+          'relative inline-flex items-center shrink-0 cursor-pointer select-none transition-colors duration-200 ease-in-out p-0 border box-border appearance-none',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand focus-visible:ring-offset-2',
-          // Dimensions matching design system specifications
-          size === 'sm' && 'w-[36px] h-[19px] p-[2px]',
-          size === 'md' && 'w-[42px] h-[22px] p-[2px]',
-          size === 'lg' && 'w-[50px] h-[26px] p-[2.5px]',
-          // Track color: dark charcoal graphite when active (#595959), soft neutral gray when inactive
+          // Dimensions matching exact specifications from design reference (38px x 20px)
+          size === 'sm' && 'w-[32px] h-[18px] rounded-[8px]',
+          size === 'md' && 'w-[38px] h-[20px] rounded-[9px]',
+          size === 'lg' && 'w-[44px] h-[24px] rounded-[11px]',
+          // Track colors matching exact pixel measurement (active: #737373 border #525252, inactive: #f2f2f2 border #dddddd)
           isChecked
-            ? 'bg-[#595959] border border-[#484848] dark:bg-[#525252] dark:border-[#3f3f3f]'
-            : 'bg-[#e4e4e7] border border-[#d1d1d6] dark:bg-zinc-800 dark:border-zinc-700',
+            ? 'bg-[#737373] border-[#525252] hover:bg-[#686868] dark:bg-[#666666] dark:border-[#444444]'
+            : 'bg-[#f2f2f2] border-[#dddddd] hover:bg-[#eaeaea] hover:border-[#d4d4d8] dark:bg-zinc-800 dark:border-zinc-700',
           disabled && 'opacity-40 cursor-not-allowed',
           trackClassName,
           !label && !description && className
@@ -104,18 +104,21 @@ export const Toggle = React.forwardRef<HTMLButtonElement, ToggleProps>(
       >
         <span
           className={cn(
-            'pointer-events-none inline-block bg-white shadow-[0_1px_2px_rgba(0,0,0,0.18)] border border-black/5 transform transition-transform duration-200 ease-in-out',
-            // Signature rounded-rectangle thumb
-            size === 'sm' && 'w-[14px] h-[15px] rounded-[4px]',
-            size === 'md' && 'w-[16px] h-[18px] rounded-[5px]',
-            size === 'lg' && 'w-[20px] h-[21px] rounded-[6px]',
+            'pointer-events-none block bg-white box-border transform transition-transform duration-200 ease-in-out',
+            // Signature rounded-rectangle squircle thumb (18px x 18px for md, filling exactly half the track width and full inner height)
+            size === 'sm' && 'w-[15px] h-[16px] rounded-[7px]',
+            size === 'md' && 'w-[18px] h-[18px] rounded-[8px]',
+            size === 'lg' && 'w-[21px] h-[22px] rounded-[10px]',
             isChecked
-              ? size === 'sm'
-                ? 'translate-x-[17px]'
-                : size === 'lg'
-                  ? 'translate-x-[24px]'
-                  : 'translate-x-[20px]'
-              : 'translate-x-0',
+              ? cn(
+                  'border border-[#525252]/40 shadow-[0_1px_2px_rgba(0,0,0,0.15)]',
+                  size === 'sm' && 'translate-x-[15px]',
+                  size === 'md' && 'translate-x-[18px]',
+                  size === 'lg' && 'translate-x-[21px]'
+                )
+              : cn(
+                  'border border-[#d6d6d6] shadow-[0_1px_2px_rgba(0,0,0,0.06)] translate-x-0'
+                ),
             thumbClassName
           )}
         />
