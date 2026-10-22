@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   Users,
   Search,
@@ -22,8 +22,6 @@ import {
   Globe,
   Pencil,
   Info,
-  Sparkles,
-  HelpCircle,
   Plus,
   Building2,
   Check
@@ -831,42 +829,6 @@ export const ManageAccountsPage: React.FC = () => {
 
     return (
       <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
-        {/* Top Breadcrumb Navigation matching Screenshot 1: Members > email > Edit permission policies */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-b border-kumo-line/60 pb-3">
-          <div className="flex items-center gap-2 text-xs text-kumo-subtle font-medium flex-wrap">
-            <Link to="/accounts" className="hover:text-kumo-strong transition-colors">
-              Members
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            <span className="text-kumo-default font-sans">{targetStaff.email}</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            <span className="text-kumo-strong font-semibold">Edit permission policies</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs text-kumo-subtle">
-            <button
-              type="button"
-              onClick={() => showToast('AI Assistant ready for policy inspection', 'info')}
-              className="flex items-center gap-1.5 hover:text-kumo-strong cursor-pointer transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span>Ask AI</span>
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => showToast('Support documentation opened in sidebar', 'info')}
-              className="flex items-center gap-1.5 hover:text-kumo-strong cursor-pointer transition-colors"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Support</span>
-            </button>
-            <span>•</span>
-            <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center font-bold text-[10px] text-kumo-strong">
-              {targetStaff.name.charAt(0)}
-            </div>
-          </div>
-        </div>
 
         {/* Tab Switcher matching Screenshot 1 & 3: [ Permission policies | Groups | Settings ] */}
         <div className="flex items-center justify-between gap-4">
