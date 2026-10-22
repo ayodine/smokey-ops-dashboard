@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Users,
   Search,
@@ -17,8 +17,16 @@ import {
   MoreVertical,
   ArrowLeft,
   ChevronDown,
-  ChevronUp,
-  X
+  ChevronRight,
+  X,
+  Globe,
+  Pencil,
+  Info,
+  Sparkles,
+  HelpCircle,
+  Plus,
+  Building2,
+  Check
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
@@ -33,10 +41,11 @@ import { useWarehouse } from '@/context/WarehouseContext'
 import { cn } from '@/lib/utils'
 import {
   ALL_SYSTEM_PERMISSIONS,
-  SYSTEM_ROLE_CONFIGS
+  SYSTEM_ROLE_CONFIGS,
+  SystemPermissionItem
 } from '@/components/layout/ManageAccountsModal'
 
-// Reusable Cloudflare Kumo-style Toggle Switch
+// Reusable Cloudflare Kumo-style Toggle Switch matching screenshots
 const ToggleSwitch: React.FC<{
   checked: boolean
   onChange: (checked: boolean) => void
@@ -58,18 +67,27 @@ const ToggleSwitch: React.FC<{
       }}
       className={cn(
         'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 select-none',
-        checked ? 'bg-primary' : 'bg-zinc-200 dark:bg-zinc-700',
+        checked ? 'bg-[#18181b] dark:bg-zinc-200' : 'bg-zinc-200 dark:bg-zinc-700',
         disabled && 'opacity-40 cursor-not-allowed'
       )}
     >
       <span
         className={cn(
-          'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
-          checked ? 'translate-x-4' : 'translate-x-0'
+          'pointer-events-none inline-block h-4 w-4 transform rounded-full shadow-sm ring-0 transition duration-200 ease-in-out',
+          checked
+            ? 'translate-x-4 bg-white dark:bg-zinc-900'
+            : 'translate-x-0 bg-white dark:bg-zinc-300'
         )}
       />
     </button>
   )
+}
+
+// Enterprise Policy Groupings matching the Cloudflare screenshots
+export interface PolicyCategoryGroup {
+  id: string
+  name: string
+  permissions: SystemPermissionItem[]
 }
 
 export const ManageAccountsPage: React.FC = () => {
@@ -90,7 +108,7 @@ export const ManageAccountsPage: React.FC = () => {
 
   const { facilities } = useWarehouse()
 
-  // Route modes
+  // Route detection
   const isRoutePage = location.pathname.includes('/accounts/route')
   const isMatrixPage = location.pathname.includes('/accounts/matrix')
 
@@ -110,7 +128,7 @@ export const ManageAccountsPage: React.FC = () => {
   const [isOnboardOpen, setIsOnboardOpen] = useState(false)
 
   // -------------------------------------------------------------
-  // EDIT ROUTE PAGE STATE (Screenshot 1 / Screenshot 2)
+  // EDIT ROUTE & PERMISSION POLICIES PAGE STATE (Screenshots 1, 2, 3)
   // -------------------------------------------------------------
   const targetStaff = useMemo(() => {
     if (urlEmail) {
@@ -120,6 +138,17 @@ export const ManageAccountsPage: React.FC = () => {
     return availableAccounts[0]
   }, [availableAccounts, urlEmail])
 
+  // Sub-tabs on the staff page matching Screenshot 1 & 3:
+  // [ Permission policies | Groups & Zone | Settings ]
+  const [staffSubTab, setStaffSubTab] = useState<'policies' | 'groups' | 'settings'>('policies')
+
+  // Inside "Permission policies", whether editing/creating a policy or viewing overview table
+  const [isEditingPolicy, setIsEditingPolicy] = useState<boolean>(true)
+  const [showInfoBanner, setShowInfoBanner] = useState<boolean>(true)
+
+  // Form State for Policy Scope
+  const [policyScope, setPolicyScope] = useState<string>('Individual Domains')
+  const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('thecentralreport.com')
   const [editRole, setEditRole] = useState<UserRole>('kitchen')
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -127,13 +156,14 @@ export const ManageAccountsPage: React.FC = () => {
   const [editOffice, setEditOffice] = useState('Central Kitchen (Ikeja Office)')
   const [editPermissions, setEditPermissions] = useState<string[]>([])
   const [policySearchQuery, setPolicySearchQuery] = useState('')
+
+  // Accordion Expand/Collapse state
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     'Overall roles': true,
-    'Administration': true,
-    'Production': true,
-    'Inventory': true,
-    'Logistics': true,
-    'Finance': true
+    'Developer Platform': false,
+    'App Security': false,
+    'App Performance': false,
+    'Finance & Remittance': false,
   })
 
   // Initialize Edit Route State when target staff changes
@@ -157,14 +187,12 @@ export const ManageAccountsPage: React.FC = () => {
   const [matrixPermissions, setMatrixPermissions] = useState<string[]>([])
   const [matrixExpandedCats, setMatrixExpandedCats] = useState<Record<string, boolean>>({
     'Overall roles': true,
-    'Administration': true,
-    'Production': true,
-    'Inventory': true,
-    'Logistics': true,
-    'Finance': true
+    'Developer Platform': false,
+    'App Security': false,
+    'App Performance': false,
+    'Finance & Remittance': false,
   })
 
-  // When matrix scope is picked, initialize default permissions
   const handleMatrixScopeChange = (scopeId: string) => {
     setMatrixScope(scopeId)
     const matchedRole = SYSTEM_ROLE_CONFIGS.find(r => r.id === scopeId)
@@ -190,6 +218,161 @@ export const ManageAccountsPage: React.FC = () => {
   const [newPasswordVal, setNewPasswordVal] = useState('')
   const [requirePassReset, setRequirePassReset] = useState(true)
 
+  // Categorized policies matching Screenshot 1 & 2 categories
+  const policyCategoryGroups = useMemo<PolicyCategoryGroup[]>(() => {
+    return [
+      {
+        id: 'overall',
+        name: 'Overall roles',
+        permissions: [
+          {
+            id: 'domain_admin',
+            label: 'Domain Administrator',
+            category: 'Administration',
+            description: 'Grants full access to zones in an account, as well as account-wide Firewall, Access, and Worker resources. Does not include domain registration.'
+          },
+          {
+            id: 'domain_admin_ro',
+            label: 'Domain Administrator Read Only',
+            category: 'Administration',
+            description: 'Grants read-only access to zones in an account, as well as account-wide Firewall, Access, and Worker resources.'
+          },
+          {
+            id: 'ai_crawl_ro',
+            label: 'AI Crawl Control Read Only',
+            category: 'Administration',
+            description: "Grants read-only access to a zone's AI Crawl Control metrics and settings."
+          },
+          {
+            id: 'zone_versioning',
+            label: 'Zone Versioning',
+            category: 'Administration',
+            description: 'Grants full access to Zone Versioning.'
+          },
+          {
+            id: 'zone_versioning_ro',
+            label: 'Zone Versioning Read',
+            category: 'Administration',
+            description: 'Grants read-only access to Zone Versioning.'
+          }
+        ]
+      },
+      {
+        id: 'developer',
+        name: 'Developer Platform',
+        permissions: [
+          {
+            id: 'workers_routes_write',
+            label: 'Workers Routes Write',
+            category: 'Production',
+            description: 'Grants access to create, update and delete route bindings for kitchen execution and web services.'
+          },
+          {
+            id: 'workers_routes_read',
+            label: 'Workers Routes Read',
+            category: 'Production',
+            description: 'Grants read-only access to route bindings, dispatch queues and worker logs.'
+          }
+        ]
+      },
+      {
+        id: 'security',
+        name: 'App Security',
+        permissions: [
+          {
+            id: 'firewall_ai_read',
+            label: 'Firewall for AI Read',
+            category: 'Administration',
+            description: 'Grants read-only access to Firewall for AI configurations, detection logs, and policy events.'
+          },
+          {
+            id: 'firewall_ai_write',
+            label: 'Firewall for AI Write',
+            category: 'Administration',
+            description: 'Grants write access to modify Firewall for AI security policies and mitigation triggers.'
+          },
+          {
+            id: 'fraud_detect_read',
+            label: 'Fraud Detection Read',
+            category: 'Finance',
+            description: 'Grants read access to fraud detection scores, transaction risk evaluation, and order checks.'
+          },
+          {
+            id: 'fraud_detect_write',
+            label: 'Fraud Detection Write',
+            category: 'Finance',
+            description: 'Grants write access to configure customer risk scoring and checkout validation thresholds.'
+          },
+          {
+            id: 'bot_management_read',
+            label: 'Bot Management Read',
+            category: 'Administration',
+            description: 'Grants read-only access to Bot Management telemetry and automated traffic diagnostics.'
+          }
+        ]
+      },
+      {
+        id: 'performance',
+        name: 'App Performance',
+        permissions: [
+          {
+            id: 'load_balance_admin',
+            label: 'Load Balancing Domain Admin',
+            category: 'Logistics',
+            description: 'Grants full administrative access to multi-hub load balancers, health monitors, and fallback pools.'
+          },
+          {
+            id: 'load_balance_read',
+            label: 'Load Balancing Domain Read',
+            category: 'Logistics',
+            description: 'Grants read-only access to load balancer configuration, pool distribution, and routing health.'
+          },
+          {
+            id: 'domain_cache_purge',
+            label: 'Cache Domain Purge',
+            category: 'Production',
+            description: 'Grants permissions to clear cached menu items, operational assets, and dispatch queues.'
+          },
+          {
+            id: 'domain_api_gateway',
+            label: 'Domain API Gateway',
+            category: 'Logistics',
+            description: 'Grants full access to rider mobile endpoints, 3PL webhook bridges, and telemetry pipelines.'
+          }
+        ]
+      },
+      {
+        id: 'finance',
+        name: 'Finance & Remittance',
+        permissions: [
+          {
+            id: 'cod_remittance_checkin',
+            label: 'COD Cash Remittance Check-in',
+            category: 'Finance',
+            description: 'Verify and reconcile physical cash turned in by delivery couriers at dispatch hub counters.'
+          },
+          {
+            id: 'supplier_invoice_verification',
+            label: 'Supplier Invoice Verification',
+            category: 'Finance',
+            description: 'Review purchase order billing, confirm line item unit costs, and approve inventory payments.'
+          },
+          {
+            id: 'finance_batch_payout',
+            label: 'Finance & Payout Remittances',
+            category: 'Finance',
+            description: 'Process batch payouts, approve driver wage remittances, and close operational ledgers.'
+          }
+        ]
+      }
+    ]
+  }, [])
+
+  // Flattened permission items
+  const allPolicyItems = useMemo(() => {
+    return policyCategoryGroups.flatMap(g => g.permissions)
+  }, [policyCategoryGroups])
+
   // Formatted realistic last activities
   const getActivityTimestamp = (acc: AppUserAccount) => {
     if (acc.role === 'admin') return 'Today, 3:52 PM'
@@ -213,16 +396,13 @@ export const ManageAccountsPage: React.FC = () => {
   // Table Data filtered by Tab & Filters
   const tableData = useMemo(() => {
     return availableAccounts.filter((acc) => {
-      // 1. Kumo Tab Filter
       if (activeTab === 'active' && acc.status === 'suspended') return false
       if (activeTab === 'inactive' && acc.status !== 'suspended') return false
 
-      // 2. Dropdown Filter: Role
       if (selectedRoleFilter !== 'all' && acc.role !== selectedRoleFilter) {
         return false
       }
 
-      // 3. Dropdown Filter: Office
       if (selectedOfficeFilter !== 'all') {
         const accOffice = acc.assigned_hub || 'Central Kitchen (Ikeja)'
         if (!accOffice.toLowerCase().includes(selectedOfficeFilter.toLowerCase())) {
@@ -247,7 +427,7 @@ export const ManageAccountsPage: React.FC = () => {
     )
   }
 
-  const toggleAllInCategory = (categoryPerms: string[], allActive: boolean) => {
+  const toggleCategoryGroup = (categoryPerms: string[], allActive: boolean) => {
     if (allActive) {
       setEditPermissions(prev => prev.filter(p => !categoryPerms.includes(p)))
     } else {
@@ -255,8 +435,8 @@ export const ManageAccountsPage: React.FC = () => {
     }
   }
 
-  const handleSaveRouteAndPolicies = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSaveRouteAndPolicies = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!targetStaff) return
 
     const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === editRole)
@@ -272,8 +452,14 @@ export const ManageAccountsPage: React.FC = () => {
       permissions: editPermissions,
     })
 
-    showToast(`Updated route and policies for ${editName}`, 'success')
-    navigate('/accounts')
+    showToast(`Saved policies for ${editEmail}`, 'success')
+    setIsEditingPolicy(false)
+  }
+
+  const handleDeletePolicy = () => {
+    setEditPermissions([])
+    showToast(`Cleared assigned policies for ${targetStaff?.email}`, 'info')
+    setIsEditingPolicy(false)
   }
 
   // Handlers for Role Matrix Page
@@ -421,7 +607,7 @@ export const ManageAccountsPage: React.FC = () => {
   }
 
   // DataTable Column Definitions
-  // NO profile icon / avatar per instructions
+  // NO profile icon per instructions
   const accountColumns: ColumnDef<AppUserAccount>[] = [
     {
       key: 'name',
@@ -634,104 +820,420 @@ export const ManageAccountsPage: React.FC = () => {
     },
   ]
 
-  // Filtered policies based on search query in Edit Route Page
-  const filteredPolicies = useMemo(() => {
-    const q = policySearchQuery.toLowerCase().trim()
-    if (!q) return ALL_SYSTEM_PERMISSIONS
-    return ALL_SYSTEM_PERMISSIONS.filter(p =>
-      p.label.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
-    )
-  }, [policySearchQuery])
-
-  // Filtered policies based on search query in Role Matrix Page
-  const matrixFilteredPolicies = useMemo(() => {
-    const q = matrixSearchQuery.toLowerCase().trim()
-    if (!q) return ALL_SYSTEM_PERMISSIONS
-    return ALL_SYSTEM_PERMISSIONS.filter(p =>
-      p.label.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
-    )
-  }, [matrixSearchQuery])
-
   // =========================================================================
-  // VIEW 1: DEDICATED EDIT ROUTE & POLICIES PAGE (Screenshot 1 style)
+  // VIEW 1: DEDICATED EDIT ROUTE & PERMISSION POLICIES PAGE (Screenshots 1, 2, 3)
   // =========================================================================
   if (isRoutePage && targetStaff) {
-    const totalCount = ALL_SYSTEM_PERMISSIONS.length
-    const activePermsCount = editPermissions.length
+    // Semicolon-separated string of active policy labels matching Screenshot 3
+    const activePoliciesString = editPermissions.length > 0
+      ? editPermissions.join('; ')
+      : 'Workers Routes Read; Workers Routes Write; Load Balancing Domain Admin; Domain Administrator Read Only'
 
     return (
-      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-12">
-        {/* Navigation Breadcrumb & Header */}
-        <div className="flex items-center justify-between gap-4 pt-1">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/accounts')}
-              className="w-9 h-9 rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs shrink-0"
-              aria-label="Back to team accounts"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Edit route</h1>
-                <span className="text-xs px-2 py-0.5 rounded-full border border-kumo-line bg-kumo-canvas text-kumo-subtle font-mono">
-                  {targetStaff.staff_id || 'SHD-STAFF'}
-                </span>
-              </div>
-              <p className="text-xs text-kumo-subtle mt-0.5">
-                Modify operator route credentials, office designation, and granular policy privileges.
-              </p>
-            </div>
+      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
+        {/* Top Breadcrumb Navigation matching Screenshot 1: Members > email > Edit permission policies */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-b border-kumo-line/60 pb-3">
+          <div className="flex items-center gap-2 text-xs text-kumo-subtle font-medium flex-wrap">
+            <Link to="/accounts" className="hover:text-kumo-strong transition-colors">
+              Members
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            <span className="text-kumo-default font-mono">{targetStaff.email}</span>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            <span className="text-kumo-strong font-semibold">Edit permission policies</span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex items-center gap-3 text-xs text-kumo-subtle">
+            <button
               type="button"
-              onClick={() => navigate('/accounts')}
-              className="h-9 px-4 text-xs font-medium"
+              onClick={() => showToast('AI Assistant ready for policy inspection', 'info')}
+              className="flex items-center gap-1.5 hover:text-kumo-strong cursor-pointer transition-colors"
             >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Ask AI</span>
+            </button>
+            <span>•</span>
+            <button
               type="button"
-              onClick={handleSaveRouteAndPolicies}
-              className="h-9 px-4 text-xs font-semibold"
+              onClick={() => showToast('Support documentation opened in sidebar', 'info')}
+              className="flex items-center gap-1.5 hover:text-kumo-strong cursor-pointer transition-colors"
             >
-              Save Changes
-            </Button>
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Support</span>
+            </button>
+            <span>•</span>
+            <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center font-bold text-[10px] text-kumo-strong">
+              {targetStaff.name.charAt(0)}
+            </div>
           </div>
         </div>
 
-        {/* Form Container */}
-        <form onSubmit={handleSaveRouteAndPolicies} className="space-y-6">
-          {/* Card 1: Route & Identity Configuration */}
-          <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-5 shadow-xs">
-            <div className="pb-3 border-b border-kumo-line flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-kumo-strong">Route & Identity Credentials</h2>
-                <p className="text-xs text-kumo-subtle mt-0.5">
-                  Designated routing patterns and assigned physical office.
-                </p>
+        {/* Tab Switcher matching Screenshot 1 & 3: [ Permission policies | Groups | Settings ] */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="inline-flex items-center p-1 rounded-xl bg-kumo-canvas/80 border border-kumo-line/80 gap-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setStaffSubTab('policies')}
+              className={cn(
+                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                staffSubTab === 'policies'
+                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
+                  : 'text-kumo-subtle hover:text-kumo-strong'
+              )}
+            >
+              Permission policies
+            </button>
+            <button
+              type="button"
+              onClick={() => setStaffSubTab('groups')}
+              className={cn(
+                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                staffSubTab === 'groups'
+                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
+                  : 'text-kumo-subtle hover:text-kumo-strong'
+              )}
+            >
+              Groups & Zone
+            </button>
+            <button
+              type="button"
+              onClick={() => setStaffSubTab('settings')}
+              className={cn(
+                'px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
+                staffSubTab === 'settings'
+                  ? 'bg-kumo-base text-kumo-strong font-semibold shadow-xs'
+                  : 'text-kumo-subtle hover:text-kumo-strong'
+              )}
+            >
+              Settings
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-kumo-subtle font-mono hidden sm:inline-flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              <span>View member ID:</span>
+              <strong className="text-kumo-strong">{targetStaff.staff_id || 'SHD-STAFF'}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* TAB 1: PERMISSION POLICIES (Screenshots 1, 2, 3) */}
+        {staffSubTab === 'policies' && (
+          <div className="space-y-6">
+            {/* If NOT actively editing policy: Display Overview Table (Screenshot 3) */}
+            {!isEditingPolicy ? (
+              <div className="space-y-4">
+                {/* Search Bar & Create a Policy Button matching Screenshot 3 */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="relative w-full sm:w-80">
+                    <Search className="w-4 h-4 text-kumo-subtle absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search policies..."
+                      className="w-full h-9 pl-9 pr-4 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand"
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingPolicy(true)}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    className="h-9 px-4 text-xs font-semibold rounded-xl"
+                  >
+                    Create a policy
+                  </Button>
+                </div>
+
+                {/* Table of assigned policies matching Screenshot 3 */}
+                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+                  <div className="grid grid-cols-[1.5fr_1.8fr_4fr_1fr_44px] items-center px-5 py-3 bg-kumo-canvas/50 border-b border-kumo-line text-[11px] font-semibold text-kumo-subtle select-none">
+                    <span>Scope ↑</span>
+                    <span>Applies to ⇅</span>
+                    <span>Roles ⇅</span>
+                    <span className="flex items-center gap-1">Granted by <Info className="w-3 h-3" /></span>
+                    <span className="sr-only">Actions</span>
+                  </div>
+
+                  <div className="divide-y divide-kumo-line/60">
+                    <div
+                      onClick={() => setIsEditingPolicy(true)}
+                      className="grid grid-cols-[1.5fr_1.8fr_4fr_1fr_44px] items-center px-5 py-4 hover:bg-kumo-tint/40 transition-colors cursor-pointer text-xs"
+                    >
+                      <div className="font-semibold text-kumo-strong">
+                        {policyScope}
+                      </div>
+
+                      <div className="flex items-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-kumo-line bg-kumo-canvas text-xs font-mono text-kumo-strong">
+                          <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
+                          <span>{policyAppliesTo}</span>
+                        </span>
+                      </div>
+
+                      <div className="pr-4 text-kumo-default text-xs leading-relaxed line-clamp-3">
+                        {activePoliciesString}
+                      </div>
+
+                      <div className="text-kumo-subtle font-medium">
+                        Account
+                      </div>
+
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setIsEditingPolicy(true)
+                          }}
+                          className="p-1 rounded text-kumo-subtle hover:text-kumo-strong"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-kumo-line bg-kumo-canvas text-xs font-medium text-kumo-strong">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>{SYSTEM_ROLE_CONFIGS.find(r => r.id === editRole)?.label || editRole}</span>
-              </span>
+            ) : (
+              /* If actively editing policy: Display Edit Policy Form (Screenshots 1 & 2) */
+              <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs animate-in fade-in duration-200">
+                {/* Header matching Screenshot 1: "Edit policy ✎" */}
+                <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-kumo-strong">Edit policy</h2>
+                    <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPolicy(false)}
+                    className="text-xs text-kumo-subtle hover:text-kumo-strong flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>View all policies</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Scope Selector Dropdown & Tag Selection matching Screenshot 1 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="w-full">
+                      <Select
+                        value={policyScope}
+                        onValueChange={(val) => setPolicyScope(String(val))}
+                        options={[
+                          { value: 'Individual Domains', label: 'Individual Domains' },
+                          { value: 'Operating Offices', label: 'Operating Offices' },
+                          { value: 'Account-level Scope', label: 'Account-level Scope' },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-xs font-mono">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-kumo-tint text-kumo-strong text-xs font-sans">
+                        <span>{policyAppliesTo}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPolicyAppliesTo('smokeyhut.com')}
+                          className="text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Light Blue Info Banner with (i) circle and dismiss (x) matching Screenshot 1 */}
+                  {showInfoBanner && (
+                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in">
+                      <div className="flex items-start gap-2.5">
+                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <p className="leading-relaxed">
+                          These roles only grant access to the Domains selected above. To grant access to all Domains in this account, change the scope to <strong className="font-semibold">{targetStaff.email}'s Account</strong>.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowInfoBanner(false)}
+                        className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Explanatory text matching Screenshot 1 */}
+                  <p className="text-xs text-kumo-default leading-relaxed">
+                    Define what permissions <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> should have within the resource-specific scope: <strong className="text-kumo-strong font-semibold">{policyScope}</strong>.
+                  </p>
+
+                  {/* Search bar matching Screenshot 1 */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={policySearchQuery}
+                      onChange={(e) => setPolicySearchQuery(e.target.value)}
+                      placeholder="Search by role name..."
+                      className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
+                    />
+                    {policySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setPolicySearchQuery('')}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Collapsible Accordion Groups with Counters & Master Toggle matching Screenshot 1 & 2 */}
+                  <div className="border border-kumo-line rounded-xl overflow-hidden bg-kumo-base divide-y divide-kumo-line">
+                    {policyCategoryGroups.map((group) => {
+                      const isExpanded = expandedCategories[group.name] ?? false
+                      const categoryPermLabels = group.permissions.map(p => p.label)
+                      const activeInGroup = categoryPermLabels.filter(label => editPermissions.includes(label))
+                      const isAllGroupActive = activeInGroup.length === categoryPermLabels.length && categoryPermLabels.length > 0
+
+                      // Filtered items in this group
+                      const filteredInGroup = group.permissions.filter(p => {
+                        const q = policySearchQuery.toLowerCase().trim()
+                        if (!q) return true
+                        return p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+                      })
+
+                      if (policySearchQuery && filteredInGroup.length === 0) {
+                        return null
+                      }
+
+                      return (
+                        <div key={group.id} className="divide-y divide-kumo-line/60">
+                          {/* Category Header Row matching Screenshot 1 */}
+                          <div
+                            onClick={() => setExpandedCategories(prev => ({
+                              ...prev,
+                              [group.name]: !isExpanded
+                            }))}
+                            className="flex items-center justify-between px-5 py-3.5 bg-kumo-canvas/40 hover:bg-kumo-canvas/80 transition-colors cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-kumo-subtle" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-kumo-subtle" />
+                              )}
+                              <span className="font-semibold text-xs text-kumo-strong">{group.name}</span>
+                            </div>
+
+                            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-xs font-mono text-kumo-subtle">
+                                {activeInGroup.length}/{group.permissions.length}
+                              </span>
+                              <ToggleSwitch
+                                checked={isAllGroupActive}
+                                onChange={() => toggleCategoryGroup(categoryPermLabels, isAllGroupActive)}
+                                ariaLabel={`Toggle all ${group.name}`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Expanded Policy Rows with Dashed Dividers matching Screenshot 2 */}
+                          {isExpanded && (
+                            <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                              {filteredInGroup.map((perm) => {
+                                const isChecked = editPermissions.includes(perm.label)
+                                return (
+                                  <div
+                                    key={perm.id}
+                                    className="grid grid-cols-[1.5fr_2.5fr_auto] items-center gap-4 px-6 py-4 hover:bg-kumo-tint/20 transition-colors"
+                                  >
+                                    {/* Role Name (Left) */}
+                                    <div className="min-w-0 pr-2">
+                                      <span className="font-semibold text-xs text-kumo-strong block leading-tight">
+                                        {perm.label}
+                                      </span>
+                                    </div>
+
+                                    {/* Description (Center) */}
+                                    <div className="min-w-0 pr-3">
+                                      <p className="text-xs text-kumo-default leading-relaxed">
+                                        {perm.description}
+                                      </p>
+                                    </div>
+
+                                    {/* Toggle Switch (Right) */}
+                                    <div className="flex items-center justify-end pl-2">
+                                      <ToggleSwitch
+                                        checked={isChecked}
+                                        onChange={() => togglePolicyPermission(perm.label)}
+                                        ariaLabel={`Toggle ${perm.label}`}
+                                      />
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Bottom Footer Actions matching Screenshot 1 & 2 */}
+                <div className="p-4 border-t border-kumo-line bg-kumo-canvas/40 flex items-center justify-between gap-3">
+                  {/* Red Delete Button (Far Left) */}
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    onClick={handleDeletePolicy}
+                    className="h-9 px-4 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-2xs"
+                  >
+                    Delete
+                  </Button>
+
+                  {/* Cancel & Save (Right) */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setIsEditingPolicy(false)}
+                      className="h-9 px-4 text-xs font-medium"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      type="button"
+                      onClick={() => handleSaveRouteAndPolicies()}
+                      className="h-9 px-5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: GROUPS & ZONE CONFIGURATION */}
+        {staffSubTab === 'groups' && (
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
+            <div className="pb-3 border-b border-kumo-line">
+              <h2 className="text-sm font-bold text-kumo-strong">Zone & Operating Office Assignment</h2>
+              <p className="text-xs text-kumo-subtle mt-0.5">
+                Configure physical office presence, dynamic routing patterns, and logistics delivery zone.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Field 1: Zone (Using our design system custom Select component) */}
+              {/* Zone */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Zone</label>
+                <label className="text-xs font-semibold text-kumo-strong">Operating Zone</label>
                 <Select
                   value={editZone}
                   onValueChange={(val) => setEditZone(String(val))}
@@ -745,7 +1247,7 @@ export const ManageAccountsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Field 2: Office (Renamed from Operating Hub, using our Select component) */}
+              {/* Office */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-kumo-strong">Office</label>
                 <Select
@@ -762,9 +1264,9 @@ export const ManageAccountsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Field 3: Route Input with Green Validation Checkmark */}
+              {/* Route Input with Green Validation Checkmark */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-kumo-strong">Route</label>
+                <label className="text-xs font-semibold text-kumo-strong">Route Pattern</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -783,7 +1285,7 @@ export const ManageAccountsPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Field 4: Email Address Input with Green Validation Checkmark */}
+              {/* Email Address with Green Checkmark */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-kumo-strong">Email Address</label>
                 <div className="relative">
@@ -800,186 +1302,77 @@ export const ManageAccountsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Field 5: Role Permissions Dropdown Select List */}
-              <div className="md:col-span-2 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-kumo-strong">
-                    Role Permissions ({activePermsCount} Active)
-                  </label>
-                  <span className="text-[11px] text-kumo-subtle">
-                    Changing role resets baseline permission policies below
-                  </span>
-                </div>
-                <Select
-                  value={editRole}
-                  onValueChange={(val) => handleEditRoleChange(val as UserRole)}
-                  options={SYSTEM_ROLE_CONFIGS.map(r => ({
-                    value: r.id,
-                    label: `${r.label} — ${(ROLE_DEFAULT_PERMISSIONS[r.id] || []).length} baseline policies (${r.id.toUpperCase()})`
-                  }))}
-                  placeholder="Select designated role..."
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Create Policy / Role Permissions (Exact Match to Screenshot 1) */}
-          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-            {/* Policy Card Header */}
-            <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40">
-              <h2 className="text-sm font-bold text-kumo-strong">Create policy</h2>
             </div>
 
-            <div className="p-6 space-y-5">
-              {/* Top Selectors Row (Scope & Applies to) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="w-full">
-                  <Select
-                    value={editEmail}
-                    onValueChange={(val) => setEditEmail(String(val))}
-                    options={availableAccounts.map(a => ({
-                      value: a.email,
-                      label: `${a.email}'s Account`
-                    }))}
-                  />
-                </div>
-                <div className="w-full">
-                  <Select
-                    value={editOffice}
-                    onValueChange={(val) => setEditOffice(String(val))}
-                    options={[
-                      { value: 'Entire account', label: 'Entire account' },
-                      { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                      { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                      { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                      { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {/* Explanatory Context Text */}
-              <p className="text-xs text-kumo-default leading-relaxed">
-                Define what permissions <strong className="text-kumo-strong font-semibold">{editEmail}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{editEmail}'s Account</strong>.
-              </p>
-
-              {/* Search Bar matching screenshot */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={policySearchQuery}
-                  onChange={(e) => setPolicySearchQuery(e.target.value)}
-                  placeholder="Search by role name..."
-                  className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
-                />
-                {policySearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setPolicySearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Collapsible Accordion: Overall roles with count and master toggle */}
-              <div className="border border-kumo-line rounded-xl overflow-hidden bg-kumo-base divide-y divide-kumo-line">
-                {/* Header matching Screenshot 1 */}
-                <div className="flex items-center justify-between px-4 py-3 bg-kumo-canvas/60 select-none">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedCategories(prev => ({
-                      ...prev,
-                      'Overall roles': !prev['Overall roles']
-                    }))}
-                    className="flex items-center gap-2 text-left cursor-pointer group"
-                  >
-                    {expandedCategories['Overall roles'] ? (
-                      <ChevronDown className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong transition-colors" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong transition-colors" />
-                    )}
-                    <span className="font-semibold text-xs text-kumo-strong">Overall roles</span>
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-kumo-subtle">
-                      {activePermsCount}/{totalCount}
-                    </span>
-                    <ToggleSwitch
-                      checked={activePermsCount === totalCount}
-                      onChange={() => toggleAllInCategory(ALL_SYSTEM_PERMISSIONS.map(p => p.label), activePermsCount === totalCount)}
-                      ariaLabel="Toggle all overall roles"
-                    />
-                  </div>
-                </div>
-
-                {/* Policy Rows with Dashed Divider Lines (Exact Screenshot 1 Style) */}
-                {expandedCategories['Overall roles'] && (
-                  <div className="divide-y divide-dashed divide-kumo-line">
-                    {filteredPolicies.map((perm) => {
-                      const isChecked = editPermissions.includes(perm.label)
-                      return (
-                        <div
-                          key={perm.id}
-                          className="grid grid-cols-[1.4fr_2.4fr_auto] items-center gap-4 px-5 py-3.5 hover:bg-kumo-tint/30 transition-colors"
-                        >
-                          {/* Policy Name (Left) */}
-                          <div className="min-w-0 pr-2">
-                            <span className="font-semibold text-xs text-kumo-strong block leading-tight">
-                              {perm.label}
-                            </span>
-                            <span className="text-[10px] text-kumo-subtle font-mono mt-0.5 block">
-                              {perm.category}
-                            </span>
-                          </div>
-
-                          {/* Description (Center) */}
-                          <div className="min-w-0 pr-3">
-                            <p className="text-xs text-kumo-default leading-relaxed line-clamp-2">
-                              {perm.description}
-                            </p>
-                          </div>
-
-                          {/* Toggle Switch (Right) */}
-                          <div className="flex items-center justify-end pl-2">
-                            <ToggleSwitch
-                              checked={isChecked}
-                              onChange={() => togglePolicyPermission(perm.label)}
-                              ariaLabel={`Toggle ${perm.label}`}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom Actions Bar */}
-            <div className="p-4 border-t border-kumo-line bg-kumo-canvas/40 flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => navigate('/accounts')}
-                className="h-10 px-5 text-xs font-medium"
-              >
-                Cancel
-              </Button>
+            <div className="pt-3 border-t border-kumo-line flex justify-end">
               <Button
                 variant="primary"
-                type="submit"
-                className="h-10 px-6 text-xs font-semibold shadow-xs"
+                type="button"
+                onClick={() => handleSaveRouteAndPolicies()}
+                className="h-9 px-5 text-xs font-semibold shadow-xs"
               >
-                Save Changes
+                Save Group Changes
               </Button>
             </div>
           </div>
-        </form>
+        )}
+
+        {/* TAB 3: ACCOUNT SETTINGS */}
+        {staffSubTab === 'settings' && (
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
+            <div className="pb-3 border-b border-kumo-line">
+              <h2 className="text-sm font-bold text-kumo-strong">Account Security & Credentials</h2>
+              <p className="text-xs text-kumo-subtle mt-0.5">
+                Reset passwords, inspect audit logs, and toggle account access state.
+              </p>
+            </div>
+
+            <div className="space-y-4 max-w-xl">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
+                <div>
+                  <h3 className="text-xs font-bold text-kumo-strong">Change Staff Password</h3>
+                  <p className="text-[11px] text-kumo-subtle mt-0.5">
+                    Issue a temporary password or generate a random high-entropy token.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAccountToChangePassword(targetStaff)
+                    setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+                  }}
+                  leftIcon={<Key className="w-3.5 h-3.5" />}
+                  className="text-xs"
+                >
+                  Reset
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
+                <div>
+                  <h3 className="text-xs font-bold text-kumo-strong">Account Status</h3>
+                  <p className="text-[11px] text-kumo-subtle mt-0.5">
+                    Currently <strong>{targetStaff.status === 'suspended' ? 'Suspended' : 'Active'}</strong>.
+                  </p>
+                </div>
+                <Button
+                  variant={targetStaff.status === 'suspended' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    updateAccount(targetStaff.email, {
+                      status: targetStaff.status === 'suspended' ? 'active' : 'suspended'
+                    })
+                    showToast(`Updated account status to ${targetStaff.status === 'suspended' ? 'active' : 'suspended'}`, 'info')
+                  }}
+                  className="text-xs"
+                >
+                  {targetStaff.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -989,11 +1382,11 @@ export const ManageAccountsPage: React.FC = () => {
   // =========================================================================
   if (isMatrixPage) {
     const isScopeSelected = Boolean(matrixScope)
-    const totalCount = ALL_SYSTEM_PERMISSIONS.length
+    const totalCount = allPolicyItems.length
     const activeMatrixCount = matrixPermissions.length
 
     return (
-      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-12">
+      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
         {/* Navigation Breadcrumb & Header */}
         <div className="flex items-center justify-between gap-4 pt-1">
           <div className="flex items-center gap-3">
@@ -1029,7 +1422,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-9 px-4 text-xs font-semibold"
+              className="h-9 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
             >
               Create policy
             </Button>
@@ -1087,7 +1480,6 @@ export const ManageAccountsPage: React.FC = () => {
             ) : (
               /* When Scope IS Selected: EXACT MATCH TO SCREENSHOT 1 */
               <div className="space-y-5 animate-in fade-in duration-200">
-                {/* Context description */}
                 <p className="text-xs text-kumo-default leading-relaxed">
                   Define what permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)?.label || matrixScope}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{matrixAppliesTo}</strong>.
                 </p>
@@ -1113,78 +1505,90 @@ export const ManageAccountsPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Collapsible Accordion with Dashed Line Rows matching Screenshot 1 */}
+                {/* Accordion Categories matching Screenshot 1 */}
                 <div className="border border-kumo-line rounded-xl overflow-hidden bg-kumo-base divide-y divide-kumo-line">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-kumo-canvas/60 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setMatrixExpandedCats(prev => ({
-                        ...prev,
-                        'Overall roles': !prev['Overall roles']
-                      }))}
-                      className="flex items-center gap-2 text-left cursor-pointer group"
-                    >
-                      {matrixExpandedCats['Overall roles'] ? (
-                        <ChevronDown className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong transition-colors" />
-                      ) : (
-                        <ChevronUp className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong transition-colors" />
-                      )}
-                      <span className="font-semibold text-xs text-kumo-strong">Overall roles</span>
-                    </button>
+                  {policyCategoryGroups.map((group) => {
+                    const isExpanded = matrixExpandedCats[group.name] ?? false
+                    const categoryPermLabels = group.permissions.map(p => p.label)
+                    const activeInGroup = categoryPermLabels.filter(label => matrixPermissions.includes(label))
+                    const isAllGroupActive = activeInGroup.length === categoryPermLabels.length && categoryPermLabels.length > 0
 
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-kumo-subtle">
-                        {activeMatrixCount}/{totalCount}
-                      </span>
-                      <ToggleSwitch
-                        checked={activeMatrixCount === totalCount}
-                        onChange={() => toggleMatrixCategory(ALL_SYSTEM_PERMISSIONS.map(p => p.label), activeMatrixCount === totalCount)}
-                        ariaLabel="Toggle all matrix roles"
-                      />
-                    </div>
-                  </div>
+                    const filteredInGroup = group.permissions.filter(p => {
+                      const q = matrixSearchQuery.toLowerCase().trim()
+                      if (!q) return true
+                      return p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+                    })
 
-                  {/* Dashed Rows */}
-                  {matrixExpandedCats['Overall roles'] && (
-                    <div className="divide-y divide-dashed divide-kumo-line">
-                      {matrixFilteredPolicies.map((perm) => {
-                        const isChecked = matrixPermissions.includes(perm.label)
-                        return (
-                          <div
-                            key={perm.id}
-                            className="grid grid-cols-[1.4fr_2.4fr_auto] items-center gap-4 px-5 py-3.5 hover:bg-kumo-tint/30 transition-colors"
-                          >
-                            {/* Left: Policy Name */}
-                            <div className="min-w-0 pr-2">
-                              <span className="font-semibold text-xs text-kumo-strong block leading-tight">
-                                {perm.label}
-                              </span>
-                              <span className="text-[10px] text-kumo-subtle font-mono mt-0.5 block">
-                                {perm.category}
-                              </span>
-                            </div>
+                    if (matrixSearchQuery && filteredInGroup.length === 0) {
+                      return null
+                    }
 
-                            {/* Middle: Description */}
-                            <div className="min-w-0 pr-3">
-                              <p className="text-xs text-kumo-default leading-relaxed line-clamp-2">
-                                {perm.description}
-                              </p>
-                            </div>
-
-                            {/* Right: Toggle Switch */}
-                            <div className="flex items-center justify-end pl-2">
-                              <ToggleSwitch
-                                checked={isChecked}
-                                onChange={() => toggleMatrixPolicy(perm.label)}
-                                ariaLabel={`Toggle ${perm.label}`}
-                              />
-                            </div>
+                    return (
+                      <div key={group.id} className="divide-y divide-kumo-line/60">
+                        <div
+                          onClick={() => setMatrixExpandedCats(prev => ({
+                            ...prev,
+                            [group.name]: !isExpanded
+                          }))}
+                          className="flex items-center justify-between px-5 py-3.5 bg-kumo-canvas/40 hover:bg-kumo-canvas/80 transition-colors cursor-pointer select-none"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-kumo-subtle" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-kumo-subtle" />
+                            )}
+                            <span className="font-semibold text-xs text-kumo-strong">{group.name}</span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
+
+                          <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-xs font-mono text-kumo-subtle">
+                              {activeInGroup.length}/{group.permissions.length}
+                            </span>
+                            <ToggleSwitch
+                              checked={isAllGroupActive}
+                              onChange={() => toggleMatrixCategory(categoryPermLabels, isAllGroupActive)}
+                              ariaLabel={`Toggle all ${group.name}`}
+                            />
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                            {filteredInGroup.map((perm) => {
+                              const isChecked = matrixPermissions.includes(perm.label)
+                              return (
+                                <div
+                                  key={perm.id}
+                                  className="grid grid-cols-[1.5fr_2.5fr_auto] items-center gap-4 px-6 py-4 hover:bg-kumo-tint/20 transition-colors"
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <span className="font-semibold text-xs text-kumo-strong block leading-tight">
+                                      {perm.label}
+                                    </span>
+                                  </div>
+
+                                  <div className="min-w-0 pr-3">
+                                    <p className="text-xs text-kumo-default leading-relaxed">
+                                      {perm.description}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center justify-end pl-2">
+                                    <ToggleSwitch
+                                      checked={isChecked}
+                                      onChange={() => toggleMatrixPolicy(perm.label)}
+                                      ariaLabel={`Toggle ${perm.label}`}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -1205,7 +1609,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-10 px-6 text-xs font-semibold shadow-xs"
+              className="h-10 px-6 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
             >
               Create policy
             </Button>
@@ -1220,9 +1624,7 @@ export const ManageAccountsPage: React.FC = () => {
   // =========================================================================
   return (
     <div className="space-y-6 font-sans">
-      {/* ------------------------------------------------------------- */}
-      {/* 1. PAGE HEADER                                                */}
-      {/* ------------------------------------------------------------- */}
+      {/* 1. PAGE HEADER */}
       <PageHeader
         title="Manage Accounts"
         subtitle="Display team members, configure system permissions, and manage access credentials across all offices."
@@ -1266,9 +1668,7 @@ export const ManageAccountsPage: React.FC = () => {
         }
       />
 
-      {/* ------------------------------------------------------------- */}
-      {/* 2. KUMO TABS                                                  */}
-      {/* ------------------------------------------------------------- */}
+      {/* 2. KUMO TABS */}
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
@@ -1288,9 +1688,7 @@ export const ManageAccountsPage: React.FC = () => {
         />
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 3. MAIN DATA TABLE                                            */}
-      {/* ------------------------------------------------------------- */}
+      {/* 3. MAIN DATA TABLE */}
       <div>
         <DataTable<AppUserAccount>
           data={tableData}
@@ -1345,9 +1743,7 @@ export const ManageAccountsPage: React.FC = () => {
         />
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 4. SUB-MODALS                                                 */}
-      {/* ------------------------------------------------------------- */}
+      {/* 4. SUB-MODALS */}
 
       {/* ONBOARD NEW OPERATOR MODAL */}
       <Dialog
