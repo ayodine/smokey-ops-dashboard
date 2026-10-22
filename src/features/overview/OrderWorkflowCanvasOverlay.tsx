@@ -123,6 +123,32 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
       'p3_delivered',
       'p3_settled_closed'
     ]
+  },
+  {
+    id: 'SHD-09857',
+    customerName: 'Tunde Bakare',
+    dishName: 'Smoked Turkey and Jollof Rice Special',
+    totalAmount: 21500,
+    portions: 2,
+    channel: 'Website Storefront',
+    hasStock: true,
+    currentStage: 'p3_doorstep_handover',
+    paymentRef: 'pay_smk_99185',
+    riderName: 'Rider Yusuf Internal Fleet',
+    destinationAddress: '14 Karimu Kotun St, Victoria Island',
+    etaMinutes: 4,
+    otpCode: '6143',
+    deliveryFee: 3500,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned',
+      'p3_in_transit',
+      'p3_doorstep_handover'
+    ]
   }
 ]
 
@@ -140,90 +166,9 @@ interface CanvasCoordinates {
   bindingsLeft: AnchorPoint
 }
 
-interface StatusPillProps {
-  label: string
-  variant?: 'emerald' | 'blue' | 'amber' | 'purple' | 'zinc'
-  dot?: boolean
-  className?: string
-}
+import { StatusPill, type FigmaBadgeState, type StatusPillProps } from '@/components/ui/StatusPill'
+export { StatusPill, type FigmaBadgeState, type StatusPillProps }
 
-export const StatusPill: React.FC<StatusPillProps> = ({
-  label,
-  variant,
-  className
-}) => {
-  const norm = (label || '').toLowerCase().trim()
-
-  // Match one of the four reference states: draft | in-progress | in-review | completed
-  let state: 'draft' | 'in-progress' | 'in-review' | 'completed' = 'draft'
-  let displayLabel = label
-
-  if (norm === 'done' || norm === 'completed' || norm === 'delivered' || variant === 'emerald') {
-    state = 'completed'
-    displayLabel = norm === 'done' ? 'Completed' : label
-  } else if (norm === 'in progress' || norm === 'in-progress' || norm === 'active' || variant === 'amber') {
-    state = 'in-progress'
-    displayLabel = 'In-progress'
-  } else if (norm === 'in-review' || norm === 'in review' || variant === 'blue') {
-    state = 'in-review'
-    displayLabel = norm === 'in progress' ? 'In-progress' : (norm === 'in review' ? 'In-review' : label)
-  } else {
-    state = 'draft'
-    displayLabel = norm === 'pending' ? 'Draft' : label
-  }
-
-  const renderIcon = () => {
-    switch (state) {
-      case 'draft':
-        return (
-          <svg className="w-3.5 h-3.5 text-[#4b5563] shrink-0" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 2.5" />
-          </svg>
-        )
-      case 'in-progress':
-        return (
-          <svg className="w-3.5 h-3.5 text-[#ea580c] shrink-0" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 1.75 A6.25 6.25 0 0 1 8 14.25 Z" fill="currentColor" />
-          </svg>
-        )
-      case 'in-review':
-        return (
-          <svg className="w-3.5 h-3.5 text-[#2563eb] shrink-0" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 8 L8 1.75 A6.25 6.25 0 1 1 1.75 8 Z" fill="currentColor" />
-          </svg>
-        )
-      case 'completed':
-        return (
-          <svg className="w-3.5 h-3.5 text-[#16a34a] shrink-0" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="7" fill="currentColor" />
-            <path d="M5 8.2 L7 10.2 L11 5.8" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )
-    }
-  }
-
-  const styles = {
-    draft: 'bg-[#f1f3f7] text-[#374151]',
-    'in-progress': 'bg-[#ffedd5] text-[#c2410c]',
-    'in-review': 'bg-[#eff6ff] text-[#1d4ed8]',
-    completed: 'bg-[#dcfce7] text-[#15803d]'
-  }
-
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none select-none shrink-0 transition-colors',
-        styles[state],
-        className
-      )}
-    >
-      {renderIcon()}
-      <span>{displayLabel}</span>
-    </span>
-  )
-}
 
 export const CountBadge: React.FC<{ count: string | number; className?: string }> = ({ count, className }) => (
   <span
@@ -457,9 +402,13 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_in_transit')
       ? 'In Progress'
       : 'Pending'
-    const delVerification: 'Done' | 'In Progress' | 'Pending' =
-      activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
+    const delVerification: 'Done' | 'In Progress' | 'In Review' | 'Pending' =
+      activeOrder?.history.includes('p3_delivered')
         ? 'Done'
+        : activeOrder?.currentStage === 'p3_doorstep_handover'
+        ? 'In Review'
+        : activeOrder?.history.includes('p3_in_transit')
+        ? 'In Progress'
         : 'Pending'
     const delPayout: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_settled_closed')
       ? 'Done'
@@ -531,11 +480,13 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     }
   }, [activeOrder])
 
-  const getStatusVariant = (status: 'Done' | 'In Progress' | 'Pending'): 'emerald' | 'blue' | 'zinc' => {
+  const getStatusVariant = (status: 'Done' | 'In Progress' | 'In Review' | 'Pending'): 'emerald' | 'amber' | 'blue' | 'zinc' => {
     switch (status) {
       case 'Done':
         return 'emerald'
       case 'In Progress':
+        return 'amber'
+      case 'In Review':
         return 'blue'
       case 'Pending':
         return 'zinc'
@@ -853,8 +804,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* ACTIVE ORDER SEARCH (DESIGN SYSTEM STANDARD) */}
-        <div className="flex items-center pb-5 mb-6 border-b border-[#e4e4e7]">
+        {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7]">
           {/* Left: Design System Search Field to Search Orders by ID */}
           <div className="flex items-center gap-3 flex-1 min-w-[260px] max-w-md">
             <div className="relative flex-1">
@@ -876,6 +827,17 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 Clear
               </button>
             )}
+          </div>
+
+          {/* Right: Status States Legend extracted from Figma */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#71717a] mr-1 hidden sm:inline">
+              Badge states:
+            </span>
+            <StatusPill state="draft" label="Draft" />
+            <StatusPill state="in-progress" label="in-progress" />
+            <StatusPill state="in-review" label="In-review" />
+            <StatusPill state="completed" label="Completed" />
           </div>
         </div>
 
