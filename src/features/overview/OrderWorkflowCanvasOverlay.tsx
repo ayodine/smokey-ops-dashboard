@@ -229,11 +229,16 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
   // Accordion expansion state matching Screenshot 1 (collapsed) vs Screenshot 2 & 5 (expanded)
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
-    node1A: false,
-    node1B: false,
+    node1A: true,
+    node1B: true,
     node1C: true,
     pillar2: true,
-    pillar3: true
+    pillar3: true,
+    tree1: true,
+    tree2: true,
+    tree3: true,
+    tree4: true,
+    tree5: true
   })
 
   // DOM Refs for dynamic anchor alignment
@@ -255,6 +260,217 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const activeOrder = useMemo(() => {
     return orders.find((o) => o.id === selectedOrderId) || orders[0]
   }, [orders, selectedOrderId])
+
+  // Sub-group status and count metrics for all main categories
+  const pipelineMetrics = useMemo(() => {
+    // Card 1: Order Intake (3 tasks)
+    const intakeValidation: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p1_ingestion')
+      ? 'Done'
+      : 'Pending'
+    const intakePayment: 'Done' | 'In Progress' | 'Pending' = activeOrder?.paymentRef ? 'Done' : 'Pending'
+    const intakeChannel: 'Done' | 'In Progress' | 'Pending' = activeOrder?.channel ? 'Done' : 'Pending'
+    const intakeDoneCount = [intakeValidation, intakePayment, intakeChannel].filter((s) => s === 'Done').length
+
+    // Card 2: Inventory Allocation (3 tasks)
+    const invStock: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p1_inventory_deduct') ||
+      activeOrder?.history.includes('p2_in_packaging') ||
+      activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p1_ingestion'
+        ? 'In Progress'
+        : 'Pending'
+    const invAllocation: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p2_in_packaging') ||
+      activeOrder?.history.includes('p1_production_batch') ||
+      activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p1_inventory_deduct'
+        ? 'In Progress'
+        : 'Pending'
+    const invIngredients: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
+      ? activeOrder?.history.includes('p1_inventory_deduct') ||
+        activeOrder?.history.includes('p2_in_packaging') ||
+        activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : 'Pending'
+      : activeOrder?.history.includes('p1_production_batch') ||
+        activeOrder?.history.includes('p2_in_packaging') ||
+        activeOrder?.history.includes('p3_delivery_assigned')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p1_inventory_deduct'
+      ? 'In Progress'
+      : 'Pending'
+    const invDoneCount = [invStock, invAllocation, invIngredients].filter((s) => s === 'Done').length
+
+    // Card 3: Kitchen Cooking (3 tasks)
+    const cookCooking: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
+      ? 'Done'
+      : activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p1_production_batch'
+      ? 'In Progress'
+      : 'Pending'
+    const cookOutput: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
+      ? 'Done'
+      : activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p1_production_batch'
+      ? 'In Progress'
+      : 'Pending'
+    const cookBatch: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
+      ? 'Done'
+      : activeOrder?.history.includes('p1_production_batch') ||
+        activeOrder?.history.includes('p2_in_packaging') ||
+        activeOrder?.history.includes('p3_delivery_assigned')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p1_inventory_deduct'
+      ? 'In Progress'
+      : 'Pending'
+    const cookDoneCount = [cookCooking, cookOutput, cookBatch].filter((s) => s === 'Done').length
+
+    // Card 4: Packaging and Assembly (4 tasks)
+    const pkgQueue: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p1_production_batch'
+        ? 'In Progress'
+        : 'Pending'
+    const pkgMaterials: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p2_materials_picked') ||
+      activeOrder?.history.includes('p2_dispatched') ||
+      activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p2_in_packaging'
+        ? 'In Progress'
+        : 'Pending'
+    const pkgDeduction: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p2_materials_picked') ||
+      activeOrder?.history.includes('p2_dispatched') ||
+      activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p2_in_packaging'
+        ? 'In Progress'
+        : 'Pending'
+    const pkgSealing: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p2_dispatched') || activeOrder?.history.includes('p3_delivery_assigned')
+        ? 'Done'
+        : activeOrder?.currentStage === 'p2_materials_picked'
+        ? 'In Progress'
+        : 'Pending'
+    const pkgDoneCount = [pkgQueue, pkgMaterials, pkgDeduction, pkgSealing].filter((s) => s === 'Done').length
+
+    // Card 5: Delivery and Handover (7 tasks)
+    const delDriver: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivery_assigned')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p2_dispatched'
+      ? 'In Progress'
+      : 'Pending'
+    const delPickup: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_in_transit')
+      ? 'Done'
+      : activeOrder?.currentStage === 'p3_delivery_assigned'
+      ? 'In Progress'
+      : 'Pending'
+    const delTransit: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
+      ? 'Done'
+      : activeOrder?.history.includes('p3_in_transit')
+      ? 'In Progress'
+      : 'Pending'
+    const delArrival: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
+      ? 'Done'
+      : activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_in_transit')
+      ? 'In Progress'
+      : 'Pending'
+    const delVerification: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
+        ? 'Done'
+        : 'Pending'
+    const delPayout: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_settled_closed')
+      ? 'Done'
+      : activeOrder?.history.includes('p3_delivered')
+      ? 'In Progress'
+      : 'Pending'
+    const delCompletion: 'Done' | 'In Progress' | 'Pending' =
+      activeOrder?.currentStage === 'p3_settled_closed'
+        ? 'Done'
+        : activeOrder?.history.includes('p3_delivered')
+        ? 'In Progress'
+        : 'Pending'
+    const delDoneCount = [
+      delDriver,
+      delPickup,
+      delTransit,
+      delArrival,
+      delVerification,
+      delPayout,
+      delCompletion
+    ].filter((s) => s === 'Done').length
+
+    return {
+      intake: {
+        validation: intakeValidation,
+        payment: intakePayment,
+        channel: intakeChannel,
+        doneCount: intakeDoneCount,
+        totalCount: 3,
+        badgeLabel: `${intakeDoneCount}/3`
+      },
+      inventory: {
+        stock: invStock,
+        allocation: invAllocation,
+        ingredients: invIngredients,
+        doneCount: invDoneCount,
+        totalCount: 3,
+        badgeLabel: `${invDoneCount}/3`
+      },
+      cooking: {
+        cooking: cookCooking,
+        output: cookOutput,
+        batch: cookBatch,
+        doneCount: cookDoneCount,
+        totalCount: 3,
+        badgeLabel: `${cookDoneCount}/3`
+      },
+      packaging: {
+        queue: pkgQueue,
+        materials: pkgMaterials,
+        deduction: pkgDeduction,
+        sealing: pkgSealing,
+        doneCount: pkgDoneCount,
+        totalCount: 4,
+        badgeLabel: `${pkgDoneCount}/4`
+      },
+      delivery: {
+        driver: delDriver,
+        pickup: delPickup,
+        transit: delTransit,
+        arrival: delArrival,
+        verification: delVerification,
+        payout: delPayout,
+        completion: delCompletion,
+        doneCount: delDoneCount,
+        totalCount: 7,
+        badgeLabel: `${delDoneCount}/7`
+      }
+    }
+  }, [activeOrder])
+
+  const getStatusVariant = (status: 'Done' | 'In Progress' | 'Pending'): 'emerald' | 'blue' | 'zinc' => {
+    switch (status) {
+      case 'Done':
+        return 'emerald'
+      case 'In Progress':
+        return 'blue'
+      case 'Pending':
+        return 'zinc'
+    }
+  }
+
+  const getCountVariant = (done: number, total: number): 'emerald' | 'blue' | 'zinc' => {
+    if (done === total) return 'emerald'
+    if (done > 0) return 'blue'
+    return 'zinc'
+  }
 
   // Sequential Stage Progression Logic matching the 3-pillar flow tree:
   const getNextStage = (current: PipelineStage, hasStock: boolean): PipelineStage => {
@@ -738,17 +954,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 {/* THREE COLUMNS (MATCHING CLOUDFLARE 3-NODE ARCHITECTURE) */}
                 <div className="flex flex-row items-start justify-between gap-8 sm:gap-10 relative z-10 overflow-x-auto pb-4">
                   {/* =====================================================================
-                      COLUMN 1: PILLAR 1: ORDER INTAKE AND KITCHEN
+                      COLUMN 1: ORDER INTAKE, INVENTORY & KITCHEN
                      ===================================================================== */}
                   <div className="w-[260px] sm:w-[290px] shrink-0 space-y-3.5">
-                    <div className="flex items-center justify-between px-1 mb-2">
-                      <span className="text-xs font-semibold text-[#52525b]">
-                        Pillar 1: Order Intake and Kitchen
-                      </span>
-                      <StatusPill label="Intake and Cooking" variant="blue" />
-                    </div>
-
-                    {/* Node 1A: Ingestion State */}
+                    {/* Node 1A: Order Intake */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                         <div
@@ -759,8 +968,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                           <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
                           <div className="flex items-center gap-2">
                             <StatusPill
-                              label={activeOrder?.paymentRef ? 'Payment Confirmed' : 'Payment Pending'}
-                              variant={activeOrder?.paymentRef ? 'emerald' : 'amber'}
+                              label={pipelineMetrics.intake.badgeLabel}
+                              variant={getCountVariant(pipelineMetrics.intake.doneCount, pipelineMetrics.intake.totalCount)}
                             />
                             <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
                               {expandedNodes.node1A ? (
@@ -775,29 +984,32 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         {expandedNodes.node1A && (
                           <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Order Ingestion and Validation</span>
+                              <span className="text-[#52525b]">Validation</span>
                               <StatusPill
-                                label={activeOrder?.history.includes('p1_ingestion') ? 'Ready for Fulfillment' : 'Pending Ingestion'}
-                                variant="emerald"
+                                label={pipelineMetrics.intake.validation}
+                                variant={getStatusVariant(pipelineMetrics.intake.validation)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Customer Payment Verification</span>
+                              <span className="text-[#52525b]">Payment</span>
                               <StatusPill
-                                label={activeOrder?.paymentRef ? 'Payment Confirmed' : 'Payment Pending'}
-                                variant="emerald"
+                                label={pipelineMetrics.intake.payment}
+                                variant={getStatusVariant(pipelineMetrics.intake.payment)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Ordering Channel Intake</span>
-                              <StatusPill label={activeOrder?.channel || 'Website Storefront'} variant="blue" />
+                              <span className="text-[#52525b]">Channel</span>
+                              <StatusPill
+                                label={pipelineMetrics.intake.channel}
+                                variant={getStatusVariant(pipelineMetrics.intake.channel)}
+                              />
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Node 1B: Products Sales / BOM Deduction */}
+                    {/* Node 1B: Inventory Allocation */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                         <div
@@ -808,8 +1020,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                           <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
                           <div className="flex items-center gap-2">
                             <StatusPill
-                              label={activeOrder?.hasStock ? 'Finished Stock Ready' : 'Batch Cooking Required'}
-                              variant={activeOrder?.hasStock ? 'emerald' : 'amber'}
+                              label={pipelineMetrics.inventory.badgeLabel}
+                              variant={getCountVariant(pipelineMetrics.inventory.doneCount, pipelineMetrics.inventory.totalCount)}
                             />
                             <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
                               {expandedNodes.node1B ? (
@@ -824,48 +1036,24 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         {expandedNodes.node1B && (
                           <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Finished Meal Stock Check</span>
+                              <span className="text-[#52525b]">Stock</span>
                               <StatusPill
-                                label={activeOrder?.hasStock ? 'Stock Available' : 'Cooking Required'}
-                                variant={activeOrder?.hasStock ? 'emerald' : 'amber'}
+                                label={pipelineMetrics.inventory.stock}
+                                variant={getStatusVariant(pipelineMetrics.inventory.stock)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Inventory Stock Allocation</span>
+                              <span className="text-[#52525b]">Allocation</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p1_inventory_deduct')
-                                    ? activeOrder?.hasStock
-                                      ? 'Reserved from Finished Stock'
-                                      : 'Ingredients Allocated'
-                                    : 'Pending Stock Check'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p1_inventory_deduct')
-                                    ? activeOrder?.hasStock
-                                      ? 'emerald'
-                                      : 'blue'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.inventory.allocation}
+                                variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Recipe Ingredients Deduction</span>
+                              <span className="text-[#52525b]">Ingredients</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.hasStock
-                                    ? 'Direct Stock Item'
-                                    : activeOrder?.history.includes('p1_inventory_deduct')
-                                    ? 'Recipe Ingredients Deducted'
-                                    : 'Pending Deduction'
-                                }
-                                variant={
-                                  activeOrder?.hasStock
-                                    ? 'zinc'
-                                    : activeOrder?.history.includes('p1_inventory_deduct')
-                                    ? 'blue'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.inventory.ingredients}
+                                variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
                               />
                             </div>
                           </div>
@@ -873,7 +1061,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Node 1C: Production Batches */}
+                    {/* Node 1C: Kitchen Cooking */}
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                         <div
@@ -884,22 +1072,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                           <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
                           <div className="flex items-center gap-2">
                             <StatusPill
-                              label={
-                                activeOrder?.hasStock
-                                  ? 'Stock Fulfilled'
-                                  : activeOrder?.history.includes('p1_production_batch')
-                                  ? 'Cooking Completed'
-                                  : activeOrder?.currentStage === 'p1_production_batch'
-                                  ? 'Cooking in Progress'
-                                  : 'Awaiting Kitchen'
-                              }
-                              variant={
-                                activeOrder?.hasStock || activeOrder?.history.includes('p1_production_batch')
-                                  ? 'emerald'
-                                  : activeOrder?.currentStage === 'p1_production_batch'
-                                  ? 'amber'
-                                  : 'zinc'
-                              }
+                              label={pipelineMetrics.cooking.badgeLabel}
+                              variant={getCountVariant(pipelineMetrics.cooking.doneCount, pipelineMetrics.cooking.totalCount)}
                             />
                             <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
                               {expandedNodes.node1C ? (
@@ -914,48 +1088,24 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         {expandedNodes.node1C && (
                           <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Kitchen Cooking Batch</span>
+                              <span className="text-[#52525b]">Cooking</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.hasStock
-                                    ? 'Direct Stock Fulfillment'
-                                    : activeOrder?.history.includes('p1_production_batch')
-                                    ? 'Cooking Completed'
-                                    : activeOrder?.currentStage === 'p1_production_batch'
-                                    ? 'Cooking in Progress'
-                                    : 'Awaiting Kitchen'
-                                }
-                                variant={
-                                  activeOrder?.hasStock || activeOrder?.history.includes('p1_production_batch')
-                                    ? 'emerald'
-                                    : activeOrder?.currentStage === 'p1_production_batch'
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.cooking.cooking}
+                                variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Kitchen Batch Record</span>
+                              <span className="text-[#52525b]">Output</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.hasStock
-                                    ? 'Existing Finished Inventory'
-                                    : activeOrder?.history.includes('p1_production_batch')
-                                    ? 'Full Batch Output Recorded'
-                                    : 'Awaiting Cooking Batch'
-                                }
-                                variant={
-                                  activeOrder?.hasStock || activeOrder?.history.includes('p1_production_batch')
-                                    ? 'emerald'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.cooking.output}
+                                variant={getStatusVariant(pipelineMetrics.cooking.output)}
                               />
                             </div>
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Cooking Batch Allocation</span>
+                              <span className="text-[#52525b]">Batch</span>
                               <StatusPill
-                                label={activeOrder?.hasStock ? 'Standard Stock Batch' : 'Batch 402'}
-                                variant="zinc"
+                                label={pipelineMetrics.cooking.batch}
+                                variant={getStatusVariant(pipelineMetrics.cooking.batch)}
                               />
                             </div>
                           </div>
@@ -965,19 +1115,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   </div>
 
                   {/* =====================================================================
-                      COLUMN 2: PILLAR 2: PACKAGING AND FOOD ASSEMBLY (CENTER ENGINE)
+                      COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
-                    <div className="flex items-center justify-between px-1 mb-2">
-                      <span className="text-xs font-semibold text-[#52525b]">
-                        Pillar 2: Packaging and Assembly
-                      </span>
-                      <StatusPill label="Packaging and Assembly" variant="amber" />
-                    </div>
-
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs">
                       <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        {/* Unified Header */}
+                        {/* Header */}
                         <div
                           ref={centerHeaderRef}
                           onClick={() => toggleNodeExpansion('pillar2')}
@@ -989,20 +1132,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                           <div className="flex items-center gap-2">
                             <StatusPill
-                              label={
-                                activeOrder?.history.includes('p2_dispatched')
-                                  ? 'Packaged and Sealed'
-                                  : activeOrder?.history.includes('p2_in_packaging')
-                                  ? 'In Packaging'
-                                  : 'Awaiting Packaging'
-                              }
-                              variant={
-                                activeOrder?.history.includes('p2_dispatched')
-                                  ? 'emerald'
-                                  : activeOrder?.history.includes('p2_in_packaging')
-                                  ? 'amber'
-                                  : 'zinc'
-                              }
+                              label={pipelineMetrics.packaging.badgeLabel}
+                              variant={getCountVariant(pipelineMetrics.packaging.doneCount, pipelineMetrics.packaging.totalCount)}
                             />
                             <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
                               {expandedNodes.pillar2 ? (
@@ -1018,74 +1149,34 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         {expandedNodes.pillar2 && (
                           <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Packaging Station Queue</span>
+                              <span className="text-[#52525b]">Queue</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p2_dispatched')
-                                    ? 'Packaging Completed'
-                                    : activeOrder?.history.includes('p2_in_packaging')
-                                    ? 'Active at Packaging Bench'
-                                    : 'Awaiting Packaging'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p2_dispatched')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p2_in_packaging')
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.packaging.queue}
+                                variant={getStatusVariant(pipelineMetrics.packaging.queue)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Takeaway Packaging Items</span>
+                              <span className="text-[#52525b]">Materials</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p2_materials_picked')
-                                    ? 'Bowls and Bags Picked'
-                                    : activeOrder?.history.includes('p2_in_packaging')
-                                    ? 'Picking Packaging Items'
-                                    : 'Awaiting Material Pick'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p2_materials_picked')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p2_in_packaging')
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.packaging.materials}
+                                variant={getStatusVariant(pipelineMetrics.packaging.materials)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Packaging Stock Deduction</span>
+                              <span className="text-[#52525b]">Deduction</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p2_materials_picked')
-                                    ? 'Containers Deducted from Stock'
-                                    : 'Stock on Hand'
-                                }
-                                variant={activeOrder?.history.includes('p2_materials_picked') ? 'emerald' : 'zinc'}
+                                label={pipelineMetrics.packaging.deduction}
+                                variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Bag Sealing and Dispatch</span>
+                              <span className="text-[#52525b]">Sealing</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p2_dispatched')
-                                    ? 'Packaged and Sealed'
-                                    : activeOrder?.history.includes('p2_materials_picked')
-                                    ? 'Ready for Sealing'
-                                    : 'Pending Bag Seal'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p2_dispatched')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p2_materials_picked')
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.packaging.sealing}
+                                variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
                               />
                             </div>
                           </div>
@@ -1095,19 +1186,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   </div>
 
                   {/* =====================================================================
-                      COLUMN 3: PILLAR 3: DELIVERY AND CUSTOMER HANDOVER
+                      COLUMN 3: DELIVERY AND CUSTOMER HANDOVER
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
-                    <div className="flex items-center justify-between px-1 mb-2">
-                      <span className="text-xs font-semibold text-[#52525b]">
-                        Pillar 3: Delivery and Customer Handover
-                      </span>
-                      <StatusPill label="Delivery and Handover" variant="emerald" />
-                    </div>
-
                     <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
-                        {/* Unified Header */}
+                        {/* Header */}
                         <div
                           ref={bindingsHeaderRef}
                           onClick={() => toggleNodeExpansion('pillar3')}
@@ -1116,24 +1200,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                           <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
                           <div className="flex items-center gap-2">
                             <StatusPill
-                              label={
-                                activeOrder?.currentStage === 'p3_settled_closed'
-                                  ? 'Delivered and Settled'
-                                  : activeOrder?.history.includes('p3_delivered')
-                                  ? 'Delivered to Customer'
-                                  : activeOrder?.history.includes('p3_in_transit')
-                                  ? 'Out for Delivery'
-                                  : activeOrder?.history.includes('p3_delivery_assigned')
-                                  ? 'Driver Assigned'
-                                  : 'Awaiting Dispatch'
-                              }
-                              variant={
-                                activeOrder?.currentStage === 'p3_settled_closed' || activeOrder?.history.includes('p3_delivered')
-                                  ? 'emerald'
-                                  : activeOrder?.history.includes('p3_in_transit') || activeOrder?.history.includes('p3_delivery_assigned')
-                                  ? 'blue'
-                                  : 'zinc'
-                              }
+                              label={pipelineMetrics.delivery.badgeLabel}
+                              variant={getCountVariant(pipelineMetrics.delivery.doneCount, pipelineMetrics.delivery.totalCount)}
                             />
                             <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#f4f4f5] transition-colors">
                               {expandedNodes.pillar3 ? (
@@ -1148,122 +1216,58 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         {expandedNodes.pillar3 && (
                           <div className="border-t border-[#e4e4e7] bg-white divide-y divide-[#e4e4e7] text-xs">
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Driver Fleet Assignment</span>
+                              <span className="text-[#52525b]">Driver</span>
                               <StatusPill
-                                label={activeOrder?.history.includes('p3_delivery_assigned') ? 'Driver Assigned' : 'Awaiting Driver'}
-                                variant={activeOrder?.history.includes('p3_delivery_assigned') ? 'blue' : 'zinc'}
+                                label={pipelineMetrics.delivery.driver}
+                                variant={getStatusVariant(pipelineMetrics.delivery.driver)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Kitchen Parcel Handover</span>
+                              <span className="text-[#52525b]">Pickup</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p3_in_transit')
-                                    ? 'Collected from Kitchen'
-                                    : activeOrder?.history.includes('p3_delivery_assigned')
-                                    ? 'Ready for Driver Pickup'
-                                    : 'At Packaging Bench'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p3_in_transit')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p3_delivery_assigned')
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.delivery.pickup}
+                                variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Road Transit and Navigation</span>
+                              <span className="text-[#52525b]">Transit</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p3_delivered')
-                                    ? 'Transit Completed'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'Out for Delivery'
-                                    : 'Pending Departure'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p3_delivered')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'blue'
-                                    : 'zinc'
-                                }
-                              />
-                            </div>
-
-                            <div className="px-4 py-2.5 flex items-center justify-between bg-emerald-50/20">
-                              <span className="text-[#18181b] font-medium">Customer Doorstep Handover</span>
-                              <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p3_delivered')
-                                    ? 'Delivered to Customer'
-                                    : activeOrder?.history.includes('p3_doorstep_handover')
-                                    ? 'At Customer Location'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'En Route to Address'
-                                    : 'Awaiting Handover'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p3_delivered')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p3_doorstep_handover')
-                                    ? 'amber'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'blue'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.delivery.transit}
+                                variant={getStatusVariant(pipelineMetrics.delivery.transit)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Customer Delivery Verification</span>
+                              <span className="text-[#52525b]">Arrival</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
-                                    ? 'Customer Code Verified'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'Customer Code Pending'
-                                    : 'Pending Verification'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p3_in_transit')
-                                    ? 'blue'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.delivery.arrival}
+                                variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
                               />
                             </div>
 
                             <div className="px-4 py-2.5 flex items-center justify-between">
-                              <span className="text-[#52525b]">Driver Delivery Fee</span>
+                              <span className="text-[#52525b]">Verification</span>
                               <StatusPill
-                                label={
-                                  activeOrder?.history.includes('p3_settled_closed')
-                                    ? 'Earnings Credited'
-                                    : activeOrder?.history.includes('p3_delivered')
-                                    ? 'Ready for Settlement'
-                                    : 'Pending Completion'
-                                }
-                                variant={
-                                  activeOrder?.history.includes('p3_settled_closed')
-                                    ? 'emerald'
-                                    : activeOrder?.history.includes('p3_delivered')
-                                    ? 'amber'
-                                    : 'zinc'
-                                }
+                                label={pipelineMetrics.delivery.verification}
+                                variant={getStatusVariant(pipelineMetrics.delivery.verification)}
                               />
                             </div>
 
-                            <div className="px-4 py-2.5 flex items-center justify-between bg-[#fafafa]">
-                              <span className="text-[#52525b]">Final Order Completion</span>
+                            <div className="px-4 py-2.5 flex items-center justify-between">
+                              <span className="text-[#52525b]">Payout</span>
                               <StatusPill
-                                label={activeOrder?.currentStage === 'p3_settled_closed' ? 'Closed and Completed' : 'Active in Pipeline'}
-                                variant={activeOrder?.currentStage === 'p3_settled_closed' ? 'emerald' : 'blue'}
+                                label={pipelineMetrics.delivery.payout}
+                                variant={getStatusVariant(pipelineMetrics.delivery.payout)}
+                              />
+                            </div>
+
+                            <div className="px-4 py-2.5 flex items-center justify-between">
+                              <span className="text-[#52525b]">Completion</span>
+                              <StatusPill
+                                label={pipelineMetrics.delivery.completion}
+                                variant={getStatusVariant(pipelineMetrics.delivery.completion)}
                               />
                             </div>
                           </div>
@@ -1278,23 +1282,26 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   MODE B: FLOW TREE VIEW (MATCHING USER DIAGRAM SPECIFICATION)
                  ===================================================================== */
               <div className="max-w-4xl mx-auto space-y-6 py-2">
-                {/* PILLAR 1 CARD */}
+                {/* 1. ORDER INTAKE */}
                 <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     <div
-                      onClick={() => toggleNodeExpansion('treePillar1')}
+                      onClick={() => toggleNodeExpansion('tree1')}
                       className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-blue-600" />
                         <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Pillar 1: Order Intake and Kitchen Cooking
+                          Order Intake
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusPill label="Intake and Cooking" variant="blue" />
+                        <StatusPill
+                          label={pipelineMetrics.intake.badgeLabel}
+                          variant={getCountVariant(pipelineMetrics.intake.doneCount, pipelineMetrics.intake.totalCount)}
+                        />
                         <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.treePillar1 !== false ? (
+                          {expandedNodes.tree1 !== false ? (
                             <ChevronUp className="w-4 h-4 stroke-[2]" />
                           ) : (
                             <ChevronDown className="w-4 h-4 stroke-[2]" />
@@ -1303,86 +1310,27 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       </div>
                     </div>
 
-                    {expandedNodes.treePillar1 !== false && (
+                    {expandedNodes.tree1 !== false && (
                       <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Order Ingestion and Validation</span>
+                          <span className="text-[#52525b]">Validation</span>
                           <StatusPill
-                            label={activeOrder?.history.includes('p1_ingestion') ? 'Ready for Fulfillment' : 'Pending Ingestion'}
-                            variant="emerald"
+                            label={pipelineMetrics.intake.validation}
+                            variant={getStatusVariant(pipelineMetrics.intake.validation)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Customer Payment Verification</span>
+                          <span className="text-[#52525b]">Payment</span>
                           <StatusPill
-                            label={activeOrder?.paymentRef ? 'Payment Confirmed' : 'Payment Pending'}
-                            variant="emerald"
+                            label={pipelineMetrics.intake.payment}
+                            variant={getStatusVariant(pipelineMetrics.intake.payment)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Finished Goods Stock Check</span>
+                          <span className="text-[#52525b]">Channel</span>
                           <StatusPill
-                            label={activeOrder?.hasStock ? 'Stock Available' : 'Cooking Required'}
-                            variant={activeOrder?.hasStock ? 'emerald' : 'amber'}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Inventory Stock Allocation</span>
-                          <StatusPill
-                            label={
-                              activeOrder?.history.includes('p1_inventory_deduct')
-                                ? activeOrder?.hasStock
-                                  ? 'Reserved from Finished Stock'
-                                  : 'Ingredients Allocated'
-                                : 'Pending Stock Check'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p1_inventory_deduct')
-                                ? activeOrder?.hasStock
-                                  ? 'emerald'
-                                  : 'blue'
-                                : 'zinc'
-                            }
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Recipe Ingredients Deduction</span>
-                          <StatusPill
-                            label={
-                              activeOrder?.hasStock
-                                ? 'Direct Stock Item'
-                                : activeOrder?.history.includes('p1_inventory_deduct')
-                                ? 'Recipe Ingredients Deducted'
-                                : 'Pending Deduction'
-                            }
-                            variant={
-                              activeOrder?.hasStock
-                                ? 'zinc'
-                                : activeOrder?.history.includes('p1_inventory_deduct')
-                                ? 'blue'
-                                : 'zinc'
-                            }
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Kitchen Cooking Batch</span>
-                          <StatusPill
-                            label={
-                              activeOrder?.hasStock
-                                ? 'Direct Stock Fulfillment'
-                                : activeOrder?.history.includes('p1_production_batch')
-                                ? 'Cooking Completed'
-                                : activeOrder?.currentStage === 'p1_production_batch'
-                                ? 'Cooking in Progress'
-                                : 'Awaiting Kitchen'
-                            }
-                            variant={
-                              activeOrder?.hasStock || activeOrder?.history.includes('p1_production_batch')
-                                ? 'emerald'
-                                : activeOrder?.currentStage === 'p1_production_batch'
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.intake.channel}
+                            variant={getStatusVariant(pipelineMetrics.intake.channel)}
                           />
                         </div>
                       </div>
@@ -1396,23 +1344,26 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
                 </div>
 
-                {/* PILLAR 2 CARD */}
+                {/* 2. INVENTORY ALLOCATION */}
                 <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     <div
-                      onClick={() => toggleNodeExpansion('treePillar2')}
+                      onClick={() => toggleNodeExpansion('tree2')}
                       className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="w-2 h-2 rounded-full bg-blue-600" />
                         <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Pillar 2: Packaging and Food Assembly
+                          Inventory Allocation
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusPill label="Packaging and Assembly" variant="amber" />
+                        <StatusPill
+                          label={pipelineMetrics.inventory.badgeLabel}
+                          variant={getCountVariant(pipelineMetrics.inventory.doneCount, pipelineMetrics.inventory.totalCount)}
+                        />
                         <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.treePillar2 !== false ? (
+                          {expandedNodes.tree2 !== false ? (
                             <ChevronUp className="w-4 h-4 stroke-[2]" />
                           ) : (
                             <ChevronDown className="w-4 h-4 stroke-[2]" />
@@ -1421,74 +1372,27 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       </div>
                     </div>
 
-                    {expandedNodes.treePillar2 !== false && (
+                    {expandedNodes.tree2 !== false && (
                       <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Packaging Station Queue</span>
+                          <span className="text-[#52525b]">Stock</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p2_dispatched')
-                                ? 'Packaging Completed'
-                                : activeOrder?.history.includes('p2_in_packaging')
-                                ? 'Active at Packaging Bench'
-                                : 'Awaiting Packaging'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p2_dispatched')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p2_in_packaging')
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.inventory.stock}
+                            variant={getStatusVariant(pipelineMetrics.inventory.stock)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Takeaway Packaging Items</span>
+                          <span className="text-[#52525b]">Allocation</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p2_materials_picked')
-                                ? 'Bowls and Bags Picked'
-                                : activeOrder?.history.includes('p2_in_packaging')
-                                ? 'Picking Packaging Items'
-                                : 'Awaiting Material Pick'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p2_materials_picked')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p2_in_packaging')
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.inventory.allocation}
+                            variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Packaging Stock Deduction</span>
+                          <span className="text-[#52525b]">Ingredients</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p2_materials_picked')
-                                ? 'Containers Deducted from Stock'
-                                : 'Stock on Hand'
-                            }
-                            variant={activeOrder?.history.includes('p2_materials_picked') ? 'emerald' : 'zinc'}
-                          />
-                        </div>
-                        <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Bag Sealing and Dispatch</span>
-                          <StatusPill
-                            label={
-                              activeOrder?.history.includes('p2_dispatched')
-                                ? 'Packaged and Sealed'
-                                : activeOrder?.history.includes('p2_materials_picked')
-                                ? 'Ready for Sealing'
-                                : 'Pending Bag Seal'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p2_dispatched')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p2_materials_picked')
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.inventory.ingredients}
+                            variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
                           />
                         </div>
                       </div>
@@ -1502,23 +1406,26 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
                 </div>
 
-                {/* PILLAR 3 CARD */}
+                {/* 3. KITCHEN COOKING */}
                 <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
                   <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
                     <div
-                      onClick={() => toggleNodeExpansion('treePillar3')}
+                      onClick={() => toggleNodeExpansion('tree3')}
                       className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                        <span className="w-2 h-2 rounded-full bg-blue-600" />
                         <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
-                          Pillar 3: Delivery and Customer Handover
+                          Kitchen Cooking
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusPill label="Delivery and Handover" variant="emerald" />
+                        <StatusPill
+                          label={pipelineMetrics.cooking.badgeLabel}
+                          variant={getCountVariant(pipelineMetrics.cooking.doneCount, pipelineMetrics.cooking.totalCount)}
+                        />
                         <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
-                          {expandedNodes.treePillar3 !== false ? (
+                          {expandedNodes.tree3 !== false ? (
                             <ChevronUp className="w-4 h-4 stroke-[2]" />
                           ) : (
                             <ChevronDown className="w-4 h-4 stroke-[2]" />
@@ -1527,119 +1434,186 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       </div>
                     </div>
 
-                    {expandedNodes.treePillar3 !== false && (
+                    {expandedNodes.tree3 !== false && (
                       <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Driver Fleet Assignment</span>
+                          <span className="text-[#52525b]">Cooking</span>
                           <StatusPill
-                            label={activeOrder?.history.includes('p3_delivery_assigned') ? 'Driver Assigned' : 'Awaiting Driver'}
-                            variant={activeOrder?.history.includes('p3_delivery_assigned') ? 'blue' : 'zinc'}
+                            label={pipelineMetrics.cooking.cooking}
+                            variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Kitchen Parcel Handover</span>
+                          <span className="text-[#52525b]">Output</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p3_in_transit')
-                                ? 'Collected from Kitchen'
-                                : activeOrder?.history.includes('p3_delivery_assigned')
-                                ? 'Ready for Driver Pickup'
-                                : 'At Packaging Bench'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p3_in_transit')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p3_delivery_assigned')
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.cooking.output}
+                            variant={getStatusVariant(pipelineMetrics.cooking.output)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Road Transit and Navigation</span>
+                          <span className="text-[#52525b]">Batch</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p3_delivered')
-                                ? 'Transit Completed'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'Out for Delivery'
-                                : 'Pending Departure'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p3_delivered')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'blue'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.cooking.batch}
+                            variant={getStatusVariant(pipelineMetrics.cooking.batch)}
                           />
                         </div>
-                        <div className="px-5 py-3 flex items-center justify-between bg-emerald-50/20">
-                          <span className="text-[#18181b] font-medium">Customer Doorstep Handover</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* STEM 3 TO 4 */}
+                <div className="flex flex-col items-center justify-center -my-3">
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                </div>
+
+                {/* 4. PACKAGING AND ASSEMBLY */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    <div
+                      onClick={() => toggleNodeExpansion('tree4')}
+                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
+                          Packaging and Assembly
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill
+                          label={pipelineMetrics.packaging.badgeLabel}
+                          variant={getCountVariant(pipelineMetrics.packaging.doneCount, pipelineMetrics.packaging.totalCount)}
+                        />
+                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
+                          {expandedNodes.tree4 !== false ? (
+                            <ChevronUp className="w-4 h-4 stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 stroke-[2]" />
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {expandedNodes.tree4 !== false && (
+                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Queue</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p3_delivered')
-                                ? 'Delivered to Customer'
-                                : activeOrder?.history.includes('p3_doorstep_handover')
-                                ? 'At Customer Location'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'En Route to Address'
-                                : 'Awaiting Handover'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p3_delivered')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p3_doorstep_handover')
-                                ? 'amber'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'blue'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.packaging.queue}
+                            variant={getStatusVariant(pipelineMetrics.packaging.queue)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Customer Delivery Verification</span>
+                          <span className="text-[#52525b]">Materials</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
-                                ? 'Customer Code Verified'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'Customer Code Pending'
-                                : 'Pending Verification'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_delivered')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p3_in_transit')
-                                ? 'blue'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.packaging.materials}
+                            variant={getStatusVariant(pipelineMetrics.packaging.materials)}
                           />
                         </div>
                         <div className="px-5 py-3 flex items-center justify-between">
-                          <span className="text-[#52525b]">Driver Delivery Fee</span>
+                          <span className="text-[#52525b]">Deduction</span>
                           <StatusPill
-                            label={
-                              activeOrder?.history.includes('p3_settled_closed')
-                                ? 'Earnings Credited'
-                                : activeOrder?.history.includes('p3_delivered')
-                                ? 'Ready for Settlement'
-                                : 'Pending Completion'
-                            }
-                            variant={
-                              activeOrder?.history.includes('p3_settled_closed')
-                                ? 'emerald'
-                                : activeOrder?.history.includes('p3_delivered')
-                                ? 'amber'
-                                : 'zinc'
-                            }
+                            label={pipelineMetrics.packaging.deduction}
+                            variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
                           />
                         </div>
-                        <div className="px-5 py-3 flex items-center justify-between bg-[#fafafa]">
-                          <span className="text-[#52525b]">Final Order Completion</span>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Sealing</span>
                           <StatusPill
-                            label={activeOrder?.currentStage === 'p3_settled_closed' ? 'Closed and Completed' : 'Active in Pipeline'}
-                            variant={activeOrder?.currentStage === 'p3_settled_closed' ? 'emerald' : 'blue'}
+                            label={pipelineMetrics.packaging.sealing}
+                            variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* STEM 4 TO 5 */}
+                <div className="flex flex-col items-center justify-center -my-3">
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                </div>
+
+                {/* 5. DELIVERY AND CUSTOMER HANDOVER */}
+                <div className="p-[2.5px] rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs">
+                  <div className="rounded-[12px] border border-[#d4d4d8] bg-white overflow-hidden">
+                    <div
+                      onClick={() => toggleNodeExpansion('tree5')}
+                      className="px-5 py-3.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex items-center justify-between cursor-pointer select-none hover:bg-[#f1f5f9] transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                        <h4 className="font-semibold text-xs tracking-wide text-[#0f172a]">
+                          Delivery and Handover
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill
+                          label={pipelineMetrics.delivery.badgeLabel}
+                          variant={getCountVariant(pipelineMetrics.delivery.doneCount, pipelineMetrics.delivery.totalCount)}
+                        />
+                        <span className="w-5 h-5 rounded-md flex items-center justify-center text-[#71717a] hover:bg-[#e2e8f0] transition-colors">
+                          {expandedNodes.tree5 !== false ? (
+                            <ChevronUp className="w-4 h-4 stroke-[2]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 stroke-[2]" />
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {expandedNodes.tree5 !== false && (
+                      <div className="divide-y divide-[#e4e4e7] text-xs text-[#334155]">
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Driver</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.driver}
+                            variant={getStatusVariant(pipelineMetrics.delivery.driver)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Pickup</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.pickup}
+                            variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Transit</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.transit}
+                            variant={getStatusVariant(pipelineMetrics.delivery.transit)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Arrival</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.arrival}
+                            variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Verification</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.verification}
+                            variant={getStatusVariant(pipelineMetrics.delivery.verification)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Payout</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.payout}
+                            variant={getStatusVariant(pipelineMetrics.delivery.payout)}
+                          />
+                        </div>
+                        <div className="px-5 py-3 flex items-center justify-between">
+                          <span className="text-[#52525b]">Completion</span>
+                          <StatusPill
+                            label={pipelineMetrics.delivery.completion}
+                            variant={getStatusVariant(pipelineMetrics.delivery.completion)}
                           />
                         </div>
                       </div>
