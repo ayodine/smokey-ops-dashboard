@@ -440,8 +440,12 @@ export const getStageLabel = (stage?: PipelineStage): string => {
   }
 }
 
-/** Helper function to highlight query match inside customer name or text */
-const highlightSearchMatch = (text: string, query: string): React.ReactNode => {
+/** Helper function to highlight query match inside customer name or text with design system brand red */
+const highlightSearchMatch = (
+  text: string,
+  query: string,
+  isDarkBadge = false
+): React.ReactNode => {
   if (!query.trim()) return text
   const cleanQ = query.trim().toLowerCase()
   const lowerText = text.toLowerCase()
@@ -455,7 +459,14 @@ const highlightSearchMatch = (text: string, query: string): React.ReactNode => {
   return (
     <span>
       {before}
-      <span className="font-bold text-[#0051c3] bg-blue-50 dark:bg-blue-900/40 px-0.5 rounded underline decoration-[#0051c3]/30 decoration-2">
+      <span
+        className={cn(
+          'font-bold px-0.5 rounded',
+          isDarkBadge
+            ? 'bg-[#c0201f] text-white shadow-2xs'
+            : 'bg-red-100 text-[#c0201f] underline decoration-[#c0201f]/30 decoration-2'
+        )}
+      >
         {matched}
       </span>
       {after}
@@ -524,8 +535,19 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       let score = 0
       let matchType: 'customer' | 'id' | 'dish' | 'address' | 'payment' = 'customer'
 
-      // Customer name match (highest priority as requested)
-      if (nameLower === q) {
+      // Exact Order ID match (Highest priority for technical index searches)
+      if (idLower === q || idNum === q) {
+        score += 120
+        matchType = 'id'
+      } else if (idLower.startsWith(q) || idNum.startsWith(q)) {
+        score += 105
+        matchType = 'id'
+      } else if (idLower.includes(q) || idNum.includes(q)) {
+        score += 90
+        matchType = 'id'
+      }
+      // Customer name match
+      else if (nameLower === q) {
         score += 100
         matchType = 'customer'
       } else if (nameLower.startsWith(q)) {
@@ -537,14 +559,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       } else if (nameLower.includes(q)) {
         score += 60
         matchType = 'customer'
-      }
-      // Order ID match
-      else if (idLower === q || idNum === q) {
-        score += 90
-        matchType = 'id'
-      } else if (idLower.includes(q) || idNum.includes(q)) {
-        score += 70
-        matchType = 'id'
       }
       // Dish name match
       else if (dishLower.includes(q)) {
@@ -587,6 +601,30 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     const top = searchResults[0].order
     const nameLower = top.customerName.toLowerCase()
     const idLower = top.id.toLowerCase()
+    const idNum = top.id.replace(/[^0-9]/g, '')
+
+    // Check ID match first for numeric or SHD queries
+    if (idLower.startsWith(q)) {
+      const completion = top.id.slice(orderSearchInput.trim().length)
+      if (completion.length > 0) {
+        return {
+          order: top,
+          completionText: completion,
+          fullText: top.id,
+          type: 'id' as const
+        }
+      }
+    } else if (idNum.startsWith(q)) {
+      const completion = idNum.slice(orderSearchInput.trim().length)
+      if (completion.length > 0) {
+        return {
+          order: top,
+          completionText: completion,
+          fullText: top.id,
+          type: 'id' as const
+        }
+      }
+    }
 
     if (nameLower.startsWith(q)) {
       const completion = top.customerName.slice(orderSearchInput.trim().length)
@@ -596,18 +634,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           completionText: completion,
           fullText: top.customerName,
           type: 'name' as const
-        }
-      }
-    }
-
-    if (idLower.startsWith(q)) {
-      const completion = top.id.slice(orderSearchInput.trim().length)
-      if (completion.length > 0) {
-        return {
-          order: top,
-          completionText: completion,
-          fullText: top.id,
-          type: 'id' as const
         }
       }
     }
@@ -1205,7 +1231,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-[#71717a] hidden sm:inline">
-              Active Order: <span className="font-semibold text-[#18181b]">{activeOrder.id}</span>{' '}
+              Active Order:{' '}
+              <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 tracking-tight shadow-2xs">
+                {activeOrder.id}
+              </span>{' '}
               <span className="text-[#a1a1aa]">({activeOrder.customerName})</span>
             </span>
             <button
@@ -1224,7 +1253,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           {/* Left: Design System Search Field with Rock-Solid Fixed Width & Autocomplete Dropdown */}
           <div
             ref={searchContainerRef}
-            className="relative w-full sm:w-[380px] lg:w-[420px] shrink-0 font-sans"
+            className="relative w-full sm:w-[420px] lg:w-[480px] shrink-0 font-sans"
           >
             <div className="relative w-full">
               {/* Search Icon */}
@@ -1259,7 +1288,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   setIsSearchOpen(true)
                 }}
                 onKeyDown={handleSearchKeyDown}
-                className="w-full h-10 pl-9 pr-14 rounded-lg border border-kumo-line bg-kumo-canvas text-xs sm:text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link focus:border-kumo-link transition-colors font-sans"
+                className="w-full h-10 pl-9 pr-14 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#c0201f] focus:border-[#c0201f] transition-colors font-sans shadow-2xs"
               />
 
               {/* Clear button positioned absolutely inside input (never alters input/container width) */}
@@ -1275,40 +1304,57 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               )}
             </div>
 
-            {/* Live Autocomplete & Multi-Name Suggestion Dropdown */}
+            {/* Live Autocomplete & Indexed Order Suggestion Dropdown */}
             {isSearchOpen && (
               <div
-                className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e4e4e7] rounded-xl shadow-xl overflow-hidden font-sans max-h-80 flex flex-col animate-in fade-in slide-in-from-top-1 duration-150"
+                className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl overflow-hidden font-sans max-h-96 flex flex-col animate-in fade-in slide-in-from-top-1 duration-150"
                 role="listbox"
               >
                 {/* Dropdown Header */}
-                <div className="px-3.5 py-2 bg-[#fafafa] border-b border-[#e4e4e7] flex items-center justify-between text-[11px] text-[#71717a] shrink-0">
-                  <span className="font-medium">
+                <div className="px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-300 shrink-0">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">
                     {orderSearchInput.trim()
                       ? `Found ${searchResults.length} order${searchResults.length === 1 ? '' : 's'}`
                       : `Active Pipeline Orders (${orders.length})`}
                   </span>
-                  <span className="text-[10px] hidden sm:inline text-[#a1a1aa]">
-                    ↑↓ navigate • ↵ select • Esc close
+                  <span className="text-[10px] hidden sm:flex items-center gap-1.5 text-zinc-400">
+                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
+                      ↑↓
+                    </kbd>{' '}
+                    navigate
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
+                      ↵
+                    </kbd>{' '}
+                    select
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
+                      Esc
+                    </kbd>{' '}
+                    close
                   </span>
                 </div>
 
                 {/* Dropdown Scrollable List */}
-                <div className="overflow-y-auto divide-y divide-[#f4f4f5] max-h-72">
+                <div className="overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 max-h-80">
                   {searchResults.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-xs text-[#71717a]">
-                      <p className="font-medium text-[#18181b]">
+                    <div className="px-4 py-8 text-center text-xs text-zinc-500">
+                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto mb-2">
+                        <Search className="w-4 h-4" />
+                      </div>
+                      <p className="font-medium text-zinc-800 dark:text-zinc-200">
                         No orders found matching "{orderSearchInput}"
                       </p>
-                      <p className="text-[11px] mt-1 text-[#a1a1aa]">
-                        Try searching by customer name (e.g. Babajide, Amaka) or ID (e.g. 9853, 07662)
+                      <p className="text-[11px] mt-1 text-zinc-400">
+                        Try searching by order ID (e.g. 09853, 07662) or customer name (e.g. Babajide, Amaka)
                       </p>
                     </div>
                   ) : (
                     searchResults.map(({ order }, index) => {
                       const isSelected = order.id === selectedOrderId
                       const isKeyboardActive = index === activeSuggestionIndex
-                      const hasMultiple = (customerOrderCounts.get(order.customerName) || 0) > 1
+                      const count = customerOrderCounts.get(order.customerName) || 1
+                      const hasMultiple = count > 1
 
                       return (
                         <div
@@ -1316,57 +1362,78 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                           onClick={() => handleSelectOrder(order)}
                           onMouseEnter={() => setActiveSuggestionIndex(index)}
                           className={cn(
-                            'px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 text-left',
+                            'px-3.5 py-2.5 transition-colors cursor-pointer text-left',
                             isKeyboardActive
-                              ? 'bg-blue-50/80 border-l-2 border-[#0051c3]'
+                              ? 'bg-red-50/50 dark:bg-red-950/20 border-l-[3px] border-[#c0201f]'
                               : isSelected
-                              ? 'bg-zinc-50 border-l-2 border-[#18181b]'
-                              : 'hover:bg-zinc-50/70 border-l-2 border-transparent'
+                              ? 'bg-zinc-50 dark:bg-zinc-800/40 border-l-[3px] border-zinc-400'
+                              : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 border-l-[3px] border-transparent'
                           )}
                           role="option"
                           aria-selected={isSelected}
                         >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-xs text-[#18181b]">
-                                {highlightSearchMatch(order.customerName, orderSearchInput)}
-                              </span>
-                              <span className="font-mono text-[11px] font-medium px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                #{order.id}
-                              </span>
-                              {hasMultiple && (
-                                <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-full">
-                                  Multiple orders
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Left: Prominent Order ID + Customer Name + Status Indicators */}
+                            <div className="min-w-0 flex-1">
+                              {/* Row 1: Order ID (Primary Prominence) + Customer Name + Badges */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {/* High-Prominence Order ID: Monospace contrast pill */}
+                                <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 tracking-tight shrink-0 shadow-2xs">
+                                  {highlightSearchMatch(order.id, orderSearchInput, true)}
                                 </span>
-                              )}
-                              {isSelected && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#0051c3] bg-blue-100/60 px-1.5 py-0.5 rounded">
-                                  <Check className="w-2.5 h-2.5" /> Selected
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1 text-[11px] text-[#71717a] truncate">
-                              <span className="truncate">{order.dishName}</span>
-                              <span className="text-[#d4d4d8]">•</span>
-                              <span className="shrink-0">{formatNaira(order.totalAmount)}</span>
-                            </div>
-                          </div>
 
-                          {/* Status Badge */}
-                          <div className="shrink-0">
-                            <StatusPill
-                              state={
-                                order.currentStage === 'p3_settled_closed' ||
-                                order.currentStage === 'p3_delivered'
-                                  ? 'completed'
-                                  : order.currentStage === 'p1_ingestion'
-                                  ? 'draft'
-                                  : order.currentStage === 'p1_inventory_deduct'
-                                  ? 'in-review'
-                                  : 'in-progress'
-                              }
-                              label={getStageLabel(order.currentStage)}
-                            />
+                                {/* Customer Name */}
+                                <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate">
+                                  {highlightSearchMatch(order.customerName, orderSearchInput)}
+                                </span>
+
+                                {/* Selected Badge: Design System Brand Red */}
+                                {isSelected && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#c0201f] bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-900/60 px-1.5 py-0.5 rounded shrink-0">
+                                    <Check className="w-2.5 h-2.5" /> Selected
+                                  </span>
+                                )}
+
+                                {/* Multiple Orders Badge: Design System Warning Spec (#FFFBEB / #FDE68A / #B45309) */}
+                                {hasMultiple && (
+                                  <span className="inline-flex items-center text-[10px] font-medium text-[#B45309] bg-[#FFFBEB] dark:bg-amber-950/30 border border-[#FDE68A] dark:border-amber-800/50 px-1.5 py-0.5 rounded-full shrink-0">
+                                    Multiple orders ({count})
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Row 2: Dish Name, Price, and Channel Metadata */}
+                              <div className="flex items-center gap-2 mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                                <span className="truncate text-zinc-600 dark:text-zinc-300 font-normal">
+                                  {order.dishName}
+                                </span>
+                                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                                <span className="shrink-0 font-medium text-zinc-800 dark:text-zinc-200">
+                                  {formatNaira(order.totalAmount)}
+                                </span>
+                                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                                <span className="shrink-0 text-zinc-400 dark:text-zinc-500 capitalize">
+                                  {order.channel || 'Website'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Right: Stage Status Pill */}
+                            <div className="shrink-0">
+                              <StatusPill
+                                state={
+                                  order.currentStage === 'p3_settled_closed' ||
+                                  order.currentStage === 'p3_delivered'
+                                    ? 'completed'
+                                    : order.currentStage === 'p1_ingestion'
+                                    ? 'draft'
+                                    : order.currentStage === 'p1_inventory_deduct'
+                                    ? 'in-review'
+                                    : 'in-progress'
+                                }
+                                label={getStageLabel(order.currentStage)}
+                              />
+                            </div>
                           </div>
                         </div>
                       )
