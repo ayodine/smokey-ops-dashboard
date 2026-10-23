@@ -1304,143 +1304,67 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               )}
             </div>
 
-            {/* Live Autocomplete & Indexed Order Suggestion Dropdown */}
+            {/* Clean Dropdown (Matching Reference Image Style: Simple, Neat, No Badges) */}
             {isSearchOpen && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl overflow-hidden font-sans max-h-96 flex flex-col animate-in fade-in slide-in-from-top-1 duration-150"
-                role="listbox"
-              >
-                {/* Dropdown Header */}
-                <div className="px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-300 shrink-0">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-                    {orderSearchInput.trim()
-                      ? `Found ${searchResults.length} order${searchResults.length === 1 ? '' : 's'}`
-                      : `Active Pipeline Orders (${orders.length})`}
-                  </span>
-                  <span className="text-[10px] hidden sm:flex items-center gap-1.5 text-zinc-400">
-                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
-                      ↑↓
-                    </kbd>{' '}
-                    navigate
-                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
-                      ↵
-                    </kbd>{' '}
-                    select
-                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-mono text-[9px] text-zinc-600 dark:text-zinc-300 shadow-2xs">
-                      Esc
-                    </kbd>{' '}
-                    close
-                  </span>
-                </div>
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsSearchOpen(false)}
+                />
+                <div
+                  className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-xs"
+                  role="listbox"
+                >
+                  {/* Pointer Arrow Notch */}
+                  <div className="absolute -top-[6px] left-6 w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200/90 dark:border-zinc-800 rotate-45 z-30" />
 
-                {/* Dropdown Scrollable List */}
-                <div className="overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 max-h-80">
-                  {searchResults.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-xs text-zinc-500">
-                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto mb-2">
-                        <Search className="w-4 h-4" />
+                  {/* Orders List */}
+                  <div className="relative z-20 p-2 space-y-1 max-h-64 overflow-y-auto bg-white dark:bg-zinc-900 rounded-2xl">
+                    {searchResults.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-xs text-zinc-400 dark:text-zinc-500 font-sans">
+                        No orders found
                       </div>
-                      <p className="font-medium text-zinc-800 dark:text-zinc-200">
-                        No orders found matching "{orderSearchInput}"
-                      </p>
-                      <p className="text-[11px] mt-1 text-zinc-400">
-                        Try searching by order ID (e.g. 09853, 07662) or customer name (e.g. Babajide, Amaka)
-                      </p>
-                    </div>
-                  ) : (
-                    searchResults.map(({ order }, index) => {
-                      const isSelected = order.id === selectedOrderId
-                      const isKeyboardActive = index === activeSuggestionIndex
-                      const count = customerOrderCounts.get(order.customerName) || 1
-                      const hasMultiple = count > 1
+                    ) : (
+                      searchResults.map(({ order }, index) => {
+                        const isSelected = order.id === selectedOrderId
+                        const isKeyboardActive = index === activeSuggestionIndex
 
-                      return (
-                        <div
-                          key={order.id}
-                          onClick={() => handleSelectOrder(order)}
-                          onMouseEnter={() => setActiveSuggestionIndex(index)}
-                          className={cn(
-                            'px-3.5 py-2.5 transition-colors cursor-pointer text-left',
-                            isKeyboardActive
-                              ? 'bg-red-50/50 dark:bg-red-950/20 border-l-[3px] border-[#c0201f]'
-                              : isSelected
-                              ? 'bg-zinc-50 dark:bg-zinc-800/40 border-l-[3px] border-zinc-400'
-                              : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 border-l-[3px] border-transparent'
-                          )}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            {/* Left: Prominent Order ID + Customer Name + Status Indicators */}
-                            <div className="min-w-0 flex-1">
-                              {/* Row 1: Order ID (Primary Prominence) + Customer Name + Badges */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {/* High-Prominence Order ID: Monospace contrast pill */}
-                                <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 tracking-tight shrink-0 shadow-2xs">
-                                  {highlightSearchMatch(order.id, orderSearchInput, true)}
-                                </span>
-
-                                {/* Customer Name */}
-                                <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate">
-                                  {highlightSearchMatch(order.customerName, orderSearchInput)}
-                                </span>
-
-                                {/* Selected Badge: Design System Brand Red */}
-                                {isSelected && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#c0201f] bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-900/60 px-1.5 py-0.5 rounded shrink-0">
-                                    <Check className="w-2.5 h-2.5" /> Selected
-                                  </span>
-                                )}
-
-                                {/* Multiple Orders Badge: Design System Warning Spec (#FFFBEB / #FDE68A / #B45309) */}
-                                {hasMultiple && (
-                                  <span className="inline-flex items-center text-[10px] font-medium text-[#B45309] bg-[#FFFBEB] dark:bg-amber-950/30 border border-[#FDE68A] dark:border-amber-800/50 px-1.5 py-0.5 rounded-full shrink-0">
-                                    Multiple orders ({count})
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Row 2: Dish Name, Price, and Channel Metadata */}
-                              <div className="flex items-center gap-2 mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                                <span className="truncate text-zinc-600 dark:text-zinc-300 font-normal">
-                                  {order.dishName}
-                                </span>
-                                <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                                <span className="shrink-0 font-medium text-zinc-800 dark:text-zinc-200">
-                                  {formatNaira(order.totalAmount)}
-                                </span>
-                                <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                                <span className="shrink-0 text-zinc-400 dark:text-zinc-500 capitalize">
-                                  {order.channel || 'Website'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Right: Stage Status Pill */}
-                            <div className="shrink-0">
-                              <StatusPill
-                                state={
-                                  order.currentStage === 'p3_settled_closed' ||
-                                  order.currentStage === 'p3_delivered'
-                                    ? 'completed'
-                                    : order.currentStage === 'p1_ingestion'
-                                    ? 'draft'
-                                    : order.currentStage === 'p1_inventory_deduct'
-                                    ? 'in-review'
-                                    : 'in-progress'
-                                }
-                                label={getStageLabel(order.currentStage)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
+                        return (
+                          <button
+                            key={order.id}
+                            type="button"
+                            onClick={() => handleSelectOrder(order)}
+                            onMouseEnter={() => setActiveSuggestionIndex(index)}
+                            className={cn(
+                              "w-full px-3.5 py-2.5 rounded-xl text-left text-sm transition-colors cursor-pointer flex items-center justify-between",
+                              isSelected
+                                ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
+                                : isKeyboardActive
+                                ? "bg-zinc-50 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-100 font-normal"
+                                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-normal"
+                            )}
+                            role="option"
+                            aria-selected={isSelected}
+                          >
+                            <span className="truncate pr-2 font-sans flex items-center gap-2">
+                              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 shrink-0">
+                                {order.id}
+                              </span>
+                              <span className="text-zinc-400 dark:text-zinc-500">•</span>
+                              <span className="truncate text-zinc-800 dark:text-zinc-200 font-sans">
+                                {order.customerName}
+                              </span>
+                            </span>
+                            {isSelected && (
+                              <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 stroke-[2] shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
