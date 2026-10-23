@@ -1265,12 +1265,8 @@ export const ManageAccountsPage: React.FC = () => {
                 {/* Header matching Screenshot 1: "Edit policy ✎" */}
                 <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <h2 className="text-sm font-bold text-kumo-strong">Edit policy</h2>
-                    <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-[12px] font-sans font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>Active · Added {targetStaff.created_at || '10 Jan 2026'}</span>
-                    </span>
+                    <h2 className="text-[16px] font-semibold text-kumo-strong">Edit policy</h2>
+                    <Pencil className="w-4 h-4 text-kumo-subtle" />
                   </div>
 
                   <button
