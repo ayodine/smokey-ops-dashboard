@@ -34,6 +34,7 @@ import { WebsiteOrdersPage } from '@/features/sales/WebsiteOrdersPage'
 
 // Admin Domain
 import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
+import { ManageOfficesPage } from '@/features/admin/ManageOfficesPage'
 
 // Auth Screen Domain (shadcn /components/ui)
 import AuthSectionThree from '@/components/ui/auth-section-3'
@@ -89,9 +90,17 @@ export function App() {
                 {/* 4. SUPER ADMIN & ACCOUNT MANAGEMENT */}
                 <Route path="accounts" element={<ManageAccountsPage />} />
                 <Route path="accounts/invite" element={<ManageAccountsPage />} />
+                <Route path="accounts/profile/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/route/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/matrix" element={<ManageAccountsPage />} />
                 <Route path="admin/accounts" element={<ManageAccountsPage />} />
+
+                {/* 5. OFFICE & REGIONAL HUB MANAGEMENT */}
+                <Route path="offices" element={<ManageOfficesPage />} />
+                <Route path="offices/register" element={<ManageOfficesPage />} />
+                <Route path="offices/create" element={<ManageOfficesPage />} />
+                <Route path="offices/edit/:id" element={<ManageOfficesPage />} />
+                <Route path="admin/offices" element={<ManageOfficesPage />} />
 
                 {/* Catch-all Fallback */}
                 <Route path="*" element={<Navigate to="/inventory/raw" replace />} />

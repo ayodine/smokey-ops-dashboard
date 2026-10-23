@@ -75,20 +75,20 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
           </div>
 
           {/* Title & Message */}
-          <h3 className="text-base font-bold text-kumo-strong tracking-[0.015em] leading-snug">
+          <h3 className="text-[16px] font-semibold text-kumo-strong tracking-tight leading-snug">
             {title}
           </h3>
-          <p className="mt-1.5 text-xs text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
+          <p className="mt-1.5 text-[13px] text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
             {message}
           </p>
 
           {/* Key-Value Details Summary */}
           {details.length > 0 && (
-            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-xs">
+            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-[13px]">
               {details.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2">
-                  <span className="text-kumo-subtle text-[11px]">{item.label}</span>
-                  <span className="font-semibold text-kumo-strong font-display text-xs sm:text-sm">{item.value}</span>
+                  <span className="text-kumo-subtle text-[12px]">{item.label}</span>
+                  <span className="font-semibold text-kumo-strong font-display text-[13px]">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -100,7 +100,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               variant="primary"
               size="md"
               onClick={handleAction}
-              className="w-full h-10 px-5 rounded-xl font-semibold text-sm sm:text-base tracking-wide cursor-pointer justify-center"
+              className="w-full h-10 px-5 rounded-xl font-semibold text-[14px] tracking-wide cursor-pointer justify-center"
             >
               {actionLabel}
             </Button>

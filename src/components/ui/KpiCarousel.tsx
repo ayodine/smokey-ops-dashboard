@@ -73,7 +73,7 @@ export const KpiCarousel: React.FC<KpiCarouselProps> = ({
               onValueChange={val => titleFilter.onChange(String(val))}
               options={titleFilter.options}
               size="sm"
-              buttonClassName="h-8.5 text-xs font-medium"
+              buttonClassName="h-8.5 text-[13px] font-medium"
             />
           </div>
         ) : (

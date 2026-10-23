@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { RiderPayout, LogisticsDelivery } from '@/lib/smokeyData'
@@ -36,10 +36,12 @@ import {
   Plus,
   UserPlus,
   Copy,
-  ExternalLink
+  ExternalLink,
+  UserCheck
 } from 'lucide-react'
 
 export const DeliveryTeamPage: React.FC = () => {
+  const navigate = useNavigate()
   const { riders, payAndResetRider, remitCodCash, logisticsDeliveries, addRiderProfile } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
   const [selectedRider, setSelectedRider] = useState<RiderPayout | null>(null)
@@ -47,7 +49,7 @@ export const DeliveryTeamPage: React.FC = () => {
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false)
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'all' | 'on_trip' | 'active' | 'cash_held'>('all')
-  const [modalTab, setModalTab] = useState<'ledger' | 'profile' | 'trips'>('ledger')
+  const [modalTab, setModalTab] = useState<'ledger' | 'trips'>('ledger')
 
   // Driver Onboarding KYC Form State
   const [newDriverForm, setNewDriverForm] = useState({
@@ -94,7 +96,7 @@ export const DeliveryTeamPage: React.FC = () => {
     })
   }, [riders, activeTab])
 
-  const handleOpenAccount = (r: RiderPayout, tab: 'ledger' | 'profile' | 'trips' = 'ledger') => {
+  const handleOpenAccount = (r: RiderPayout, tab: 'ledger' | 'trips' = 'ledger') => {
     setSelectedRider(r)
     setModalTab(tab)
     setIsAccountModalOpen(true)
@@ -508,18 +510,34 @@ export const DeliveryTeamPage: React.FC = () => {
       >
         <div className="flex flex-col h-[540px] max-h-[calc(88vh-120px)] font-sans">
           {/* Driver Sub-Tabs */}
-          <div className="shrink-0 pb-3 border-b border-kumo-line max-w-full overflow-x-auto [scrollbar-width:none]">
+          <div className="shrink-0 pb-3 border-b border-kumo-line flex items-center justify-between gap-3 max-w-full overflow-x-auto [scrollbar-width:none]">
             <KumoTabs
               activeTab={modalTab}
-              onChange={(val: string) => setModalTab(val as 'ledger' | 'profile' | 'trips')}
+              onChange={(val: string) => setModalTab(val as 'ledger' | 'trips')}
               size="sm"
               className="w-auto inline-flex"
               tabs={[
                 { id: 'ledger', label: 'Earnings & Cash Settlement' },
-                { id: 'profile', label: 'Driver Profile & KYC' },
                 { id: 'trips', label: 'Trip History', badge: riderTrips.length },
               ]}
             />
+            {selectedRider && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => {
+                  setIsAccountModalOpen(false)
+                  const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
+                  navigate(`/accounts/profile/${encodeURIComponent(email)}`)
+                }}
+                leftIcon={<UserCheck className="w-3.5 h-3.5 text-kumo-subtle" />}
+                className="h-8 px-3 text-xs font-semibold shrink-0 cursor-pointer"
+                title="Edit complete KYC profile, vehicle specs, and personal dossier"
+              >
+                Edit Staff Profile & KYC
+              </Button>
+            )}
           </div>
 
           {/* Fixed-Height Tab Content (Scrollable) */}
@@ -650,423 +668,7 @@ export const DeliveryTeamPage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: DRIVER PROFILE & KYC (Structured Executive Identity Dossier) */}
-          {modalTab === 'profile' && selectedRider && (
-            <div className="space-y-4">
-              {/* 1. Driver Profile Header Card */}
-              <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-                <div className="flex items-center gap-3.5">
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/30 border border-red-200 dark:border-red-800 text-primary font-bold text-lg flex items-center justify-center shrink-0 shadow-2xs">
-                      {selectedRider.rider_name.replace('RIDER ', '').substring(0, 2).toUpperCase()}
-                    </div>
-                    <span 
-                      className={cn(
-                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900",
-                        selectedRider.status === 'on_trip' 
-                          ? 'bg-amber-500' 
-                          : selectedRider.status === 'active' 
-                          ? 'bg-emerald-500' 
-                          : 'bg-zinc-400'
-                      )} 
-                      title={selectedRider.status === 'on_trip' ? 'On Road' : selectedRider.status === 'active' ? 'Available' : 'Offline'} 
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold text-sm text-kumo-strong">{selectedRider.rider_name}</h3>
-                      <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-kumo-tint border border-kumo-line rounded text-kumo-strong">
-                        {selectedRider.staff_id || 'RDR-001'}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                        <span>NIMC Verified</span>
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-y-1 gap-x-3.5 text-xs text-kumo-subtle mt-1.5">
-                      <a 
-                        href={`tel:${selectedRider.phone}`} 
-                        className="flex items-center gap-1.5 hover:text-kumo-strong transition-colors"
-                        title="Click to call"
-                      >
-                        <Phone className="w-3.5 h-3.5 text-kumo-subtle" />
-                        <span>{selectedRider.phone}</span>
-                      </a>
-                      <span className="text-kumo-line">•</span>
-                      <a 
-                        href={`mailto:${selectedRider.email || 'courier@smokeyhut.com'}`} 
-                        className="flex items-center gap-1.5 hover:text-kumo-strong transition-colors"
-                        title="Click to email"
-                      >
-                        <Mail className="w-3.5 h-3.5 text-kumo-subtle" />
-                        <span>{selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@smokeyhut.com`}</span>
-                      </a>
-                      <span className="text-kumo-line">•</span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-kumo-subtle" />
-                        <span>{selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 self-start sm:self-auto">
-                  <StatusBadge 
-                    status={selectedRider.status === 'on_trip' ? 'in_progress' : selectedRider.status === 'active' ? 'active' : 'inactive'} 
-                    label={selectedRider.status === 'on_trip' ? 'on road' : selectedRider.status === 'active' ? 'available' : 'off duty'} 
-                  />
-                  <div className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 px-2.5 py-1 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 rounded-lg shadow-2xs">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span>{selectedRider.rating?.toFixed(1) || '4.9'}</span>
-                    <span className="text-[10px] opacity-75 font-normal">/ 5.0</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Operational Reliability Strip */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
-                    <span className="uppercase text-[11px] font-semibold tracking-wider">On-Time Delivery</span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
-                      Top 5% Fleet
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-emerald-600 mt-1 font-display">
-                    {selectedRider.on_time_rate || 98.4}%
-                  </div>
-                  <span className="text-[11px] text-kumo-subtle block mt-0.5">Average transit accuracy (30 days)</span>
-                </div>
-
-                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
-                    <span className="uppercase text-[11px] font-semibold tracking-wider">Customer Rating</span>
-                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800">
-                      Verified Reviews
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-kumo-strong mt-1 font-display flex items-baseline gap-1">
-                    <span>{selectedRider.rating?.toFixed(1) || '4.9'}</span>
-                    <span className="text-xs text-kumo-subtle font-normal">/ 5.0 ★</span>
-                  </div>
-                  <span className="text-[11px] text-kumo-subtle block mt-0.5">99.1% positive customer feedback</span>
-                </div>
-
-                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
-                    <span className="uppercase text-[11px] font-semibold tracking-wider">COD Remittance</span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
-                      Clean Ledger
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-emerald-600 mt-1 font-display">
-                    100% Reconciled
-                  </div>
-                  <span className="text-[11px] text-kumo-subtle block mt-0.5">Zero unremitted cashier defaults</span>
-                </div>
-              </div>
-
-              {/* 3. Structured KYC Dossier Cards (Replacing the former generic DataTable) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Panel A: Identity & Legal Compliance */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 shrink-0">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
-                          Identity & Legal Verification
-                        </h4>
-                        <span className="text-[11px] text-kumo-subtle block">
-                          Government ID & statutory clearance
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      Approved
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    {/* National ID / NIN */}
-                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-kumo-subtle block">National Identity Number (NIN)</span>
-                        <span className="font-mono font-bold text-kumo-strong text-xs tracking-wider block mt-0.5">
-                          {selectedRider.national_id_nin || '7829-4821-9921'}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 flex items-center gap-1 mt-0.5">
-                          <CheckCircle2 className="w-3 h-3 shrink-0" />
-                          NIMC Biometrics Verified
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText('nin', selectedRider.national_id_nin || '7829-4821-9921')}
-                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Copy NIN"
-                      >
-                        {copiedField === 'nin' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
-                        <span>{copiedField === 'nin' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-
-                    {/* Driver's License */}
-                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Driver's License No.</span>
-                        <span className="font-mono font-bold text-kumo-strong text-xs tracking-wider block mt-0.5">
-                          {selectedRider.license_number || 'DL-98234-LAG'}
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">
-                          Class A • Valid through {selectedRider.license_expiry || 'Nov 2027'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText('license', selectedRider.license_number || 'DL-98234-LAG')}
-                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Copy License Number"
-                      >
-                        {copiedField === 'license' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
-                        <span>{copiedField === 'license' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-
-                    {/* Onboarding & Hub */}
-                    <div className="grid grid-cols-2 gap-2 pt-0.5">
-                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
-                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Date Onboarded</span>
-                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
-                          {selectedRider.date_joined || '12 Feb 2025'}
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">1+ years active tenure</span>
-                      </div>
-                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
-                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Base Station</span>
-                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5 truncate">
-                          {selectedRider.operating_hub || selectedWarehouse?.name || 'Yaba Head Office'}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 block mt-0.5 font-medium">Primary Hub #1</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel B: Assigned Fleet Asset & Vehicle */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 shrink-0">
-                        <Bike className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
-                          Fleet Asset & Vehicle
-                        </h4>
-                        <span className="text-[11px] text-kumo-subtle block">
-                          Dispatched unit & mechanical roadworthiness
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      Roadworthy
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    {/* License Plate Display */}
-                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-kumo-subtle block mb-1">Vehicle Plate Registration</span>
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-900 border-2 border-emerald-600/70 rounded-md font-mono font-bold text-xs tracking-wider text-zinc-900 dark:text-zinc-100 shadow-2xs">
-                          <span className="text-[9px] font-sans font-bold text-emerald-600">NG</span>
-                          <span>{selectedRider.plate_number || 'LND-482-XA'}</span>
-                        </div>
-                        <span className="text-[10px] text-kumo-subtle block mt-1">Lagos State Certified Registration</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText('plate', selectedRider.plate_number || 'LND-482-XA')}
-                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Copy Plate Number"
-                      >
-                        {copiedField === 'plate' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
-                        <span>{copiedField === 'plate' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-
-                    {/* Vehicle Model & Telematics */}
-                    <div className="p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-kumo-subtle">Assigned Motorcycle Model</span>
-                        <span className="font-semibold text-kumo-strong text-xs">
-                          {selectedRider.vehicle_type || 'Bajaj Boxer 150 Motorcycle'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-kumo-line/40">
-                        <span className="text-kumo-subtle">Ownership / Asset Tag</span>
-                        <span className="font-mono text-kumo-strong font-medium">Smokey Fleet Unit #04</span>
-                      </div>
-                    </div>
-
-                    {/* Inspection & GPS status */}
-                    <div className="grid grid-cols-2 gap-2 pt-0.5">
-                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
-                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Safety Inspection</span>
-                        <span className="text-xs font-semibold text-emerald-600 block mt-0.5">Passed & Certified</span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Next audit: Nov 2026</span>
-                      </div>
-                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
-                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Fleet Telematics</span>
-                        <span className="text-xs font-semibold text-kumo-strong flex items-center gap-1.5 mt-0.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          GPS Online
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Live telemetry sync</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel C: Cash Limits & Settlement Rules */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 shrink-0">
-                        <Wallet className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
-                          Cash Controls & Remittance Rules
-                        </h4>
-                        <span className="text-[11px] text-kumo-subtle block">
-                          COD threshold limits and financial policies
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      Standard Terms
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div>
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Max COD Handling Limit</span>
-                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Hard ceiling before forced cashier remittance</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-600 font-display">
-                          {formatNaira(selectedRider.cod_limit || 50000)}
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block">Enforced ceiling</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div>
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Remittance Schedule</span>
-                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Physical cash handover policy</span>
-                      </div>
-                      <span className="font-semibold text-kumo-strong text-xs">
-                        Daily at Shift Handoff
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div>
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Settlement Mechanism</span>
-                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Commissions netted against cash held</span>
-                      </div>
-                      <span className="font-semibold text-kumo-strong text-xs">
-                        Two-Way Closed Ledger
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel D: Emergency Contact & Guarantor */}
-                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600 shrink-0">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
-                          Emergency Contact & Guarantor
-                        </h4>
-                        <span className="text-[11px] text-kumo-subtle block">
-                          Verified next-of-kin & corporate guarantor
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      Verified
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    {/* Next of Kin */}
-                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Next of Kin (Primary Emergency)</span>
-                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
-                          {selectedRider.emergency_contact || 'Mrs. Funke Balogun (Spouse)'}
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">
-                          Phone: {selectedRider.emergency_phone || '08023456789'}
-                        </span>
-                      </div>
-                      <a
-                        href={`tel:${selectedRider.emergency_phone || '08023456789'}`}
-                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Call Next of Kin"
-                      >
-                        <Phone className="w-3.5 h-3.5 text-kumo-subtle" />
-                        <span>Call</span>
-                      </a>
-                    </div>
-
-                    {/* Corporate Guarantor */}
-                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div>
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Corporate / Merchant Guarantor</span>
-                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
-                          Alhaji M. Adeleke (Vetted Merchant)
-                        </span>
-                        <span className="text-[10px] text-emerald-600 block mt-0.5 font-medium">Guarantor Form & ID on file</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800">
-                        Signed
-                      </span>
-                    </div>
-
-                    {/* Residential Verification */}
-                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
-                      <div>
-                        <span className="text-[11px] font-medium text-kumo-subtle block">Residential Proof & Verification</span>
-                        <span className="text-xs font-semibold text-kumo-strong block mt-0.5">
-                          Physical Home Address Confirmed
-                        </span>
-                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Utility bill & physical inspection passed</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800">
-                        Passed
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: TRIPS HISTORY (Using Design System DataTable) */}
+          {/* TAB 2: TRIPS HISTORY (Using Design System DataTable) */}
           {modalTab === 'trips' && (
             <div className="space-y-3 font-sans">
               <div className="flex items-center justify-between">

@@ -1014,7 +1014,7 @@ export const RiderDashboardPage: React.FC = () => {
             <select
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value)}
-              className="w-full h-9 text-xs sm:text-sm bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg px-2.5 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary"
+              className="w-full h-9 text-[13px] bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg px-2.5 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary"
             >
               <option value="Bike mechanical issue / flat tire">Bike mechanical issue / flat tire</option>
               <option value="Outside current delivery zone">Outside current operational delivery zone</option>

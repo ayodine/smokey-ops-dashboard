@@ -530,7 +530,7 @@ export function DataTable<T>({
                     }}
                     options={cat.options}
                     size="md"
-                    buttonClassName="h-10 text-xs sm:text-sm font-medium"
+                    buttonClassName="h-10 text-[13px] font-medium"
                   />
                 </div>
               ))}
@@ -564,7 +564,7 @@ export function DataTable<T>({
               <button 
                 type="button"
                 onClick={() => setShowSortMenu(!showSortMenu)}
-                className="px-3.5 py-2 h-10 bg-background border border-border text-foreground text-sm font-medium hover:bg-muted/30 transition-colors flex items-center gap-2 rounded-lg cursor-pointer shadow-xs"
+                className="px-3.5 py-2 h-10 bg-background border border-border text-foreground text-[13px] font-medium hover:bg-muted/30 transition-colors flex items-center gap-2 rounded-lg cursor-pointer shadow-xs"
               >
                 <ArrowDownWideNarrow className="w-4 h-4 text-foreground/80 shrink-0" />
                 <span>Sort</span>
@@ -584,7 +584,7 @@ export function DataTable<T>({
                   onClick={() => setShowSortMenu(false)}
                 />
                 <div className="absolute right-0 mt-1.5 w-52 bg-background border border-border shadow-xl rounded-lg z-40 py-1.5 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-1 text-[13px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
+                  <div className="px-3.5 py-1 text-[11px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
                     Sort Column
                   </div>
                   {columns.filter(c => c.sortable !== false).map(c => (
@@ -593,7 +593,7 @@ export function DataTable<T>({
                       type="button"
                       onClick={() => handleSort(c.key)}
                       className={cn(
-                        'w-full px-3.5 py-2 text-left text-sm hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-between',
+                        'w-full px-3.5 py-2 text-left text-[13px] hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-between',
                         sortKey === c.key && 'bg-muted/30 font-semibold text-primary'
                       )}
                     >
@@ -615,7 +615,7 @@ export function DataTable<T>({
             <button 
               type="button"
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className="px-3.5 py-2 h-10 bg-background border border-border text-foreground text-sm font-medium hover:bg-muted/30 transition-colors flex items-center gap-2 rounded-lg cursor-pointer shadow-xs"
+              className="px-3.5 py-2 h-10 bg-background border border-border text-foreground text-[13px] font-medium hover:bg-muted/30 transition-colors flex items-center gap-2 rounded-lg cursor-pointer shadow-xs"
             >
               <Download size={15} />
               <span>Export</span>
@@ -629,7 +629,7 @@ export function DataTable<T>({
                   onClick={() => setShowExportMenu(false)}
                 />
                 <div className="absolute right-0 mt-1.5 w-44 bg-background border border-border shadow-xl rounded-lg z-40 py-1.5 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-1 text-[13px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
+                  <div className="px-3.5 py-1 text-[11px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
                     Export Format
                   </div>
                   <button
@@ -638,7 +638,7 @@ export function DataTable<T>({
                       handleExportCSV()
                       setShowExportMenu(false)
                     }}
-                    className="w-full px-3.5 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between cursor-pointer"
+                    className="w-full px-3.5 py-2.5 text-left text-[13px] hover:bg-muted/50 transition-colors flex items-center justify-between cursor-pointer"
                   >
                     <span>CSV Spreadsheet</span>
                     <span className="text-xs font-medium text-muted-foreground uppercase">.csv</span>
@@ -649,7 +649,7 @@ export function DataTable<T>({
                       handleExportJSON()
                       setShowExportMenu(false)
                     }}
-                    className="w-full px-3.5 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between border-t border-border/40 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 text-left text-[13px] hover:bg-muted/50 transition-colors flex items-center justify-between border-t border-border/40 cursor-pointer"
                   >
                     <span>JSON Raw Data</span>
                     <span className="text-xs font-medium text-muted-foreground uppercase">.json</span>
@@ -1030,9 +1030,9 @@ export function DataTable<T>({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 text-sm text-muted-foreground select-none">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 text-[13px] text-muted-foreground select-none">
         <div className="flex items-center gap-2.5">
-          <span className="text-sm font-medium">Rows per page:</span>
+          <span className="text-[13px] font-medium">Rows per page:</span>
           <div className="w-20">
             <Select
               value={itemsPerPage}
@@ -1045,10 +1045,10 @@ export function DataTable<T>({
                 label: String(opt),
               }))}
               size="sm"
-              buttonClassName="h-8.5 text-xs font-medium"
+              buttonClassName="h-8.5 text-[13px] font-medium"
             />
           </div>
-          <span className="ml-2 text-xs sm:text-sm">
+          <span className="ml-2 text-xs sm:text-[13px]">
             Page {currentPage} of {totalPages} • {filteredData.length} records
           </span>
         </div>

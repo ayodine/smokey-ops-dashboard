@@ -376,7 +376,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search pages, items, SKUs, batches, orders..."
-            className="flex-1 bg-transparent text-sm text-kumo-strong placeholder:text-kumo-subtle/70 focus:outline-none"
+            className="flex-1 bg-transparent text-[14px] text-kumo-strong placeholder:text-kumo-subtle/70 focus:outline-none"
           />
           {query ? (
             <button
@@ -396,12 +396,12 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
         {/* Results List */}
         <div
           ref={listRef}
-          className="flex-1 overflow-y-auto p-2 divide-y divide-kumo-line/40 text-xs text-kumo-default"
+          className="flex-1 overflow-y-auto p-2 divide-y divide-kumo-line/40 text-[13px] text-kumo-default"
         >
           {filteredItems.length === 0 ? (
             <div className="py-12 text-center text-kumo-subtle">
-              <p className="font-medium text-sm">No results found for "{query}"</p>
-              <p className="text-xs mt-1">Try searching for an ingredient, page name, or SKU.</p>
+              <p className="font-semibold text-[14px] text-kumo-strong">No results found for "{query}"</p>
+              <p className="text-[13px] mt-1">Try searching for an ingredient, page name, or SKU.</p>
             </div>
           ) : (
             categories.map(cat => {
@@ -410,7 +410,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
 
               return (
                 <div key={cat} className="py-1.5 first:pt-0 last:pb-0">
-                  <div className="px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-kumo-subtle">
+                  <div className="px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-wider text-kumo-subtle">
                     {cat}
                   </div>
                   <div className="space-y-0.5 mt-0.5">

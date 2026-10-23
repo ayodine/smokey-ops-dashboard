@@ -6,6 +6,7 @@ export interface FacilityOption {
   name: string
   city: string
   address?: string
+  state?: string
   type?: 'central_kitchen' | 'warehouse' | 'retail_hub' | 'cold_storage'
   total_skus?: number
   capacity_utilization?: number
@@ -20,6 +21,7 @@ export const INITIAL_FACILITY: FacilityOption = {
   code: 'HQ-YABA',
   name: 'Yaba Head Office',
   city: 'Lagos',
+  state: 'Lagos State',
   address: '14 Commercial Avenue, Yaba, Lagos',
   type: 'central_kitchen',
   total_skus: 36,
@@ -35,6 +37,7 @@ interface WarehouseContextType {
   setSelectedWarehouse: (facility: FacilityOption) => void
   facilities: FacilityOption[]
   addFacility: (facility: Omit<FacilityOption, 'id'>) => FacilityOption
+  updateFacility: (id: string, updates: Partial<FacilityOption>) => void
   deleteFacility: (id: string) => void
 }
 
@@ -141,6 +144,21 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return newFacility
   }
 
+  const updateFacility = (id: string, updates: Partial<FacilityOption>) => {
+    setFacilities(prev => {
+      const updated = prev.map(f => {
+        if (f.id === id) {
+          return { ...f, ...updates }
+        }
+        return f
+      })
+      return updated
+    })
+    if (selectedWarehouse.id === id) {
+      setSelectedWarehouseState(prev => ({ ...prev, ...updates }))
+    }
+  }
+
   const deleteFacility = (id: string) => {
     if (id === INITIAL_FACILITY.id || facilities.length <= 1) return
     const updated = facilities.filter(f => f.id !== id)
@@ -151,7 +169,7 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   return (
-    <WarehouseContext.Provider value={{ selectedWarehouse, setSelectedWarehouse, facilities, addFacility, deleteFacility }}>
+    <WarehouseContext.Provider value={{ selectedWarehouse, setSelectedWarehouse, facilities, addFacility, updateFacility, deleteFacility }}>
       {children}
     </WarehouseContext.Provider>
   )

@@ -5,9 +5,12 @@ import { ChevronRight, Home } from 'lucide-react'
 export const Breadcrumbs: React.FC = () => {
   const location = useLocation()
   const rawPathnames = location.pathname.split('/').filter(x => x)
-  // If on /accounts/route/:email, omit the email param so breadcrumbs end cleanly at Role & Permission matching reference
+  // If on /accounts/route/:email or /accounts/profile/:email or /offices/edit/:id, omit the id/email param so breadcrumbs end cleanly at matching reference
   const pathnames = rawPathnames.filter((_, idx) => {
-    if (rawPathnames[0] === 'accounts' && rawPathnames[1] === 'route' && idx === 2) {
+    if (rawPathnames[0] === 'accounts' && (rawPathnames[1] === 'route' || rawPathnames[1] === 'profile') && idx === 2) {
+      return false
+    }
+    if (rawPathnames[0] === 'offices' && rawPathnames[1] === 'edit' && idx === 2) {
       return false
     }
     return true
@@ -43,7 +46,11 @@ export const Breadcrumbs: React.FC = () => {
     accounts: 'Manage accounts',
     admin: 'Admin',
     route: 'Role & Permission',
+    profile: 'Staff Profile & KYC',
     matrix: 'Role & Permission',
+    offices: 'Manage offices',
+    register: 'Register Office',
+    edit: 'Edit Office',
   }
 
   // Helper for sentence case fallback

@@ -757,7 +757,7 @@ export const ProductionBatchesPage: React.FC = () => {
                         label: `${rp.name} (${rp.stock_qty} ${formatUnit(rp.unit)} on-hand)`
                       }))}
                       size="sm"
-                      buttonClassName="h-9 text-xs font-normal"
+                      buttonClassName="h-9 text-[13px] font-normal"
                     />
                   </div>
                   <div className="col-span-4">

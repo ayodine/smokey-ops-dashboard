@@ -165,12 +165,135 @@ export interface AppUserAccount {
   temporary_password?: string
   created_at?: string
   permissions?: string[]
-  // Driver specific KYC fields
+
+  // Personal Identity & Address KYC
+  residential_address?: string
+  city?: string
+  state?: string
+  date_of_birth?: string
+  bvn?: string
+  nin_verified?: boolean
+
+  // Employment & Scheduling KYC
+  employment_status?: 'full_time' | 'contract' | 'probation' | 'part_time'
+  shift_schedule?: string
+  date_joined?: string
+
+  // Next-of-Kin & Guarantor KYC
+  emergency_relationship?: string
+  guarantor_name?: string
+  guarantor_phone?: string
+  guarantor_relationship?: string
+  guarantor_status?: 'verified' | 'signed' | 'pending'
+
+  // Bank & Settlement KYC
+  bank_name?: string
+  bank_account_number?: string
+  bank_account_name?: string
+
+  // Rider Role KYC
   vehicle_type?: string
   plate_number?: string
   license_number?: string
   license_expiry?: string
   cod_limit?: number
+  assigned_zone?: string
+  inspection_status?: string
+  vehicle_ownership?: string
+
+  // Kitchen Staff KYC
+  food_safety_cert_id?: string
+  food_safety_cert_expiry?: string
+  kitchen_station?: string
+  health_clearance_status?: string
+  health_clearance_expiry?: string
+  apron_uniform_size?: string
+  pitmaster_specialty?: string
+  first_aid_certified?: string
+
+  // Inventory Specialist KYC
+  store_clearance_level?: string
+  primary_storage_depot?: string
+  stock_audit_pin?: string
+  equipment_certification?: string
+  refrigeration_safety_cert?: string
+
+  // Dispatcher KYC
+  dispatch_console_id?: string
+  territory_oversight?: string
+  incident_escalation_tier?: string
+  telematics_channel?: string
+
+  // Executive / Admin / Manager KYC
+  corporate_id_badge?: string
+  security_clearance?: string
+  department_scope?: string
+  two_factor_auth_status?: string
+}
+
+export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
+  const isRider = acc.role === 'rider'
+  const isKitchen = acc.role === 'kitchen'
+  const isInventory = acc.role === 'inventory'
+  const isDispatcher = acc.role === 'dispatcher'
+
+  return {
+    ...acc,
+    residential_address: acc.residential_address || (isRider ? '14 Herbert Macaulay Way, Alagomeji' : isKitchen ? '28 Commercial Avenue, Sabo' : isInventory ? '5 Montgomery Road, Yaba' : isDispatcher ? '19 Commercial Road, Yaba' : '10 Commercial Avenue, Yaba'),
+    city: acc.city || 'Lagos Mainland',
+    state: acc.state || 'Lagos State',
+    date_of_birth: acc.date_of_birth || (isRider ? '1996-08-14' : isKitchen ? '1992-04-22' : isInventory ? '1994-09-15' : isDispatcher ? '1991-03-10' : '1988-11-05'),
+    national_id_nin: acc.national_id_nin || (isRider ? '7829-4821-9921' : isKitchen ? '8941-2315-6672' : isInventory ? '6621-0042-8819' : isDispatcher ? '4431-7729-1082' : '5412-9983-1120'),
+    nin_verified: acc.nin_verified ?? true,
+    bvn: acc.bvn || '22349018471',
+    employment_status: acc.employment_status || 'full_time',
+    shift_schedule: acc.shift_schedule || (isKitchen ? 'Morning Cook & Prep (06:00 - 15:00)' : isRider ? 'Day Dispatch (08:00 - 18:00)' : isInventory ? 'Morning Intake & Audit (07:00 - 16:00)' : isDispatcher ? 'All-Day Fulfillment (08:00 - 18:00)' : 'General Executive Operations'),
+    date_joined: acc.date_joined || acc.created_at || '12 Feb 2025',
+    emergency_contact: acc.emergency_contact || (isRider ? 'Mrs. Funke Balogun' : isKitchen ? 'Mr. David Okon' : isInventory ? 'Dr. E. Adebayo' : isDispatcher ? 'Mrs. Jumoke Alao' : 'Mrs. Mary Olowookere'),
+    emergency_phone: acc.emergency_phone || '+234 802 345 6789',
+    emergency_relationship: acc.emergency_relationship || (isRider ? 'Spouse' : isKitchen ? 'Sibling' : isInventory ? 'Parent' : isDispatcher ? 'Spouse' : 'Spouse'),
+    guarantor_name: acc.guarantor_name || (isRider ? 'Alhaji M. Adeleke' : isKitchen ? 'Chef Tunde Bakare' : isInventory ? 'Pastor F. Williams' : isDispatcher ? 'Chief O. Lawson' : 'Barrister K. Shonowo'),
+    guarantor_phone: acc.guarantor_phone || '+234 803 311 2233',
+    guarantor_relationship: acc.guarantor_relationship || (isRider ? 'Corporate Merchant / Landlord' : isKitchen ? 'Executive Chef / Mentor' : isInventory ? 'Community Leader' : isDispatcher ? 'Senior Logistics Director' : 'Legal Counsel'),
+    guarantor_status: acc.guarantor_status || 'verified',
+    bank_name: acc.bank_name || (isRider ? 'Kuda Microfinance Bank' : isKitchen ? 'Guaranty Trust Bank (GTBank)' : isInventory ? 'Access Bank' : isDispatcher ? 'Zenith Bank' : 'Guaranty Trust Bank (GTBank)'),
+    bank_account_number: acc.bank_account_number || (isRider ? '2039481726' : isKitchen ? '0148920194' : isInventory ? '0029384719' : isDispatcher ? '1048291048' : '0129485712'),
+    bank_account_name: acc.bank_account_name || acc.name,
+    // Rider specific
+    vehicle_type: acc.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
+    plate_number: acc.plate_number || 'LND-482-XA',
+    license_number: acc.license_number || 'DL-98234-LAG',
+    license_expiry: acc.license_expiry || '2027-11-30',
+    cod_limit: acc.cod_limit || 50000,
+    assigned_zone: acc.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)',
+    inspection_status: acc.inspection_status || 'Passed & Certified',
+    vehicle_ownership: acc.vehicle_ownership || 'Smokey Fleet Unit #04',
+    // Kitchen specific
+    food_safety_cert_id: acc.food_safety_cert_id || 'HACCP-NG-2025-084',
+    food_safety_cert_expiry: acc.food_safety_cert_expiry || '2027-05-15',
+    kitchen_station: acc.kitchen_station || 'Primary Smoker Pit 1 & 2',
+    health_clearance_status: acc.health_clearance_status || 'Certified Medically Fit',
+    health_clearance_expiry: acc.health_clearance_expiry || '2026-12-31',
+    apron_uniform_size: acc.apron_uniform_size || 'L (Heat-Resistant)',
+    pitmaster_specialty: acc.pitmaster_specialty || 'Texas Brisket, Smoked Ribs & Pulled Pork',
+    first_aid_certified: acc.first_aid_certified || 'Yes - Level 2 Kitchen Burn & Fire Safety',
+    // Inventory specific
+    store_clearance_level: acc.store_clearance_level || 'Level 3 - Cold-Chain Meat Locker (-18°C)',
+    primary_storage_depot: acc.primary_storage_depot || 'Central Cold-Room Depot A',
+    stock_audit_pin: acc.stock_audit_pin || 'AUTH-INV-4829',
+    equipment_certification: acc.equipment_certification || 'Electric Walkie Stacker & Pallet Jack Certified',
+    refrigeration_safety_cert: acc.refrigeration_safety_cert || 'Certified Cold-Chain Temperature Auditor',
+    // Dispatcher specific
+    dispatch_console_id: acc.dispatch_console_id || 'CONSOLE-DESK-01',
+    territory_oversight: acc.territory_oversight || 'Mainland Central & Island Corridor Trunkline',
+    incident_escalation_tier: acc.incident_escalation_tier || 'Tier 2 - Field Incident & Breakdown Coordinator',
+    telematics_channel: acc.telematics_channel || 'Channel 1 - Mainland Dispatch Hotline',
+    // Admin / Manager specific
+    corporate_id_badge: acc.corporate_id_badge || (acc.staff_id || 'SHD-EXEC-001'),
+    security_clearance: acc.security_clearance || 'Level 5 - Root Organization Administrator',
+    department_scope: acc.department_scope || 'Multi-Facility Operations & Governance',
+    two_factor_auth_status: acc.two_factor_auth_status || 'Hardware Token (TOTP) Enforced',
+  }
 }
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {

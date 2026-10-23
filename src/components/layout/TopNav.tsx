@@ -12,7 +12,8 @@ import {
   Check,
   ShieldAlert,
   ArrowRight,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -244,7 +245,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-left bg-transparent border-0 font-sans hover:bg-kumo-tint transition-colors cursor-pointer"
           >
             <div className="flex flex-col min-w-0 leading-tight">
-              <span className="block text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100 max-w-[140px] sm:max-w-[200px]">
+              <span className="block text-[13px] font-semibold truncate text-zinc-900 dark:text-zinc-100 max-w-[140px] sm:max-w-[200px]">
                 {selectedWarehouse.name}
               </span>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-sans truncate">
@@ -264,7 +265,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                   setFacilitySearchQuery('')
                 }}
               />
-              <div className="absolute right-0 top-[52px] w-[320px] bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-xs">
+              <div className="absolute right-0 top-[52px] w-[320px] bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-visible text-[13px]">
                 {/* Pointer Arrow Notch */}
                 <div className="absolute -top-[6px] right-6 w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200/90 dark:border-zinc-800 rotate-45 z-30" />
 
@@ -277,7 +278,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     onChange={(e) => setFacilitySearchQuery(e.target.value)}
                     placeholder="Search facilities..."
                     autoFocus
-                    className="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none font-normal"
+                    className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none font-normal"
                   />
                 </div>
 
@@ -301,7 +302,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                             setFacilitySearchQuery('')
                           }}
                           className={cn(
-                            "w-full px-3.5 py-2.5 rounded-xl text-left text-sm transition-colors cursor-pointer flex items-center justify-between",
+                            "w-full px-3.5 py-2.5 rounded-xl text-left text-[13px] transition-colors cursor-pointer flex items-center justify-between",
                             isSelected
                               ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
                               : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-normal"
@@ -309,7 +310,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                         >
                           <div className="flex flex-col min-w-0 pr-2">
                             <div className="flex items-center gap-2">
-                              <span className="truncate font-sans font-medium text-sm text-zinc-900 dark:text-zinc-100">
+                              <span className="truncate font-sans font-medium text-[13px] text-zinc-900 dark:text-zinc-100">
                                 {fac.name}
                               </span>
                               {fac.isPrimary && (
@@ -330,12 +331,26 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     })}
                 </div>
 
-                {/* Action Footer: + Add New Office / Branch */}
-                <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
+                {/* Action Footer: Manage Offices & Add New Office / Branch */}
+                <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl divide-y divide-zinc-100 dark:divide-zinc-800">
                   <button
                     type="button"
-                    onClick={handleOpenAddFacility}
-                    className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
+                    onClick={() => {
+                      setIsWarehouseDropdownOpen(false)
+                      navigate('/offices')
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
+                  >
+                    <Building2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400 stroke-[1.75] shrink-0" />
+                    <span>Manage Offices</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWarehouseDropdownOpen(false)
+                      navigate('/offices/register')
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
                   >
                     <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
                     <span>Add New Office / Branch</span>

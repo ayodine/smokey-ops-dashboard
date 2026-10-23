@@ -315,7 +315,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
         {label && (
           <label
             htmlFor={generatedId}
-            className="block text-sm font-semibold text-kumo-strong leading-5"
+            className="block text-[12px] font-semibold text-kumo-strong leading-4"
           >
             {label}
             {required && <span className="text-kumo-danger ml-0.5">*</span>}
@@ -339,8 +339,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             className={cn(
-              'flex w-full items-center justify-between rounded-xl bg-kumo-base border border-kumo-line px-3.5 text-left text-sm sm:text-base text-kumo-strong shadow-2xs transition-colors cursor-pointer select-none font-sans',
-              size === 'sm' ? 'h-10 text-sm' : 'h-10 text-sm sm:text-base',
+              'flex w-full items-center justify-between rounded-xl bg-kumo-base border border-kumo-line px-3.5 text-left text-[13px] text-kumo-strong shadow-2xs transition-colors cursor-pointer select-none font-sans',
+              size === 'sm' ? 'h-9 text-[13px]' : 'h-10 text-[13px]',
               'hover:bg-kumo-canvas/40 focus:outline-none focus:border-kumo-brand focus:ring-1 focus:ring-kumo-brand',
               disabled && 'opacity-50 cursor-not-allowed bg-kumo-canvas/60',
               error && 'border-rose-500 focus:ring-rose-500',
@@ -386,7 +386,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search options..."
-                        className="w-full pl-9 pr-3 py-2 text-sm bg-kumo-canvas/50 border border-kumo-line rounded-lg focus:outline-none focus:border-kumo-brand text-kumo-strong placeholder:text-kumo-subtle/70"
+                        className="w-full pl-9 pr-3 py-2 text-[13px] bg-kumo-canvas/50 border border-kumo-line rounded-lg focus:outline-none focus:border-kumo-brand text-kumo-strong placeholder:text-kumo-subtle/70"
                         onClick={e => e.stopPropagation()}
                       />
                     </div>
@@ -394,7 +394,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                 )}
 
                 {filteredGroups.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-kumo-subtle text-center">
+                  <div className="px-4 py-3 text-[13px] text-kumo-subtle text-center">
                     No matching options found
                   </div>
                 ) : (
@@ -403,7 +403,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                       <div key={group.label || groupIdx} className={groupIdx > 0 ? 'pt-1.5' : ''}>
                         {/* Group Header matching inspiration: ACCOUNT-LEVEL, RESOURCE-SPECIFIC */}
                         {group.label && (
-                          <div className="px-4 pt-2.5 pb-1 text-[13px] font-semibold uppercase tracking-wider text-kumo-subtle select-none">
+                          <div className="px-4 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle select-none">
                             {group.label}
                           </div>
                         )}
@@ -421,7 +421,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                                 disabled={opt.disabled}
                                 onClick={() => !opt.disabled && handleSelect(opt.value)}
                                 className={cn(
-                                  'w-full flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm sm:text-base transition-colors select-none font-sans',
+                                  'w-full flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-[13px] transition-colors select-none font-sans',
                                   opt.disabled
                                     ? 'text-kumo-subtle/60 cursor-not-allowed opacity-60'
                                     : 'cursor-pointer hover:bg-kumo-tint/60',
@@ -435,7 +435,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                                   <div className="truncate">
                                     <span className="truncate block">{opt.label}</span>
                                     {opt.description && (
-                                      <span className="text-[13px] text-kumo-subtle block font-normal truncate mt-0.5">
+                                      <span className="text-[12px] text-kumo-subtle block font-normal truncate mt-0.5">
                                         {opt.description}
                                       </span>
                                     )}
@@ -460,9 +460,9 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
         </div>
 
         {error ? (
-          <p className="text-[11px] text-rose-600 font-medium">{error}</p>
+          <p className="text-[13px] text-kumo-danger font-normal">{error}</p>
         ) : helperText ? (
-          <p className="text-[11px] text-kumo-subtle">{helperText}</p>
+          <p className="text-[13px] text-kumo-subtle font-normal">{helperText}</p>
         ) : null}
       </div>
     )

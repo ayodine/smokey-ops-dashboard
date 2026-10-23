@@ -231,12 +231,12 @@ export const InteractiveTrendlineChart: React.FC<InteractiveTrendlineChartProps>
         })}
       </svg>
 
-      {/* Floating Interactive Tooltip (Light Mode) */}
+      {/* Floating Interactive Tooltip */}
       {activeCoord && (
         <div
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute z-30 pointer-events-auto rounded-lg border border-[#e4e4e7] bg-white/95 backdrop-blur-md px-3 py-2 text-[#18181b] shadow-xl transition-all duration-150 text-left min-w-[145px] max-w-[220px] select-text"
+          className="absolute z-30 pointer-events-auto rounded-lg border border-[#e4e4e7] dark:border-zinc-700 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md px-3 py-2 text-[#18181b] dark:text-zinc-100 shadow-xl transition-all duration-150 text-left min-w-[145px] max-w-[220px] select-text"
           style={{
             left: `${percentX}%`,
             top: `${percentY}%`,
@@ -246,7 +246,7 @@ export const InteractiveTrendlineChart: React.FC<InteractiveTrendlineChartProps>
           {/* Caret pointing directly to point */}
           <div
             className={cn(
-              'absolute w-2 h-2 bg-white border-[#e4e4e7] rotate-45 pointer-events-none',
+              'absolute w-2 h-2 bg-white dark:bg-zinc-800 border-[#e4e4e7] dark:border-zinc-700 rotate-45 pointer-events-none',
               isBelow ? '-top-1 border-t border-l' : '-bottom-1 border-b border-r'
             )}
             style={
@@ -259,10 +259,10 @@ export const InteractiveTrendlineChart: React.FC<InteractiveTrendlineChartProps>
           />
 
           {/* Header Row: Timestamp & Status / Close button */}
-          <div className="flex items-center justify-between gap-3 text-[11px] text-[#71717a] pb-1 border-b border-[#f4f4f5] font-mono">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-[#71717a] dark:text-zinc-400 pb-1 border-b border-[#f4f4f5] dark:border-zinc-700 font-mono">
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: strokeColor }} />
-              <span className="text-[#18181b] font-medium">{timeLabel}</span>
+              <span className="text-[#18181b] dark:text-zinc-100 font-medium">{timeLabel}</span>
             </div>
             {isPinned ? (
               <button
@@ -271,27 +271,27 @@ export const InteractiveTrendlineChart: React.FC<InteractiveTrendlineChartProps>
                   e.stopPropagation()
                   setSelectedIndex(null)
                 }}
-                className="text-[#a1a1aa] hover:text-[#18181b] transition-colors text-xs leading-none p-0.5 rounded hover:bg-[#f4f4f5]"
+                className="text-[#a1a1aa] hover:text-[#18181b] dark:hover:text-zinc-100 transition-colors text-xs leading-none p-0.5 rounded hover:bg-[#f4f4f5] dark:hover:bg-zinc-700"
                 title="Dismiss tooltip"
               >
                 ✕
               </button>
             ) : (
-              <span className="text-[10px] text-[#a1a1aa] lowercase">click to pin</span>
+              <span className="text-[10px] text-[#a1a1aa] dark:text-zinc-500 lowercase">click to pin</span>
             )}
           </div>
 
           {/* Metric Value Row */}
           <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-[16px] font-semibold tracking-tight text-[#18181b] leading-none font-sans">
+            <span className="text-[16px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none font-sans">
               {displayVal}
             </span>
           </div>
 
           {/* Secondary Context / Micro Detail */}
           {contextNote && (
-            <div className="mt-1 text-[11px] text-[#52525b] leading-tight flex items-center gap-1">
-              <span className="text-[#a1a1aa]">•</span>
+            <div className="mt-1 text-[11px] text-[#52525b] dark:text-zinc-300 leading-tight flex items-center gap-1">
+              <span className="text-[#a1a1aa] dark:text-zinc-500">•</span>
               <span>{contextNote}</span>
             </div>
           )}
@@ -474,10 +474,10 @@ export const CloudflareAnalyticsSection: React.FC = () => {
       {/* SECTION HEADER: Title & Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-[22px] font-semibold tracking-tight text-[#18181b]">
+          <h2 className="text-[22px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100">
             Analytics
           </h2>
-          <p className="text-xs text-[#71717a] mt-0.5">
+          <p className="text-xs text-[#71717a] dark:text-zinc-400 mt-0.5">
             Operational throughput, kitchen batch metrics, and logistics velocity from our active dashboard
           </p>
         </div>
@@ -489,9 +489,9 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsTimeDropdownOpen(!isTimeDropdownOpen)}
-              className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[#e4e4e7] bg-white text-[13px] font-medium text-[#18181b] hover:bg-[#fafafa] shadow-2xs transition-colors"
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[#e4e4e7] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[13px] font-medium text-[#18181b] dark:text-zinc-200 hover:bg-[#fafafa] dark:hover:bg-zinc-700 shadow-2xs transition-colors"
             >
-              <Calendar className="w-3.5 h-3.5 text-[#71717a]" />
+              <Calendar className="w-3.5 h-3.5 text-[#71717a] dark:text-zinc-400" />
               <span>
                 {timeRange === '24h' && 'Last 24 hours'}
                 {timeRange === '7d' && 'Last 7 days'}
@@ -505,7 +505,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                   className="fixed inset-0 z-20"
                   onClick={() => setIsTimeDropdownOpen(false)}
                 />
-                <div className="absolute right-0 mt-1 w-44 rounded-lg border border-[#e4e4e7] bg-white shadow-lg py-1 z-30 text-xs">
+                <div className="absolute right-0 mt-1 w-44 rounded-lg border border-[#e4e4e7] dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg py-1 z-30 text-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -513,8 +513,8 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                       setIsTimeDropdownOpen(false)
                     }}
                     className={cn(
-                      'w-full text-left px-3 py-2 hover:bg-[#fafafa] transition-colors',
-                      timeRange === '24h' && 'font-semibold text-[#0051c3]'
+                      'w-full text-left px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-[#fafafa] dark:hover:bg-zinc-700 transition-colors',
+                      timeRange === '24h' && 'font-semibold text-[#0051c3] dark:text-blue-400'
                     )}
                   >
                     Last 24 hours
@@ -526,8 +526,8 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                       setIsTimeDropdownOpen(false)
                     }}
                     className={cn(
-                      'w-full text-left px-3 py-2 hover:bg-[#fafafa] transition-colors',
-                      timeRange === '7d' && 'font-semibold text-[#0051c3]'
+                      'w-full text-left px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-[#fafafa] dark:hover:bg-zinc-700 transition-colors',
+                      timeRange === '7d' && 'font-semibold text-[#0051c3] dark:text-blue-400'
                     )}
                   >
                     Last 7 days
@@ -539,8 +539,8 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                       setIsTimeDropdownOpen(false)
                     }}
                     className={cn(
-                      'w-full text-left px-3 py-2 hover:bg-[#fafafa] transition-colors',
-                      timeRange === '30d' && 'font-semibold text-[#0051c3]'
+                      'w-full text-left px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-[#fafafa] dark:hover:bg-zinc-700 transition-colors',
+                      timeRange === '30d' && 'font-semibold text-[#0051c3] dark:text-blue-400'
                     )}
                   >
                     Last 30 days
@@ -555,9 +555,9 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             type="button"
             onClick={triggerRefresh}
             title="Refresh metrics"
-            className="w-9 h-9 rounded-lg border border-[#e4e4e7] bg-white flex items-center justify-center text-[#71717a] hover:text-[#18181b] hover:bg-[#fafafa] shadow-2xs transition-colors"
+            className="w-9 h-9 rounded-lg border border-[#e4e4e7] dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center text-[#71717a] dark:text-zinc-400 hover:text-[#18181b] dark:hover:text-zinc-100 hover:bg-[#fafafa] dark:hover:bg-zinc-700 shadow-2xs transition-colors"
           >
-            <RotateCw className={cn('w-4 h-4', isRefreshing && 'animate-spin text-[#0051c3]')} />
+            <RotateCw className={cn('w-4 h-4', isRefreshing && 'animate-spin text-[#0051c3] dark:text-blue-400')} />
           </button>
         </div>
       </div>
@@ -577,13 +577,13 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             minHeight: '220px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
             resizingId === 'website-orders' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <ShoppingBag className="w-3.5 h-3.5 text-[#0051c3]" />
                 Website Orders & Ingestion
               </span>
@@ -591,21 +591,21 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                 type="button"
                 onClick={() => navigate('/sales/orders')}
                 title="View Website Orders"
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.totalOrderQty.toLocaleString()}
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
                 <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>18.4%</span>
               </span>
-              <span className="text-xs text-[#71717a] font-normal ml-auto">
+              <span className="text-xs text-[#71717a] dark:text-zinc-400 font-normal ml-auto">
                 {formatNaira(stats.totalRevenue)} gross
               </span>
             </div>
@@ -613,7 +613,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
 
           {/* SVG Chart with Y-Ticks */}
           <div className="relative w-full flex-1 min-h-[90px] mt-4 flex">
-            <div className="w-10 pr-2 flex flex-col justify-between text-[11px] text-[#a1a1aa] font-mono leading-none py-1 select-none text-right border-r border-[#f4f4f5]">
+            <div className="w-10 pr-2 flex flex-col justify-between text-[11px] text-[#a1a1aa] dark:text-zinc-500 font-mono leading-none py-1 select-none text-right border-r border-[#f4f4f5] dark:border-zinc-800">
               <span>150</span>
               <span>100</span>
               <span>50</span>
@@ -642,7 +642,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
           </div>
 
           {/* Bottom Time Range Axis */}
-          <div className="flex justify-between text-[10px] text-[#a1a1aa] font-mono pt-2 border-t border-[#f4f4f5] mt-1 select-none">
+          <div className="flex justify-between text-[10px] text-[#a1a1aa] dark:text-zinc-500 font-mono pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 mt-1 select-none">
             <span>00:00</span>
             <span>06:00</span>
             <span>12:00</span>
@@ -655,7 +655,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('website-orders', e)}
             onDoubleClick={() => handleResetSize('website-orders')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -674,13 +674,13 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             minHeight: '220px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
             resizingId === 'kitchen-yield' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <Flame className="w-3.5 h-3.5 text-[#ea580c]" />
                 Production Batch Yield (Kg)
               </span>
@@ -688,21 +688,21 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                 type="button"
                 onClick={() => navigate('/production/batches')}
                 title="View Production Batches"
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.totalBatchKg.toFixed(1)} kg
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
                 <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>12.6%</span>
               </span>
-              <span className="text-xs text-[#71717a] font-normal ml-auto">
+              <span className="text-xs text-[#71717a] dark:text-zinc-400 font-normal ml-auto">
                 {stats.activeBatchesCount} batches in smoker
               </span>
             </div>
@@ -710,7 +710,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
 
           {/* SVG Chart with Y-Ticks */}
           <div className="relative w-full flex-1 min-h-[90px] mt-4 flex">
-            <div className="w-10 pr-2 flex flex-col justify-between text-[11px] text-[#a1a1aa] font-mono leading-none py-1 select-none text-right border-r border-[#f4f4f5]">
+            <div className="w-10 pr-2 flex flex-col justify-between text-[11px] text-[#a1a1aa] dark:text-zinc-500 font-mono leading-none py-1 select-none text-right border-r border-[#f4f4f5] dark:border-zinc-800">
               <span>150</span>
               <span>100</span>
               <span>50</span>
@@ -738,7 +738,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
           </div>
 
           {/* Bottom Time Range Axis */}
-          <div className="flex justify-between text-[10px] text-[#a1a1aa] font-mono pt-2 border-t border-[#f4f4f5] mt-1 select-none">
+          <div className="flex justify-between text-[10px] text-[#a1a1aa] dark:text-zinc-500 font-mono pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 mt-1 select-none">
             <span>00:00</span>
             <span>06:00</span>
             <span>12:00</span>
@@ -751,7 +751,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('kitchen-yield', e)}
             onDoubleClick={() => handleResetSize('kitchen-yield')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -775,27 +775,27 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             minHeight: '180px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
             resizingId === 'packaging-fulfillment' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <Box className="w-3.5 h-3.5 text-[#8b5cf6]" />
                 Packaging Dispatched
               </span>
               <button
                 type="button"
                 onClick={() => navigate('/production/packaging')}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.queuedCount} packs
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
@@ -828,7 +828,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('packaging-fulfillment', e)}
             onDoubleClick={() => handleResetSize('packaging-fulfillment')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -841,33 +841,33 @@ export const CloudflareAnalyticsSection: React.FC = () => {
           ref={(el) => { cardRefs.current['stock-turnover'] = el }}
           style={{
             flex: cardSizes['stock-turnover']?.width ? `0 0 ${cardSizes['stock-turnover'].width}px` : '1 1 calc(25% - 12px)',
-            width: cardSizes['stock-turnover']?.width ? `${cardSizes['stock-turnover']?.width}px` : undefined,
-            height: cardSizes['stock-turnover']?.height ? `${cardSizes['stock-turnover']?.height}px` : undefined,
+            width: cardSizes['stock-turnover']?.width ? `${cardSizes['stock-turnover'].width}px` : undefined,
+            height: cardSizes['stock-turnover']?.height ? `${cardSizes['stock-turnover'].height}px` : undefined,
             minWidth: '220px',
             minHeight: '180px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
             resizingId === 'stock-turnover' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <Percent className="w-3.5 h-3.5 text-[#16a34a]" />
                 Sales Stock Turnover
               </span>
               <button
                 type="button"
                 onClick={() => navigate('/inventory/sales')}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.turnoverPercent}%
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
@@ -900,7 +900,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('stock-turnover', e)}
             onDoubleClick={() => handleResetSize('stock-turnover')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -914,32 +914,32 @@ export const CloudflareAnalyticsSection: React.FC = () => {
           style={{
             flex: cardSizes['avg-delivery-time']?.width ? `0 0 ${cardSizes['avg-delivery-time'].width}px` : '1 1 calc(25% - 12px)',
             width: cardSizes['avg-delivery-time']?.width ? `${cardSizes['avg-delivery-time'].width}px` : undefined,
-            height: cardSizes['avg-delivery-time']?.height ? `${cardSizes['avg-delivery-time']?.height}px` : undefined,
+            height: cardSizes['avg-delivery-time']?.height ? `${cardSizes['avg-delivery-time'].height}px` : undefined,
             minWidth: '220px',
             minHeight: '180px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-visible',
             resizingId === 'avg-delivery-time' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <Truck className="w-3.5 h-3.5 text-[#0051c3]" />
                 Average Delivery Time
               </span>
               <button
                 type="button"
                 onClick={() => navigate('/logistics/board')}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.avgDeliveryTime} m
               </span>
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
@@ -972,7 +972,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('avg-delivery-time', e)}
             onDoubleClick={() => handleResetSize('avg-delivery-time')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -991,27 +991,27 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             minHeight: '180px'
           }}
           className={cn(
-            'relative group rounded-xl border border-[#e4e4e7] bg-white p-5 shadow-2xs hover:border-[#d4d4d8] transition-[border-color,box-shadow] flex flex-col justify-between overflow-hidden',
+            'relative group rounded-xl border border-[#e4e4e7] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-2xs hover:border-[#d4d4d8] dark:hover:border-zinc-700 transition-[border-color,box-shadow] flex flex-col justify-between overflow-hidden',
             resizingId === 'payout-clearance' && 'ring-2 ring-[#0051c3] border-[#0051c3]'
           )}
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#71717a] font-normal flex items-center gap-1.5">
+              <span className="text-[13px] text-[#71717a] dark:text-zinc-400 font-normal flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
                 Rider Payout Clearance
               </span>
               <button
                 type="button"
                 onClick={() => navigate('/logistics/riders')}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] hover:text-[#0051c3] hover:bg-black/[0.04] transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded text-[#a1a1aa] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-[28px] font-semibold tracking-tight text-[#18181b] leading-none">
+              <span className="text-[28px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {formatNaira(stats.totalPayouts)}
               </span>
             </div>
@@ -1026,10 +1026,11 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                 stroke="#dcfce7"
                 strokeWidth="1.5"
                 strokeDasharray="4 4"
+                className="dark:stroke-emerald-900/60"
               />
             </svg>
-            <span className="relative z-10 px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 shadow-2xs select-none flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            <span className="relative z-10 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/40 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 shadow-2xs select-none flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
               100% Cleared
             </span>
           </div>
@@ -1039,7 +1040,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             onPointerDown={(e) => handleResizeStart('payout-clearance', e)}
             onDoubleClick={() => handleResetSize('payout-clearance')}
             title="Drag to resize card • Double-click to reset"
-            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] hover:text-[#0051c3] hover:bg-blue-50/80 rounded-tl transition-colors select-none z-20 touch-none"
+            className="absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1 cursor-se-resize text-[#a1a1aa] dark:text-zinc-500 hover:text-[#0051c3] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-zinc-800 rounded-tl transition-colors select-none z-20 touch-none"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M11 3L3 11M11 7L7 11M11 11L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

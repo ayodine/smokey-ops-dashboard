@@ -336,7 +336,7 @@ export { StatusPill, type FigmaBadgeState, type StatusPillProps }
 export const CountBadge: React.FC<{ count: string | number; className?: string }> = ({ count, className }) => (
   <span
     className={cn(
-      'inline-flex items-center justify-center px-1.5 py-0.5 rounded-[6px] text-[11px] font-semibold bg-[#52525b] text-white min-w-[20px] leading-tight select-none',
+      'inline-flex items-center justify-center px-1.5 py-0.5 rounded-[6px] text-[11px] font-semibold bg-[#52525b] dark:bg-zinc-700 text-white min-w-[20px] leading-tight select-none',
       className
     )}
   >
@@ -373,7 +373,7 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
       : 'draft'
 
   return (
-    <div className="relative px-3.5 py-2.5 flex items-center justify-between hover:bg-zinc-50/70 transition-colors group select-none">
+    <div className="relative px-3.5 py-2.5 flex items-center justify-between hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60 transition-colors group select-none">
       {/* Tiny Process Indicator Dot at Top Right Corner of Container: Grey for Automatic, Red for Action Required */}
       <span
         title={isAutomatic ? 'Automatic Process' : 'Action Required'}
@@ -385,7 +385,7 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
 
       {/* Task Title with optional small open-link icon at top-right corner of text */}
       <div className="flex items-center min-w-0 pr-2">
-        <span className="text-[#374151] font-normal text-[13.5px] truncate">
+        <span className="text-[#374151] dark:text-zinc-200 font-normal text-[13.5px] truncate">
           {title}
         </span>
         {actionUrl && (
@@ -396,7 +396,7 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
               navigate(actionUrl)
             }}
             title={actionTitle}
-            className="inline-flex items-start text-[#9ca3af] hover:text-[#0051c3] transition-colors cursor-pointer ml-1 self-start -translate-y-1 shrink-0 p-0.5 rounded"
+            className="inline-flex items-start text-[#9ca3af] dark:text-zinc-400 hover:text-[#0051c3] dark:hover:text-blue-400 transition-colors cursor-pointer ml-1 self-start -translate-y-1 shrink-0 p-0.5 rounded"
           >
             <ExternalLink className="w-2.5 h-2.5 stroke-[2]" />
           </button>
@@ -1207,53 +1207,46 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       {/* =========================================================================
           MAIN WORKFLOW CONTAINER
          ========================================================================= */}
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
+      <div className="rounded-2xl border border-[#e5e7eb] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
         {/* CONTAINER HEADING */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0051c3] flex items-center justify-center font-bold shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 flex items-center justify-center font-bold shrink-0">
               <Network className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-[17px] font-semibold text-[#18181b] tracking-tight">
+                <h3 className="text-[17px] font-semibold text-[#18181b] dark:text-zinc-100 tracking-tight">
                   Order Tracking Diagram
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#ecfdf5] text-[#15803d]">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80">
                   Live Pipeline
                 </span>
               </div>
-              <p className="text-xs text-[#71717a] mt-0.5">
+              <p className="text-xs text-[#71717a] dark:text-zinc-400 mt-0.5">
                 End-to-end operational pipeline tracking from customer checkout through kitchen cooking to delivery
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-[#71717a] hidden sm:inline">
-              Active Order:{' '}
-              <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 tracking-tight shadow-2xs">
-                {activeOrder.id}
-              </span>{' '}
-              <span className="text-[#a1a1aa]">({activeOrder.customerName})</span>
-            </span>
             <button
               type="button"
               onClick={() => setIsCanvasExpanded(!isCanvasExpanded)}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#e4e4e7] bg-white text-xs font-medium text-[#18181b] hover:bg-[#fafafa] transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#e4e4e7] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-[#18181b] dark:text-zinc-200 hover:bg-[#fafafa] dark:hover:bg-zinc-700 transition-colors"
             >
               <span>{isCanvasExpanded ? 'Collapse' : 'Expand'}</span>
-              {isCanvasExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
+              {isCanvasExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a] dark:text-zinc-400" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a] dark:text-zinc-400" />}
             </button>
           </div>
         </div>
 
         {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800">
           {/* Left: Design System Search Field with Rock-Solid Fixed Width & Autocomplete Dropdown */}
           <div
             ref={searchContainerRef}
-            className="relative w-full sm:w-[420px] lg:w-[480px] shrink-0 font-sans"
+            className="relative w-full sm:w-[280px] lg:w-[320px] xl:w-[340px] shrink-0 font-sans"
           >
             <div className="relative w-full">
               {/* Search Icon */}
@@ -1267,7 +1260,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 >
                   <span className="invisible">{orderSearchInput}</span>
                   <span className="text-zinc-400/90">{topSuggestion.completionText}</span>
-                  <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-zinc-100 text-zinc-500 border border-zinc-200 font-mono">
+                  <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 font-mono">
                     Tab ⇥
                   </span>
                 </div>
@@ -1369,29 +1362,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
 
           {/* Right: Status States & Process Dots Legend extracted from Figma */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#71717a] mr-1 hidden sm:inline">
+          <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] dark:text-zinc-400 mr-1 hidden sm:inline shrink-0">
                 Badge states:
               </span>
-              <StatusPill state="draft" label="no-action" />
-              <StatusPill state="in-progress" label="in-progress" />
-              <StatusPill state="in-review" label="in-review" />
-              <StatusPill state="completed" label="completed" />
-              <StatusPill state="flagged" label="flagged" />
+              <StatusPill state="draft" label="no-action" size="sm" />
+              <StatusPill state="in-progress" label="in-progress" size="sm" />
+              <StatusPill state="in-review" label="in-review" size="sm" />
+              <StatusPill state="completed" label="completed" size="sm" />
+              <StatusPill state="flagged" label="flagged" size="sm" />
             </div>
 
-            <div className="h-4 w-px bg-[#e4e4e7] hidden md:block" />
+            <div className="h-3.5 w-px bg-[#e4e4e7] dark:bg-zinc-700 shrink-0 hidden md:block" />
 
             {/* Process Indicator Legend: Grey for Automatic, Red for Action Required */}
-            <div className="flex items-center gap-3 text-xs text-[#71717a]">
+            <div className="flex items-center gap-2 text-xs text-[#71717a] dark:text-zinc-400 shrink-0 whitespace-nowrap">
               <div className="flex items-center gap-1.5" title="Automated system task">
-                <span className="w-2 h-2 rounded-full bg-[#9ca3af] shrink-0" />
-                <span className="text-[11px] font-medium text-[#52525b]">Automatic</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9ca3af] shrink-0" />
+                <span className="text-[11px] font-medium text-[#52525b] dark:text-zinc-300">Automatic</span>
               </div>
               <div className="flex items-center gap-1.5" title="Human action required to attend to pending step">
-                <span className="w-2 h-2 rounded-full bg-[#ef4444] shrink-0" />
-                <span className="text-[11px] font-medium text-[#52525b]">Action required</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444] shrink-0" />
+                <span className="text-[11px] font-medium text-[#52525b] dark:text-zinc-300">Action required</span>
               </div>
             </div>
           </div>
@@ -1562,25 +1555,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                      ===================================================================== */}
                   <div className="w-[260px] sm:w-[290px] shrink-0 space-y-3.5">
                     {/* Node 1A: Order Intake */}
-                    <div ref={node1ACardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1ACardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={node1AHeaderRef}
                         onClick={() => toggleNodeExpansion('node1A')}
-                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Order Intake</span>
                           <CountBadge count={pipelineMetrics.intake.badgeLabel} />
                         </div>
                         {expandedNodes.node1A ? (
-                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         )}
                       </div>
 
                       {expandedNodes.node1A && (
-                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                        <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
                             title="Order Ingestion"
                             status={pipelineMetrics.intake.validation}
@@ -1601,25 +1594,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1B: Inventory Allocation */}
-                    <div ref={node1BCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1BCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={node1BHeaderRef}
                         onClick={() => toggleNodeExpansion('node1B')}
-                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Inventory Allocation</span>
                           <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                         </div>
                         {expandedNodes.node1B ? (
-                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         )}
                       </div>
 
                       {expandedNodes.node1B && (
-                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                        <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
                             title="Sales Stock Deduction"
                             status={pipelineMetrics.inventory.stock}
@@ -1642,25 +1635,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     </div>
 
                     {/* Node 1C: Kitchen Cooking (Automated Batch Production) */}
-                    <div ref={node1CCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={node1CCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={node1CHeaderRef}
                         onClick={() => toggleNodeExpansion('node1C')}
-                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Kitchen Cooking</span>
                           <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                         </div>
                         {expandedNodes.node1C ? (
-                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         )}
                       </div>
 
                       {expandedNodes.node1C && (
-                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                        <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
                             title="Batch Cooking"
                             status={pipelineMetrics.cooking.cooking}
@@ -1680,25 +1673,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
-                    <div ref={centerCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={centerCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={centerHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar2')}
-                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Packaging and Assembly</span>
                           <CountBadge count={pipelineMetrics.packaging.badgeLabel} />
                         </div>
                         {expandedNodes.pillar2 ? (
-                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         )}
                       </div>
 
                       {expandedNodes.pillar2 && (
-                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                        <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
                             title="Packing Queue Routing"
                             status={pipelineMetrics.packaging.queue}
@@ -1732,25 +1725,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       COLUMN 3: DELIVERY AND CUSTOMER HANDOVER
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
-                    <div ref={bindingsCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
+                    <div ref={bindingsCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={bindingsHeaderRef}
                         onClick={() => toggleNodeExpansion('pillar3')}
-                        className="rounded-[12px] border border-[#d4d4d8] bg-white px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                        className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-3.5 py-2.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Delivery and Handover</span>
                           <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                         </div>
                         {expandedNodes.pillar3 ? (
-                          <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                          <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                         )}
                       </div>
 
                       {expandedNodes.pillar3 && (
-                        <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                        <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
                             title="Assign Driver"
                             status={pipelineMetrics.delivery.driver}
@@ -1801,24 +1794,24 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                  ===================================================================== */
               <div className="max-w-4xl mx-auto space-y-6 py-2">
                 {/* 1. ORDER INTAKE */}
-                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree1')}
-                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#18181b]">Order Intake</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Order Intake</span>
                       <CountBadge count={pipelineMetrics.intake.badgeLabel} />
                     </div>
                     {expandedNodes.tree1 !== false ? (
-                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     )}
                   </div>
 
                   {expandedNodes.tree1 !== false && (
-                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                    <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
                         title="Order Ingestion"
                         status={pipelineMetrics.intake.validation}
@@ -1840,29 +1833,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                 {/* STEM 1 TO 2 */}
                 <div className="flex flex-col items-center justify-center -my-3">
-                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
-                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8] dark:bg-zinc-600" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
                 {/* 2. INVENTORY ALLOCATION */}
-                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree2')}
-                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#18181b]">Inventory Allocation</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Inventory Allocation</span>
                       <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                     </div>
                     {expandedNodes.tree2 !== false ? (
-                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     )}
                   </div>
 
                   {expandedNodes.tree2 !== false && (
-                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                    <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
                         title="Sales Stock Deduction"
                         status={pipelineMetrics.inventory.stock}
@@ -1886,29 +1879,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                 {/* STEM 2 TO 3 */}
                 <div className="flex flex-col items-center justify-center -my-3">
-                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
-                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8] dark:bg-zinc-600" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
                 {/* 3. KITCHEN COOKING */}
-                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree3')}
-                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#18181b]">Kitchen Cooking</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Kitchen Cooking</span>
                       <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                     </div>
                     {expandedNodes.tree3 !== false ? (
-                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     )}
                   </div>
 
                   {expandedNodes.tree3 !== false && (
-                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                    <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
                         title="Batch Cooking"
                         status={pipelineMetrics.cooking.cooking}
@@ -1925,29 +1918,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                 {/* STEM 3 TO 4 */}
                 <div className="flex flex-col items-center justify-center -my-3">
-                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
-                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8] dark:bg-zinc-600" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
                 {/* 4. PACKAGING AND ASSEMBLY */}
-                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree4')}
-                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#18181b]">Packaging and Assembly</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Packaging and Assembly</span>
                       <CountBadge count={pipelineMetrics.packaging.badgeLabel} />
                     </div>
                     {expandedNodes.tree4 !== false ? (
-                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     )}
                   </div>
 
                   {expandedNodes.tree4 !== false && (
-                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                    <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
                         title="Packing Queue Routing"
                         status={pipelineMetrics.packaging.queue}
@@ -1978,29 +1971,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                 {/* STEM 4 TO 5 */}
                 <div className="flex flex-col items-center justify-center -my-3">
-                  <div className="w-[1.5px] h-6 bg-[#94a3b8]" />
-                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] -mt-1" />
+                  <div className="w-[1.5px] h-6 bg-[#94a3b8] dark:bg-zinc-600" />
+                  <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
                 {/* 5. DELIVERY AND CUSTOMER HANDOVER */}
-                <div className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white shadow-2xs hover:border-[#a1a1aa] transition-all">
+                <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree5')}
-                    className="rounded-[12px] border border-[#d4d4d8] bg-white px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] transition-colors"
+                    className="rounded-[12px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer select-none hover:bg-[#fafafa] dark:hover:bg-zinc-800 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-[#18181b]">Delivery and Handover</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Delivery and Handover</span>
                       <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                     </div>
                     {expandedNodes.tree5 !== false ? (
-                      <ChevronUp className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronUp className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-[#27272a] stroke-[2]" />
+                      <ChevronDown className="w-4 h-4 text-[#27272a] dark:text-zinc-400 stroke-[2]" />
                     )}
                   </div>
 
                   {expandedNodes.tree5 !== false && (
-                    <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
+                    <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
                         title="Assign Driver"
                         status={pipelineMetrics.delivery.driver}
@@ -2050,11 +2043,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         {/* =========================================================================
             3. BOTTOM COLLAPSE / EXPAND CHEVRON HANDLE (EXACT MATCH FOR SCREENSHOT 2)
            ========================================================================= */}
-        <div className="mt-4 pt-2 border-t border-[#f4f4f5] flex items-center justify-center">
+        <div className="mt-4 pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 flex items-center justify-center">
           <button
             type="button"
             onClick={() => setIsCanvasExpanded(!isCanvasExpanded)}
-            className="text-[#71717a] hover:text-[#18181b] transition-colors p-1 cursor-pointer"
+            className="text-[#71717a] dark:text-zinc-400 hover:text-[#18181b] dark:hover:text-zinc-200 transition-colors p-1 cursor-pointer"
             aria-label={isCanvasExpanded ? 'Collapse canvas' : 'Expand canvas'}
           >
             {isCanvasExpanded ? (

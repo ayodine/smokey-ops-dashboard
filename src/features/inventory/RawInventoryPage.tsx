@@ -396,7 +396,7 @@ export const RawInventoryPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="font-medium text-xs text-kumo-strong font-sans">{p.name}</span>
             {p.is_perishable && (
-              <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded">
+              <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 rounded">
                 Expiring
               </span>
             )}
@@ -677,9 +677,9 @@ export const RawInventoryPage: React.FC = () => {
         const isWaste = m.movement_type === 'waste'
         return (
           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap shrink-0 ${
-            isConsumption ? 'bg-blue-50 text-blue-700 border-blue-200' :
-            isWaste ? 'bg-rose-50 text-rose-700 border-rose-200' :
-            'bg-amber-50 text-amber-700 border-amber-200'
+            isConsumption ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800' :
+            isWaste ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800' :
+            'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
           }`}>
             {m.movement_type.toUpperCase()}
           </span>
@@ -797,8 +797,8 @@ export const RawInventoryPage: React.FC = () => {
       accessor: (v) => (
         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border whitespace-nowrap shrink-0 ${
           v.status === 'reconciled'
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-amber-50 text-amber-700 border-amber-200'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
         }`}>
           {v.status === 'reconciled' ? 'Reconciled' : 'Pending Review'}
         </span>
@@ -1297,8 +1297,8 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           {stocktakeFeedback && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-lg border border-emerald-200 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>{stocktakeFeedback}</span>
             </div>
           )}

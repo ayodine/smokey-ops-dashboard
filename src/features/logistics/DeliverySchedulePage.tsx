@@ -20,7 +20,8 @@ import {
   Phone, 
   MapPin, 
   Play,
-  ArrowUpRight 
+  ArrowUpRight,
+  Truck 
 } from 'lucide-react'
 
 export const DeliverySchedulePage: React.FC = () => {
@@ -115,29 +116,41 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 260,
+      defaultWidth: 200,
       accessor: (o) => (
-        <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-2">
-          <Tooltip content="Send scheduled order to kitchen packaging queue">
-            <TableActionButton
-              variant="primary"
-              icon={<Play className="fill-current" />}
-              iconStrokeWidth={2}
-              onClick={() => startScheduledOrder(o.id)}
-            >
-              Send to Kitchen
-            </TableActionButton>
-          </Tooltip>
-          {o.order_status === 'in_queue' && (
+        <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center">
+          {o.order_status === 'in_queue' ? (
             <Tooltip content="Open Kitchen Packaging Execution & Pack Queue table">
               <Link
                 to="/production/packaging"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 rounded-lg transition-colors group font-sans whitespace-nowrap shrink-0 shadow-2xs"
               >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>In Packaging Queue</span>
                 <ArrowUpRight className="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 transition-opacity" />
               </Link>
+            </Tooltip>
+          ) : o.order_status === 'dispatched' ? (
+            <Tooltip content="View live dispatch status on logistics board">
+              <Link
+                to="/logistics/board"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 rounded-lg transition-colors group font-sans whitespace-nowrap shrink-0 shadow-2xs"
+              >
+                <Truck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Track Dispatch</span>
+                <ArrowUpRight className="w-3 h-3 text-blue-500 opacity-60 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            </Tooltip>
+          ) : (
+            <Tooltip content="Send scheduled order to kitchen packaging queue">
+              <TableActionButton
+                variant="primary"
+                icon={<Play className="fill-current" />}
+                iconStrokeWidth={2}
+                onClick={() => startScheduledOrder(o.id)}
+              >
+                Send to Kitchen
+              </TableActionButton>
             </Tooltip>
           )}
         </div>

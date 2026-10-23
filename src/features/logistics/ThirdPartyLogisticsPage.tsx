@@ -109,13 +109,13 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
       defaultWidth: 200,
       accessor: (w) => (
         <div className="flex items-center gap-1.5 text-xs font-sans shrink-0">
-          <span className="px-1.5 py-0.5 rounded-lg bg-red-50 text-red-600 border border-red-200 font-medium whitespace-nowrap shrink-0">
+          <span className="px-1.5 py-0.5 rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 font-medium whitespace-nowrap shrink-0">
             {w.loss_count} loss
           </span>
-          <span className="px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 font-medium whitespace-nowrap shrink-0">
+          <span className="px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 font-medium whitespace-nowrap shrink-0">
             {w.gain_count} gain
           </span>
-          <span className="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 font-medium whitespace-nowrap shrink-0">
+          <span className="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 font-medium whitespace-nowrap shrink-0">
             {w.even_count} even
           </span>
         </div>

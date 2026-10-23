@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
-import { Building2, Plus } from 'lucide-react'
+import { Building2, Plus, Trash2 } from 'lucide-react'
 
 export const WarehousesPage: React.FC = () => {
-  const { facilities, addFacility } = useWarehouse()
+  const { facilities, addFacility, deleteFacility } = useWarehouse()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -129,6 +129,33 @@ export const WarehousesPage: React.FC = () => {
       header: 'Status',
       defaultWidth: 140,
       accessor: w => <StatusBadge status={w.is_active ? 'ACTIVE' : 'INACTIVE'} size="sm" />,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right',
+      accessor: w => {
+        const isPrimary = w.id === 'yaba-hq' || w.code === 'HQ-YABA'
+        if (isPrimary) {
+          return <span className="text-[11px] text-slate-400 italic">Default HQ</span>
+        }
+        return (
+          <Button
+            variant="tertiary"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (window.confirm(`Delete ${w.name}?`)) {
+                deleteFacility(w.id)
+              }
+            }}
+            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+            title={`Delete ${w.name}`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )
+      },
     },
   ]
 
