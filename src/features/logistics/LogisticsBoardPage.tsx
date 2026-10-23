@@ -3,7 +3,7 @@ import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { LogisticsDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
-import { StatusBadge } from '@/components/ui/Badge'
+import { StatusBadge, StatusPill } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -40,7 +40,7 @@ export const LogisticsBoardPage: React.FC = () => {
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned'>('unassigned')
-  const [activeSubTab, setActiveSubTab] = useState<'all' | 'in_transit' | 'out_for_delivery' | 'delivered'>('all')
+  const [activeSubTab, setActiveSubTab] = useState<'all' | 'in_transit' | 'delivered'>('all')
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedDelivery, setSelectedDelivery] = useState<LogisticsDelivery | null>(null)
 
@@ -63,14 +63,19 @@ export const LogisticsBoardPage: React.FC = () => {
 
   const unassignedDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status === 'pending'), [logisticsDeliveries])
   const activeDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status !== 'pending'), [logisticsDeliveries])
-  const inTransitCount = useMemo(() => activeDeliveries.filter(d => d.status === 'in_transit').length, [activeDeliveries])
-  const outForDeliveryCount = useMemo(() => activeDeliveries.filter(d => d.status === 'out_for_delivery').length, [activeDeliveries])
+  const inTransitCount = useMemo(
+    () => activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery').length,
+    [activeDeliveries]
+  )
   const deliveredCount = useMemo(() => activeDeliveries.filter(d => d.status === 'delivered').length, [activeDeliveries])
 
   const filteredActiveDeliveries = useMemo(() => {
-    if (activeSubTab === 'in_transit') return activeDeliveries.filter(d => d.status === 'in_transit')
-    if (activeSubTab === 'out_for_delivery') return activeDeliveries.filter(d => d.status === 'out_for_delivery')
-    if (activeSubTab === 'delivered') return activeDeliveries.filter(d => d.status === 'delivered')
+    if (activeSubTab === 'in_transit') {
+      return activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery')
+    }
+    if (activeSubTab === 'delivered') {
+      return activeDeliveries.filter(d => d.status === 'delivered')
+    }
     return activeDeliveries
   }, [activeDeliveries, activeSubTab])
 
@@ -230,17 +235,19 @@ export const LogisticsBoardPage: React.FC = () => {
       key: 'status',
       header: 'Trip Status',
       accessor: (d) => {
-        const statusMap: Record<string, { status: 'pending' | 'active' | 'inactive'; label: string }> = {
-          assigned: { status: 'pending', label: 'Assigned' },
-          in_transit: { status: 'pending', label: 'In transit' },
-          out_for_delivery: { status: 'pending', label: 'Out for delivery' },
-          delivered: { status: 'active', label: 'Delivered' },
-          failed: { status: 'inactive', label: 'Failed' },
-          cancelled: { status: 'inactive', label: 'Cancelled' },
-          pending: { status: 'pending', label: 'Pending' }
+        if (d.status === 'delivered') {
+          return <StatusPill state="completed" label="delivered" />
         }
-        const s = statusMap[d.status] || { status: 'pending' as const, label: d.status.replace(/_/g, ' ') }
-        return <StatusBadge status={s.status} label={s.label} />
+        if (d.status === 'in_transit' || d.status === 'out_for_delivery') {
+          return <StatusPill state="in-progress" label="in-transit" />
+        }
+        if (d.status === 'assigned') {
+          return <StatusPill state="in-review" label="assigned" />
+        }
+        if (d.status === 'failed' || d.status === 'cancelled') {
+          return <StatusPill state="flagged" label={d.status} />
+        }
+        return <StatusPill state="draft" label="no-action" />
       },
       sortValue: (d) => d.status,
     },
@@ -362,7 +369,6 @@ export const LogisticsBoardPage: React.FC = () => {
                 tabs={[
                   { id: 'all', label: 'All Active Trips', badge: activeDeliveries.length },
                   { id: 'in_transit', label: 'In Transit', badge: inTransitCount },
-                  { id: 'out_for_delivery', label: 'Out for Delivery', badge: outForDeliveryCount },
                   { id: 'delivered', label: 'Delivered', badge: deliveredCount },
                 ]}
               />
@@ -376,8 +382,6 @@ export const LogisticsBoardPage: React.FC = () => {
               title={
                 activeSubTab === 'in_transit' 
                   ? 'In-Transit Trips' 
-                  : activeSubTab === 'out_for_delivery' 
-                  ? 'Out for Delivery Trips' 
                   : activeSubTab === 'delivered' 
                   ? 'Delivered Trips' 
                   : 'All Active Delivery Trips'

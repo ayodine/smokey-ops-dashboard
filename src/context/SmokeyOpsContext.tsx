@@ -1469,7 +1469,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const confirmRiderCollect = (deliveryId: number) => {
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
-      status: "out_for_delivery",
+      status: "in_transit",
       pickup_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
     } : d))
   }
