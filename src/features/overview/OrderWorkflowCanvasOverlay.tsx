@@ -1209,7 +1209,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
          ========================================================================= */}
       <div className="rounded-2xl border border-[#e5e7eb] dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 relative shadow-2xs transition-all overflow-hidden">
         {/* CONTAINER HEADING */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800">
+        <div className={cn(
+          "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+          isCanvasExpanded ? "pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800" : ""
+        )}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 flex items-center justify-center font-bold shrink-0">
               <Network className="w-5 h-5" />
@@ -1241,8 +1244,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800">
+        {/* WORKFLOW INTERFACE, SEARCH & STATUS LEGEND (VISIBLE WHEN EXPANDED) */}
+        {isCanvasExpanded && (
+          <>
+            {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7] dark:border-zinc-800">
           {/* Left: Design System Search Field with Rock-Solid Fixed Width & Autocomplete Dropdown */}
           <div
             ref={searchContainerRef}
@@ -1389,10 +1395,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* WORKFLOW INTERFACE */}
-        {isCanvasExpanded && (
-          <>
             {/* =====================================================================
                 MODE A: INTERACTIVE NODE CANVAS (CLOUDFLARE 3-COLUMN MAPPING)
                ===================================================================== */}
@@ -2041,22 +2043,20 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         )}
 
         {/* =========================================================================
-            3. BOTTOM COLLAPSE / EXPAND CHEVRON HANDLE (EXACT MATCH FOR SCREENSHOT 2)
+            3. BOTTOM COLLAPSE / EXPAND CHEVRON HANDLE (VISIBLE WHEN EXPANDED)
            ========================================================================= */}
-        <div className="mt-4 pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 flex items-center justify-center">
-          <button
-            type="button"
-            onClick={() => setIsCanvasExpanded(!isCanvasExpanded)}
-            className="text-[#71717a] dark:text-zinc-400 hover:text-[#18181b] dark:hover:text-zinc-200 transition-colors p-1 cursor-pointer"
-            aria-label={isCanvasExpanded ? 'Collapse canvas' : 'Expand canvas'}
-          >
-            {isCanvasExpanded ? (
+        {isCanvasExpanded && (
+          <div className="mt-4 pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setIsCanvasExpanded(false)}
+              className="text-[#71717a] dark:text-zinc-400 hover:text-[#18181b] dark:hover:text-zinc-200 transition-colors p-1 cursor-pointer"
+              aria-label="Collapse canvas"
+            >
               <ChevronUp className="w-5 h-5 stroke-[1.75]" />
-            ) : (
-              <ChevronDown className="w-5 h-5 stroke-[1.75]" />
-            )}
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
