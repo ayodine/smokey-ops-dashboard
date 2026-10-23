@@ -276,21 +276,21 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
       description="Recent account logins, device sessions, and authentication events across your team."
       maxWidth="5xl"
     >
-      <div className="space-y-4 text-sm font-sans">
+      <div className="space-y-4 text-xs font-sans">
         {/* Super Admin Notice Pill */}
         <div className="flex items-center justify-between p-3.5 rounded-lg bg-kumo-surface border border-kumo-line text-kumo-strong">
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-5 h-5 text-black dark:text-white shrink-0" />
             <div>
-              <p className="font-semibold text-kumo-strong text-sm">
+              <p className="font-semibold text-kumo-strong text-xs">
                 Super Admin Security Audit
               </p>
-              <p className="text-[13px] text-kumo-subtle mt-0.5">
+              <p className="text-[11px] text-kumo-subtle mt-0.5">
                 Full visibility of all user logins, device footprints, and authentication sessions across your team.
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-block px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shrink-0">
+          <span className="hidden sm:inline-block px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shrink-0">
             Super Admin
           </span>
         </div>
@@ -303,26 +303,26 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
             placeholder="Search by user, email, country, device, or action..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link"
           />
         </div>
 
         {/* Table of Activity */}
         <div className="overflow-x-auto rounded-lg border border-kumo-line bg-kumo-base">
-          <table className="w-full text-left border-collapse text-sm">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[13px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
-                <th className="py-2.5 px-3.5 whitespace-nowrap">When</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">User</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Country</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Device & Browser</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Action</th>
+              <tr className="border-b border-kumo-line bg-kumo-canvas/60 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider select-none">
+                <th className="py-2 px-3 whitespace-nowrap">When</th>
+                <th className="py-2 px-3 whitespace-nowrap">User</th>
+                <th className="py-2 px-3 whitespace-nowrap">Country</th>
+                <th className="py-2 px-3 whitespace-nowrap">Device & Browser</th>
+                <th className="py-2 px-3 whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-kumo-line/60">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-kumo-subtle whitespace-nowrap">
+                  <td colSpan={5} className="py-6 text-center text-kumo-subtle whitespace-nowrap text-xs">
                     No sign-in records matched your search.
                   </td>
                 </tr>
@@ -330,40 +330,40 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-kumo-tint/40 transition-colors">
                     {/* When */}
-                    <td className="py-3 px-3.5 whitespace-nowrap">
-                      <div className="font-medium text-kumo-strong text-sm sm:text-base">{log.when}</div>
-                      <div className="text-[12px] text-kumo-subtle">{log.timestamp.slice(11)}</div>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="font-medium text-kumo-strong text-xs sm:text-sm">{log.when}</div>
+                      <div className="text-[10px] text-kumo-subtle">{log.timestamp.slice(11)}</div>
                     </td>
 
                     {/* User */}
-                    <td className="py-3 px-3.5 whitespace-nowrap">
-                      <div className="font-semibold text-kumo-strong text-sm sm:text-base">{log.user}</div>
-                      <div className="text-[13px] text-kumo-subtle">{log.email}</div>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="font-semibold text-kumo-strong text-xs sm:text-sm">{log.user}</div>
+                      <div className="text-[11px] text-kumo-subtle">{log.email}</div>
                     </td>
 
                     {/* Country */}
-                    <td className="py-3 px-3.5 whitespace-nowrap">
-                      <span className="font-medium text-kumo-strong text-sm">{log.country}</span>
-                      <div className="text-[12px] text-kumo-subtle">{log.ipAddress}</div>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span className="font-medium text-kumo-strong text-xs">{log.country}</span>
+                      <div className="text-[10px] text-kumo-subtle">{log.ipAddress}</div>
                     </td>
 
                     {/* Device */}
-                    <td className="py-3 px-3.5 whitespace-nowrap">
-                      <div className="text-kumo-strong font-medium flex items-center gap-1.5 whitespace-nowrap text-sm">
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="text-kumo-strong font-medium flex items-center gap-1.5 whitespace-nowrap text-xs">
                         {log.device.toLowerCase().includes('phone') ? (
-                          <Smartphone className="w-4 h-4 text-kumo-subtle shrink-0" />
+                          <Smartphone className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                         ) : (
-                          <Laptop className="w-4 h-4 text-kumo-subtle shrink-0" />
+                          <Laptop className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                         )}
                         <span>{log.device}</span>
                       </div>
-                      <div className="text-[12px] text-kumo-subtle">{log.browser}</div>
+                      <div className="text-[10px] text-kumo-subtle">{log.browser}</div>
                     </td>
 
                     {/* Action */}
-                    <td className="py-3 px-3.5 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[13px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900 whitespace-nowrap shrink-0">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900 whitespace-nowrap shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                         {log.action}
                       </span>
                     </td>
@@ -376,7 +376,7 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-kumo-line">
-          <span className="text-[13px] text-kumo-subtle">
+          <span className="text-[11px] text-kumo-subtle">
             Showing {filteredLogs.length} recent events
           </span>
           <Button variant="outline" size="md" onClick={onClose}>

@@ -563,11 +563,11 @@ export const WebsiteOrdersPage: React.FC = () => {
           title={`Order Details: ${selectedOrder.order_ref}`}
           className="max-w-lg"
         >
-          <div className="space-y-3 text-xs sm:text-sm font-sans">
+          <div className="space-y-3 text-xs font-sans">
             <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Customer:</span>
-                <span className="font-semibold text-kumo-strong text-xs sm:text-sm">{selectedOrder.customer_name}</span>
+                <span className="font-semibold text-kumo-strong text-xs">{selectedOrder.customer_name}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Phone:</span>
@@ -590,7 +590,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Order Total:</span>
-                <span className="font-bold text-sm sm:text-base text-kumo-strong">
+                <span className="font-bold text-xs sm:text-sm text-kumo-strong">
                   {formatNaira(selectedOrder.total_amount)}
                 </span>
               </div>
@@ -628,7 +628,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Assigned Rider:</span>
-                <span className="font-medium text-kumo-strong text-xs sm:text-sm">{selectedOrder.rider_name}</span>
+                <span className="font-medium text-kumo-strong text-xs">{selectedOrder.rider_name}</span>
               </div>
             </div>
 

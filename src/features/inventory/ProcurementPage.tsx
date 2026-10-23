@@ -192,40 +192,40 @@ export const ProcurementPage: React.FC = () => {
         }
       >
         {selectedPO && (
-          <div className="space-y-4 text-sm">
-            <div className="p-3.5 bg-kumo-tint rounded-lg ring ring-kumo-line flex justify-between">
+          <div className="space-y-3.5 text-xs">
+            <div className="p-3 bg-kumo-tint rounded-lg ring ring-kumo-line flex justify-between">
               <div>
-                <span className="text-kumo-subtle text-[13px] block">Supplier</span>
-                <p className="font-bold text-kumo-strong text-base">{selectedPO.supplier_name}</p>
+                <span className="text-kumo-subtle text-[11px] block">Supplier</span>
+                <p className="font-semibold text-kumo-strong text-sm">{selectedPO.supplier_name}</p>
               </div>
               <div className="text-right">
-                <span className="text-kumo-subtle text-[13px] block">Destination</span>
-                <p className="font-bold text-kumo-strong text-base">{selectedPO.warehouse_name}</p>
+                <span className="text-kumo-subtle text-[11px] block">Destination</span>
+                <p className="font-semibold text-kumo-strong text-sm">{selectedPO.warehouse_name}</p>
               </div>
             </div>
 
             <div className="rounded-lg ring ring-kumo-line overflow-x-auto bg-kumo-base">
               <table className="w-full text-left">
-                <thead className="bg-kumo-tint text-[13px] uppercase font-semibold text-kumo-subtle border-b border-kumo-line">
+                <thead className="bg-kumo-tint text-[11px] uppercase font-semibold text-kumo-subtle border-b border-kumo-line">
                   <tr>
-                    <th className="p-3 whitespace-nowrap">Item SKU & Name</th>
-                    <th className="p-3 text-right whitespace-nowrap">Ordered</th>
-                    <th className="p-3 text-right w-40 whitespace-nowrap">Delivered Qty</th>
+                    <th className="p-2.5 whitespace-nowrap">Item SKU & Name</th>
+                    <th className="p-2.5 text-right whitespace-nowrap">Ordered</th>
+                    <th className="p-2.5 text-right w-40 whitespace-nowrap">Delivered Qty</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-kumo-line">
                   {selectedPO.items.map(item => (
                     <tr key={item.id} className="hover:bg-kumo-tint/50 transition-colors">
-                      <td className="p-3 whitespace-nowrap">
-                        <span className="font-mono font-bold text-kumo-strong text-sm sm:text-base">
+                      <td className="p-2.5 whitespace-nowrap">
+                        <span className="font-mono font-bold text-kumo-strong text-xs sm:text-sm">
                           {item.sku}
                         </span>
-                        <p className="text-kumo-subtle text-[13px]">{item.name}</p>
+                        <p className="text-kumo-subtle text-[11px]">{item.name}</p>
                       </td>
-                      <td className="p-3 text-right font-mono font-semibold text-kumo-default whitespace-nowrap text-sm sm:text-base">
+                      <td className="p-2.5 text-right font-mono font-semibold text-kumo-default whitespace-nowrap text-xs sm:text-sm">
                         {item.quantity_ordered} {item.uom}
                       </td>
-                      <td className="p-3 text-right whitespace-nowrap">
+                      <td className="p-2.5 text-right whitespace-nowrap">
                         <input
                           type="number"
                           min="0"
@@ -237,7 +237,7 @@ export const ProcurementPage: React.FC = () => {
                               [item.id]: Number(e.target.value),
                             })
                           }
-                          className="w-28 text-right h-10 px-3 rounded-lg ring ring-kumo-line bg-kumo-base text-kumo-default font-mono text-sm sm:text-base font-bold focus:ring-2 focus:ring-kumo-brand outline-none"
+                          className="w-28 text-right h-9 px-2.5 rounded-lg ring ring-kumo-line bg-kumo-base text-kumo-default font-mono text-xs sm:text-sm font-bold focus:ring-2 focus:ring-kumo-brand outline-none"
                         />
                       </td>
                     </tr>

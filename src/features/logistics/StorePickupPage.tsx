@@ -194,14 +194,14 @@ export const StorePickupPage: React.FC = () => {
         description="Verify identity of customer collecting meal package at the hub."
       >
         <form onSubmit={handleConfirmCollect} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded text-sm space-y-1.5">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1.5">
             <div className="flex justify-between items-center font-sans">
               <span className="text-kumo-subtle font-medium">Order Meals:</span>
-              <span className="font-semibold text-kumo-strong text-base">{selectedPickup?.items_summary}</span>
+              <span className="font-semibold text-kumo-strong text-sm">{selectedPickup?.items_summary}</span>
             </div>
             <div className="flex justify-between items-center font-sans">
               <span className="text-kumo-subtle font-medium">Amount Paid:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-base">{formatNaira(selectedPickup?.total_amount || 0)}</span>
+              <span className="font-semibold text-emerald-600 font-sans text-sm">{formatNaira(selectedPickup?.total_amount || 0)}</span>
             </div>
           </div>
 

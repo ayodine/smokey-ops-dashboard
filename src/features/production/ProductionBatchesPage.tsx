@@ -747,7 +747,7 @@ export const ProductionBatchesPage: React.FC = () => {
 
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {bomRows.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs font-sans">
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs font-sans">
                   <div className="col-span-7">
                     <Select
                       value={row.product_id}
@@ -799,10 +799,10 @@ export const ProductionBatchesPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsCreateModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Queue Batch in Prep
             </Button>
           </div>
@@ -817,7 +817,7 @@ export const ProductionBatchesPage: React.FC = () => {
         description="Verify actual cooking yield, log waste, and automatically deposit finished items into Sales Inventory."
       >
         <form onSubmit={handleConfirmComplete} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5 font-sans">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Target Output:</span>
               <span className="font-semibold text-kumo-strong font-sans">{selectedBatch?.expected_output} units</span>
@@ -851,7 +851,7 @@ export const ProductionBatchesPage: React.FC = () => {
             const variancePct = ((actualOutput - expected) / expected) * 100
             const isOutOfTolerance = Math.abs(variancePct) > 5.0
             return (
-              <div className={`p-3.5 rounded-lg text-sm space-y-1.5 font-sans border ${
+              <div className={`p-3 rounded-lg text-xs space-y-1 font-sans border ${
                 isOutOfTolerance
                   ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
                   : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
@@ -865,12 +865,12 @@ export const ProductionBatchesPage: React.FC = () => {
                     )}
                     Cooking Yield Variance: {variancePct > 0 ? `+${variancePct.toFixed(1)}%` : `${variancePct.toFixed(1)}%`}
                   </span>
-                  <span className="text-[13px] font-normal uppercase tracking-wider">
+                  <span className="text-[11px] font-normal uppercase tracking-wider">
                     {isOutOfTolerance ? 'Tolerance Exceeded (±5%)' : 'Within Tolerance (±5%)'}
                   </span>
                 </div>
                 {isOutOfTolerance && (
-                  <p className="text-[13px] leading-relaxed">
+                  <p className="text-[11px] leading-relaxed">
                     Batch yield deviates beyond standard ±5.0% threshold. Mandatory supervisor sign-off and explanation notes required in QC Notes below.
                   </p>
                 )}
@@ -885,7 +885,7 @@ export const ProductionBatchesPage: React.FC = () => {
             required
           />
 
-          <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-800 dark:text-emerald-200 font-sans">
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-200 font-sans">
             <strong>Automated Action:</strong> Submitting will mark this run completed and increment <strong>+{actualOutput} units</strong> in Sales Inventory for immediate customer dispatch.
           </div>
 
@@ -908,7 +908,7 @@ export const ProductionBatchesPage: React.FC = () => {
         description={`Recipe specifications for ${selectedBatch?.output_product_name}`}
       >
         <div className="space-y-4 font-sans">
-          <div className="p-4 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-2 font-sans">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Product:</span>
               <span className="font-semibold text-kumo-strong">{selectedBatch?.output_product_name}</span>
@@ -922,20 +922,20 @@ export const ProductionBatchesPage: React.FC = () => {
               <span className="font-semibold uppercase text-primary">{selectedBatch?.status.replace('_', ' ')}</span>
             </div>
             {selectedBatch?.remarks && (
-              <div className="pt-1.5 border-t border-kumo-line text-kumo-subtle text-sm">
+              <div className="pt-1.5 border-t border-kumo-line text-kumo-subtle text-xs">
                 <em>{selectedBatch.remarks}</em>
               </div>
             )}
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-kumo-strong uppercase mb-2">Formulated Ingredients</h4>
-            <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-kumo-strong uppercase mb-2">Formulated Ingredients</h4>
+            <div className="space-y-1.5">
               {selectedBatch?.raw_materials.map((m, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-kumo-surface border border-kumo-line rounded-lg text-sm font-sans">
+                <div key={idx} className="flex items-center justify-between p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs font-sans">
                   <div>
                     <span className="font-medium text-kumo-strong">{m.name}</span>
-                    <span className="text-[13px] text-kumo-subtle ml-2 font-sans">[{m.sku}]</span>
+                    <span className="text-[11px] text-kumo-subtle ml-2 font-sans">[{m.sku}]</span>
                   </div>
                   <span className="font-medium text-kumo-strong font-sans">{m.quantity} {m.unit}</span>
                 </div>

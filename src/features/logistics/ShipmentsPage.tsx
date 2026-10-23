@@ -125,14 +125,14 @@ export const ShipmentsPage: React.FC = () => {
         maxWidth="lg"
       >
         {selectedShipment && (
-          <div className="space-y-5 text-sm">
+          <div className="space-y-4 text-xs">
             {/* Header info */}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-850 rounded-[4px] border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+            <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-[4px] border border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <div>
-                <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
+                <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
                   {selectedShipment.customer_name}
                 </span>
-                <p className="font-mono text-slate-500 text-sm mt-0.5">
+                <p className="font-mono text-slate-500 text-xs mt-0.5">
                   Zone: {selectedShipment.destination_zone} • Rider: {selectedShipment.rider_name}
                 </p>
               </div>
@@ -140,23 +140,23 @@ export const ShipmentsPage: React.FC = () => {
             </div>
 
             {/* Event Timeline */}
-            <div className="relative pl-7 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800">
+            <div className="relative pl-7 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800">
               {selectedShipment.events.map((ev, idx) => (
                 <div key={ev.id} className="relative">
-                  <div className="absolute -left-7 top-0.5 w-6 h-6 rounded-full bg-[#0051C3] text-white flex items-center justify-center font-bold text-xs ring-4 ring-white dark:ring-slate-900">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <div className="absolute -left-7 top-0.5 w-5 h-5 rounded-full bg-[#0051C3] text-white flex items-center justify-center font-bold text-[10px] ring-4 ring-white dark:ring-slate-900">
+                    <CheckCircle2 className="w-3 h-3" />
                   </div>
                   <div>
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
                         {ev.title}
                       </span>
-                      <span className="font-mono text-xs text-slate-400">
+                      <span className="font-mono text-[11px] text-slate-400">
                         {formatDate(ev.timestamp)}
                       </span>
                     </div>
-                    <p className="text-slate-600 dark:text-slate-300 text-sm mt-0.5">{ev.description}</p>
-                    <div className="flex items-center gap-2 mt-1 text-[13px] text-slate-400 font-mono">
+                    <p className="text-slate-600 dark:text-slate-300 text-xs mt-0.5">{ev.description}</p>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 font-mono">
                       <span>Location: {ev.location}</span>
                       <span>•</span>
                       <span>Logged By: {ev.operator_name}</span>

@@ -206,7 +206,7 @@ export const ProductsPage: React.FC = () => {
           </>
         }
       >
-        <form onSubmit={handleCreateProduct} className="space-y-4 text-sm">
+        <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="SKU Code"

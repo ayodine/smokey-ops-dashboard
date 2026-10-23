@@ -930,14 +930,14 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         maxWidth="lg"
       >
         {accountToEdit && (
-          <form onSubmit={handleSaveEdit} className="space-y-4 font-sans text-sm">
+          <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans text-xs">
             {/* Field 1: Role / Zone Select Dropdown (Matching Screenshot 2) */}
-            <div className="space-y-1.5 text-left">
+            <div className="space-y-1 text-left">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-kumo-strong">
+                <label className="text-xs font-semibold text-kumo-strong">
                   Zone / Role
                 </label>
-                <span className="text-[13px] text-kumo-subtle">
+                <span className="text-[11px] text-kumo-subtle">
                   Role: <strong className="text-kumo-strong">{SYSTEM_ROLE_CONFIGS.find(r => r.id === editRole)?.label}</strong>
                 </span>
               </div>
@@ -945,7 +945,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 <select
                   value={editRole}
                   onChange={(e) => handleEditRoleChange(e.target.value as UserRole)}
-                  className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
+                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
                 >
                   {SYSTEM_ROLE_CONFIGS.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -958,11 +958,11 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
             </div>
 
             {/* Granular Permissions Section Inside Edit Route Modal */}
-            <div className="p-3.5 bg-kumo-canvas/60 border border-kumo-line rounded-xl space-y-2.5">
+            <div className="p-3 bg-kumo-canvas/60 border border-kumo-line rounded-xl space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-sm font-semibold text-kumo-strong">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-semibold text-kumo-strong">
                     Role Permissions ({editPermissions.length} Active)
                   </span>
                 </div>
@@ -971,7 +971,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditPermissions(ROLE_DEFAULT_PERMISSIONS[editRole] || [])}
-                    className="text-[13px] text-primary hover:underline font-medium cursor-pointer"
+                    className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
                   >
                     Reset Defaults
                   </button>
@@ -979,7 +979,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditPermissions(ALL_SYSTEM_PERMISSIONS.map(p => p.label))}
-                    className="text-[13px] text-kumo-default hover:text-kumo-strong font-medium cursor-pointer"
+                    className="text-[11px] text-kumo-default hover:text-kumo-strong font-medium cursor-pointer"
                   >
                     Select All
                   </button>
@@ -987,7 +987,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditPermissions([])}
-                    className="text-[13px] text-kumo-subtle hover:text-red-500 cursor-pointer"
+                    className="text-[11px] text-kumo-subtle hover:text-red-500 cursor-pointer"
                   >
                     Clear
                   </button>
@@ -995,7 +995,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               </div>
 
               {/* Permission Category Filter Tabs */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[12px]">
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
                 {['All', 'Administration', 'Finance', 'Production', 'Inventory', 'Logistics'].map((cat) => (
                   <button
                     key={cat}
@@ -1046,8 +1046,8 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
             </div>
 
             {/* Field 2: Route / Name Input with Green Validation Checkmark (Screenshot 2 exact match) */}
-            <div className="space-y-1.5 text-left">
-              <label className="text-sm font-semibold text-kumo-strong">
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-semibold text-kumo-strong">
                 Route / Full Name
               </label>
               <div className="relative">
@@ -1057,21 +1057,21 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="e.g. Ayodine Admin"
-                  className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
+                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
                 />
                 {/* Green validation checkmark inside right edge (Screenshot 2) */}
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
                 </div>
               </div>
-              <p className="text-[13px] text-kumo-subtle leading-relaxed">
+              <p className="text-[11px] text-kumo-subtle leading-relaxed">
                 Use an asterisk (*) character to create dynamic patterns that match multiple operations.
               </p>
             </div>
 
             {/* Field 3: Email Input with Validation Checkmark */}
-            <div className="space-y-1.5 text-left">
-              <label className="text-sm font-semibold text-kumo-strong">
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-semibold text-kumo-strong">
                 Email Address
               </label>
               <div className="relative">
@@ -1081,24 +1081,24 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   placeholder="operator@smokeyhut.com"
-                  className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
+                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
                 </div>
               </div>
             </div>
 
             {/* Field 4: Assigned Facility Hub */}
-            <div className="space-y-1.5 text-left">
-              <label className="text-sm font-semibold text-kumo-strong">
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-semibold text-kumo-strong">
                 Assigned Operating Hub
               </label>
               <div className="relative">
                 <select
                   value={editHub}
                   onChange={(e) => setEditHub(e.target.value)}
-                  className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
+                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
                 >
                   {facilities?.map((f) => (
                     <option key={f.id} value={f.name}>
@@ -1137,10 +1137,10 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         description="Add a new operator to the operations dashboard with designated operational role and permissions."
         maxWidth="md"
       >
-        <form onSubmit={handleSaveOnboard} className="space-y-4 font-sans text-sm">
+        <form onSubmit={handleSaveOnboard} className="space-y-3.5 font-sans text-xs">
           {/* Role Dropdown */}
-          <div className="space-y-1.5 text-left">
-            <label className="text-sm font-semibold text-kumo-strong">
+          <div className="space-y-1 text-left">
+            <label className="text-xs font-semibold text-kumo-strong">
               Operational Role & Scope
             </label>
             <div className="relative">
@@ -1154,7 +1154,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                     permissions: ROLE_DEFAULT_PERMISSIONS[r] || []
                   }))
                 }}
-                className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
+                className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
               >
                 {SYSTEM_ROLE_CONFIGS.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -1167,30 +1167,30 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
           </div>
 
           {/* Permissions Accordion in Onboarding */}
-          <div className="p-3.5 bg-kumo-canvas/70 border border-kumo-line rounded-xl space-y-2.5">
+          <div className="p-3 bg-kumo-canvas/70 border border-kumo-line rounded-xl space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-kumo-strong">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-kumo-strong">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Granted Permissions ({onboardForm.permissions.length})</span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowOnboardCustomPerms(!showOnboardCustomPerms)}
-                className="text-[13px] text-primary hover:underline cursor-pointer"
+                className="text-[11px] text-primary hover:underline cursor-pointer"
               >
                 {showOnboardCustomPerms ? 'Hide Details' : 'Customize Permissions'}
               </button>
             </div>
 
             {showOnboardCustomPerms ? (
-              <div className="grid grid-cols-1 gap-1.5 max-h-[140px] overflow-y-auto pt-1">
+              <div className="grid grid-cols-1 gap-1 max-h-[140px] overflow-y-auto pt-1">
                 {ALL_SYSTEM_PERMISSIONS.map((perm) => {
                   const isChecked = onboardForm.permissions.includes(perm.label)
                   return (
                     <label
                       key={perm.id}
                       className={cn(
-                        'flex items-center gap-2 px-2.5 py-1.5 rounded border text-[13px] cursor-pointer',
+                        'flex items-center gap-2 px-2 py-1 rounded border text-[11px] cursor-pointer',
                         isChecked ? 'bg-kumo-base border-primary/30 text-kumo-strong' : 'bg-kumo-canvas/50 border-kumo-line text-kumo-subtle'
                       )}
                     >
@@ -1205,7 +1205,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                               : [...prev.permissions, perm.label]
                           }))
                         }}
-                        className="rounded border-kumo-line text-primary focus:ring-primary size-4"
+                        className="rounded border-kumo-line text-primary focus:ring-primary size-3.5"
                       />
                       <span className="truncate">{perm.label}</span>
                     </label>
@@ -1217,7 +1217,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 {onboardForm.permissions.map((p) => (
                   <span
                     key={p}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-kumo-base border border-kumo-line text-[12px] text-kumo-default"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-kumo-base border border-kumo-line text-[11px] text-kumo-default"
                   >
                     <Check className="w-3 h-3 text-primary" />
                     <span>{p}</span>
@@ -1228,8 +1228,8 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
           </div>
 
           {/* Full Name Input with Green Checkmark */}
-          <div className="space-y-1.5 text-left">
-            <label className="text-sm font-semibold text-kumo-strong">
+          <div className="space-y-1 text-left">
+            <label className="text-xs font-semibold text-kumo-strong">
               Operator Full Name
             </label>
             <div className="relative">
@@ -1239,19 +1239,19 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 value={onboardForm.name}
                 onChange={(e) => setOnboardForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. Olayemi Babatunde"
-                className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
+                className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
               />
               {onboardForm.name.trim().length > 2 && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               )}
             </div>
           </div>
 
           {/* Email Address Input */}
-          <div className="space-y-1.5 text-left">
-            <label className="text-sm font-semibold text-kumo-strong">
+          <div className="space-y-1 text-left">
+            <label className="text-xs font-semibold text-kumo-strong">
               Sign-in Email
             </label>
             <div className="relative">
@@ -1261,26 +1261,26 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 value={onboardForm.email}
                 onChange={(e) => setOnboardForm((prev) => ({ ...prev, email: e.target.value }))}
                 placeholder="olayemi@smokeyhut.com"
-                className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
+                className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors"
               />
               {onboardForm.email.includes('@') && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               )}
             </div>
           </div>
 
           {/* Assigned Facility Hub */}
-          <div className="space-y-1.5 text-left">
-            <label className="text-sm font-semibold text-kumo-strong">
+          <div className="space-y-1 text-left">
+            <label className="text-xs font-semibold text-kumo-strong">
               Operating Hub / Branch
             </label>
             <div className="relative">
               <select
                 value={onboardForm.hub}
                 onChange={(e) => setOnboardForm((prev) => ({ ...prev, hub: e.target.value }))}
-                className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-sm sm:text-base text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
+                className="w-full h-9 pl-3 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-xs sm:text-sm text-kumo-strong focus:outline-none focus:border-kumo-brand appearance-none cursor-pointer"
               >
                 {facilities?.map((f) => (
                   <option key={f.id} value={f.name}>
@@ -1293,10 +1293,10 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
           </div>
 
           {/* Temporary Sign-in Password */}
-          <div className="p-3.5 bg-kumo-canvas/70 border border-kumo-line rounded-xl space-y-2.5">
+          <div className="p-3 bg-kumo-canvas/70 border border-kumo-line rounded-xl space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-kumo-strong flex items-center gap-1.5">
-                <Key className="w-4 h-4 text-amber-500" />
+              <label className="text-xs font-semibold text-kumo-strong flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-amber-500" />
                 <span>Temporary Sign-in Password</span>
               </label>
               <button
@@ -1307,9 +1307,9 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                     temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
                   }))
                 }
-                className="text-[13px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-3 h-3" />
                 <span>Regenerate</span>
               </button>
             </div>
@@ -1318,7 +1318,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 type="text"
                 readOnly
                 value={onboardForm.temporaryPassword}
-                className="font-sans font-bold text-sm sm:text-base h-10 px-3.5 rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong flex-1"
+                className="font-sans font-bold text-xs sm:text-sm h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong flex-1"
               />
               <Button
                 variant="outline"
@@ -1361,20 +1361,20 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         maxWidth="md"
       >
         {accountToChangePassword && (
-          <form onSubmit={handleSavePassword} className="space-y-4 font-sans text-sm">
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-300 space-y-1.5">
-              <p className="font-semibold text-sm flex items-center gap-1.5">
-                <Lock className="w-4 h-4" />
+          <form onSubmit={handleSavePassword} className="space-y-3.5 font-sans text-xs">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-300 space-y-1">
+              <p className="font-semibold text-xs flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5" />
                 <span>Super Admin Credential Reset</span>
               </p>
-              <p className="text-[13px] opacity-90 leading-relaxed">
+              <p className="text-[11px] opacity-90 leading-relaxed">
                 Updating password for <strong>{accountToChangePassword.email}</strong>. The user will be required to update their password upon next sign-in.
               </p>
             </div>
 
-            <div className="space-y-1.5 text-left">
+            <div className="space-y-1 text-left">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-kumo-strong">
+                <label className="text-xs font-semibold text-kumo-strong">
                   New Password
                 </label>
                 <button
@@ -1382,9 +1382,9 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   onClick={() =>
                     setNewPasswordVal('Smokey@' + Math.floor(1000 + Math.random() * 9000))
                   }
-                  className="text-[13px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-3 h-3" />
                   <span>Generate Random</span>
                 </button>
               </div>
@@ -1396,7 +1396,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   value={newPasswordVal}
                   onChange={(e) => setNewPasswordVal(e.target.value)}
                   placeholder="Enter new password"
-                  className="w-full h-10 pl-3.5 pr-20 font-sans text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong focus:outline-none focus:border-kumo-brand"
+                  className="w-full h-9 pl-3 pr-20 font-sans text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong focus:outline-none focus:border-kumo-brand"
                 />
                 <button
                   type="button"
@@ -1405,9 +1405,9 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                     setCopiedPass(true)
                     setTimeout(() => setCopiedPass(false), 2000)
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[13px] bg-kumo-tint hover:bg-kumo-fill border border-kumo-line rounded text-kumo-default font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[11px] bg-kumo-tint hover:bg-kumo-fill border border-kumo-line rounded text-kumo-default font-medium flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  {copiedPass ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedPass ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedPass ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
@@ -1419,9 +1419,9 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 id="requirePassReset"
                 checked={requirePassReset}
                 onChange={(e) => setRequirePassReset(e.target.checked)}
-                className="rounded border-kumo-line text-primary focus:ring-primary size-4 cursor-pointer"
+                className="rounded border-kumo-line text-primary focus:ring-primary size-3.5 cursor-pointer"
               />
-              <label htmlFor="requirePassReset" className="text-sm text-kumo-default cursor-pointer">
+              <label htmlFor="requirePassReset" className="text-xs text-kumo-default cursor-pointer">
                 Require password reset on next dashboard session
               </label>
             </div>
@@ -1430,7 +1430,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAccountToChangePassword(null)}
-                className="text-sm font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
+                className="text-xs font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
               >
                 Cancel
               </button>
@@ -1454,38 +1454,38 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         description="Role-Based Access Control (RBAC) definitions and operational capability scopes."
         maxWidth="2xl"
       >
-        <div className="space-y-4 font-sans text-sm">
+        <div className="space-y-3.5 font-sans text-xs">
           <div className="divide-y divide-kumo-line/80 border border-kumo-line rounded-xl bg-kumo-base overflow-hidden">
             {SYSTEM_ROLE_CONFIGS.map((r) => {
               const members = availableAccounts.filter((a) => a.role === r.id)
               return (
-                <div key={r.id} className="p-4 space-y-2.5">
+                <div key={r.id} className="p-3.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-base text-kumo-strong">{r.label}</span>
+                      <span className="font-semibold text-sm text-kumo-strong">{r.label}</span>
                       <span
                         className={cn(
-                          'px-2.5 py-0.5 text-[11px] font-bold rounded uppercase tracking-wider border',
+                          'px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider border',
                           r.badgeClass
                         )}
                       >
                         {r.id}
                       </span>
                     </div>
-                    <span className="text-[13px] font-medium text-kumo-subtle bg-kumo-canvas px-3 py-1 rounded-full border border-kumo-line">
+                    <span className="text-[11px] font-medium text-kumo-subtle bg-kumo-canvas px-2.5 py-0.5 rounded-full border border-kumo-line">
                       {members.length} {members.length === 1 ? 'member' : 'members'} assigned
                     </span>
                   </div>
 
-                  <p className="text-sm text-kumo-subtle leading-relaxed">{r.description}</p>
+                  <p className="text-xs text-kumo-subtle leading-relaxed">{r.description}</p>
 
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
                     {r.permissions.map((perm) => (
                       <span
                         key={perm}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-kumo-tint border border-kumo-line text-[12px] text-kumo-default font-medium"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-kumo-tint border border-kumo-line text-[11px] text-kumo-default font-medium"
                       >
-                        <Check className="w-3 h-3 text-primary" />
+                        <Check className="w-2.5 h-2.5 text-primary" />
                         <span>{perm}</span>
                       </span>
                     ))}
@@ -1514,20 +1514,20 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         maxWidth="md"
       >
         {accountToDelete && (
-          <div className="space-y-4 font-sans text-sm">
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-900 dark:text-red-200">
-              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <div className="space-y-3.5 font-sans text-xs">
+            <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5 text-red-900 dark:text-red-200">
+              <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-semibold text-sm sm:text-base">
+                <p className="font-semibold text-xs sm:text-sm">
                   Are you sure you want to remove {accountToDelete.name}?
                 </p>
-                <p className="text-[13px] opacity-90 leading-relaxed">
+                <p className="text-[11px] opacity-90 leading-relaxed">
                   This action will permanently revoke login credentials and remove <strong>{accountToDelete.email}</strong> from all operational schedules, dispatch queues, and hub assignments.
                 </p>
               </div>
             </div>
 
-            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg space-y-1.5 text-sm">
+            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-kumo-subtle">Role:</span>
                 <span className="font-semibold text-kumo-strong">{accountToDelete.roleLabel}</span>
@@ -1548,7 +1548,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAccountToDelete(null)}
-                className="text-sm font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
+                className="text-xs font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
               >
                 Cancel
               </button>

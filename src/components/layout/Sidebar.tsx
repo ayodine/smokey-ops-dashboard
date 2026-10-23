@@ -794,7 +794,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         description="Configure role permissions and operational KYC details."
         maxWidth="lg"
       >
-        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans text-sm">
+        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans text-xs">
           <Select
             label="Role & Permissions"
             value={newRole}
@@ -811,80 +811,80 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Full Name</label>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Full Name</label>
               <input
                 type="text"
                 required
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="e.g. Yusuf Alabi"
-                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Account Email</label>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Account Email</label>
               <input
                 type="email"
                 required
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="staff@smokeyhut.com"
-                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Phone Number</label>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Phone Number</label>
               <input
                 type="text"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="08012345678"
-                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Staff / Employee ID</label>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Staff / Employee ID</label>
               <input
                 type="text"
                 value={newStaffId}
                 onChange={(e) => setNewStaffId(e.target.value)}
                 placeholder="e.g. SHD-FLT-18"
-                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Operating Hub / Office
               </label>
-              <div className="flex items-center justify-between h-10 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-sm sm:text-base text-zinc-900 dark:text-zinc-100">
+              <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="font-medium truncate">
                     {selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}
                   </span>
                 </div>
-                <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
                   Active HQ
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">National ID / NIN</label>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">National ID / NIN</label>
               <input
                 type="text"
                 value={newNationalId}
                 onChange={(e) => setNewNationalId(e.target.value)}
                 placeholder="7829-4821-9921"
-                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
@@ -892,53 +892,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           {/* Rider Specific KYC Details */}
           {newRole === 'rider' && (
             <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in fade-in">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
                 <span>Driver Fleet KYC Details</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
                   <input
                     type="text"
                     value={newVehicleType}
                     onChange={(e) => setNewVehicleType(e.target.value)}
                     placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
                   <input
                     type="text"
                     value={newPlateNumber}
                     onChange={(e) => setNewPlateNumber(e.target.value)}
                     placeholder="LND-482-XA"
-                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
                   <input
                     type="text"
                     value={newLicenseNumber}
                     onChange={(e) => setNewLicenseNumber(e.target.value)}
                     placeholder="DL-98234-LAG"
-                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
                   <input
                     type="number"
                     min="5000"
                     step="5000"
                     value={newCodLimit}
                     onChange={(e) => setNewCodLimit(Number(e.target.value))}
-                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
               </div>
@@ -948,18 +948,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           {/* Temporary Sign-in Credentials Flow */}
           <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-amber-500" />
                 <span>Temporary Sign-in Credentials</span>
               </div>
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
                 Auto-Provisioned
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                   Sign-in Username / Handle
                 </label>
                 <input
@@ -968,19 +968,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                   value={newUsername || (newEmail ? newEmail.split('@')[0].toLowerCase() : '')}
                   onChange={(e) => setNewUsername(e.target.value)}
                   placeholder="e.g. yusuf.ops"
-                  className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
+                  className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
                     Temporary Password
                   </label>
                   <button
                     type="button"
                     onClick={() => setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
-                    className="text-[13px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
                     <span>Regenerate</span>
@@ -992,7 +992,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                     required
                     value={newTempPassword}
                     onChange={(e) => setNewTempPassword(e.target.value)}
-                    className="w-full h-10 pl-3.5 pr-10 py-2 text-sm sm:text-base font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="w-full h-9 pl-3 pr-10 py-2 text-xs sm:text-sm font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                   />
                   <button
                     type="button"
@@ -1005,7 +1005,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
               <input
                 type="checkbox"
                 checked={mustChangePassword}
@@ -1044,39 +1044,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         maxWidth="md"
       >
         {createdAccountSummary && (
-          <div className="space-y-4 font-sans text-sm">
+          <div className="space-y-4 font-sans text-xs">
             <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2 text-amber-900 dark:text-amber-200">
-              <div className="font-semibold text-sm flex items-center gap-1.5">
+              <div className="font-semibold text-xs flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <span>Onboarding Credentials for {createdAccountSummary.name}</span>
               </div>
-              <p className="text-[13px] opacity-90 leading-relaxed">
+              <p className="text-[11px] opacity-90 leading-relaxed">
                 A temporary password has been set. The operator will be prompted to choose a permanent password on first login.
               </p>
             </div>
 
-            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 text-sm">
+            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 text-xs">
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Username:</span>
-                <span className="font-mono font-bold text-kumo-strong text-sm px-2.5 py-1 bg-kumo-base border border-kumo-line rounded">
+                <span className="font-mono font-bold text-kumo-strong text-xs px-2.5 py-1 bg-kumo-base border border-kumo-line rounded">
                   {createdAccountSummary.username}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Account Email:</span>
-                <span className="font-mono font-medium text-kumo-strong text-sm">
+                <span className="font-mono font-medium text-kumo-strong text-xs">
                   {createdAccountSummary.email}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Temporary Password:</span>
-                <span className="font-mono font-bold text-emerald-600 text-sm px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
+                <span className="font-mono font-bold text-emerald-600 text-xs px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
                   {createdAccountSummary.tempPass}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Role:</span>
-                <span className="font-semibold text-kumo-strong capitalize">
+                <span className="font-semibold text-kumo-strong capitalize text-xs">
                   {createdAccountSummary.role}
                 </span>
               </div>

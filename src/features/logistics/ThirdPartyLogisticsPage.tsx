@@ -269,38 +269,38 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         description="Verify courier waybill receipt and approve or flag billing discrepancies."
         maxWidth="lg"
       >
-        <div className="space-y-4 font-sans">
+        <div className="space-y-3.5 font-sans">
           {/* Unified Invoice Summary Card */}
-          <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3 font-sans">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-kumo-line/60">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 font-sans">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-kumo-line/60">
               <div>
-                <div className="text-[13px] text-kumo-subtle uppercase tracking-wider font-semibold">Courier Provider</div>
-                <div className="text-base font-bold text-kumo-strong mt-0.5">{selectedDelivery?.assigned_rider}</div>
+                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Courier Provider</div>
+                <div className="text-sm font-semibold text-kumo-strong mt-0.5">{selectedDelivery?.assigned_rider}</div>
               </div>
               <div className="text-left sm:text-right">
-                <div className="text-[13px] text-kumo-subtle uppercase tracking-wider font-semibold">Destination</div>
-                <div className="text-sm font-medium text-kumo-default truncate max-w-xs mt-0.5">{selectedDelivery?.address}</div>
+                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Destination</div>
+                <div className="text-xs font-medium text-kumo-default truncate max-w-xs mt-0.5">{selectedDelivery?.address}</div>
               </div>
             </div>
 
             {/* Financial Metrics Strip */}
-            <div className="grid grid-cols-3 gap-2.5 text-center">
-              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-xs text-kumo-subtle block font-medium">Customer Paid</span>
-                <span className="text-sm sm:text-base font-bold text-emerald-600 block mt-0.5">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[11px] text-kumo-subtle block font-medium">Customer Paid</span>
+                <span className="text-xs sm:text-sm font-bold text-emerald-600 block mt-0.5">
                   {formatNaira(selectedDelivery?.delivery_fee || 0)}
                 </span>
               </div>
-              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-xs text-kumo-subtle block font-medium">Billed Courier Fee</span>
-                <span className="text-sm sm:text-base font-bold text-red-600 block mt-0.5">
+              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[11px] text-kumo-subtle block font-medium">Billed Courier Fee</span>
+                <span className="text-xs sm:text-sm font-bold text-red-600 block mt-0.5">
                   {formatNaira(selectedDelivery?.booked_fee || 0)}
                 </span>
               </div>
-              <div className="p-2.5 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-xs text-kumo-subtle block font-medium">Variance</span>
+              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
+                <span className="text-[11px] text-kumo-subtle block font-medium">Variance</span>
                 <span className={cn(
-                  "text-sm sm:text-base font-bold block mt-0.5",
+                  "text-xs sm:text-sm font-bold block mt-0.5",
                   ((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0 ? 'text-red-600' : 'text-emerald-600'
                 )}>
                   {((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0
@@ -312,16 +312,16 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
           </div>
 
           {/* Clean Waybill Proof Attachment Row */}
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-kumo-base border border-kumo-line text-kumo-strong flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 text-kumo-subtle" />
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-kumo-base border border-kumo-line text-kumo-strong flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-kumo-subtle" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-kumo-strong truncate">
+                <div className="text-xs font-semibold text-kumo-strong truncate">
                   Waybill Proof of Delivery Slip
                 </div>
-                <div className="text-[13px] text-kumo-subtle truncate mt-0.5">
+                <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
                   WB-{selectedDelivery?.order_ref}-POD • Verified GPS Dispatch
                 </div>
               </div>
@@ -331,7 +331,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
               size="md"
               type="button"
               onClick={() => setIsSlipViewerOpen(true)}
-              className="shrink-0 flex items-center gap-1.5 cursor-pointer text-sm"
+              className="shrink-0 flex items-center gap-1.5 cursor-pointer"
             >
               <Eye className="w-4 h-4" />
               <span>Inspect Slip</span>
@@ -379,7 +379,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         description={`Delivery proof and billed courier receipt for ${selectedDelivery?.assigned_rider}`}
         maxWidth="lg"
       >
-        <div className="space-y-4 font-sans">
+        <div className="space-y-3.5 font-sans">
           {selectedDelivery?.fee_evidence_path?.startsWith('data:') ? (
             <div className="space-y-3">
               <div className="rounded-lg border border-kumo-line overflow-hidden bg-black/90 flex items-center justify-center max-h-[60vh] p-2">
@@ -389,7 +389,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
                   className="max-h-[55vh] w-auto object-contain rounded"
                 />
               </div>
-              <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1">
+              <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="text-kumo-subtle font-medium">Uploaded At:</span>
                   <span className="text-kumo-strong font-semibold">Courier Assignment</span>
@@ -405,39 +405,39 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-kumo-line bg-kumo-base p-5 space-y-4 shadow-2xs">
-              <div className="flex items-start justify-between border-b border-kumo-line pb-3">
+            <div className="rounded-xl border border-kumo-line bg-kumo-base p-4 space-y-3 shadow-2xs">
+              <div className="flex items-start justify-between border-b border-kumo-line pb-2.5">
                 <div>
-                  <div className="text-xs tracking-wider uppercase font-bold text-amber-600">SMOKEY HUT DELIGHT • OFFICIAL COURIER WAYBILL</div>
-                  <div className="text-lg font-bold text-kumo-strong mt-0.5">Proof of Delivery & Fare Slip</div>
-                  <div className="text-sm text-kumo-subtle font-mono mt-0.5">WAYBILL NO: WB-{selectedDelivery?.order_ref}-POD</div>
+                  <div className="text-[11px] tracking-wider uppercase font-bold text-amber-600">SMOKEY HUT DELIGHT • OFFICIAL COURIER WAYBILL</div>
+                  <div className="text-base font-semibold text-kumo-strong mt-0.5">Proof of Delivery & Fare Slip</div>
+                  <div className="text-xs text-kumo-subtle font-mono mt-0.5">WAYBILL NO: WB-{selectedDelivery?.order_ref}-POD</div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[13px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
                   SIGNED & DELIVERED
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
                 <div>
-                  <span className="text-kumo-subtle block text-[13px]">Courier Partner</span>
+                  <span className="text-kumo-subtle block text-[11px]">Courier Partner</span>
                   <span className="font-semibold text-kumo-strong">{selectedDelivery?.assigned_rider}</span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle block text-[13px]">Dispatch Date</span>
+                  <span className="text-kumo-subtle block text-[11px]">Dispatch Date</span>
                   <span className="font-semibold text-kumo-strong">{selectedDelivery?.dispatch_date}</span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle block text-[13px]">Recipient Customer</span>
+                  <span className="text-kumo-subtle block text-[11px]">Recipient Customer</span>
                   <span className="font-semibold text-kumo-strong">{selectedDelivery?.customer_name}</span>
-                  <span className="text-[13px] text-kumo-subtle block">{selectedDelivery?.phone}</span>
+                  <span className="text-[11px] text-kumo-subtle block">{selectedDelivery?.phone}</span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle block text-[13px]">Destination Address</span>
+                  <span className="text-kumo-subtle block text-[11px]">Destination Address</span>
                   <span className="font-medium text-kumo-strong block truncate">{selectedDelivery?.address}</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-kumo-surface rounded-lg border border-kumo-line space-y-1.5 text-sm">
+              <div className="p-2.5 bg-kumo-surface rounded-lg border border-kumo-line space-y-1 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-kumo-subtle">Meals Delivered:</span>
                   <span className="font-medium text-kumo-strong">{selectedDelivery?.items_summary}</span>
@@ -452,15 +452,15 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="border border-dashed border-kumo-line rounded-lg p-3 bg-kumo-canvas flex items-center justify-between">
-                <div className="text-sm space-y-0.5">
+              <div className="border border-dashed border-kumo-line rounded-lg p-2.5 bg-kumo-canvas flex items-center justify-between">
+                <div className="text-xs space-y-0.5">
                   <div className="font-semibold text-kumo-strong flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     Courier Dispatch Sign-Off
                   </div>
-                  <div className="text-[13px] text-kumo-subtle font-mono">GPS Verified Handover • Ref #{selectedDelivery?.delivery_ref}</div>
+                  <div className="text-[11px] text-kumo-subtle font-mono">GPS Verified Handover • Ref #{selectedDelivery?.delivery_ref}</div>
                 </div>
-                <div className="border-2 border-emerald-600/40 text-emerald-700 dark:text-emerald-400 font-bold text-xs px-2.5 py-1 rounded rotate-[-3deg] uppercase tracking-wider">
+                <div className="border-2 border-emerald-600/40 text-emerald-700 dark:text-emerald-400 font-bold text-[11px] px-2 py-0.5 rounded rotate-[-3deg] uppercase tracking-wider">
                   Verified Carrier POD
                 </div>
               </div>

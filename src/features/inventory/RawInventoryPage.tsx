@@ -1050,9 +1050,9 @@ export const RawInventoryPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm flex justify-between items-center">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between items-center">
             <span className="text-kumo-subtle">Total Procurement Value:</span>
-            <span className="font-bold text-emerald-700 text-base">{formatNaira(receiveQty * receiveUnitCost)}</span>
+            <span className="font-bold text-emerald-700 text-sm">{formatNaira(receiveQty * receiveUnitCost)}</span>
           </div>
 
           <Input
@@ -1063,10 +1063,10 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsReceiveModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Confirm Stock Intake
             </Button>
           </div>
@@ -1081,7 +1081,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Manual inventory reconciliation, kitchen wastage, or shrinkage recording."
       >
         <form onSubmit={handleSubmitAdjust} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Current On-Hand:</span>
               <span className="font-bold text-kumo-strong">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
@@ -1124,10 +1124,10 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsAdjustModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Apply Stock Adjustment
             </Button>
           </div>
@@ -1160,7 +1160,7 @@ export const RawInventoryPage: React.FC = () => {
             />
             <div className="space-y-1.5">
               <div className="flex items-center justify-between leading-5">
-                <label className="block text-sm font-semibold text-kumo-strong leading-5">
+                <label className="block text-xs font-semibold text-kumo-strong leading-5">
                   Unit of Measure <span className="text-kumo-danger">*</span>
                 </label>
                 <button
@@ -1174,7 +1174,7 @@ export const RawInventoryPage: React.FC = () => {
                       setCustomUnitText(productForm.unit || '')
                     }
                   }}
-                  className="text-[13px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-5"
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-5"
                 >
                   {isCustomUnitMode ? (
                     '← Standard list'
@@ -1200,7 +1200,7 @@ export const RawInventoryPage: React.FC = () => {
                     autoFocus
                     required
                   />
-                  <p className="text-[13px] text-kumo-subtle">
+                  <p className="text-[11px] text-kumo-subtle">
                     Type any custom measure label (Derica, Kongo, Bale, Sticks, etc.)
                   </p>
                 </div>
@@ -1245,10 +1245,10 @@ export const RawInventoryPage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsProductModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               {selectedProduct ? 'Update SKU' : 'Save Raw SKU'}
             </Button>
           </div>
@@ -1263,16 +1263,16 @@ export const RawInventoryPage: React.FC = () => {
         description="Counts are hidden during physical stock counting to prevent bias and ensure accuracy."
       >
         <form onSubmit={handleSubmitBlindStocktake} className="space-y-4">
-          <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-sm text-blue-800 dark:text-blue-300">
+          <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-xs text-blue-800 dark:text-blue-300">
             <strong>Counting Rule:</strong> Enter the actual physical count verified on the shelf or chiller. Any difference will be reviewed by a supervisor.
           </div>
 
-          <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
             {rawProducts.slice(0, 5).map(prod => (
-              <div key={prod.id} className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between gap-3">
+              <div key={prod.id} className="p-3 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm text-kumo-strong truncate">{prod.name}</div>
-                  <div className="text-[13px] text-kumo-subtle">{prod.sku} • Unit: {prod.unit}</div>
+                  <div className="font-semibold text-xs text-kumo-strong truncate">{prod.name}</div>
+                  <div className="text-[11px] text-kumo-subtle">{prod.sku} • Unit: {prod.unit}</div>
                 </div>
                 <div className="w-36 shrink-0">
                   <Input
@@ -1297,17 +1297,17 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           {stocktakeFeedback && (
-            <div className="p-3.5 bg-emerald-50 text-emerald-800 text-sm rounded-lg border border-emerald-200 flex items-center gap-2">
+            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-lg border border-emerald-200 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{stocktakeFeedback}</span>
             </div>
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsBlindStocktakeModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsBlindStocktakeModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Submit Stock Check
             </Button>
           </div>
@@ -1322,7 +1322,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Update inventory count to match what was counted and record supervisor approval."
       >
         <form onSubmit={handleConfirmResolve} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Digital Count:</span>
               <span className="font-medium text-kumo-strong">{selectedVariance?.digital_count} {selectedVariance?.unit}</span>
@@ -1333,7 +1333,7 @@ export const RawInventoryPage: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Discrepancy (Delta):</span>
-              <span className="font-bold text-rose-600 text-sm sm:text-base">
+              <span className="font-bold text-rose-600 text-xs sm:text-sm">
                 {selectedVariance?.variance_qty} {selectedVariance?.unit} ({formatNaira(selectedVariance?.variance_value || 0)})
               </span>
             </div>
@@ -1347,10 +1347,10 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsResolveModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsResolveModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Confirm Stock Update
             </Button>
           </div>
@@ -1365,7 +1365,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Allocate this perishable lot directly to a kitchen smoke batch so it gets smoked first to prevent food waste."
       >
         <form onSubmit={handleSubmitPrioritize} className="space-y-4">
-          <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-sm space-y-2">
+          <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
               <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
@@ -1417,25 +1417,26 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div>
-            <label className="block text-sm font-semibold text-kumo-default mb-1.5">
+            <label className="block text-xs font-semibold text-kumo-default mb-1">
               Kitchen Shift Remarks & Smoker Instructions
             </label>
             <textarea
               value={prioritizeRemarks}
               onChange={(e) => setPrioritizeRemarks(e.target.value)}
               rows={2}
-              className="w-full text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-3 focus:border-amber-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-amber-500 focus:outline-none"
               placeholder="e.g. Smoke first on morning shift run..."
               required
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsPrioritizeModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsPrioritizeModalOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
+              size="md"
               type="submit"
               leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
               className="bg-amber-600 hover:bg-amber-700 text-white border-amber-700 shadow-xs"
@@ -1454,7 +1455,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Record shrinkage for expired or spoiled stock. This removes units from raw inventory and logs an audited write-off."
       >
         <form onSubmit={handleSubmitWaste} className="space-y-4">
-          <div className="p-3.5 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-sm space-y-2">
+          <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
               <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
@@ -1473,7 +1474,7 @@ export const RawInventoryPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-rose-200 dark:border-rose-900/50">
               <span className="font-semibold text-rose-800 dark:text-rose-300">Financial Loss (Shrinkage):</span>
-              <span className="font-bold text-rose-600 dark:text-rose-400 text-base">
+              <span className="font-bold text-rose-600 dark:text-rose-400 text-sm">
                 {formatNaira((Number(wasteQty) || 0) * (selectedLot?.unit_cost || 0))}
               </span>
             </div>
@@ -1491,14 +1492,14 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
             <div>
-              <label className="block text-sm font-semibold text-kumo-default mb-1.5">
+              <label className="block text-xs font-semibold text-kumo-default mb-1">
                 Reason for Write-Off
               </label>
               <input
                 type="text"
                 readOnly
                 value="Expired / Past Date"
-                className="w-full h-10 text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong px-3 py-2 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
+                className="w-full h-9 text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong px-2.5 py-1.5 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
               />
             </div>
           </div>
@@ -1512,25 +1513,26 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div>
-            <label className="block text-sm font-semibold text-kumo-default mb-1.5">
+            <label className="block text-xs font-semibold text-kumo-default mb-1">
               Spoilage / Disposal Notes
             </label>
             <textarea
               value={wasteNotes}
               onChange={(e) => setWasteNotes(e.target.value)}
               rows={2}
-              className="w-full text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-3 focus:border-rose-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-rose-500 focus:outline-none"
               placeholder="e.g. Past shelf-life threshold. Cold chain storage inspected."
               required
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsWasteModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsWasteModalOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
+              size="md"
               type="submit"
               leftIcon={<Trash2 className="w-4 h-4" />}
               className="bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"

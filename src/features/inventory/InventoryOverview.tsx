@@ -322,20 +322,20 @@ export const InventoryOverview: React.FC = () => {
         }
       >
         {selectedProduct && (
-          <div className="space-y-4 text-sm font-sans">
+          <div className="space-y-3.5 text-xs font-sans">
             {/* Target Item Pill */}
-            <div className="p-3.5 bg-kumo-tint rounded-lg ring ring-kumo-line/50 flex items-center justify-between">
+            <div className="p-3 bg-kumo-tint rounded-lg ring ring-kumo-line/50 flex items-center justify-between">
               <div>
-                <span className="font-bold text-kumo-strong text-base">
+                <span className="font-semibold text-kumo-strong text-sm">
                   {selectedProduct.name}
                 </span>
-                <p className="font-mono text-kumo-subtle text-sm mt-0.5">
+                <p className="font-mono text-kumo-subtle text-xs mt-0.5">
                   SKU: {selectedProduct.sku} • Location: {selectedProduct.bin_location}
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-kumo-subtle text-sm">Current Stock</span>
-                <p className="font-mono font-bold text-lg text-kumo-strong">
+                <span className="text-kumo-subtle text-xs">Current Stock</span>
+                <p className="font-mono font-bold text-base text-kumo-strong">
                   {formatQuantity(selectedProduct.stock_on_hand, selectedProduct.uom)}
                 </p>
               </div>
@@ -346,7 +346,7 @@ export const InventoryOverview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAdjustmentType('IN')}
-                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
+                className={`h-9 px-2.5 rounded-lg ring text-center font-medium text-xs cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'IN'
                     ? 'ring-kumo-brand bg-kumo-brand/10 text-kumo-link font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'
@@ -357,7 +357,7 @@ export const InventoryOverview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAdjustmentType('OUT')}
-                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
+                className={`h-9 px-2.5 rounded-lg ring text-center font-medium text-xs cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'OUT'
                     ? 'ring-kumo-danger bg-kumo-danger/10 text-kumo-danger font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'
@@ -368,7 +368,7 @@ export const InventoryOverview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAdjustmentType('ADJUST')}
-                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
+                className={`h-9 px-2.5 rounded-lg ring text-center font-medium text-xs cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'ADJUST'
                     ? 'ring-kumo-warning bg-kumo-warning/10 text-kumo-warning font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'

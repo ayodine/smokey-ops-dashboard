@@ -273,8 +273,8 @@ export const SuppliersPage: React.FC = () => {
           />
 
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-sm font-semibold text-kumo-strong">
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-kumo-strong">
                 Supply Category <span className="text-kumo-danger">*</span>
               </label>
               <button
@@ -285,7 +285,7 @@ export const SuppliersPage: React.FC = () => {
                     setCustomCategoryInput('')
                   }
                 }}
-                className="text-[13px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
               >
                 {isCustomCategoryMode ? (
                   '← Standard categories'
@@ -418,17 +418,17 @@ export const SuppliersPage: React.FC = () => {
                   required
                 />
 
-                <div className="p-3.5 rounded-lg border border-kumo-line bg-kumo-surface flex items-center justify-between">
+                <div className="p-3 rounded-lg border border-kumo-line bg-kumo-surface flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-kumo-strong">Vendor Partnership Status</div>
-                    <div className="text-[13px] text-kumo-subtle mt-0.5">
+                    <div className="text-xs font-semibold text-kumo-strong">Vendor Partnership Status</div>
+                    <div className="text-[11px] text-kumo-subtle mt-0.5">
                       {editForm.is_active ? 'Active vendor eligible for purchase orders' : 'Suspended / Inactive'}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setEditForm(prev => prev ? ({ ...prev, is_active: prev.is_active ? 0 : 1 }) : null)}
-                    className={`px-3.5 py-1.5 text-sm font-medium rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                       editForm.is_active 
                         ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300' 
                         : 'bg-kumo-base text-kumo-subtle border-kumo-line'

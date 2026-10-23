@@ -413,16 +413,16 @@ export const PackagingInventoryPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm flex justify-between font-mono">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between font-mono">
             <span className="text-kumo-subtle">Total Consignment Cost:</span>
-            <span className="font-bold text-emerald-700 text-base">{formatNaira(receiveQty * receiveCost)}</span>
+            <span className="font-bold text-emerald-700 text-xs sm:text-sm">{formatNaira(receiveQty * receiveCost)}</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsReceiveModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Log Packaging Delivery
             </Button>
           </div>
@@ -437,10 +437,10 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Log damaged packaging, warehouse count corrections, or scrap."
       >
         <form onSubmit={handleConfirmAdjust} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Current Count:</span>
-              <span className="font-mono font-bold text-kumo-strong text-base">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
+              <span className="font-mono font-bold text-kumo-strong text-xs">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
             </div>
           </div>
 
@@ -461,10 +461,10 @@ export const PackagingInventoryPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsAdjustModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Apply Correction
             </Button>
           </div>
@@ -478,7 +478,7 @@ export const PackagingInventoryPage: React.FC = () => {
         title="Create New Packaging Material"
         description="Add a new consumable container, bag, food bowl, or label SKU to the packaging inventory."
       >
-        <form onSubmit={handleConfirmNewMaterial} className="space-y-4 font-sans">
+        <form onSubmit={handleConfirmNewMaterial} className="space-y-4 font-sans text-xs">
           <Input
             label="Material Name"
             placeholder="e.g. 1.5L Big Food Bowl & Lid"

@@ -345,14 +345,14 @@ export const SalesInventoryPage: React.FC = () => {
         description="Manual finished stock intake or inventory reconciliation."
       >
         <form onSubmit={handleConfirmAdjust} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-2 font-sans">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Current Stock:</span>
-              <span className="font-semibold text-kumo-strong text-base">{selectedProduct?.stock_qty} {selectedProduct?.unit}s</span>
+              <span className="font-semibold text-kumo-strong text-xs">{selectedProduct?.stock_qty} {selectedProduct?.unit}s</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Selling Price:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-base">{formatNaira(selectedProduct?.selling_price || 0)}</span>
+              <span className="font-semibold text-emerald-600 font-sans text-xs">{formatNaira(selectedProduct?.selling_price || 0)}</span>
             </div>
           </div>
 
@@ -390,7 +390,7 @@ export const SalesInventoryPage: React.FC = () => {
         title={selectedProduct ? `Edit Product: ${selectedProduct.name}` : 'Register New Sales Product'}
         description="Configure pricing, cost benchmark, and reorder threshold."
       >
-        <form onSubmit={handleConfirmProduct} className="space-y-4">
+        <form onSubmit={handleConfirmProduct} className="space-y-4 text-xs font-sans">
           <Input
             label="Product Title"
             value={productForm.name}
@@ -443,10 +443,10 @@ export const SalesInventoryPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsProductModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               {selectedProduct ? 'Update Product' : 'Create Product'}
             </Button>
           </div>

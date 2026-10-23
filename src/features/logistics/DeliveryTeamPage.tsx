@@ -529,80 +529,80 @@ export const DeliveryTeamPage: React.FC = () => {
             <div className="space-y-4">
               {/* Earnings Breakdown Cards (Spacious with room for large amounts) */}
               <div>
-                <div className="text-sm font-semibold text-kumo-strong uppercase tracking-wider mb-2.5">
+                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2">
                   Trip Earnings Breakdown
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[13px] text-kumo-subtle font-medium block">Today's Earnings</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-[11px] text-kumo-subtle font-medium block">Today's Earnings</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_today || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">
+                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">
                       {selectedRider?.today_trips || 0} trips completed today
                     </span>
                   </div>
 
-                  <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[13px] text-kumo-subtle font-medium block">This Week</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-[11px] text-kumo-subtle font-medium block">This Week</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_week || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Rolling 7-day earnings</span>
+                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Rolling 7-day earnings</span>
                   </div>
 
-                  <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[13px] text-kumo-subtle font-medium block">This Month</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-[11px] text-kumo-subtle font-medium block">This Month</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_month || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Current calendar month</span>
+                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Current calendar month</span>
                   </div>
 
-                  <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[13px] text-kumo-subtle font-medium block">Lifetime Total</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-[11px] text-kumo-subtle font-medium block">Lifetime Total</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.lifetime_earnings || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Cumulative historical fees</span>
+                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Cumulative historical fees</span>
                   </div>
                 </div>
               </div>
 
               {/* Closed-Loop Cash on Delivery Balance Section (Uniform Clean Styling) */}
-              <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-4 font-sans shadow-2xs">
+              <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 font-sans shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-kumo-strong uppercase tracking-wider">
+                  <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
                     Cash on Delivery & Settlement
                   </div>
-                  <span className="text-[13px] text-kumo-subtle">Closed-loop balance equation</span>
+                  <span className="text-[11px] text-kumo-subtle">Closed-loop balance equation</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                  <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[13px] font-medium">Driver Balance Owed</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-kumo-subtle block text-[11px] font-medium">Driver Balance Owed</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       +{formatNaira(selectedRider?.pending_payout || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Delivery fee commissions</span>
+                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Delivery fee commissions</span>
                   </div>
 
-                  <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[13px] font-medium">Cash Held by Driver</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-kumo-subtle block text-[11px] font-medium">Cash Held by Driver</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       -{formatNaira(currentUnremitted)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Customer cash pending remittance</span>
+                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Customer cash pending remittance</span>
                   </div>
 
-                  <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[13px] font-medium">Net Settlement Balance</span>
-                    <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
+                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
+                    <span className="text-kumo-subtle block text-[11px] font-medium">Net Settlement Balance</span>
+                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
                       {(selectedRider?.net_balance || 0) < 0 
                         ? `Driver owes ${formatNaira(Math.abs(selectedRider?.net_balance || 0))}` 
                         : formatNaira(selectedRider?.net_balance || 0)}
                     </div>
-                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Commissions minus cash held</span>
+                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Commissions minus cash held</span>
                   </div>
                 </div>
 
@@ -675,7 +675,7 @@ export const DeliveryTeamPage: React.FC = () => {
 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-base text-kumo-strong">{selectedRider.rider_name}</h3>
+                      <h3 className="font-semibold text-sm text-kumo-strong">{selectedRider.rider_name}</h3>
                       <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-kumo-tint border border-kumo-line rounded text-kumo-strong">
                         {selectedRider.staff_id || 'RDR-001'}
                       </span>
@@ -1139,10 +1139,10 @@ export const DeliveryTeamPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsRemitModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Confirm Cash Received
             </Button>
           </div>
@@ -1276,10 +1276,10 @@ export const DeliveryTeamPage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsOnboardModalOpen(false)}>
+            <Button variant="outline" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" leftIcon={<UserPlus className="w-4 h-4" />}>
+            <Button variant="primary" size="md" type="submit" leftIcon={<UserPlus className="w-4 h-4" />}>
               Save & Onboard Driver
             </Button>
           </div>
