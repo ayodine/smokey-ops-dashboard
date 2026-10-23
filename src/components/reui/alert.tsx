@@ -18,7 +18,8 @@ const alertVariants = cva(
         default: "bg-kumo-base text-kumo-default border-kumo-line shadow-xs",
         destructive:
           "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400 [&>svg]:text-red-600 dark:[&>svg]:text-red-400",
-        info: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300 [&>svg]:text-blue-500",
+        info:
+          "border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-850/60 text-zinc-900 dark:text-zinc-100 [&>svg]:text-zinc-500 dark:[&>svg]:text-zinc-400",
         success:
           "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 [&>svg]:text-emerald-500",
         warning:

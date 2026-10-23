@@ -75,20 +75,20 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
           </div>
 
           {/* Title & Message */}
-          <h3 className="text-lg font-bold text-kumo-strong tracking-[0.015em] leading-snug">
+          <h3 className="text-base font-bold text-kumo-strong tracking-[0.015em] leading-snug">
             {title}
           </h3>
-          <p className="mt-1.5 text-sm text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
+          <p className="mt-1.5 text-xs text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
             {message}
           </p>
 
           {/* Key-Value Details Summary */}
           {details.length > 0 && (
-            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-sm">
+            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-xs">
               {details.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2">
-                  <span className="text-kumo-subtle text-[13px]">{item.label}</span>
-                  <span className="font-semibold text-kumo-strong font-display text-sm sm:text-base">{item.value}</span>
+                  <span className="text-kumo-subtle text-[11px]">{item.label}</span>
+                  <span className="font-semibold text-kumo-strong font-display text-xs sm:text-sm">{item.value}</span>
                 </div>
               ))}
             </div>

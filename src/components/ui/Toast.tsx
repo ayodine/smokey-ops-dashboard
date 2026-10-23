@@ -8,6 +8,7 @@ import {
   AlertTitle,
 } from '@/components/reui/alert'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 export interface ToastMessage {
   id: string
@@ -57,7 +58,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
   const icons = {
     success: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />,
     error: <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />,
-    info: <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />,
+    info: <Info className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />,
     warning: <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />,
   }
 
@@ -76,12 +77,27 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       className="pointer-events-auto w-full select-none shadow-lg shadow-black/10 dark:shadow-black/50"
     >
-      <Alert variant={variantMap[type] || 'default'} className="bg-kumo-base shadow-sm">
-        {icons[type] || <ShieldCheckIcon className="w-4 h-4 text-kumo-default shrink-0" />}
-        <AlertTitle>{toast.title || defaultTitles[type] || 'Notification'}</AlertTitle>
-        <AlertDescription>{toast.message}</AlertDescription>
+      <Alert
+        variant={variantMap[type] || 'default'}
+        className={cn(
+          "bg-white dark:bg-zinc-900 shadow-md",
+          type === 'info' && "border-zinc-200/90 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100"
+        )}
+      >
+        {icons[type] || <ShieldCheckIcon className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />}
+        <AlertTitle className="text-zinc-900 dark:text-zinc-100 font-semibold text-xs tracking-tight">
+          {toast.title || defaultTitles[type] || 'Notification'}
+        </AlertTitle>
+        <AlertDescription className="text-zinc-500 dark:text-zinc-400 text-xs">
+          {toast.message}
+        </AlertDescription>
         <AlertAction>
-          <Button variant="outline" size="xs" onClick={onDismiss}>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={onDismiss}
+            className="text-xs text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-200/90 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors shadow-2xs"
+          >
             Dismiss
           </Button>
         </AlertAction>
