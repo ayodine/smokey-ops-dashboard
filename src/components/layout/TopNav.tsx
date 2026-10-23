@@ -17,12 +17,6 @@ import {
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/reui/alert'
 import { cn } from '@/lib/utils'
 
 interface TopNavProps {
@@ -155,61 +149,66 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
           {isAlertsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAlertsOpen(false)} />
-              <div className="absolute right-0 mt-1.5 w-96 rounded-xl border border-kumo-line bg-kumo-base shadow-xl z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden">
-                <div className="px-3.5 py-2.5 border-b border-kumo-line flex items-center justify-between">
-                  <span className="text-xs font-semibold text-kumo-strong">
+              <div className="absolute right-0 mt-2 w-96 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                     Alerts
                   </span>
-                  <span className="text-[10px] bg-[#f6821f]/15 text-[#f6821f] px-1.5 py-0.5 rounded-full font-bold">
+                  <span className="text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700 px-2 py-0.5 rounded-full">
                     {alerts.length} Active
                   </span>
                 </div>
-                <div className="text-xs max-h-[380px] overflow-y-auto p-2 space-y-2">
+                <div className="text-xs max-h-[380px] overflow-y-auto p-3 space-y-2.5 bg-white dark:bg-zinc-900">
                   {alerts.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-kumo-subtle">
+                    <div className="p-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
                       No active alerts
                     </div>
                   ) : (
                     alerts.map((item) => {
                       const IconComponent = item.icon
                       return (
-                        <Alert key={item.id} variant={item.variant} className="p-2.5 shadow-none border-kumo-line">
-                          <IconComponent className="w-4 h-4 shrink-0" />
-                          <AlertTitle
-                            className="cursor-pointer hover:underline text-xs"
-                            onClick={() => {
-                              navigate(item.linkUrl)
-                              setIsAlertsOpen(false)
-                            }}
-                          >
-                            {item.title}
-                          </AlertTitle>
-                          <AlertDescription className="text-[11px] gap-1">
-                            <span>{item.desc}</span>
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 text-zinc-900 dark:text-zinc-100 shadow-2xs hover:bg-zinc-100/60 dark:hover:bg-zinc-800/70 transition-colors flex items-start gap-3"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 shadow-2xs mt-0.5">
+                            <IconComponent className="w-3.5 h-3.5 stroke-[1.75]" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 line-clamp-1 cursor-pointer hover:underline"
+                              onClick={() => {
+                                navigate(item.linkUrl)
+                                setIsAlertsOpen(false)
+                              }}
+                            >
+                              {item.title}
+                            </div>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal mt-0.5">
+                              {item.desc}
+                            </p>
                             <span
-                              className="text-[10px] text-primary font-medium inline-flex items-center gap-1 mt-0.5 cursor-pointer hover:underline"
+                              className="text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 font-medium inline-flex items-center gap-1 mt-1.5 cursor-pointer hover:underline transition-colors"
                               onClick={() => {
                                 navigate(item.linkUrl)
                                 setIsAlertsOpen(false)
                               }}
                             >
                               <span>{item.linkText}</span>
-                              <ArrowRight className="w-2.5 h-2.5" />
+                              <ArrowRight className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" />
                             </span>
-                          </AlertDescription>
-                          <AlertAction>
-                            <Button
-                              variant="outline"
-                              size="xs"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setAlerts((prev) => prev.filter((a) => a.id !== item.id))
-                              }}
-                            >
-                              Dismiss
-                            </Button>
-                          </AlertAction>
-                        </Alert>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAlerts((prev) => prev.filter((a) => a.id !== item.id))
+                            }}
+                            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200/90 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0 ml-1"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
                       )
                     })
                   )}
