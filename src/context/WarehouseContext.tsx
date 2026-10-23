@@ -6,7 +6,13 @@ export interface FacilityOption {
   name: string
   city: string
   address?: string
+  type?: 'central_kitchen' | 'warehouse' | 'retail_hub' | 'cold_storage'
+  total_skus?: number
+  capacity_utilization?: number
+  manager_name?: string
+  contact_phone?: string
   isPrimary?: boolean
+  is_active?: boolean
 }
 
 export const INITIAL_FACILITY: FacilityOption = {
@@ -15,7 +21,13 @@ export const INITIAL_FACILITY: FacilityOption = {
   name: 'Yaba Head Office',
   city: 'Lagos',
   address: '14 Commercial Avenue, Yaba, Lagos',
-  isPrimary: true
+  type: 'central_kitchen',
+  total_skus: 36,
+  capacity_utilization: 74,
+  manager_name: 'Babajide Ogundipe',
+  contact_phone: '+234 803 123 4567',
+  isPrimary: true,
+  is_active: true
 }
 
 interface WarehouseContextType {
@@ -23,9 +35,28 @@ interface WarehouseContextType {
   setSelectedWarehouse: (facility: FacilityOption) => void
   facilities: FacilityOption[]
   addFacility: (facility: Omit<FacilityOption, 'id'>) => FacilityOption
+  deleteFacility: (id: string) => void
 }
 
 const WarehouseContext = createContext<WarehouseContextType | undefined>(undefined)
+
+// List of known legacy fake mock branches to purge from localStorage
+const FAKE_BRANCH_KEYWORDS = [
+  'central kitchen',
+  'central hub',
+  'lekki distribution',
+  'lekki dispatch',
+  'lekki cloud',
+  'victoria island',
+  'cold storage',
+  'oregun cold',
+  'surulere transit',
+  'surulere distribution',
+  'magodo',
+  'festac',
+  'maryland staging',
+  'ajah regional'
+]
 
 export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [facilities, setFacilities] = useState<FacilityOption[]>(() => {
@@ -34,8 +65,19 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Normalize legacy 'Yaba, Lagos' redundancy to 'Lagos'
-          return parsed.map((f: FacilityOption) => ({
+          // Keep Yaba HQ and only genuine custom user-created branches (filter out mock legacy fake branches)
+          const filtered = parsed.filter((f: FacilityOption) => {
+            if (f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code || f.name === INITIAL_FACILITY.name) {
+              return true
+            }
+            const nameLower = (f.name || '').toLowerCase()
+            return !FAKE_BRANCH_KEYWORDS.some(keyword => nameLower.includes(keyword))
+          })
+
+          const hasYaba = filtered.some((f: FacilityOption) => f.id === INITIAL_FACILITY.id || f.name === INITIAL_FACILITY.name)
+          const result = hasYaba ? filtered : [INITIAL_FACILITY, ...filtered]
+
+          return result.map((f: FacilityOption) => ({
             ...f,
             city: f.city === 'Yaba, Lagos' ? 'Lagos' : f.city
           }))
@@ -53,9 +95,13 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const parsed = JSON.parse(saved)
         if (parsed && parsed.id) {
-          return {
-            ...parsed,
-            city: parsed.city === 'Yaba, Lagos' ? 'Lagos' : parsed.city
+          const nameLower = (parsed.name || '').toLowerCase()
+          const isFake = FAKE_BRANCH_KEYWORDS.some(k => nameLower.includes(k))
+          if (!isFake) {
+            return {
+              ...parsed,
+              city: parsed.city === 'Yaba, Lagos' ? 'Lagos' : parsed.city
+            }
           }
         }
       } catch {
@@ -68,7 +114,10 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Ensure current selection is always valid among facilities
   useEffect(() => {
     localStorage.setItem('ops_facilities', JSON.stringify(facilities))
-  }, [facilities])
+    if (!facilities.some(f => f.id === selectedWarehouse.id)) {
+      setSelectedWarehouseState(facilities[0] || INITIAL_FACILITY)
+    }
+  }, [facilities, selectedWarehouse.id])
 
   const setSelectedWarehouse = (facility: FacilityOption) => {
     setSelectedWarehouseState(facility)
@@ -77,6 +126,12 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addFacility = (newFacData: Omit<FacilityOption, 'id'>): FacilityOption => {
     const newFacility: FacilityOption = {
+      type: 'warehouse',
+      total_skus: 24,
+      capacity_utilization: 50,
+      manager_name: 'Operations Lead',
+      contact_phone: '+234 800 000 0000',
+      is_active: true,
       ...newFacData,
       id: `fac-${Date.now()}`
     }
@@ -86,8 +141,17 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return newFacility
   }
 
+  const deleteFacility = (id: string) => {
+    if (id === INITIAL_FACILITY.id || facilities.length <= 1) return
+    const updated = facilities.filter(f => f.id !== id)
+    setFacilities(updated)
+    if (selectedWarehouse.id === id) {
+      setSelectedWarehouse(updated[0])
+    }
+  }
+
   return (
-    <WarehouseContext.Provider value={{ selectedWarehouse, setSelectedWarehouse, facilities, addFacility }}>
+    <WarehouseContext.Provider value={{ selectedWarehouse, setSelectedWarehouse, facilities, addFacility, deleteFacility }}>
       {children}
     </WarehouseContext.Provider>
   )

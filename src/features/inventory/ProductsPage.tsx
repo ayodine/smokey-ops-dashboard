@@ -197,16 +197,16 @@ export const ProductsPage: React.FC = () => {
         description="Register a new inventory product, raw material, or packaging item into the enterprise registry."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsCreateModalOpen(false)}>
+            <Button variant="secondary" size="md" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleCreateProduct}>
+            <Button variant="primary" size="md" onClick={handleCreateProduct}>
               Save SKU to Database
             </Button>
           </>
         }
       >
-        <form onSubmit={handleCreateProduct} className="space-y-3.5 text-xs">
+        <form onSubmit={handleCreateProduct} className="space-y-4 text-sm">
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="SKU Code"

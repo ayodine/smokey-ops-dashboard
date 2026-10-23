@@ -11,6 +11,7 @@ import { PackagingInventoryPage } from '@/features/inventory/PackagingInventoryP
 import { SalesInventoryPage } from '@/features/inventory/SalesInventoryPage'
 import { StockMovementsPage } from '@/features/inventory/StockMovementsPage'
 import { SuppliersPage } from '@/features/inventory/SuppliersPage'
+import { WarehousesPage } from '@/features/inventory/WarehousesPage'
 
 // Production Domain
 import { ProductionBatchesPage } from '@/features/production/ProductionBatchesPage'
@@ -67,6 +68,7 @@ export function App() {
                 <Route path="inventory/sales" element={<SalesInventoryPage />} />
                 <Route path="inventory/movements" element={<StockMovementsPage />} />
                 <Route path="inventory/suppliers" element={<SuppliersPage />} />
+                <Route path="inventory/warehouses" element={<WarehousesPage />} />
 
                 {/* 2. PRODUCTION DOMAIN */}
                 <Route path="production" element={<Navigate to="/production/batches" replace />} />

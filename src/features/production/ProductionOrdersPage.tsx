@@ -260,11 +260,12 @@ export const ProductionOrdersPage: React.FC = () => {
         description="Verify food safety temperature logs and record sound vs. scrap units. Approved sound units will immediately credit the products.stock table."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsQCModalOpen(false)}>
+            <Button variant="secondary" size="md" onClick={() => setIsQCModalOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
+              size="md"
               isLoading={isSubmitting}
               onClick={handleConfirmCompletion}
               leftIcon={<CheckCircle2 className="w-4 h-4" />}
@@ -274,13 +275,13 @@ export const ProductionOrdersPage: React.FC = () => {
           </>
         }
       >
-        <div className="space-y-4 text-xs">
-          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-[4px] border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <div className="space-y-4 text-sm">
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-[4px] border border-slate-200 dark:border-slate-700 flex justify-between items-center">
             <div>
-              <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+              <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
                 {activeOrder.finished_product_name}
               </span>
-              <p className="font-mono text-slate-500">{activeOrder.order_code} • Target: {activeOrder.planned_quantity} units</p>
+              <p className="font-mono text-slate-500 text-sm">{activeOrder.order_code} • Target: {activeOrder.planned_quantity} units</p>
             </div>
             <StatusBadge status="QUALITY_CHECK" size="sm" />
           </div>

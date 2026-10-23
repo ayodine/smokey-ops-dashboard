@@ -19,7 +19,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={generatedId}
-            className="block text-xs font-medium text-kumo-strong leading-4"
+            className="block text-sm font-semibold text-kumo-strong leading-5"
           >
             {label}
             {props.required && <span className="text-kumo-danger ml-0.5">*</span>}
@@ -27,7 +27,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative rounded-lg shadow-2xs">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-kumo-subtle">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-kumo-subtle">
               {leftIcon}
             </div>
           )}
@@ -36,24 +36,24 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             ref={ref}
             className={cn(
-              'block w-full h-9 rounded-lg bg-kumo-base ring ring-kumo-line px-3 py-2 text-xs text-kumo-default placeholder:text-kumo-placeholder focus:outline-none focus:ring-2 focus:ring-kumo-brand transition-colors',
-              leftIcon && 'pl-8.5',
-              rightIcon && 'pr-8.5',
+              'block w-full h-10 rounded-lg bg-kumo-base ring ring-kumo-line px-3.5 py-2.5 text-sm sm:text-base text-kumo-default placeholder:text-kumo-placeholder focus:outline-none focus:ring-2 focus:ring-kumo-brand transition-colors',
+              leftIcon && 'pl-9.5',
+              rightIcon && 'pr-9.5',
               error && 'ring-kumo-danger focus:ring-kumo-danger',
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-kumo-subtle">
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-kumo-subtle">
               {rightIcon}
             </div>
           )}
         </div>
         {error ? (
-          <p className="text-[11px] text-kumo-danger">{error}</p>
+          <p className="text-[13px] text-kumo-danger">{error}</p>
         ) : helperText ? (
-          <p className="text-[11px] text-kumo-subtle">{helperText}</p>
+          <p className="text-[13px] text-kumo-subtle">{helperText}</p>
         ) : null}
       </div>
     )

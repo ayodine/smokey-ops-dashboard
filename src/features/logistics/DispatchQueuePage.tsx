@@ -154,12 +154,13 @@ export const DispatchQueuePage: React.FC = () => {
         maxWidth="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="secondary" size="md" onClick={() => window.print()}>
               Print Physical Slip
             </Button>
             {selectedItem && selectedItem.status !== 'DISPATCHED' && (
               <Button
                 variant="brand"
+                size="md"
                 onClick={() => handleConfirmDispatch(selectedItem)}
                 leftIcon={<Send className="w-4 h-4 fill-white" />}
               >
@@ -170,16 +171,16 @@ export const DispatchQueuePage: React.FC = () => {
         }
       >
         {selectedItem && (
-          <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-[4px] space-y-4 text-xs">
+          <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-[4px] space-y-4 text-sm">
             {/* Header / Barcode */}
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
               <div>
-                <span className="font-bold text-sm text-[#F38020]">SmokeyOps Logistics</span>
-                <p className="font-mono text-slate-500">Waybill: WB-{selectedItem.order_id}</p>
+                <span className="font-bold text-base text-[#F38020]">SmokeyOps Logistics</span>
+                <p className="font-mono text-slate-500 text-sm">Waybill: WB-{selectedItem.order_id}</p>
               </div>
               <div className="flex flex-col items-end">
                 <Barcode className="w-24 h-8" />
-                <span className="font-mono text-[10px] text-slate-400">
+                <span className="font-mono text-xs text-slate-400">
                   {selectedItem.order_id}-PK{selectedItem.package_count}
                 </span>
               </div>
@@ -187,38 +188,38 @@ export const DispatchQueuePage: React.FC = () => {
 
             {/* Recipient & Courier Grid */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-[3px] border border-slate-200 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] font-semibold uppercase text-slate-400">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-[3px] border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-400">
                   Destination Customer
                 </span>
-                <p className="font-bold text-slate-900 dark:text-slate-100">{selectedItem.customer_name}</p>
-                <p className="text-slate-600 dark:text-slate-300">{selectedItem.delivery_address}</p>
-                <p className="font-mono text-slate-500">{selectedItem.customer_phone}</p>
+                <p className="font-bold text-base text-slate-900 dark:text-slate-100">{selectedItem.customer_name}</p>
+                <p className="text-slate-600 dark:text-slate-300 text-sm">{selectedItem.delivery_address}</p>
+                <p className="font-mono text-slate-500 text-sm">{selectedItem.customer_phone}</p>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-[3px] border border-slate-200 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] font-semibold uppercase text-slate-400">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-[3px] border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-400">
                   Courier / Rider Partner
                 </span>
-                <p className="font-bold text-slate-900 dark:text-slate-100">
+                <p className="font-bold text-base text-slate-900 dark:text-slate-100">
                   {selectedItem.assigned_carrier_name || 'Smokey Direct Fleet'}
                 </p>
-                <p className="text-slate-600 dark:text-slate-300">
+                <p className="text-slate-600 dark:text-slate-300 text-sm">
                   {selectedItem.assigned_rider_name || 'Rider Assigned at Gate'}
                 </p>
-                <p className="font-mono text-slate-500">Urgency: {selectedItem.urgency}</p>
+                <p className="font-mono text-slate-500 text-sm">Urgency: {selectedItem.urgency}</p>
               </div>
             </div>
 
             {/* Contents Checklist */}
-            <div className="border border-slate-200 dark:border-slate-700 rounded-[3px] p-3 space-y-1.5">
-              <span className="text-[10px] font-semibold uppercase text-slate-400">
+            <div className="border border-slate-200 dark:border-slate-700 rounded-[3px] p-3.5 space-y-2">
+              <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-400">
                 Itemized Package Verification
               </span>
-              <p className="font-semibold text-slate-800 dark:text-slate-200">
+              <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm sm:text-base">
                 {selectedItem.items_summary}
               </p>
-              <div className="flex items-center justify-between text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800 font-mono text-[11px]">
+              <div className="flex items-center justify-between text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800 font-mono text-[13px]">
                 <span>Total Packages: {selectedItem.package_count} Units</span>
                 <span>Gross Weight: {selectedItem.weight_kg} kg</span>
                 <span>Security Seal: #SEAL-9981</span>

@@ -345,14 +345,14 @@ export const SalesInventoryPage: React.FC = () => {
         description="Manual finished stock intake or inventory reconciliation."
       >
         <form onSubmit={handleConfirmAdjust} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-2 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Current Stock:</span>
-              <span className="font-semibold text-kumo-strong">{selectedProduct?.stock_qty} {selectedProduct?.unit}s</span>
+              <span className="font-semibold text-kumo-strong text-base">{selectedProduct?.stock_qty} {selectedProduct?.unit}s</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Selling Price:</span>
-              <span className="font-semibold text-emerald-600 font-sans">{formatNaira(selectedProduct?.selling_price || 0)}</span>
+              <span className="font-semibold text-emerald-600 font-sans text-base">{formatNaira(selectedProduct?.selling_price || 0)}</span>
             </div>
           </div>
 

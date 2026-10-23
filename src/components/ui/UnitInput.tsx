@@ -128,13 +128,13 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   return (
     <div className={cn('space-y-1.5 font-sans w-full min-w-0', className)}>
       {label && (
-        <label className="block text-xs font-medium text-kumo-strong leading-4">
+        <label className="block text-sm font-semibold text-kumo-strong leading-5">
           {label}
           {required && <span className="text-kumo-danger ml-0.5">*</span>}
         </label>
       )}
 
-      <div className="relative flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-visible h-9 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all w-full min-w-0">
+      <div className="relative flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-visible h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all w-full min-w-0">
         {/* Numeric Quantity Input */}
         <input
           type="number"
@@ -149,7 +149,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
           disabled={disabled}
           placeholder={placeholder}
           required={required}
-          className="flex-1 min-w-0 h-full px-3 text-xs font-sans text-kumo-strong bg-transparent focus:outline-none placeholder:text-kumo-subtle/50"
+          className="flex-1 min-w-0 h-full px-3 text-sm sm:text-base font-sans text-kumo-strong bg-transparent focus:outline-none placeholder:text-kumo-subtle/50"
         />
 
         {/* Attached Unit Addon on the Right */}
@@ -162,13 +162,13 @@ export const UnitInput: React.FC<UnitInputProps> = ({
                   value={manualUnitText}
                   onChange={handleManualUnitChange}
                   placeholder="unit"
-                  className="w-16 sm:w-20 h-7 px-1.5 text-xs text-kumo-strong bg-kumo-base border border-kumo-line rounded focus:outline-none focus:ring-1 focus:ring-primary lowercase"
+                  className="w-16 sm:w-20 h-8 px-2 text-sm text-kumo-strong bg-kumo-base border border-kumo-line rounded focus:outline-none focus:ring-1 focus:ring-primary lowercase"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setIsManualUnit(false)}
-                  className="ml-1 text-[10px] text-kumo-subtle hover:text-kumo-strong cursor-pointer p-0.5"
+                  className="ml-1 text-xs text-kumo-subtle hover:text-kumo-strong cursor-pointer p-0.5"
                   title="Choose from list"
                 >
                   ✕
@@ -183,10 +183,10 @@ export const UnitInput: React.FC<UnitInputProps> = ({
                     updatePosition()
                     setIsUnitDropdownOpen(prev => !prev)
                   }}
-                  className="h-full px-2.5 flex items-center gap-1 text-[11px] font-medium text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer select-none lowercase"
+                  className="h-full px-2.5 flex items-center gap-1 text-[13px] font-medium text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer select-none lowercase"
                 >
                   <span className="truncate max-w-[60px] sm:max-w-[80px]">{unit || 'unit'}</span>
-                  <ChevronDown className="w-3 h-3 text-kumo-subtle shrink-0" />
+                  <ChevronDown className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                 </button>
 
                 {/* React Portal Dropdown to prevent ANY modal clipping */}
@@ -203,9 +203,9 @@ export const UnitInput: React.FC<UnitInputProps> = ({
                         left: `${dropdownPosition.left}px`,
                         width: `${dropdownPosition.width}px`,
                       }}
-                      className="z-[9999] max-h-52 overflow-y-auto rounded-lg border border-kumo-line bg-kumo-base shadow-2xl py-1 text-xs font-sans animate-in fade-in zoom-in-95"
+                      className="z-[9999] max-h-52 overflow-y-auto rounded-lg border border-kumo-line bg-kumo-base shadow-2xl py-1 text-sm font-sans animate-in fade-in zoom-in-95"
                     >
-                      <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
+                      <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle border-b border-kumo-line/60">
                         Select Unit
                       </div>
                       {unitOptions.map((opt) => (
@@ -214,19 +214,19 @@ export const UnitInput: React.FC<UnitInputProps> = ({
                           type="button"
                           onClick={() => handleSelectUnit(opt)}
                           className={cn(
-                            'w-full px-2.5 py-1.5 text-left text-xs hover:bg-kumo-tint flex items-center justify-between cursor-pointer capitalize',
+                            'w-full px-3 py-2 text-left text-sm hover:bg-kumo-tint flex items-center justify-between cursor-pointer capitalize',
                             unit.toLowerCase() === opt.toLowerCase() && 'bg-primary/10 text-primary font-semibold'
                           )}
                         >
                           <span className="truncate">{opt}</span>
-                          {unit.toLowerCase() === opt.toLowerCase() && <span className="text-primary text-[10px] shrink-0 ml-1">✓</span>}
+                          {unit.toLowerCase() === opt.toLowerCase() && <span className="text-primary text-xs shrink-0 ml-1">✓</span>}
                         </button>
                       ))}
                       <div className="border-t border-kumo-line/60 pt-1 mt-1">
                         <button
                           type="button"
                           onClick={() => handleSelectUnit('__custom__')}
-                          className="w-full px-2.5 py-1.5 text-left text-[11px] text-primary hover:bg-primary/10 font-medium cursor-pointer"
+                          className="w-full px-3 py-2 text-left text-[13px] text-primary hover:bg-primary/10 font-medium cursor-pointer"
                         >
                           + Type manual unit...
                         </button>
@@ -238,7 +238,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
               </div>
             )
           ) : (
-            <span className="px-3 h-full flex items-center text-[11px] font-medium text-kumo-subtle select-none lowercase">
+            <span className="px-3 h-full flex items-center text-[13px] font-medium text-kumo-subtle select-none lowercase">
               {unit}
             </span>
           )}
@@ -246,7 +246,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
       </div>
 
       {helperText && (
-        <p className="text-[11px] text-kumo-subtle mt-0.5">{helperText}</p>
+        <p className="text-[13px] text-kumo-subtle mt-0.5">{helperText}</p>
       )}
     </div>
   )

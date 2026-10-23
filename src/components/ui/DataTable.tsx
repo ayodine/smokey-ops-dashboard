@@ -569,7 +569,7 @@ export function DataTable<T>({
                 <ArrowDownWideNarrow className="w-4 h-4 text-foreground/80 shrink-0" />
                 <span>Sort</span>
                 {sortKey && (
-                  <span className="ml-0.5 text-[11px] bg-primary text-primary-foreground rounded-sm px-1.5 py-0.2 font-medium">
+                  <span className="ml-0.5 text-[13px] bg-primary text-primary-foreground rounded-sm px-1.5 py-0.2 font-medium">
                     1
                   </span>
                 )}
@@ -584,7 +584,7 @@ export function DataTable<T>({
                   onClick={() => setShowSortMenu(false)}
                 />
                 <div className="absolute right-0 mt-1.5 w-52 bg-background border border-border shadow-xl rounded-lg z-40 py-1.5 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-1 text-[11px] font-medium uppercase text-muted-foreground border-b border-border/50 mb-1">
+                  <div className="px-3.5 py-1 text-[13px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
                     Sort Column
                   </div>
                   {columns.filter(c => c.sortable !== false).map(c => (
@@ -628,8 +628,8 @@ export function DataTable<T>({
                   className="fixed inset-0 z-30"
                   onClick={() => setShowExportMenu(false)}
                 />
-                <div className="absolute right-0 mt-1.5 w-40 bg-background border border-border shadow-xl rounded-lg z-40 py-1.5 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-1 text-[11px] font-medium uppercase text-muted-foreground border-b border-border/50 mb-1">
+                <div className="absolute right-0 mt-1.5 w-44 bg-background border border-border shadow-xl rounded-lg z-40 py-1.5 animate-in fade-in zoom-in-95">
+                  <div className="px-3.5 py-1 text-[13px] font-semibold uppercase text-muted-foreground border-b border-border/50 mb-1">
                     Export Format
                   </div>
                   <button
@@ -641,7 +641,7 @@ export function DataTable<T>({
                     className="w-full px-3.5 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between cursor-pointer"
                   >
                     <span>CSV Spreadsheet</span>
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase">.csv</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase">.csv</span>
                   </button>
                   <button
                     type="button"
@@ -652,7 +652,7 @@ export function DataTable<T>({
                     className="w-full px-3.5 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between border-t border-border/40 cursor-pointer"
                   >
                     <span>JSON Raw Data</span>
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase">.json</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase">.json</span>
                   </button>
                 </div>
               </>

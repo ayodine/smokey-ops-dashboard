@@ -67,13 +67,13 @@ export const StockMovementsPage: React.FC = () => {
       header: 'Movement Type',
       accessor: (m) => {
         const badgeMap: Record<string, { status: 'active' | 'pending' | 'inactive'; label: string }> = {
-          production_output: { status: 'active', label: 'BATCH YIELD' },
-          sale: { status: 'pending', label: 'CUSTOMER SALE' },
-          adjustment: { status: 'pending', label: 'ADJUSTMENT' },
-          waste: { status: 'inactive', label: 'SCRAP / WASTE' },
-          reversal: { status: 'inactive', label: 'REVERSAL' },
+          production_output: { status: 'active', label: 'batch yield' },
+          sale: { status: 'pending', label: 'customer sale' },
+          adjustment: { status: 'pending', label: 'adjustment' },
+          waste: { status: 'inactive', label: 'scrap / waste' },
+          reversal: { status: 'inactive', label: 'reversal' },
         }
-        const b = badgeMap[m.movement_type] || { status: 'pending', label: m.movement_type.toUpperCase() }
+        const b = badgeMap[m.movement_type] || { status: 'pending', label: m.movement_type.toLowerCase().replace(/_/g, ' ') }
         return <StatusBadge status={b.status} label={b.label} />
       },
       sortValue: (m) => m.movement_type,

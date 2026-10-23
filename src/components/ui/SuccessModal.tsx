@@ -66,7 +66,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             aria-label="Close"
             className="absolute top-4 right-4 p-1.5 rounded-lg text-kumo-subtle hover:text-kumo-default hover:bg-kumo-tint transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
 
           {/* Animated Green Checkmark Icon */}
@@ -78,17 +78,17 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
           <h3 className="text-lg font-bold text-kumo-strong tracking-[0.015em] leading-snug">
             {title}
           </h3>
-          <p className="mt-1.5 text-xs text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
+          <p className="mt-1.5 text-sm text-kumo-subtle tracking-normal leading-relaxed max-w-sm mx-auto">
             {message}
           </p>
 
           {/* Key-Value Details Summary */}
           {details.length > 0 && (
-            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-xs">
+            <div className="mt-4 p-3.5 bg-kumo-surface border border-kumo-line rounded-xl text-left space-y-2 text-sm">
               {details.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2">
-                  <span className="text-kumo-subtle">{item.label}</span>
-                  <span className="font-semibold text-kumo-strong font-display">{item.value}</span>
+                  <span className="text-kumo-subtle text-[13px]">{item.label}</span>
+                  <span className="font-semibold text-kumo-strong font-display text-sm sm:text-base">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -100,7 +100,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               variant="primary"
               size="md"
               onClick={handleAction}
-              className="w-full h-10 px-5 rounded-xl font-semibold text-xs tracking-wide cursor-pointer justify-center"
+              className="w-full h-10 px-5 rounded-xl font-semibold text-sm sm:text-base tracking-wide cursor-pointer justify-center"
             >
               {actionLabel}
             </Button>

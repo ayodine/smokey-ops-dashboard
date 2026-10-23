@@ -17,9 +17,12 @@ import {
   GitCommit
 } from 'lucide-react'
 
+import { useWarehouse, INITIAL_FACILITY } from '@/context/WarehouseContext'
+
 export const ExecutiveOverview: React.FC = () => {
   const { rawProducts, salesProducts } = useSmokeyOps()
-  const [selectedWarehouse, setSelectedWarehouse] = useState('central-ikeja')
+  const { facilities, selectedWarehouse: currentOffice } = useWarehouse()
+  const [selectedWarehouse, setSelectedWarehouse] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange>({
     start: new Date(2026, 9, 20, 0, 0, 0),
     end: new Date(2026, 9, 21, 23, 59, 59),
@@ -70,7 +73,7 @@ export const ExecutiveOverview: React.FC = () => {
             </Heading>
           </div>
           <Subheading size="xs" className="mt-1.5">
-            Connected to <strong className="text-kumo-strong">Central Production Kitchen (Ikeja)</strong>. 2 pit runs active, 3 orders staged for courier dispatch.
+            Connected to <strong className="text-kumo-strong">{currentOffice?.name || 'Yaba Head Office'}</strong>. 2 pit runs active, 3 orders staged for courier dispatch.
           </Subheading>
         </div>
 
@@ -96,9 +99,10 @@ export const ExecutiveOverview: React.FC = () => {
           onChange: setSelectedWarehouse,
           options: [
             { value: 'all', label: 'All operational hubs' },
-            { value: 'central-ikeja', label: 'Central Kitchen - Ikeja' },
-            { value: 'lekki-fulfillment', label: 'Lekki Fulfillment Staging' },
-            { value: 'cold-storage-vi', label: 'Cold Storage VI' },
+            ...(facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+              value: f.id,
+              label: f.name
+            }))
           ],
         }}
         dateRange={dateRange}

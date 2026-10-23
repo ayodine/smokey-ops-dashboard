@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Globe,
   ChevronDown,
@@ -8,7 +9,11 @@ import {
   RefreshCw,
   Layers,
   Network,
-  Search
+  Search,
+  ExternalLink,
+  X,
+  Check,
+  User
 } from 'lucide-react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn, formatNaira } from '@/lib/utils'
@@ -65,6 +70,23 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     history: ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
   },
   {
+    id: 'SHD-07662',
+    customerName: 'Babajide Sanwo',
+    dishName: '1 Liter Bowl Guineafowl Rice',
+    totalAmount: 9500,
+    portions: 1,
+    channel: 'Website Storefront',
+    hasStock: true,
+    currentStage: 'p2_in_packaging',
+    paymentRef: 'pay_smk_77201',
+    riderName: 'Rider Yusuf Internal Fleet',
+    destinationAddress: 'Plot 12 Admiralty Way, Lekki Phase 1',
+    etaMinutes: 35,
+    otpCode: '3189',
+    deliveryFee: 3000,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
+  },
+  {
     id: 'SHD-09854',
     customerName: 'Amaka Okafor',
     dishName: '1L Guineafowl Rice and Smoked Catfish',
@@ -82,6 +104,70 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
   },
   {
+    id: 'SHD-07667',
+    customerName: 'Amaka Okafor',
+    dishName: 'Smoked Goat Meat Asun Bowl',
+    totalAmount: 15000,
+    portions: 2,
+    channel: 'Direct WhatsApp',
+    hasStock: true,
+    currentStage: 'p3_in_transit',
+    paymentRef: 'pay_smk_88412',
+    riderName: 'Rider Chuka Fleet',
+    destinationAddress: 'Chevy View Estate, Chevron Drive, Lekki',
+    etaMinutes: 14,
+    otpCode: '5521',
+    deliveryFee: 3500,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned',
+      'p3_in_transit'
+    ]
+  },
+  {
+    id: 'SHD-07661',
+    customerName: 'Anita Ihaza',
+    dishName: 'Full Smokey Guineafowl (Chopped) × 2',
+    totalAmount: 27700,
+    portions: 2,
+    channel: 'Website Storefront',
+    hasStock: true,
+    currentStage: 'p3_delivery_assigned',
+    paymentRef: 'pay_smk_66190',
+    riderName: 'Rider Yusuf Internal Fleet',
+    destinationAddress: '4 Awoseyin Lane, Shomolu, Lagos',
+    etaMinutes: 40,
+    otpCode: '9182',
+    deliveryFee: 2500,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned'
+    ]
+  },
+  {
+    id: 'SHD-07668',
+    customerName: 'Anita Ihaza',
+    dishName: 'Peppered Jumbo Snail & Plantain',
+    totalAmount: 18000,
+    portions: 1,
+    channel: 'Website Storefront',
+    hasStock: false,
+    currentStage: 'p1_inventory_deduct',
+    paymentRef: 'pay_smk_99215',
+    destinationAddress: '4 Awoseyin Lane, Shomolu, Lagos',
+    otpCode: '4410',
+    deliveryFee: 2500,
+    history: ['p1_ingestion', 'p1_inventory_deduct']
+  },
+  {
     id: 'SHD-09855',
     customerName: 'Chinedu Eze',
     dishName: 'Peppered Turkey Wings Platter',
@@ -95,6 +181,27 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     otpCode: '1092',
     deliveryFee: 2500,
     history: ['p1_ingestion']
+  },
+  {
+    id: 'SHD-07672',
+    customerName: 'Chinedu Eze',
+    dishName: 'VIP Guineafowl & Plantain Platter',
+    totalAmount: 32000,
+    portions: 3,
+    channel: 'Direct WhatsApp',
+    hasStock: true,
+    currentStage: 'p2_dispatched',
+    paymentRef: 'pay_smk_55418',
+    destinationAddress: 'Akowonjo Roundabout, Egbeda, Lagos',
+    otpCode: '8721',
+    deliveryFee: 3000,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched'
+    ]
   },
   {
     id: 'SHD-09856',
@@ -149,6 +256,62 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
       'p3_in_transit',
       'p3_doorstep_handover'
     ]
+  },
+  {
+    id: 'SHD-07680',
+    customerName: 'Tunde Bakare',
+    dishName: 'Smokey Jumbo Turkey Wings Feast',
+    totalAmount: 14500,
+    portions: 2,
+    channel: 'Website Storefront',
+    hasStock: false,
+    currentStage: 'p1_production_batch',
+    paymentRef: 'pay_smk_33109',
+    batchId: 'Batch 408',
+    destinationAddress: '14 Karimu Kotun St, Victoria Island',
+    otpCode: '2290',
+    deliveryFee: 3500,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
+  },
+  {
+    id: 'SHD-07663',
+    customerName: 'Ogunnowo Oyewale',
+    dishName: 'Full Smokey Guineafowl & Palmwine',
+    totalAmount: 15300,
+    portions: 1,
+    channel: 'Website Storefront',
+    hasStock: true,
+    currentStage: 'p2_materials_picked',
+    paymentRef: 'pay_smk_44298',
+    destinationAddress: 'Store Pickup — Lagos Mainland',
+    otpCode: '7714',
+    deliveryFee: 0,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging', 'p2_materials_picked']
+  },
+  {
+    id: 'SHD-07664',
+    customerName: 'Kolawole Durojaiye',
+    dishName: 'Smokey Jumbo Turkey Wings (Pair) × 2',
+    totalAmount: 32000,
+    portions: 2,
+    channel: 'Website Storefront',
+    hasStock: true,
+    currentStage: 'p3_in_transit',
+    paymentRef: 'pay_smk_55198',
+    riderName: 'Rider Yusuf Internal Fleet',
+    destinationAddress: '12 Isaac John Street, GRA Ikeja',
+    etaMinutes: 18,
+    otpCode: '3941',
+    deliveryFee: 3000,
+    history: [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned',
+      'p3_in_transit'
+    ]
   }
 ]
 
@@ -181,6 +344,73 @@ export const CountBadge: React.FC<{ count: string | number; className?: string }
   </span>
 )
 
+export interface WorkflowTaskRowProps {
+  title: string
+  status: 'Done' | 'In Progress' | 'In Review' | 'Pending' | 'Flagged'
+  isAutomatic?: boolean
+  actionUrl?: string
+  actionTitle?: string
+}
+
+export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
+  title,
+  status,
+  isAutomatic = false,
+  actionUrl,
+  actionTitle = 'Attend to pending action'
+}) => {
+  const navigate = useNavigate()
+
+  const figmaState: FigmaBadgeState =
+    status === 'Done'
+      ? 'completed'
+      : status === 'In Progress'
+      ? 'in-progress'
+      : status === 'In Review'
+      ? 'in-review'
+      : status === 'Flagged'
+      ? 'flagged'
+      : 'draft'
+
+  return (
+    <div className="relative px-3.5 py-2.5 flex items-center justify-between hover:bg-zinc-50/70 transition-colors group select-none">
+      {/* Tiny Process Indicator Dot at Top Right Corner of Container: Grey for Automatic, Red for Action Required */}
+      <span
+        title={isAutomatic ? 'Automatic Process' : 'Action Required'}
+        className={cn(
+          'absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full shrink-0',
+          isAutomatic ? 'bg-[#9ca3af]' : 'bg-[#ef4444]'
+        )}
+      />
+
+      {/* Task Title with optional small open-link icon at top-right corner of text */}
+      <div className="flex items-center min-w-0 pr-2">
+        <span className="text-[#374151] font-normal text-[13.5px] truncate">
+          {title}
+        </span>
+        {actionUrl && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(actionUrl)
+            }}
+            title={actionTitle}
+            className="inline-flex items-start text-[#9ca3af] hover:text-[#0051c3] transition-colors cursor-pointer ml-1 self-start -translate-y-1 shrink-0 p-0.5 rounded"
+          >
+            <ExternalLink className="w-2.5 h-2.5 stroke-[2]" />
+          </button>
+        )}
+      </div>
+
+      {/* Right side: Icon-only Badge alone */}
+      <div className="flex items-center shrink-0">
+        <StatusPill state={figmaState} short={true} />
+      </div>
+    </div>
+  )
+}
+
 export const getStageLabel = (stage?: PipelineStage): string => {
   switch (stage) {
     case 'p1_ingestion':
@@ -210,6 +440,29 @@ export const getStageLabel = (stage?: PipelineStage): string => {
   }
 }
 
+/** Helper function to highlight query match inside customer name or text */
+const highlightSearchMatch = (text: string, query: string): React.ReactNode => {
+  if (!query.trim()) return text
+  const cleanQ = query.trim().toLowerCase()
+  const lowerText = text.toLowerCase()
+  const matchIndex = lowerText.indexOf(cleanQ)
+  if (matchIndex === -1) return text
+
+  const before = text.slice(0, matchIndex)
+  const matched = text.slice(matchIndex, matchIndex + cleanQ.length)
+  const after = text.slice(matchIndex + cleanQ.length)
+
+  return (
+    <span>
+      {before}
+      <span className="font-bold text-[#0051c3] bg-blue-50 dark:bg-blue-900/40 px-0.5 rounded underline decoration-[#0051c3]/30 decoration-2">
+        {matched}
+      </span>
+      {after}
+    </span>
+  )
+}
+
 export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const { showToast } = useSmokeyOps()
 
@@ -226,19 +479,193 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const [orders, setOrders] = useState<PipelineOrder[]>(SMOKEY_OPERATIONAL_ORDERS)
   const [selectedOrderId, setSelectedOrderId] = useState<string>('SHD-09853')
   const [orderSearchInput, setOrderSearchInput] = useState<string>('')
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(0)
+  const searchContainerRef = useRef<HTMLDivElement | null>(null)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
-  const handleOrderSearch = (query: string) => {
-    setOrderSearchInput(query)
-    if (!query.trim()) return
-    const cleanQ = query.trim().toLowerCase()
-    const matched = orders.find(o => 
-      o.id.toLowerCase().includes(cleanQ) || 
-      o.id.replace('shd-', '').replace('0', '').includes(cleanQ) ||
-      o.customerName.toLowerCase().includes(cleanQ) ||
-      o.dishName.toLowerCase().includes(cleanQ)
-    )
-    if (matched) {
-      setSelectedOrderId(matched.id)
+  // Close search suggestions on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Comprehensive multi-field search index scoring & sorting
+  const searchResults = useMemo(() => {
+    const q = orderSearchInput.trim().toLowerCase()
+    if (!q) {
+      // Default: show all available orders in natural pipeline order
+      return orders.map((order) => ({
+        order,
+        matchType: 'all' as const,
+        score: 0
+      }))
+    }
+
+    const matches: Array<{
+      order: PipelineOrder
+      matchType: 'customer' | 'id' | 'dish' | 'address' | 'payment'
+      score: number
+    }> = []
+
+    orders.forEach((order) => {
+      const nameLower = order.customerName.toLowerCase()
+      const idLower = order.id.toLowerCase()
+      const idNum = order.id.replace(/[^0-9]/g, '')
+      const dishLower = order.dishName.toLowerCase()
+      const addrLower = order.destinationAddress.toLowerCase()
+      const payLower = order.paymentRef.toLowerCase()
+
+      let score = 0
+      let matchType: 'customer' | 'id' | 'dish' | 'address' | 'payment' = 'customer'
+
+      // Customer name match (highest priority as requested)
+      if (nameLower === q) {
+        score += 100
+        matchType = 'customer'
+      } else if (nameLower.startsWith(q)) {
+        score += 85
+        matchType = 'customer'
+      } else if (nameLower.split(' ').some((word) => word.startsWith(q))) {
+        score += 75
+        matchType = 'customer'
+      } else if (nameLower.includes(q)) {
+        score += 60
+        matchType = 'customer'
+      }
+      // Order ID match
+      else if (idLower === q || idNum === q) {
+        score += 90
+        matchType = 'id'
+      } else if (idLower.includes(q) || idNum.includes(q)) {
+        score += 70
+        matchType = 'id'
+      }
+      // Dish name match
+      else if (dishLower.includes(q)) {
+        score += 45
+        matchType = 'dish'
+      }
+      // Address match
+      else if (addrLower.includes(q)) {
+        score += 35
+        matchType = 'address'
+      }
+      // Payment ref match
+      else if (payLower.includes(q)) {
+        score += 25
+        matchType = 'payment'
+      }
+
+      if (score > 0) {
+        matches.push({ order, matchType, score })
+      }
+    })
+
+    return matches.sort((a, b) => b.score - a.score)
+  }, [orders, orderSearchInput])
+
+  // Count matches by customer name to flag multiple orders for the same person
+  const customerOrderCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    orders.forEach((o) => {
+      map.set(o.customerName, (map.get(o.customerName) || 0) + 1)
+    })
+    return map
+  }, [orders])
+
+  // Top autocomplete candidate for ghost inline text and Tab/Enter completion
+  const topSuggestion = useMemo(() => {
+    const q = orderSearchInput.trim().toLowerCase()
+    if (!q || searchResults.length === 0) return null
+
+    const top = searchResults[0].order
+    const nameLower = top.customerName.toLowerCase()
+    const idLower = top.id.toLowerCase()
+
+    if (nameLower.startsWith(q)) {
+      const completion = top.customerName.slice(orderSearchInput.trim().length)
+      if (completion.length > 0) {
+        return {
+          order: top,
+          completionText: completion,
+          fullText: top.customerName,
+          type: 'name' as const
+        }
+      }
+    }
+
+    if (idLower.startsWith(q)) {
+      const completion = top.id.slice(orderSearchInput.trim().length)
+      if (completion.length > 0) {
+        return {
+          order: top,
+          completionText: completion,
+          fullText: top.id,
+          type: 'id' as const
+        }
+      }
+    }
+
+    return null
+  }, [orderSearchInput, searchResults])
+
+  // Select order handler
+  const handleSelectOrder = (order: PipelineOrder) => {
+    setSelectedOrderId(order.id)
+    setOrderSearchInput(order.customerName)
+    setIsSearchOpen(false)
+    showToast(`Tracking order ${order.id} for ${order.customerName}`, 'info')
+  }
+
+  // Clear search handler
+  const handleClearSearch = () => {
+    setOrderSearchInput('')
+    setActiveSuggestionIndex(0)
+    searchInputRef.current?.focus()
+  }
+
+  // Keyboard navigation for search dropdown & autocomplete
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSearchOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setIsSearchOpen(true)
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveSuggestionIndex((prev) =>
+        searchResults.length > 0 ? (prev + 1) % searchResults.length : 0
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveSuggestionIndex((prev) =>
+        searchResults.length > 0 ? (prev - 1 + searchResults.length) % searchResults.length : 0
+      )
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (searchResults.length > 0 && searchResults[activeSuggestionIndex]) {
+        handleSelectOrder(searchResults[activeSuggestionIndex].order)
+      } else if (topSuggestion) {
+        handleSelectOrder(topSuggestion.order)
+      }
+    } else if (
+      e.key === 'Tab' ||
+      (e.key === 'ArrowRight' && searchInputRef.current?.selectionStart === orderSearchInput.length)
+    ) {
+      if (topSuggestion) {
+        e.preventDefault()
+        setOrderSearchInput(topSuggestion.fullText)
+        handleSelectOrder(topSuggestion.order)
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchOpen(false)
+      searchInputRef.current?.blur()
     }
   }
 
@@ -324,7 +751,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : 'Pending'
     const invDoneCount = [invStock, invAllocation, invIngredients].filter((s) => s === 'Done').length
 
-    // Card 3: Kitchen Cooking (3 tasks)
+    // Card 3: Kitchen Cooking (2 tasks: Batch Cooking & Kitchen Output - automated background production)
     const cookCooking: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
       ? 'Done'
       : activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
@@ -339,18 +766,9 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : activeOrder?.currentStage === 'p1_production_batch'
       ? 'In Progress'
       : 'Pending'
-    const cookBatch: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
-      ? 'Done'
-      : activeOrder?.history.includes('p1_production_batch') ||
-        activeOrder?.history.includes('p2_in_packaging') ||
-        activeOrder?.history.includes('p3_delivery_assigned')
-      ? 'Done'
-      : activeOrder?.currentStage === 'p1_inventory_deduct'
-      ? 'In Progress'
-      : 'Pending'
-    const cookDoneCount = [cookCooking, cookOutput, cookBatch].filter((s) => s === 'Done').length
+    const cookDoneCount = [cookCooking, cookOutput].filter((s) => s === 'Done').length
 
-    // Card 4: Packaging and Assembly (4 tasks)
+    // Card 4: Packaging and Assembly (4 tasks: Queue Routing, Material Pick, Deduct Consumables, Sealing)
     const pkgQueue: 'Done' | 'In Progress' | 'Pending' =
       activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
         ? 'Done'
@@ -381,7 +799,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         : 'Pending'
     const pkgDoneCount = [pkgQueue, pkgMaterials, pkgDeduction, pkgSealing].filter((s) => s === 'Done').length
 
-    // Card 5: Delivery and Handover (7 tasks)
+    // Card 5: Delivery and Handover (6 tasks: Assign Driver, Kitchen Pickup, Transit, OTP Handover, Payout, Complete)
     const delDriver: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivery_assigned')
       ? 'Done'
       : activeOrder?.currentStage === 'p2_dispatched'
@@ -395,11 +813,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     const delTransit: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
       ? 'Done'
       : activeOrder?.history.includes('p3_in_transit')
-      ? 'In Progress'
-      : 'Pending'
-    const delArrival: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
-      ? 'Done'
-      : activeOrder?.history.includes('p3_doorstep_handover') || activeOrder?.history.includes('p3_in_transit')
       ? 'In Progress'
       : 'Pending'
     const delVerification: 'Done' | 'In Progress' | 'In Review' | 'Pending' =
@@ -425,7 +838,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       delDriver,
       delPickup,
       delTransit,
-      delArrival,
       delVerification,
       delPayout,
       delCompletion
@@ -451,10 +863,9 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       cooking: {
         cooking: cookCooking,
         output: cookOutput,
-        batch: cookBatch,
         doneCount: cookDoneCount,
-        totalCount: 3,
-        badgeLabel: `${cookDoneCount}/3`
+        totalCount: 2,
+        badgeLabel: `${cookDoneCount}/2`
       },
       packaging: {
         queue: pkgQueue,
@@ -469,13 +880,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         driver: delDriver,
         pickup: delPickup,
         transit: delTransit,
-        arrival: delArrival,
         verification: delVerification,
         payout: delPayout,
         completion: delCompletion,
         doneCount: delDoneCount,
-        totalCount: 7,
-        badgeLabel: `${delDoneCount}/7`
+        totalCount: 6,
+        badgeLabel: `${delDoneCount}/6`
       }
     }
   }, [activeOrder])
@@ -733,11 +1143,14 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     // Path 1A: From Node 1A across the top to the merge point with the trunk curve
     const path1A = `M ${a.x} ${targetY} H ${trunkX + radius}`
 
-    // Path 1B: From Node 1B (middle) merging into trunk with smooth curve
-    const path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius} V ${targetY + radius}`
+    // Path 1B: From Node 1B (middle) merging into trunk at (trunkX, b.y - radius)
+    const path1B = `M ${b.x} ${b.y} H ${trunkX - radius} Q ${trunkX} ${b.y} ${trunkX} ${b.y - radius}`
 
-    // Path 1C: From Node 1C (bottom) merging UP into trunk with smooth curve
-    const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${b.y}`
+    // Path 1C: From Node 1C (bottom) merging UP into trunk and continuing straight up to (trunkX, b.y - radius)
+    const path1C = `M ${c.x} ${c.y} H ${trunkX - radius} Q ${trunkX} ${c.y} ${trunkX} ${c.y - radius} V ${b.y - radius}`
+
+    // Upper Trunk: Continuous vertical trunk connecting the merge point up to the top curve
+    const upperTrunk = `M ${trunkX} ${b.y - radius} V ${targetY + radius}`
 
     // Trunk Merge Curve: Smooth curve from vertical trunk turning RIGHT into horizontal flow
     const trunkMergeCurve = `M ${trunkX} ${targetY + radius} Q ${trunkX} ${targetY} ${trunkX + radius} ${targetY}`
@@ -756,6 +1169,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       path1A,
       path1B,
       path1C,
+      upperTrunk,
       trunkMergeCurve,
       trunkToPillar2,
       pillar2ToPillar3
@@ -791,7 +1205,8 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-[#71717a] hidden sm:inline">
-              Active Order: <span className="font-semibold text-[#18181b]">{activeOrder.id}</span>
+              Active Order: <span className="font-semibold text-[#18181b]">{activeOrder.id}</span>{' '}
+              <span className="text-[#a1a1aa]">({activeOrder.customerName})</span>
             </span>
             <button
               type="button"
@@ -806,38 +1221,188 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
         {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#e4e4e7]">
-          {/* Left: Design System Search Field to Search Orders by ID */}
-          <div className="flex items-center gap-3 flex-1 min-w-[260px] max-w-md">
-            <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
+          {/* Left: Design System Search Field with Rock-Solid Fixed Width & Autocomplete Dropdown */}
+          <div
+            ref={searchContainerRef}
+            className="relative w-full sm:w-[380px] lg:w-[420px] shrink-0 font-sans"
+          >
+            <div className="relative w-full">
+              {/* Search Icon */}
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none z-20" />
+
+              {/* Autocomplete Ghost Preview Behind Input (Zero Layout Shift) */}
+              {topSuggestion && (
+                <div
+                  className="absolute inset-0 pl-9 pr-14 flex items-center pointer-events-none text-xs sm:text-[13px] font-sans text-zinc-400 select-none overflow-hidden whitespace-pre z-10"
+                  aria-hidden="true"
+                >
+                  <span className="invisible">{orderSearchInput}</span>
+                  <span className="text-zinc-400/90">{topSuggestion.completionText}</span>
+                  <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-zinc-100 text-zinc-500 border border-zinc-200 font-mono">
+                    Tab ⇥
+                  </span>
+                </div>
+              )}
+
+              {/* Main Search Input: Constant width & padding, no resize jitter */}
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search order ID (e.g. 9853, SHD-07662)..."
+                placeholder="Search customer name or ID (e.g. Babajide, 07662)..."
                 value={orderSearchInput}
-                onChange={(e) => handleOrderSearch(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 rounded-lg border border-kumo-line bg-kumo-canvas text-xs text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link transition-all"
+                onChange={(e) => {
+                  setOrderSearchInput(e.target.value)
+                  setIsSearchOpen(true)
+                  setActiveSuggestionIndex(0)
+                }}
+                onFocus={() => {
+                  setIsSearchOpen(true)
+                }}
+                onKeyDown={handleSearchKeyDown}
+                className="w-full h-10 pl-9 pr-14 rounded-lg border border-kumo-line bg-kumo-canvas text-xs sm:text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-link focus:border-kumo-link transition-colors font-sans"
               />
+
+              {/* Clear button positioned absolutely inside input (never alters input/container width) */}
+              {orderSearchInput && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 p-1 text-kumo-subtle hover:text-kumo-strong rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-700 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            {orderSearchInput && (
-              <button
-                type="button"
-                onClick={() => setOrderSearchInput('')}
-                className="text-[11px] text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+
+            {/* Live Autocomplete & Multi-Name Suggestion Dropdown */}
+            {isSearchOpen && (
+              <div
+                className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e4e4e7] rounded-xl shadow-xl overflow-hidden font-sans max-h-80 flex flex-col animate-in fade-in slide-in-from-top-1 duration-150"
+                role="listbox"
               >
-                Clear
-              </button>
+                {/* Dropdown Header */}
+                <div className="px-3.5 py-2 bg-[#fafafa] border-b border-[#e4e4e7] flex items-center justify-between text-[11px] text-[#71717a] shrink-0">
+                  <span className="font-medium">
+                    {orderSearchInput.trim()
+                      ? `Found ${searchResults.length} order${searchResults.length === 1 ? '' : 's'}`
+                      : `Active Pipeline Orders (${orders.length})`}
+                  </span>
+                  <span className="text-[10px] hidden sm:inline text-[#a1a1aa]">
+                    ↑↓ navigate • ↵ select • Esc close
+                  </span>
+                </div>
+
+                {/* Dropdown Scrollable List */}
+                <div className="overflow-y-auto divide-y divide-[#f4f4f5] max-h-72">
+                  {searchResults.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-xs text-[#71717a]">
+                      <p className="font-medium text-[#18181b]">
+                        No orders found matching "{orderSearchInput}"
+                      </p>
+                      <p className="text-[11px] mt-1 text-[#a1a1aa]">
+                        Try searching by customer name (e.g. Babajide, Amaka) or ID (e.g. 9853, 07662)
+                      </p>
+                    </div>
+                  ) : (
+                    searchResults.map(({ order }, index) => {
+                      const isSelected = order.id === selectedOrderId
+                      const isKeyboardActive = index === activeSuggestionIndex
+                      const hasMultiple = (customerOrderCounts.get(order.customerName) || 0) > 1
+
+                      return (
+                        <div
+                          key={order.id}
+                          onClick={() => handleSelectOrder(order)}
+                          onMouseEnter={() => setActiveSuggestionIndex(index)}
+                          className={cn(
+                            'px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 text-left',
+                            isKeyboardActive
+                              ? 'bg-blue-50/80 border-l-2 border-[#0051c3]'
+                              : isSelected
+                              ? 'bg-zinc-50 border-l-2 border-[#18181b]'
+                              : 'hover:bg-zinc-50/70 border-l-2 border-transparent'
+                          )}
+                          role="option"
+                          aria-selected={isSelected}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-xs text-[#18181b]">
+                                {highlightSearchMatch(order.customerName, orderSearchInput)}
+                              </span>
+                              <span className="font-mono text-[11px] font-medium px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+                                #{order.id}
+                              </span>
+                              {hasMultiple && (
+                                <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-full">
+                                  Multiple orders
+                                </span>
+                              )}
+                              {isSelected && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#0051c3] bg-blue-100/60 px-1.5 py-0.5 rounded">
+                                  <Check className="w-2.5 h-2.5" /> Selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-[#71717a] truncate">
+                              <span className="truncate">{order.dishName}</span>
+                              <span className="text-[#d4d4d8]">•</span>
+                              <span className="shrink-0">{formatNaira(order.totalAmount)}</span>
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="shrink-0">
+                            <StatusPill
+                              state={
+                                order.currentStage === 'p3_settled_closed' ||
+                                order.currentStage === 'p3_delivered'
+                                  ? 'completed'
+                                  : order.currentStage === 'p1_ingestion'
+                                  ? 'draft'
+                                  : order.currentStage === 'p1_inventory_deduct'
+                                  ? 'in-review'
+                                  : 'in-progress'
+                              }
+                              label={getStageLabel(order.currentStage)}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Right: Status States Legend extracted from Figma */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#71717a] mr-1 hidden sm:inline">
-              Badge states:
-            </span>
-            <StatusPill state="draft" label="Draft" />
-            <StatusPill state="in-progress" label="in-progress" />
-            <StatusPill state="in-review" label="In-review" />
-            <StatusPill state="completed" label="Completed" />
+          {/* Right: Status States & Process Dots Legend extracted from Figma */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#71717a] mr-1 hidden sm:inline">
+                Badge states:
+              </span>
+              <StatusPill state="draft" label="no-action" />
+              <StatusPill state="in-progress" label="in-progress" />
+              <StatusPill state="in-review" label="in-review" />
+              <StatusPill state="completed" label="completed" />
+              <StatusPill state="flagged" label="flagged" />
+            </div>
+
+            <div className="h-4 w-px bg-[#e4e4e7] hidden md:block" />
+
+            {/* Process Indicator Legend: Grey for Automatic, Red for Action Required */}
+            <div className="flex items-center gap-3 text-xs text-[#71717a]">
+              <div className="flex items-center gap-1.5" title="Automated system task">
+                <span className="w-2 h-2 rounded-full bg-[#9ca3af] shrink-0" />
+                <span className="text-[11px] font-medium text-[#52525b]">Automatic</span>
+              </div>
+              <div className="flex items-center gap-1.5" title="Human action required to attend to pending step">
+                <span className="w-2 h-2 rounded-full bg-[#ef4444] shrink-0" />
+                <span className="text-[11px] font-medium text-[#52525b]">Action required</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -933,6 +1498,20 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
+                      {/* Upper Trunk: Continuous vertical line connecting middle merge point to top curve */}
+                      <path
+                        d={svgPaths.upperTrunk}
+                        fill="none"
+                        stroke={
+                          activeOrder?.history.includes('p1_inventory_deduct') ||
+                          activeOrder?.history.includes('p1_production_batch')
+                            ? '#dc2626'
+                            : '#9ca3af'
+                        }
+                        strokeWidth={1.75}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                       {/* Trunk Merge Curve: Smooth curve merging upward trunk right into horizontal line */}
                       <path
                         d={svgPaths.trunkMergeCurve}
@@ -947,26 +1526,15 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
-                      {/* Branch from merged joint into Pillar 2 container with seamless linear gradient */}
+                      {/* Branch from merged joint into Pillar 2 container with active red directional arrow */}
                       <path
                         d={svgPaths.trunkToPillar2}
                         fill="none"
-                        stroke={
-                          activeOrder?.history.includes('p2_in_packaging')
-                            ? '#dc2626'
-                            : activeOrder?.history.includes('p1_ingestion') ||
-                              activeOrder?.history.includes('p1_inventory_deduct')
-                            ? 'url(#cf-flow-gradient-p1-p2)'
-                            : '#9ca3af'
-                        }
+                        stroke="#dc2626"
                         strokeWidth={1.75}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        markerEnd={
-                          activeOrder?.history.includes('p2_in_packaging')
-                            ? 'url(#cf-arrow-red)'
-                            : 'url(#cf-arrow-default)'
-                        }
+                        markerEnd="url(#cf-arrow-red)"
                       />
                       {/* Arrow from Column 2 into Column 3 container */}
                       <path
@@ -1022,27 +1590,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                       {expandedNodes.node1A && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Order Validation</span>
-                            <StatusPill
-                              label={pipelineMetrics.intake.validation}
-                              variant={getStatusVariant(pipelineMetrics.intake.validation)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Payment Check</span>
-                            <StatusPill
-                              label={pipelineMetrics.intake.payment}
-                              variant={getStatusVariant(pipelineMetrics.intake.payment)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Sales Channel</span>
-                            <StatusPill
-                              label={pipelineMetrics.intake.channel}
-                              variant={getStatusVariant(pipelineMetrics.intake.channel)}
-                            />
-                          </div>
+                          <WorkflowTaskRow
+                            title="Order Ingestion"
+                            status={pipelineMetrics.intake.validation}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Payment Verification"
+                            status={pipelineMetrics.intake.payment}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Sales Channel Sync"
+                            status={pipelineMetrics.intake.channel}
+                            isAutomatic={true}
+                          />
                         </div>
                       )}
                     </div>
@@ -1067,32 +1629,28 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                       {expandedNodes.node1B && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Stock Check</span>
-                            <StatusPill
-                              label={pipelineMetrics.inventory.stock}
-                              variant={getStatusVariant(pipelineMetrics.inventory.stock)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Item Reserve</span>
-                            <StatusPill
-                              label={pipelineMetrics.inventory.allocation}
-                              variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Recipe Ingredients</span>
-                            <StatusPill
-                              label={pipelineMetrics.inventory.ingredients}
-                              variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
-                            />
-                          </div>
+                          <WorkflowTaskRow
+                            title="Sales Stock Deduction"
+                            status={pipelineMetrics.inventory.stock}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Low Stock Reorder Alert"
+                            status={pipelineMetrics.inventory.allocation}
+                            isAutomatic={false}
+                            actionUrl="/inventory/raw"
+                            actionTitle="Review Low Stock in Raw Inventory"
+                          />
+                          <WorkflowTaskRow
+                            title="Batch Allocation"
+                            status={pipelineMetrics.inventory.ingredients}
+                            isAutomatic={true}
+                          />
                         </div>
                       )}
                     </div>
 
-                    {/* Node 1C: Kitchen Cooking */}
+                    {/* Node 1C: Kitchen Cooking (Automated Batch Production) */}
                     <div ref={node1CCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] bg-white transition-all shadow-2xs hover:border-[#a1a1aa]">
                       <div
                         ref={node1CHeaderRef}
@@ -1112,27 +1670,16 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                       {expandedNodes.node1C && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Batch Cooking</span>
-                            <StatusPill
-                              label={pipelineMetrics.cooking.cooking}
-                              variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Output</span>
-                            <StatusPill
-                              label={pipelineMetrics.cooking.output}
-                              variant={getStatusVariant(pipelineMetrics.cooking.output)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Portion Control</span>
-                            <StatusPill
-                              label={pipelineMetrics.cooking.batch}
-                              variant={getStatusVariant(pipelineMetrics.cooking.batch)}
-                            />
-                          </div>
+                          <WorkflowTaskRow
+                            title="Batch Cooking"
+                            status={pipelineMetrics.cooking.cooking}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Kitchen Output"
+                            status={pipelineMetrics.cooking.output}
+                            isAutomatic={true}
+                          />
                         </div>
                       )}
                     </div>
@@ -1161,34 +1708,30 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                       {expandedNodes.pillar2 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Packing Queue</span>
-                            <StatusPill
-                              label={pipelineMetrics.packaging.queue}
-                              variant={getStatusVariant(pipelineMetrics.packaging.queue)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Packaging Items</span>
-                            <StatusPill
-                              label={pipelineMetrics.packaging.materials}
-                              variant={getStatusVariant(pipelineMetrics.packaging.materials)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Package Deduction</span>
-                            <StatusPill
-                              label={pipelineMetrics.packaging.deduction}
-                              variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Bag Sealing</span>
-                            <StatusPill
-                              label={pipelineMetrics.packaging.sealing}
-                              variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
-                            />
-                          </div>
+                          <WorkflowTaskRow
+                            title="Packing Queue Routing"
+                            status={pipelineMetrics.packaging.queue}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Pick Packaging supplies"
+                            status={pipelineMetrics.packaging.materials}
+                            isAutomatic={false}
+                            actionUrl="/inventory/packaging"
+                            actionTitle="Pick Supplies in Packaging Inventory"
+                          />
+                          <WorkflowTaskRow
+                            title="Deduct Consumables"
+                            status={pipelineMetrics.packaging.deduction}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Bag Sealing"
+                            status={pipelineMetrics.packaging.sealing}
+                            isAutomatic={false}
+                            actionUrl="/production/packaging"
+                            actionTitle="Complete Sealing in Packaging Queue"
+                          />
                         </div>
                       )}
                     </div>
@@ -1217,55 +1760,44 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                       {expandedNodes.pillar3 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver Assign</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.driver}
-                              variant={getStatusVariant(pipelineMetrics.delivery.driver)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Pickup</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.pickup}
-                              variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Transit Route</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.transit}
-                              variant={getStatusVariant(pipelineMetrics.delivery.transit)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Customer Arrival</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.arrival}
-                              variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Delivery Confirm</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.verification}
-                              variant={getStatusVariant(pipelineMetrics.delivery.verification)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Driver Payment</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.payout}
-                              variant={getStatusVariant(pipelineMetrics.delivery.payout)}
-                            />
-                          </div>
-                          <div className="px-3.5 py-2.5 flex items-center justify-between">
-                            <span className="text-[#3f3f46] font-medium text-[13px]">Order Complete</span>
-                            <StatusPill
-                              label={pipelineMetrics.delivery.completion}
-                              variant={getStatusVariant(pipelineMetrics.delivery.completion)}
-                            />
-                          </div>
+                          <WorkflowTaskRow
+                            title="Assign Driver"
+                            status={pipelineMetrics.delivery.driver}
+                            isAutomatic={false}
+                            actionUrl="/logistics/board"
+                            actionTitle="Assign Driver on Logistics Board"
+                          />
+                          <WorkflowTaskRow
+                            title="Kitchen Pickup Handover"
+                            status={pipelineMetrics.delivery.pickup}
+                            isAutomatic={false}
+                            actionUrl="/logistics/board"
+                            actionTitle="Confirm Pickup Handover"
+                          />
+                          <WorkflowTaskRow
+                            title="Transit Route Tracking"
+                            status={pipelineMetrics.delivery.transit}
+                            isAutomatic={true}
+                          />
+                          <WorkflowTaskRow
+                            title="Customer OTP Confirmation"
+                            status={pipelineMetrics.delivery.verification}
+                            isAutomatic={false}
+                            actionUrl="/logistics/board"
+                            actionTitle="Verify Customer Delivery OTP"
+                          />
+                          <WorkflowTaskRow
+                            title="Driver Payment Clearance"
+                            status={pipelineMetrics.delivery.payout}
+                            isAutomatic={false}
+                            actionUrl="/logistics/riders"
+                            actionTitle="Clear Driver Payout Ledger"
+                          />
+                          <WorkflowTaskRow
+                            title="Order Complete"
+                            status={pipelineMetrics.delivery.completion}
+                            isAutomatic={true}
+                          />
                         </div>
                       )}
                     </div>
@@ -1296,27 +1828,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                   {expandedNodes.tree1 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Order Validation</span>
-                        <StatusPill
-                          label={pipelineMetrics.intake.validation}
-                          variant={getStatusVariant(pipelineMetrics.intake.validation)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Payment Check</span>
-                        <StatusPill
-                          label={pipelineMetrics.intake.payment}
-                          variant={getStatusVariant(pipelineMetrics.intake.payment)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Sales Channel</span>
-                        <StatusPill
-                          label={pipelineMetrics.intake.channel}
-                          variant={getStatusVariant(pipelineMetrics.intake.channel)}
-                        />
-                      </div>
+                      <WorkflowTaskRow
+                        title="Order Ingestion"
+                        status={pipelineMetrics.intake.validation}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Payment Verification"
+                        status={pipelineMetrics.intake.payment}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Sales Channel Sync"
+                        status={pipelineMetrics.intake.channel}
+                        isAutomatic={true}
+                      />
                     </div>
                   )}
                 </div>
@@ -1346,27 +1872,23 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                   {expandedNodes.tree2 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Stock Check</span>
-                        <StatusPill
-                          label={pipelineMetrics.inventory.stock}
-                          variant={getStatusVariant(pipelineMetrics.inventory.stock)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Item Reserve</span>
-                        <StatusPill
-                          label={pipelineMetrics.inventory.allocation}
-                          variant={getStatusVariant(pipelineMetrics.inventory.allocation)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Recipe Ingredients</span>
-                        <StatusPill
-                          label={pipelineMetrics.inventory.ingredients}
-                          variant={getStatusVariant(pipelineMetrics.inventory.ingredients)}
-                        />
-                      </div>
+                      <WorkflowTaskRow
+                        title="Sales Stock Deduction"
+                        status={pipelineMetrics.inventory.stock}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Low Stock Reorder"
+                        status={pipelineMetrics.inventory.allocation}
+                        isAutomatic={false}
+                        actionUrl="/inventory/raw"
+                        actionTitle="Manage raw stock in Raw Inventory"
+                      />
+                      <WorkflowTaskRow
+                        title="Batch Allocation"
+                        status={pipelineMetrics.inventory.ingredients}
+                        isAutomatic={true}
+                      />
                     </div>
                   )}
                 </div>
@@ -1396,27 +1918,16 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                   {expandedNodes.tree3 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Batch Cooking</span>
-                        <StatusPill
-                          label={pipelineMetrics.cooking.cooking}
-                          variant={getStatusVariant(pipelineMetrics.cooking.cooking)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Output</span>
-                        <StatusPill
-                          label={pipelineMetrics.cooking.output}
-                          variant={getStatusVariant(pipelineMetrics.cooking.output)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Portion Control</span>
-                        <StatusPill
-                          label={pipelineMetrics.cooking.batch}
-                          variant={getStatusVariant(pipelineMetrics.cooking.batch)}
-                        />
-                      </div>
+                      <WorkflowTaskRow
+                        title="Batch Cooking"
+                        status={pipelineMetrics.cooking.cooking}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Kitchen Output"
+                        status={pipelineMetrics.cooking.output}
+                        isAutomatic={true}
+                      />
                     </div>
                   )}
                 </div>
@@ -1446,34 +1957,30 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                   {expandedNodes.tree4 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Packing Queue</span>
-                        <StatusPill
-                          label={pipelineMetrics.packaging.queue}
-                          variant={getStatusVariant(pipelineMetrics.packaging.queue)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Packaging Items</span>
-                        <StatusPill
-                          label={pipelineMetrics.packaging.materials}
-                          variant={getStatusVariant(pipelineMetrics.packaging.materials)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Package Deduction</span>
-                        <StatusPill
-                          label={pipelineMetrics.packaging.deduction}
-                          variant={getStatusVariant(pipelineMetrics.packaging.deduction)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Bag Sealing</span>
-                        <StatusPill
-                          label={pipelineMetrics.packaging.sealing}
-                          variant={getStatusVariant(pipelineMetrics.packaging.sealing)}
-                        />
-                      </div>
+                      <WorkflowTaskRow
+                        title="Packing Queue Routing"
+                        status={pipelineMetrics.packaging.queue}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Pick Packaging supplies"
+                        status={pipelineMetrics.packaging.materials}
+                        isAutomatic={false}
+                        actionUrl="/inventory/packaging"
+                        actionTitle="Pick supplies in Packaging Materials"
+                      />
+                      <WorkflowTaskRow
+                        title="Deduct Consumables"
+                        status={pipelineMetrics.packaging.deduction}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Bag Sealing"
+                        status={pipelineMetrics.packaging.sealing}
+                        isAutomatic={false}
+                        actionUrl="/production/packaging"
+                        actionTitle="Complete sealing in Packaging Queue"
+                      />
                     </div>
                   )}
                 </div>
@@ -1503,55 +2010,44 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
                   {expandedNodes.tree5 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] text-xs">
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver Assign</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.driver}
-                          variant={getStatusVariant(pipelineMetrics.delivery.driver)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Kitchen Pickup</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.pickup}
-                          variant={getStatusVariant(pipelineMetrics.delivery.pickup)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Transit Route</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.transit}
-                          variant={getStatusVariant(pipelineMetrics.delivery.transit)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Customer Arrival</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.arrival}
-                          variant={getStatusVariant(pipelineMetrics.delivery.arrival)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Delivery Confirm</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.verification}
-                          variant={getStatusVariant(pipelineMetrics.delivery.verification)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Driver Payment</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.payout}
-                          variant={getStatusVariant(pipelineMetrics.delivery.payout)}
-                        />
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between">
-                        <span className="text-[#3f3f46] font-medium text-[13px]">Order Complete</span>
-                        <StatusPill
-                          label={pipelineMetrics.delivery.completion}
-                          variant={getStatusVariant(pipelineMetrics.delivery.completion)}
-                        />
-                      </div>
+                      <WorkflowTaskRow
+                        title="Assign Driver"
+                        status={pipelineMetrics.delivery.driver}
+                        isAutomatic={false}
+                        actionUrl="/logistics/board"
+                        actionTitle="Assign rider on Dispatch Board"
+                      />
+                      <WorkflowTaskRow
+                        title="Kitchen Pickup Handover"
+                        status={pipelineMetrics.delivery.pickup}
+                        isAutomatic={false}
+                        actionUrl="/logistics/board"
+                        actionTitle="Confirm pickup on Dispatch Board"
+                      />
+                      <WorkflowTaskRow
+                        title="Transit Route Tracking"
+                        status={pipelineMetrics.delivery.transit}
+                        isAutomatic={true}
+                      />
+                      <WorkflowTaskRow
+                        title="Customer OTP Confirmation"
+                        status={pipelineMetrics.delivery.verification}
+                        isAutomatic={false}
+                        actionUrl="/logistics/board"
+                        actionTitle="Verify delivery OTP on Dispatch Board"
+                      />
+                      <WorkflowTaskRow
+                        title="Driver Payment Clearance"
+                        status={pipelineMetrics.delivery.payout}
+                        isAutomatic={false}
+                        actionUrl="/logistics/riders"
+                        actionTitle="Clear payout on Rider Management"
+                      />
+                      <WorkflowTaskRow
+                        title="Order Complete"
+                        status={pipelineMetrics.delivery.completion}
+                        isAutomatic={true}
+                      />
                     </div>
                   )}
                 </div>

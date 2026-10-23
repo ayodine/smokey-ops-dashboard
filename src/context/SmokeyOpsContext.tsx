@@ -222,7 +222,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     role: 'admin',
     roleLabel: 'Super Admin',
     staff_id: 'SHD-ADM-001',
-    assigned_hub: 'Central Hub (Ikeja)',
+    assigned_hub: 'Yaba Head Office',
     department: 'Executive Operations',
     phone: '+234 803 111 2233',
     status: 'active',
@@ -264,7 +264,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     roleLabel: 'Delivery Rider',
     rider_user_id: 455,
     staff_id: 'SHD-LOG-455',
-    assigned_hub: 'Lekki Dispatch Staging',
+    assigned_hub: 'Yaba Head Office',
     department: 'Logistics',
     phone: '+234 814 902 3311',
     status: 'active',
@@ -283,7 +283,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     role: 'kitchen',
     roleLabel: 'Production Cook',
     staff_id: 'SHD-KTN-108',
-    assigned_hub: 'Central Kitchen (Ikeja)',
+    assigned_hub: 'Yaba Head Office',
     department: 'Culinary Production',
     phone: '+234 809 777 8899',
     status: 'active',
@@ -302,7 +302,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     role: 'inventory',
     roleLabel: 'Inventory Specialist',
     staff_id: 'SHD-INV-042',
-    assigned_hub: 'Main Storage Warehouse',
+    assigned_hub: 'Yaba Head Office',
     department: 'Procurement & Storage',
     phone: '+234 811 555 4422',
     status: 'active',
@@ -321,7 +321,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     role: 'dispatcher',
     roleLabel: 'Logistics Coordinator',
     staff_id: 'SHD-DSP-019',
-    assigned_hub: 'Lekki Dispatch Staging',
+    assigned_hub: 'Yaba Head Office',
     department: 'Last-Mile Fulfillment',
     phone: '+234 806 333 9900',
     status: 'active',
@@ -1575,10 +1575,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       items: [{ product_name: "Scheduled Pre-order Meal Pack", quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }],
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
     }
-    setPackagingQueue(prev => [newPkgOrder, ...prev])
+    setPackagingQueue(prev => [newPkgOrder, ...prev.filter(p => p.id !== order.id)])
 
     // 2. Update scheduled order status
-    setScheduledOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: "in_queue", can_start_schedule: false } : o))
+    setScheduledOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: "in_queue", can_start_schedule: true } : o))
+    showToast(`Order #${order.order_ref} sent to kitchen packaging queue`, 'success')
   }
 
   const autoReleaseDuePreOrders = () => {

@@ -306,11 +306,12 @@ export const InventoryOverview: React.FC = () => {
         description="Creates an immutable signed ledger movement entry. Stock is recalculated automatically."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsAdjustModalOpen(false)}>
+            <Button variant="secondary" size="md" onClick={() => setIsAdjustModalOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
+              size="md"
               isLoading={isSubmitting}
               onClick={handleConfirmAdjustment}
               leftIcon={<CheckCircle2 className="w-4 h-4" />}
@@ -321,31 +322,31 @@ export const InventoryOverview: React.FC = () => {
         }
       >
         {selectedProduct && (
-          <div className="space-y-4 text-xs font-sans">
+          <div className="space-y-4 text-sm font-sans">
             {/* Target Item Pill */}
-            <div className="p-3 bg-kumo-tint rounded-lg ring ring-kumo-line/50 flex items-center justify-between">
+            <div className="p-3.5 bg-kumo-tint rounded-lg ring ring-kumo-line/50 flex items-center justify-between">
               <div>
-                <span className="font-bold text-kumo-strong text-sm">
+                <span className="font-bold text-kumo-strong text-base">
                   {selectedProduct.name}
                 </span>
-                <p className="font-mono text-kumo-subtle mt-0.5">
+                <p className="font-mono text-kumo-subtle text-sm mt-0.5">
                   SKU: {selectedProduct.sku} • Location: {selectedProduct.bin_location}
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-kumo-subtle">Current Stock</span>
-                <p className="font-mono font-bold text-base text-kumo-strong">
+                <span className="text-kumo-subtle text-sm">Current Stock</span>
+                <p className="font-mono font-bold text-lg text-kumo-strong">
                   {formatQuantity(selectedProduct.stock_on_hand, selectedProduct.uom)}
                 </p>
               </div>
             </div>
 
             {/* Adjustment Type Selector */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => setAdjustmentType('IN')}
-                className={`py-2 px-3 rounded-lg ring text-center font-medium cursor-pointer transition-colors ${
+                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'IN'
                     ? 'ring-kumo-brand bg-kumo-brand/10 text-kumo-link font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'
@@ -356,7 +357,7 @@ export const InventoryOverview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAdjustmentType('OUT')}
-                className={`py-2 px-3 rounded-lg ring text-center font-medium cursor-pointer transition-colors ${
+                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'OUT'
                     ? 'ring-kumo-danger bg-kumo-danger/10 text-kumo-danger font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'
@@ -367,7 +368,7 @@ export const InventoryOverview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAdjustmentType('ADJUST')}
-                className={`py-2 px-3 rounded-lg ring text-center font-medium cursor-pointer transition-colors ${
+                className={`h-10 px-3 rounded-lg ring text-center font-medium text-sm cursor-pointer transition-colors flex items-center justify-center ${
                   adjustmentType === 'ADJUST'
                     ? 'ring-kumo-warning bg-kumo-warning/10 text-kumo-warning font-bold'
                     : 'ring-kumo-line bg-kumo-base text-kumo-default hover:bg-kumo-tint'

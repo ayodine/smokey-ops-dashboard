@@ -15,7 +15,7 @@ import { Select } from '@/components/ui/Select'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
-import { formatNaira } from '@/lib/utils'
+import { formatNaira, cn } from '@/lib/utils'
 import { 
   Users, 
   Bike, 
@@ -34,7 +34,9 @@ import {
   Calendar,
   Check,
   Plus,
-  UserPlus
+  UserPlus,
+  Copy,
+  ExternalLink
 } from 'lucide-react'
 
 export const DeliveryTeamPage: React.FC = () => {
@@ -180,118 +182,12 @@ export const DeliveryTeamPage: React.FC = () => {
     selectedRider && (d.assigned_rider_id === selectedRider.rider_user_id || d.assigned_rider === selectedRider.rider_name)
   )
 
-  interface DriverKycRow {
-    id: string
-    category: string
-    field: string
-    value: string
-    details: string
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  const handleCopyText = (field: string, text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
   }
-
-  const kycRows: DriverKycRow[] = useMemo(() => {
-    if (!selectedRider) return []
-    return [
-      {
-        id: '1',
-        category: 'Fleet Asset',
-        field: 'Vehicle Model',
-        value: selectedRider.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
-        details: 'Approved Fleet Dispatch Vehicle',
-      },
-      {
-        id: '2',
-        category: 'Fleet Asset',
-        field: 'Plate Number',
-        value: selectedRider.plate_number || 'LND-482-XA',
-        details: 'Verified Road Registration',
-      },
-      {
-        id: '3',
-        category: 'Operations',
-        field: 'Assigned Hub Station',
-        value: selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
-        details: 'Primary Fulfillment Hub',
-      },
-      {
-        id: '4',
-        category: 'Identity & Legal',
-        field: "Driver's License No.",
-        value: selectedRider.license_number || 'DL-98234-LAG',
-        details: `Valid through ${selectedRider.license_expiry || 'Nov 2027'}`,
-      },
-      {
-        id: '5',
-        category: 'Identity & Legal',
-        field: 'National ID / NIN',
-        value: selectedRider.national_id_nin || '7829-4821-9921',
-        details: 'NIMC Identity Verified',
-      },
-      {
-        id: '6',
-        category: 'Financial Risk',
-        field: 'Max COD Cash Limit',
-        value: formatNaira(selectedRider.cod_limit || 50000),
-        details: 'Maximum cash hold before mandatory remittance',
-      },
-      {
-        id: '7',
-        category: 'Emergency Contact',
-        field: 'Emergency Contact',
-        value: `${selectedRider.emergency_contact || 'Next of Kin'} (${selectedRider.emergency_phone || '08023456789'})`,
-        details: 'Verified Next of Kin on File',
-      },
-      {
-        id: '8',
-        category: 'Operations',
-        field: 'Date Onboarded',
-        value: selectedRider.date_joined || '12 Feb 2025',
-        details: 'Active since onboarding date',
-      },
-    ]
-  }, [selectedRider, selectedWarehouse, facilities])
-
-  const kycColumns: ColumnDef<DriverKycRow>[] = [
-    {
-      key: 'category',
-      header: 'Category',
-      defaultWidth: 140,
-      accessor: (r) => (
-        <span className="text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
-          {r.category}
-        </span>
-      ),
-    },
-    {
-      key: 'field',
-      header: 'Attribute / Document',
-      defaultWidth: 180,
-      accessor: (r) => (
-        <span className="font-semibold text-kumo-strong text-xs">
-          {r.field}
-        </span>
-      ),
-    },
-    {
-      key: 'value',
-      header: 'KYC Record',
-      defaultWidth: 200,
-      accessor: (r) => (
-        <span className="font-sans text-xs text-kumo-strong font-medium bg-kumo-tint px-2 py-0.5 rounded border border-kumo-line inline-block">
-          {r.value}
-        </span>
-      ),
-    },
-    {
-      key: 'details',
-      header: 'Verification & Details',
-      accessor: (r) => (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-kumo-subtle">{r.details}</span>
-          <StatusBadge status="active" label="VERIFIED" size="sm" />
-        </div>
-      ),
-    },
-  ]
 
   const riderTripColumns: ColumnDef<LogisticsDelivery>[] = [
     {
@@ -349,7 +245,7 @@ export const DeliveryTeamPage: React.FC = () => {
       accessor: (t) => (
         <StatusBadge
           status={t.status === 'delivered' ? 'active' : 'pending'}
-          label={t.status.toUpperCase()}
+          label={t.status === 'delivered' ? 'completed' : t.status.toLowerCase()}
           size="sm"
         />
       ),
@@ -388,11 +284,11 @@ export const DeliveryTeamPage: React.FC = () => {
       header: 'Status',
       accessor: (r) => {
         const statusMap = {
-          active: { status: 'active' as const, label: 'AVAILABLE' },
-          on_trip: { status: 'pending' as const, label: 'ON ROAD' },
-          offline: { status: 'inactive' as const, label: 'OFF DUTY' },
+          active: { status: 'active' as const, label: 'available' },
+          on_trip: { status: 'pending' as const, label: 'on road' },
+          offline: { status: 'inactive' as const, label: 'off duty' },
         }
-        const s = statusMap[r.status] || { status: 'active' as const, label: r.status.toUpperCase() }
+        const s = statusMap[r.status] || { status: 'active' as const, label: r.status.toLowerCase() }
         return <StatusBadge status={s.status} label={s.label} />
       },
       sortValue: (r) => r.status,
@@ -633,42 +529,42 @@ export const DeliveryTeamPage: React.FC = () => {
             <div className="space-y-4">
               {/* Earnings Breakdown Cards (Spacious with room for large amounts) */}
               <div>
-                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2">
+                <div className="text-sm font-semibold text-kumo-strong uppercase tracking-wider mb-2.5">
                   Trip Earnings Breakdown
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">Today's Earnings</span>
+                    <span className="text-[13px] text-kumo-subtle font-medium block">Today's Earnings</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_today || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">
+                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">
                       {selectedRider?.today_trips || 0} trips completed today
                     </span>
                   </div>
 
                   <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">This Week</span>
+                    <span className="text-[13px] text-kumo-subtle font-medium block">This Week</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_week || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Rolling 7-day earnings</span>
+                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Rolling 7-day earnings</span>
                   </div>
 
                   <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">This Month</span>
+                    <span className="text-[13px] text-kumo-subtle font-medium block">This Month</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.earnings_month || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Current calendar month</span>
+                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Current calendar month</span>
                   </div>
 
                   <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">Lifetime Total</span>
+                    <span className="text-[13px] text-kumo-subtle font-medium block">Lifetime Total</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       {formatNaira(selectedRider?.lifetime_earnings || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Cumulative historical fees</span>
+                    <span className="text-[12px] text-kumo-subtle mt-0.5 block">Cumulative historical fees</span>
                   </div>
                 </div>
               </div>
@@ -676,37 +572,37 @@ export const DeliveryTeamPage: React.FC = () => {
               {/* Closed-Loop Cash on Delivery Balance Section (Uniform Clean Styling) */}
               <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-4 font-sans shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
+                  <div className="text-sm font-semibold text-kumo-strong uppercase tracking-wider">
                     Cash on Delivery & Settlement
                   </div>
-                  <span className="text-[11px] text-kumo-subtle">Closed-loop balance equation</span>
+                  <span className="text-[13px] text-kumo-subtle">Closed-loop balance equation</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Driver Balance Owed</span>
+                    <span className="text-kumo-subtle block text-[13px] font-medium">Driver Balance Owed</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       +{formatNaira(selectedRider?.pending_payout || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Delivery fee commissions</span>
+                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Delivery fee commissions</span>
                   </div>
 
                   <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Cash Held by Driver</span>
+                    <span className="text-kumo-subtle block text-[13px] font-medium">Cash Held by Driver</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       -{formatNaira(currentUnremitted)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Customer cash pending remittance</span>
+                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Customer cash pending remittance</span>
                   </div>
 
                   <div className="p-4 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Net Settlement Balance</span>
+                    <span className="text-kumo-subtle block text-[13px] font-medium">Net Settlement Balance</span>
                     <div className="text-xl font-bold text-kumo-strong mt-1 font-display tracking-normal truncate">
                       {(selectedRider?.net_balance || 0) < 0 
                         ? `Driver owes ${formatNaira(Math.abs(selectedRider?.net_balance || 0))}` 
                         : formatNaira(selectedRider?.net_balance || 0)}
                     </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Commissions minus cash held</span>
+                    <span className="text-[12px] text-kumo-subtle block mt-0.5">Commissions minus cash held</span>
                   </div>
                 </div>
 
@@ -754,78 +650,418 @@ export const DeliveryTeamPage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: DRIVER PROFILE & KYC (Using Design System DataTable) */}
+          {/* TAB 2: DRIVER PROFILE & KYC (Structured Executive Identity Dossier) */}
           {modalTab === 'profile' && selectedRider && (
             <div className="space-y-4">
-              {/* Driver Header Card */}
-              <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* 1. Driver Profile Header Card */}
+              <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-base flex items-center justify-center shrink-0">
-                    {selectedRider.rider_name.replace('RIDER ', '').substring(0, 2).toUpperCase()}
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/30 border border-red-200 dark:border-red-800 text-primary font-bold text-lg flex items-center justify-center shrink-0 shadow-2xs">
+                      {selectedRider.rider_name.replace('RIDER ', '').substring(0, 2).toUpperCase()}
+                    </div>
+                    <span 
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-900",
+                        selectedRider.status === 'on_trip' 
+                          ? 'bg-amber-500' 
+                          : selectedRider.status === 'active' 
+                          ? 'bg-emerald-500' 
+                          : 'bg-zinc-400'
+                      )} 
+                      title={selectedRider.status === 'on_trip' ? 'On Road' : selectedRider.status === 'active' ? 'Available' : 'Offline'} 
+                    />
                   </div>
+
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold text-base text-kumo-strong">{selectedRider.rider_name}</h3>
-                      <span className="px-2 py-0.5 text-xs font-sans font-semibold bg-kumo-tint border border-kumo-line rounded">
+                      <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-kumo-tint border border-kumo-line rounded text-kumo-strong">
                         {selectedRider.staff_id || 'RDR-001'}
                       </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-kumo-subtle mt-1">
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
-                        {selectedRider.phone}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        <span>NIMC Verified</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5" />
-                        {selectedRider.email || 'courier@smokeyhut.com'}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-y-1 gap-x-3.5 text-xs text-kumo-subtle mt-1.5">
+                      <a 
+                        href={`tel:${selectedRider.phone}`} 
+                        className="flex items-center gap-1.5 hover:text-kumo-strong transition-colors"
+                        title="Click to call"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-kumo-subtle" />
+                        <span>{selectedRider.phone}</span>
+                      </a>
+                      <span className="text-kumo-line">•</span>
+                      <a 
+                        href={`mailto:${selectedRider.email || 'courier@smokeyhut.com'}`} 
+                        className="flex items-center gap-1.5 hover:text-kumo-strong transition-colors"
+                        title="Click to email"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-kumo-subtle" />
+                        <span>{selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@smokeyhut.com`}</span>
+                      </a>
+                      <span className="text-kumo-line">•</span>
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-kumo-subtle" />
+                        <span>{selectedRider.operating_hub || selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center gap-2.5 self-start sm:self-auto">
                   <StatusBadge 
-                    status={selectedRider.status === 'on_trip' ? 'pending' : selectedRider.status === 'active' ? 'active' : 'inactive'} 
-                    label={selectedRider.status === 'on_trip' ? 'ON ROAD' : selectedRider.status === 'active' ? 'AVAILABLE' : 'OFF DUTY'} 
+                    status={selectedRider.status === 'on_trip' ? 'in_progress' : selectedRider.status === 'active' ? 'active' : 'inactive'} 
+                    label={selectedRider.status === 'on_trip' ? 'on road' : selectedRider.status === 'active' ? 'available' : 'off duty'} 
                   />
-                  <div className="flex items-center gap-1 text-xs font-bold text-kumo-strong px-2 py-1 bg-amber-50 border border-amber-200 dark:bg-amber-950/30 rounded-lg">
+                  <div className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 px-2.5 py-1 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 rounded-lg shadow-2xs">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span>{selectedRider.rating?.toFixed(1) || '4.9'}</span>
+                    <span className="text-[10px] opacity-75 font-normal">/ 5.0</span>
                   </div>
                 </div>
               </div>
 
-              {/* Operational Reliability Matrix */}
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
-                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">On-Time Delivery</span>
-                  <span className="text-base font-bold text-emerald-600 block mt-0.5">
+              {/* 2. Operational Reliability Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
+                    <span className="uppercase text-[11px] font-semibold tracking-wider">On-Time Delivery</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
+                      Top 5% Fleet
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-emerald-600 mt-1 font-display">
                     {selectedRider.on_time_rate || 98.4}%
-                  </span>
+                  </div>
+                  <span className="text-[11px] text-kumo-subtle block mt-0.5">Average transit accuracy (30 days)</span>
                 </div>
-                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
-                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Customer Rating</span>
-                  <span className="text-base font-bold text-amber-500 block mt-0.5">
-                    {selectedRider.rating?.toFixed(1) || '4.9'} / 5.0
-                  </span>
+
+                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
+                    <span className="uppercase text-[11px] font-semibold tracking-wider">Customer Rating</span>
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800">
+                      Verified Reviews
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-kumo-strong mt-1 font-display flex items-baseline gap-1">
+                    <span>{selectedRider.rating?.toFixed(1) || '4.9'}</span>
+                    <span className="text-xs text-kumo-subtle font-normal">/ 5.0 ★</span>
+                  </div>
+                  <span className="text-[11px] text-kumo-subtle block mt-0.5">99.1% positive customer feedback</span>
                 </div>
-                <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl">
-                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">COD Remittance</span>
-                  <span className="text-base font-bold text-emerald-600 block mt-0.5">
+
+                <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
+                  <div className="flex items-center justify-between text-xs text-kumo-subtle font-medium">
+                    <span className="uppercase text-[11px] font-semibold tracking-wider">COD Remittance</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
+                      Clean Ledger
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-emerald-600 mt-1 font-display">
                     100% Reconciled
-                  </span>
+                  </div>
+                  <span className="text-[11px] text-kumo-subtle block mt-0.5">Zero unremitted cashier defaults</span>
                 </div>
               </div>
 
-              {/* Verified Profile & KYC DataTable */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
-                  Driver Profile & Verified KYC Records
+              {/* 3. Structured KYC Dossier Cards (Replacing the former generic DataTable) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Panel A: Identity & Legal Compliance */}
+                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 shrink-0">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                          Identity & Legal Verification
+                        </h4>
+                        <span className="text-[11px] text-kumo-subtle block">
+                          Government ID & statutory clearance
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      Approved
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {/* National ID / NIN */}
+                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-kumo-subtle block">National Identity Number (NIN)</span>
+                        <span className="font-mono font-bold text-kumo-strong text-xs tracking-wider block mt-0.5">
+                          {selectedRider.national_id_nin || '7829-4821-9921'}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 flex items-center gap-1 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          NIMC Biometrics Verified
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('nin', selectedRider.national_id_nin || '7829-4821-9921')}
+                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Copy NIN"
+                      >
+                        {copiedField === 'nin' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
+                        <span>{copiedField === 'nin' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* Driver's License */}
+                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Driver's License No.</span>
+                        <span className="font-mono font-bold text-kumo-strong text-xs tracking-wider block mt-0.5">
+                          {selectedRider.license_number || 'DL-98234-LAG'}
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">
+                          Class A • Valid through {selectedRider.license_expiry || 'Nov 2027'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('license', selectedRider.license_number || 'DL-98234-LAG')}
+                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Copy License Number"
+                      >
+                        {copiedField === 'license' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
+                        <span>{copiedField === 'license' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* Onboarding & Hub */}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
+                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Date Onboarded</span>
+                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
+                          {selectedRider.date_joined || '12 Feb 2025'}
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">1+ years active tenure</span>
+                      </div>
+                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
+                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Base Station</span>
+                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5 truncate">
+                          {selectedRider.operating_hub || selectedWarehouse?.name || 'Yaba Head Office'}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 block mt-0.5 font-medium">Primary Hub #1</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <DataTable
-                  data={kycRows}
-                  columns={kycColumns}
-                />
+
+                {/* Panel B: Assigned Fleet Asset & Vehicle */}
+                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 shrink-0">
+                        <Bike className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                          Fleet Asset & Vehicle
+                        </h4>
+                        <span className="text-[11px] text-kumo-subtle block">
+                          Dispatched unit & mechanical roadworthiness
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      Roadworthy
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {/* License Plate Display */}
+                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-kumo-subtle block mb-1">Vehicle Plate Registration</span>
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-900 border-2 border-emerald-600/70 rounded-md font-mono font-bold text-xs tracking-wider text-zinc-900 dark:text-zinc-100 shadow-2xs">
+                          <span className="text-[9px] font-sans font-bold text-emerald-600">NG</span>
+                          <span>{selectedRider.plate_number || 'LND-482-XA'}</span>
+                        </div>
+                        <span className="text-[10px] text-kumo-subtle block mt-1">Lagos State Certified Registration</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('plate', selectedRider.plate_number || 'LND-482-XA')}
+                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Copy Plate Number"
+                      >
+                        {copiedField === 'plate' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-kumo-subtle" />}
+                        <span>{copiedField === 'plate' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* Vehicle Model & Telematics */}
+                    <div className="p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-kumo-subtle">Assigned Motorcycle Model</span>
+                        <span className="font-semibold text-kumo-strong text-xs">
+                          {selectedRider.vehicle_type || 'Bajaj Boxer 150 Motorcycle'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-kumo-line/40">
+                        <span className="text-kumo-subtle">Ownership / Asset Tag</span>
+                        <span className="font-mono text-kumo-strong font-medium">Smokey Fleet Unit #04</span>
+                      </div>
+                    </div>
+
+                    {/* Inspection & GPS status */}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
+                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Safety Inspection</span>
+                        <span className="text-xs font-semibold text-emerald-600 block mt-0.5">Passed & Certified</span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Next audit: Nov 2026</span>
+                      </div>
+                      <div className="p-2 bg-kumo-base/60 dark:bg-zinc-900/60 rounded-lg border border-kumo-line/40">
+                        <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-semibold block">Fleet Telematics</span>
+                        <span className="text-xs font-semibold text-kumo-strong flex items-center gap-1.5 mt-0.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          GPS Online
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Live telemetry sync</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Panel C: Cash Limits & Settlement Rules */}
+                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 shrink-0">
+                        <Wallet className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                          Cash Controls & Remittance Rules
+                        </h4>
+                        <span className="text-[11px] text-kumo-subtle block">
+                          COD threshold limits and financial policies
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      Standard Terms
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div>
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Max COD Handling Limit</span>
+                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Hard ceiling before forced cashier remittance</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-emerald-600 font-display">
+                          {formatNaira(selectedRider.cod_limit || 50000)}
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block">Enforced ceiling</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div>
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Remittance Schedule</span>
+                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Physical cash handover policy</span>
+                      </div>
+                      <span className="font-semibold text-kumo-strong text-xs">
+                        Daily at Shift Handoff
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div>
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Settlement Mechanism</span>
+                        <span className="text-[11px] text-kumo-subtle block mt-0.5">Commissions netted against cash held</span>
+                      </div>
+                      <span className="font-semibold text-kumo-strong text-xs">
+                        Two-Way Closed Ledger
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Panel D: Emergency Contact & Guarantor */}
+                <div className="p-4 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-kumo-line/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600 shrink-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                          Emergency Contact & Guarantor
+                        </h4>
+                        <span className="text-[11px] text-kumo-subtle block">
+                          Verified next-of-kin & corporate guarantor
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      Verified
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs">
+                    {/* Next of Kin */}
+                    <div className="flex items-center justify-between gap-3 p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Next of Kin (Primary Emergency)</span>
+                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
+                          {selectedRider.emergency_contact || 'Mrs. Funke Balogun (Spouse)'}
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">
+                          Phone: {selectedRider.emergency_phone || '08023456789'}
+                        </span>
+                      </div>
+                      <a
+                        href={`tel:${selectedRider.emergency_phone || '08023456789'}`}
+                        className="px-2.5 py-1.5 rounded-md border border-kumo-line bg-kumo-tint hover:bg-kumo-line text-[11px] font-medium text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Call Next of Kin"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-kumo-subtle" />
+                        <span>Call</span>
+                      </a>
+                    </div>
+
+                    {/* Corporate Guarantor */}
+                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div>
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Corporate / Merchant Guarantor</span>
+                        <span className="font-semibold text-kumo-strong text-xs block mt-0.5">
+                          Alhaji M. Adeleke (Vetted Merchant)
+                        </span>
+                        <span className="text-[10px] text-emerald-600 block mt-0.5 font-medium">Guarantor Form & ID on file</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800">
+                        Signed
+                      </span>
+                    </div>
+
+                    {/* Residential Verification */}
+                    <div className="flex items-center justify-between p-2.5 bg-kumo-base dark:bg-zinc-900 rounded-lg border border-kumo-line/60">
+                      <div>
+                        <span className="text-[11px] font-medium text-kumo-subtle block">Residential Proof & Verification</span>
+                        <span className="text-xs font-semibold text-kumo-strong block mt-0.5">
+                          Physical Home Address Confirmed
+                        </span>
+                        <span className="text-[10px] text-kumo-subtle block mt-0.5">Utility bill & physical inspection passed</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800">
+                        Passed
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

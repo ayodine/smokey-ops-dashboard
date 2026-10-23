@@ -71,17 +71,17 @@ export const Dialog: React.FC<DialogProps> = ({
           className
         )}
       >
-        {/* Header - strictly 16px text-base font-bold with balanced tracking */}
-        <div className="px-5 py-4 border-b border-kumo-line flex items-center justify-between shrink-0 bg-kumo-base">
+        {/* Header - scaled typography */}
+        <div className="px-6 py-4 border-b border-kumo-line flex items-center justify-between shrink-0 bg-kumo-base">
           <div>
             <h3
               id="dialog-title"
-              className="text-base font-bold text-kumo-strong tracking-[0.015em] leading-snug"
+              className="text-lg font-bold text-kumo-strong tracking-[0.015em] leading-snug"
             >
               {title}
             </h3>
             {description && (
-              <p className="mt-1 text-xs text-kumo-subtle tracking-normal leading-relaxed">{description}</p>
+              <p className="mt-1 text-sm text-kumo-subtle tracking-normal leading-relaxed">{description}</p>
             )}
           </div>
           <button
@@ -89,18 +89,18 @@ export const Dialog: React.FC<DialogProps> = ({
             aria-label="Close dialog"
             className="p-1.5 rounded-lg text-kumo-subtle hover:text-kumo-default hover:bg-kumo-tint transition-colors cursor-pointer shrink-0 ml-3"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body Content */}
-        <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0 text-xs sm:text-sm text-kumo-default">
+        {/* Body Content - 14px to 16px base font */}
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 text-sm sm:text-base text-kumo-default">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-5 py-3.5 bg-kumo-canvas/60 border-t border-kumo-line flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-4 bg-kumo-canvas/60 border-t border-kumo-line flex items-center justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

@@ -398,10 +398,10 @@ export const LogisticsBoardPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleConfirmAssign} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded text-sm space-y-1.5">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Customer:</span>
-              <span className="font-semibold text-kumo-strong">{selectedDelivery?.customer_name}</span>
+              <span className="font-semibold text-kumo-strong text-base">{selectedDelivery?.customer_name}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Delivery Address:</span>
@@ -409,7 +409,7 @@ export const LogisticsBoardPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center font-sans">
               <span className="text-kumo-subtle font-medium">Customer Paid Fee:</span>
-              <span className="font-semibold text-emerald-600 font-sans">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
+              <span className="font-semibold text-emerald-600 font-sans text-base">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
             </div>
           </div>
 
@@ -460,7 +460,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 required
               />
               {bookedFee > (selectedDelivery?.delivery_fee || 0) && (
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded text-xs text-amber-900 dark:text-amber-200 font-sans flex items-center gap-1.5">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded text-sm text-amber-900 dark:text-amber-200 font-sans flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span><strong>Subsidy Deficit Warning:</strong> Courier charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
                 </div>
@@ -469,14 +469,14 @@ export const LogisticsBoardPage: React.FC = () => {
               {/* Compulsory 3rd-Party Receipt / Fare Proof Upload */}
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-kumo-strong">
+                  <label className="block text-sm font-semibold text-kumo-strong">
                     Waybill Proof of Delivery Slip / Courier Fare Receipt <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-2 py-0.5 rounded uppercase tracking-wider">
                     Compulsory
                   </span>
                 </div>
-                <p className="text-[11px] text-kumo-subtle leading-normal">
+                <p className="text-[13px] text-kumo-subtle leading-normal">
                   Upload waybill proof of delivery slip or charged fare screenshot from Uber, InDrive, Gokada, Bolt, GIG, etc., before confirming assignment.
                 </p>
 
@@ -491,11 +491,11 @@ export const LogisticsBoardPage: React.FC = () => {
                         />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-kumo-strong truncate">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-sm font-semibold text-kumo-strong truncate">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span className="truncate">{receiptFileName || `waybill-${selectedDelivery?.order_ref?.toLowerCase()}-pod.jpg`}</span>
                         </div>
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1">
                           Proof of Delivery Attached
                         </span>
                       </div>
@@ -520,18 +520,18 @@ export const LogisticsBoardPage: React.FC = () => {
                       className="hidden"
                     />
                     <Upload className={`w-6 h-6 mb-1.5 ${receiptUploadError ? 'text-rose-500' : 'text-kumo-subtle'}`} />
-                    <span className="text-xs font-semibold text-kumo-strong text-center">
+                    <span className="text-sm font-semibold text-kumo-strong text-center">
                       Click to upload Waybill Proof of Delivery Slip or fare screenshot
                     </span>
-                    <span className="text-[11px] text-kumo-subtle mt-0.5 text-center">
+                    <span className="text-[13px] text-kumo-subtle mt-0.5 text-center">
                       PNG, JPG, or WEBP from Uber, InDrive, Gokada, Bolt, or GIG
                     </span>
                   </label>
                 )}
 
                 {receiptUploadError && (
-                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mt-1">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <div className="flex items-center gap-1.5 text-sm text-rose-600 font-medium mt-1">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{receiptUploadError}</span>
                   </div>
                 )}

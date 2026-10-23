@@ -25,19 +25,15 @@ import {
 
 export const DeliverySchedulePage: React.FC = () => {
   const { scheduledOrders, startScheduledOrder, autoReleaseDuePreOrders } = useSmokeyOps()
-  const [filterMode, setFilterMode] = useState<'all' | 'ready_to_start'>('all')
   const [releaseFeedback, setReleaseFeedback] = useState<string | null>(null)
-
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
-
-  const filteredOrders = filterMode === 'all' 
-    ? scheduledOrders 
-    : scheduledOrders.filter(o => o.can_start_schedule)
 
   const activeOrdersForKPI = useMemo(() => {
     if (!dateRange) return scheduledOrders
     return scheduledOrders.filter(o => isWithinDateRange(o.scheduled_delivery_at, dateRange))
   }, [scheduledOrders, dateRange])
+
+  const filteredOrders = activeOrdersForKPI
 
   const totalScheduled = activeOrdersForKPI.length
   const readyToStartCount = activeOrdersForKPI.filter(o => o.can_start_schedule).length
@@ -107,11 +103,11 @@ export const DeliverySchedulePage: React.FC = () => {
       header: 'Schedule State',
       accessor: (o) => {
         const statusMap = {
-          payment_confirmed: { status: 'pending' as const, label: 'SCHEDULED PRE-ORDER' },
-          in_queue: { status: 'active' as const, label: 'RELEASED TO KITCHEN' },
-          dispatched: { status: 'active' as const, label: 'DISPATCHED' },
+          payment_confirmed: { status: 'pending' as const, label: 'scheduled pre-order' },
+          in_queue: { status: 'active' as const, label: 'released to kitchen' },
+          dispatched: { status: 'active' as const, label: 'dispatched' },
         }
-        const s = statusMap[o.order_status] || { status: 'pending' as const, label: o.order_status.toUpperCase() }
+        const s = statusMap[o.order_status] || { status: 'pending' as const, label: o.order_status.toLowerCase() }
         return <StatusBadge status={s.status} label={s.label} />
       },
       sortValue: (o) => o.order_status,
@@ -119,21 +115,20 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 230,
+      defaultWidth: 260,
       accessor: (o) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-2">
-          {o.can_start_schedule ? (
-            <Tooltip content="Send scheduled order to kitchen packaging queue">
-              <TableActionButton
-                variant="primary"
-                icon={<Play className="fill-current" />}
-                iconStrokeWidth={2}
-                onClick={() => startScheduledOrder(o.id)}
-              >
-                Send to Kitchen
-              </TableActionButton>
-            </Tooltip>
-          ) : (
+          <Tooltip content="Send scheduled order to kitchen packaging queue">
+            <TableActionButton
+              variant="primary"
+              icon={<Play className="fill-current" />}
+              iconStrokeWidth={2}
+              onClick={() => startScheduledOrder(o.id)}
+            >
+              Send to Kitchen
+            </TableActionButton>
+          </Tooltip>
+          {o.order_status === 'in_queue' && (
             <Tooltip content="Open Kitchen Packaging Execution & Pack Queue table">
               <Link
                 to="/production/packaging"
@@ -206,11 +201,10 @@ export const DeliverySchedulePage: React.FC = () => {
       {/* Filter Tabs */}
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
-          activeTab={filterMode}
-          onChange={(val: string) => setFilterMode(val as any)}
+          activeTab="all"
+          onChange={() => {}}
           tabs={[
             { id: 'all', label: 'All Scheduled', badge: totalScheduled },
-            { id: 'ready_to_start', label: 'Ready to Send', badge: readyToStartCount },
           ]}
         />
       </div>

@@ -217,7 +217,7 @@ export const PackagingExecutionPage: React.FC = () => {
       key: 'status',
       header: 'Pack Status',
       defaultWidth: 180,
-      accessor: (o) => <StatusBadge status="pending" label="ON PACKING TABLE" />,
+      accessor: (o) => <StatusBadge status="in-progress" label="in-progress" />,
     },
     {
       key: 'actions',
@@ -417,46 +417,46 @@ export const PackagingExecutionPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleConfirmStart} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-2 font-sans">
             <div className="flex items-baseline gap-3">
-              <span className="text-kumo-subtle font-medium w-24 shrink-0 text-left">Customer:</span>
-              <span className="font-semibold text-kumo-strong text-left">{selectedOrder?.customer_name}</span>
+              <span className="text-kumo-subtle font-medium w-28 shrink-0 text-left">Customer:</span>
+              <span className="font-semibold text-kumo-strong text-left text-base">{selectedOrder?.customer_name}</span>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-kumo-subtle font-medium w-24 shrink-0 text-left">Ordered Items:</span>
-              <span className="font-normal text-kumo-strong text-left">{selectedOrder?.items_summary}</span>
+              <span className="text-kumo-subtle font-medium w-28 shrink-0 text-left">Ordered Items:</span>
+              <span className="font-normal text-kumo-strong text-left text-sm sm:text-base">{selectedOrder?.items_summary}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-2.5 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-xs text-blue-900 dark:text-blue-300 font-sans">
+          <div className="flex items-center gap-2.5 p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-sm text-blue-900 dark:text-blue-300 font-sans">
             <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
             <span><strong>Zero-Touch Mapping Active:</strong> Consumable packaging items auto-populated based on menu items. Ready for 1-click confirmation.</span>
           </div>
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider font-sans">
+              <span className="text-sm font-semibold text-kumo-strong uppercase tracking-wider font-sans">
                 Packaging Materials Consumed
               </span>
               <button
                 type="button"
                 onClick={handleAddPackagingItem}
-                className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
+                className="text-sm text-primary hover:underline flex items-center gap-1.5 cursor-pointer font-medium font-sans"
               >
-                <Plus className="w-3.5 h-3.5" /> Add Material Item
+                <Plus className="w-4 h-4" /> Add Material Item
               </button>
             </div>
 
             {/* Column Header labels for alignment */}
-            <div className="flex items-center gap-2 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider font-sans">
+            <div className="flex items-center gap-2 px-2 text-[13px] font-semibold text-kumo-subtle uppercase tracking-wider font-sans">
               <div className="flex-1">Packaging Consumable</div>
-              <div className="w-24">Quantity</div>
+              <div className="w-28">Quantity</div>
               <div className="w-8"></div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {pickedItems.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 bg-kumo-surface border border-kumo-line rounded-lg text-xs">
+                <div key={idx} className="flex items-center gap-2.5 p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm">
                   <div className="flex-1 min-w-0">
                     <Select
                       value={item.packaging_name}
@@ -465,17 +465,16 @@ export const PackagingExecutionPage: React.FC = () => {
                         value: p.name,
                         label: `${p.name} (${p.stock_qty} ${p.unit} in store)`
                       }))}
-                      size="sm"
-                      buttonClassName="h-9 text-xs font-normal font-sans"
+                      buttonClassName="h-10 text-sm sm:text-base font-normal font-sans"
                     />
                   </div>
-                  <div className="w-24 shrink-0">
+                  <div className="w-28 shrink-0">
                     <input
                       type="number"
                       min="1"
                       value={item.quantity}
                       onChange={(e) => handleUpdatePackagingItem(idx, 'quantity', Number(e.target.value))}
-                      className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs font-sans text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                      className="w-full h-10 bg-kumo-base border border-kumo-line rounded-lg px-3 text-sm sm:text-base font-sans text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                     />
                   </div>
                   <div className="w-8 flex justify-center shrink-0">
@@ -493,7 +492,7 @@ export const PackagingExecutionPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-amber-950 dark:text-amber-100 flex items-start gap-2.5 font-sans shadow-2xs">
+          <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-amber-950 dark:text-amber-100 flex items-start gap-2.5 font-sans shadow-2xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
             <span className="leading-relaxed">
               <strong className="font-bold text-amber-950 dark:text-amber-50 mr-1">Constraint:</strong>

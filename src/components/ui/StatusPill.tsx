@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 
-export type FigmaBadgeState = 'draft' | 'in-progress' | 'in-review' | 'completed'
+export type FigmaBadgeState = 'draft' | 'in-progress' | 'in-review' | 'completed' | 'flagged'
 
 export interface StatusPillProps {
   /** Explicit status state or derived from label/variant */
@@ -9,7 +9,7 @@ export interface StatusPillProps {
   /** Status text label */
   label?: string
   /** Legacy variant compatibility */
-  variant?: 'emerald' | 'blue' | 'amber' | 'purple' | 'zinc'
+  variant?: 'emerald' | 'blue' | 'amber' | 'purple' | 'zinc' | 'red'
   /** Short label mode: icon only within 28px square container */
   short?: boolean
   className?: string
@@ -24,19 +24,28 @@ export const StatusPill: React.FC<StatusPillProps> = ({
 }) => {
   const norm = (label || '').toLowerCase().trim()
 
-  // Determine Figma state: draft | in-progress | in-review | completed
+  // Determine Figma state: draft | in-progress | in-review | completed | flagged
   let state: FigmaBadgeState = explicitState || 'draft'
   let displayLabel = label
 
   if (!explicitState) {
     if (
+      norm === 'flagged' ||
+      norm === 'cancelled' ||
+      norm === 'failed' ||
+      norm === 'rejected' ||
+      variant === 'red'
+    ) {
+      state = 'flagged'
+      displayLabel = norm === 'flagged' || !label ? 'flagged' : (norm === 'cancelled' ? 'cancelled' : norm === 'failed' ? 'failed' : label)
+    } else if (
       norm === 'done' ||
       norm === 'completed' ||
       norm === 'delivered' ||
       variant === 'emerald'
     ) {
       state = 'completed'
-      displayLabel = norm === 'done' || !label ? 'Completed' : label
+      displayLabel = norm === 'done' || !label ? 'completed' : label
     } else if (
       norm === 'in progress' ||
       norm === 'in-progress' ||
@@ -53,14 +62,44 @@ export const StatusPill: React.FC<StatusPillProps> = ({
       variant === 'blue'
     ) {
       state = 'in-review'
-      displayLabel = norm === 'in review' || !label ? 'In-review' : label
+      displayLabel = norm === 'in review' || !label ? 'in-review' : label
     } else {
       state = 'draft'
-      displayLabel = norm === 'pending' || !label ? 'Draft' : label
+      displayLabel = norm === 'pending' || norm === 'draft' || !label ? 'no-action' : label
     }
   }
 
-  // Exact icon definitions extracted from Figma (node 1:73)
+  // Ensure fallback labels for explicit states
+  if (!displayLabel || displayLabel.toLowerCase() === 'draft') {
+    if (state === 'completed') displayLabel = 'completed'
+    else if (state === 'in-progress') displayLabel = 'in-progress'
+    else if (state === 'in-review') displayLabel = 'in-review'
+    else if (state === 'flagged') displayLabel = 'flagged'
+    else displayLabel = 'no-action'
+  }
+
+  // Normalize casing: convert COMPLETED to lowercase "completed",
+  // and convert any other all-caps labels to lowercase
+  if (displayLabel) {
+    if (displayLabel.toLowerCase() === 'completed') {
+      displayLabel = 'completed'
+    } else if (displayLabel.toLowerCase() === 'flagged') {
+      displayLabel = 'flagged'
+    } else if (displayLabel.toLowerCase() === 'in-review' || displayLabel.toLowerCase() === 'in review') {
+      displayLabel = 'in-review'
+    } else if (displayLabel.toLowerCase() === 'in-progress' || displayLabel.toLowerCase() === 'in progress') {
+      displayLabel = 'in-progress'
+    } else if (displayLabel.toLowerCase() === 'no-action' || displayLabel.toLowerCase() === 'no action') {
+      displayLabel = 'no-action'
+    } else if (displayLabel === displayLabel.toUpperCase() && /[A-Z]/.test(displayLabel)) {
+      displayLabel = displayLabel.toLowerCase().replace(/_/g, '-')
+    }
+    if (displayLabel.includes('_')) {
+      displayLabel = displayLabel.replace(/_/g, '-')
+    }
+  }
+
+  // Exact icon definitions consistent with Figma design system (node 1:73)
   const renderIcon = () => {
     switch (state) {
       case 'draft':
@@ -154,15 +193,35 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             />
           </svg>
         )
+      case 'flagged':
+        return (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="shrink-0"
+            aria-hidden="true"
+          >
+            <rect width="16" height="16" rx="8" fill="#D92D20" />
+            <path
+              d="M5.2 5.2L10.8 10.8M10.8 5.2L5.2 10.8"
+              stroke="white"
+              strokeWidth="1.83164"
+              strokeLinecap="round"
+            />
+          </svg>
+        )
     }
   }
 
-  // Exact color themes extracted from Figma (node 1:73)
+  // Exact color themes extracted from Figma (node 1:73) + consistent red flagged state
   const styles: Record<FigmaBadgeState, string> = {
     draft: 'bg-[#F3F4F8] text-[#353B47]',
     'in-progress': 'bg-[#FFF8F0] text-[#F07C27]',
     'in-review': 'bg-[#F0F4FF] text-[#1564FC]',
-    completed: 'bg-[#F0FFF6] text-[#008234]'
+    completed: 'bg-[#F0FFF6] text-[#008234]',
+    flagged: 'bg-[#FEF3F2] text-[#B42318]'
   }
 
   if (short) {
@@ -170,7 +229,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
       <span
         title={displayLabel || state}
         className={cn(
-          'inline-flex items-center justify-center w-7 h-7 rounded-[8px] select-none shrink-0 transition-colors',
+          'inline-flex items-center justify-center w-7 h-7 min-w-[28px] min-h-[28px] rounded-[8px] select-none shrink-0 transition-colors',
           styles[state],
           className
         )}
@@ -183,15 +242,50 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-[6px] h-7 px-[8px] py-[6px] rounded-[8px] text-[13px] sm:text-[14px] font-medium leading-none select-none shrink-0 transition-colors',
+        'inline-flex items-center gap-[6px] h-7 min-h-[28px] px-[8px] py-[3px] rounded-[8px] text-[13px] font-medium leading-normal select-none shrink-0 transition-colors',
         styles[state],
         className
       )}
     >
       {renderIcon()}
-      <span className="truncate">{displayLabel}</span>
+      <span className="whitespace-nowrap tracking-normal leading-normal">{displayLabel}</span>
     </span>
   )
 }
+
+/**
+ * Component instance: Flagged Badge (Red pill with cancel icon)
+ */
+export const FlaggedBadge: React.FC<Omit<StatusPillProps, 'state'>> = (props) => (
+  <StatusPill state="flagged" label="flagged" {...props} />
+)
+
+/**
+ * Component instance: Completed Badge (Green pill with checkmark icon)
+ */
+export const CompletedBadge: React.FC<Omit<StatusPillProps, 'state'>> = (props) => (
+  <StatusPill state="completed" label="completed" {...props} />
+)
+
+/**
+ * Component instance: In-Progress Badge (Amber pill with progress icon)
+ */
+export const InProgressBadge: React.FC<Omit<StatusPillProps, 'state'>> = (props) => (
+  <StatusPill state="in-progress" label="in-progress" {...props} />
+)
+
+/**
+ * Component instance: In-Review Badge (Blue pill with review icon)
+ */
+export const InReviewBadge: React.FC<Omit<StatusPillProps, 'state'>> = (props) => (
+  <StatusPill state="in-review" label="in-review" {...props} />
+)
+
+/**
+ * Component instance: Draft / No-Action Badge (Grey pill with dashed icon)
+ */
+export const DraftBadge: React.FC<Omit<StatusPillProps, 'state'>> = (props) => (
+  <StatusPill state="draft" label="no-action" {...props} />
+)
 
 export default StatusPill

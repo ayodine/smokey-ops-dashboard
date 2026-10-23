@@ -5,7 +5,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   History,
-  Code2
+  Factory
 } from 'lucide-react'
 
 interface HubItem {
@@ -134,7 +134,7 @@ export const CloudflareNavigationHub: React.FC = () => {
                   }}
                   className="w-5 h-5 flex items-center justify-center shrink-0 text-[#71717a] group-hover:text-[#0051c3] transition-colors"
                 >
-                  <Code2 className="w-4 h-4" />
+                  <Factory className="w-4 h-4" />
                 </button>
                 <span className="text-[14px] text-[#18181b] truncate font-normal group-hover:text-[#0051c3] transition-colors">
                   {item.title}

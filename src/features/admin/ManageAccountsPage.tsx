@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   Users,
@@ -36,7 +37,7 @@ import { Tooltip } from '@/components/ui/Tooltip'
 import { Select } from '@/components/ui/Select'
 import { Toggle, ToggleSwitch } from '@/components/ui/Toggle'
 import { useSmokeyOps, AppUserAccount, UserRole, ROLE_DEFAULT_PERMISSIONS } from '@/context/SmokeyOpsContext'
-import { useWarehouse } from '@/context/WarehouseContext'
+import { useWarehouse, INITIAL_FACILITY } from '@/context/WarehouseContext'
 import { cn } from '@/lib/utils'
 import {
   ALL_SYSTEM_PERMISSIONS,
@@ -49,6 +50,238 @@ export interface PolicyCategoryGroup {
   id: string
   name: string
   permissions: SystemPermissionItem[]
+}
+
+// Portal-based action dropdown menu with dynamic collision detection (opens upwards when near bottom)
+const AccountActionDropdown: React.FC<{
+  isOpen: boolean
+  onClose: () => void
+  buttonRef: React.RefObject<HTMLButtonElement | null>
+  children: React.ReactNode
+}> = ({ isOpen, onClose, buttonRef, children }) => {
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const getPosition = useCallback(() => {
+    if (!buttonRef.current) return { right: 12, openUp: false }
+    const rect = buttonRef.current.getBoundingClientRect()
+    const menuHeight = menuRef.current?.offsetHeight || 250
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+
+    // Open upwards if not enough space below, and there is more space above
+    const openUp = spaceBelow < menuHeight + 12 && spaceAbove > spaceBelow
+
+    if (openUp) {
+      return {
+        bottom: Math.max(8, window.innerHeight - rect.top + 4),
+        right: Math.max(12, window.innerWidth - rect.right),
+        openUp: true,
+        maxHeight: Math.max(160, rect.top - 16),
+      }
+    }
+    return {
+      top: rect.bottom + 4,
+      right: Math.max(12, window.innerWidth - rect.right),
+      openUp: false,
+      maxHeight: Math.max(160, spaceBelow - 16),
+    }
+  }, [buttonRef])
+
+  const [position, setPosition] = useState(getPosition)
+
+  useEffect(() => {
+    if (!isOpen || !buttonRef.current) return
+
+    const update = () => {
+      setPosition(getPosition())
+    }
+
+    update()
+    const animId = requestAnimationFrame(update)
+
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [isOpen, buttonRef, getPosition])
+
+  if (!isOpen) return null
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 z-[9998]"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClose()
+        }}
+      />
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          ...(position.openUp
+            ? { bottom: `${position.bottom}px` }
+            : { top: `${position.top}px` }),
+          right: `${position.right}px`,
+          maxHeight: position.maxHeight ? `${position.maxHeight}px` : undefined,
+          zIndex: 9999,
+        }}
+        className={cn(
+          'w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-2xl p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60 bg-white dark:bg-zinc-900 select-none overflow-y-auto',
+          position.openUp ? 'origin-bottom-right' : 'origin-top-right'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </>,
+    document.body
+  )
+}
+
+const AccountRowActionCell: React.FC<{
+  acc: AppUserAccount
+  activeAccountEmail: string
+  availableAccounts: AppUserAccount[]
+  openMenuEmail: string | null
+  setOpenMenuEmail: (email: string | null) => void
+  onEditRoute: (email: string) => void
+  onChangeRole: (acc: AppUserAccount) => void
+  onInspectPermissions: (acc: AppUserAccount) => void
+  onChangePassword: (acc: AppUserAccount) => void
+  onSwitchAccount: (email: string) => void
+  onDeleteAccount: (acc: AppUserAccount) => void
+}> = ({
+  acc,
+  activeAccountEmail,
+  availableAccounts,
+  openMenuEmail,
+  setOpenMenuEmail,
+  onEditRoute,
+  onChangeRole,
+  onInspectPermissions,
+  onChangePassword,
+  onSwitchAccount,
+  onDeleteAccount
+}) => {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const isOpen = openMenuEmail === acc.email
+
+  return (
+    <div className="flex items-center justify-end gap-1.5 relative">
+      <Tooltip content="Edit staff profile and permissions">
+        <TableActionButton
+          variant="outline"
+          onClick={() => onEditRoute(acc.email)}
+          leftIcon={<Edit2 className="w-3.5 h-3.5" />}
+        >
+          Edit
+        </TableActionButton>
+      </Tooltip>
+
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpenMenuEmail(isOpen ? null : acc.email)
+        }}
+        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer"
+        aria-label={`Options for ${acc.name}`}
+      >
+        <MoreVertical className="w-3.5 h-3.5" />
+      </button>
+
+      <AccountActionDropdown
+        isOpen={isOpen}
+        onClose={() => setOpenMenuEmail(null)}
+        buttonRef={buttonRef}
+      >
+        <div className="py-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setOpenMenuEmail(null)
+              onEditRoute(acc.email)
+            }}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <Edit2 className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+            <span>Edit Route Page</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpenMenuEmail(null)
+              onChangeRole(acc)
+            }}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <Shield className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+            <span>Change Role</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpenMenuEmail(null)
+              onInspectPermissions(acc)
+            }}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+            <span>View Permissions</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpenMenuEmail(null)
+              onChangePassword(acc)
+            }}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <Key className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+            <span>Change Password</span>
+          </button>
+          {acc.email.toLowerCase() !== activeAccountEmail.toLowerCase() && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenuEmail(null)
+                onSwitchAccount(acc.email)
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
+              <span>Switch to Account</span>
+            </button>
+          )}
+        </div>
+        <div className="py-0.5">
+          <button
+            type="button"
+            disabled={availableAccounts.length <= 1}
+            onClick={() => {
+              setOpenMenuEmail(null)
+              onDeleteAccount(acc)
+            }}
+            className={cn(
+              'w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors',
+              availableAccounts.length <= 1
+                ? 'opacity-40 cursor-not-allowed text-kumo-subtle'
+                : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
+            )}
+          >
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <span>Remove</span>
+          </button>
+        </div>
+      </AccountActionDropdown>
+    </div>
+  )
 }
 
 export const ManageAccountsPage: React.FC = () => {
@@ -74,8 +307,8 @@ export const ManageAccountsPage: React.FC = () => {
   const isMatrixPage = location.pathname.includes('/accounts/matrix')
   const isInvitePage = location.pathname.includes('/accounts/invite')
 
-  // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive' | 'matrix'
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive' | 'matrix'>('all')
+  // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive'
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all')
 
   // Filter state for DataTable
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all')
@@ -85,8 +318,15 @@ export const ManageAccountsPage: React.FC = () => {
   const [openMenuEmail, setOpenMenuEmail] = useState<string | null>(null)
   const [accountToChangePassword, setAccountToChangePassword] = useState<AppUserAccount | null>(null)
   const [accountToDelete, setAccountToDelete] = useState<AppUserAccount | null>(null)
-  const [accountToChangeRole, setAccountToChangeRole] = useState<AppUserAccount | null>(null)
-  const [inspectPermissionsAccount, setInspectPermissionsAccount] = useState<AppUserAccount | null>(null)
+
+  // Standardized role scope options showing baseline policies count matching Cloudflare reference
+  const roleScopeOptions = useMemo(() => [
+    { value: '', label: 'Select a scope...' },
+    ...SYSTEM_ROLE_CONFIGS.map(r => ({
+      value: r.id,
+      label: `${r.label} (${(ROLE_DEFAULT_PERMISSIONS[r.id] || []).length} baseline policies)`,
+    }))
+  ], [])
 
   // -------------------------------------------------------------
   // INVITE MEMBERS PAGE STATE (Matching Reference Screenshot)
@@ -126,12 +366,12 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Form State for Policy Scope
   const [policyScope, setPolicyScope] = useState<string>('Operating Office')
-  const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('Central Kitchen (Ikeja Office)')
+  const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('Yaba Head Office')
   const [editRole, setEditRole] = useState<UserRole>('kitchen')
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editZone, setEditZone] = useState('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
-  const [editOffice, setEditOffice] = useState('Central Kitchen (Ikeja Office)')
+  const [editOffice, setEditOffice] = useState('Yaba Head Office')
   const [editPermissions, setEditPermissions] = useState<string[]>([])
   const [policySearchQuery, setPolicySearchQuery] = useState('')
 
@@ -150,14 +390,20 @@ export const ManageAccountsPage: React.FC = () => {
       setEditRole(targetStaff.role)
       setEditName(targetStaff.name)
       setEditEmail(targetStaff.email)
-      const officeName = targetStaff.assigned_hub ? `${targetStaff.assigned_hub} Office` : 'Central Kitchen (Ikeja Office)'
+      const matchingFac = facilities.find(f => 
+        f.name.toLowerCase() === targetStaff.assigned_hub?.toLowerCase() ||
+        (targetStaff.assigned_hub && f.name.toLowerCase().startsWith(targetStaff.assigned_hub.toLowerCase())) ||
+        (targetStaff.assigned_hub && targetStaff.assigned_hub.toLowerCase().startsWith(f.name.toLowerCase()))
+      )
+      const officeName = matchingFac?.name || targetStaff.assigned_hub || facilities[0]?.name || 'Yaba Head Office'
       setEditOffice(officeName)
       setEditZone('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
       setPolicyScope('Operating Office')
       setPolicyAppliesTo(officeName)
       setEditPermissions(targetStaff.permissions || ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || [])
+      setIsEditingPolicy(true)
     }
-  }, [targetStaff])
+  }, [targetStaff, facilities])
 
   // -------------------------------------------------------------
   // ROLE MATRIX PAGE STATE (Screenshot 2 / Screenshot 1)
@@ -416,7 +662,7 @@ export const ManageAccountsPage: React.FC = () => {
       }
 
       if (selectedOfficeFilter !== 'all') {
-        const accOffice = acc.assigned_hub || 'Central Kitchen (Ikeja)'
+        const accOffice = acc.assigned_hub || facilities[0]?.name || 'Yaba Head Office'
         if (!accOffice.toLowerCase().includes(selectedOfficeFilter.toLowerCase())) {
           return false
         }
@@ -453,19 +699,18 @@ export const ManageAccountsPage: React.FC = () => {
 
     const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === editRole)
     const roleLabel = roleConfig ? roleConfig.label : editRole
-    const cleanedOffice = editOffice.replace(/\s+Office$/i, '')
 
     updateAccount(targetStaff.email, {
       name: editName.trim() || targetStaff.name,
       email: editEmail.trim() || targetStaff.email,
       role: editRole,
       roleLabel,
-      assigned_hub: cleanedOffice,
+      assigned_hub: editOffice,
       permissions: editPermissions,
     })
 
-    showToast(`Saved policies for ${editEmail}`, 'success')
-    setIsEditingPolicy(false)
+    showToast(`Saved role and policies for ${targetStaff.name || targetStaff.email}`, 'success')
+    navigate('/accounts')
   }
 
   const handleDeletePolicy = () => {
@@ -495,7 +740,15 @@ export const ManageAccountsPage: React.FC = () => {
       return
     }
     const matchedRole = SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)
-    showToast(`Policy successfully saved for ${matchedRole?.label || matrixScope}`, 'success')
+    // Persist updated policy permissions to matching accounts
+    availableAccounts.forEach(acc => {
+      if (acc.role === matrixScope) {
+        updateAccount(acc.email, {
+          permissions: [...matrixPermissions]
+        })
+      }
+    })
+    showToast(`Policy successfully saved and applied to ${matchedRole?.label || matrixScope}`, 'success')
     navigate('/accounts')
   }
 
@@ -666,7 +919,7 @@ export const ManageAccountsPage: React.FC = () => {
       `"${a.staff_id || 'SHD-OP'}"`,
       `"${a.email}"`,
       `"${a.roleLabel}"`,
-      `"${a.assigned_hub ? `${a.assigned_hub} Office` : 'Central Kitchen Office'}"`,
+      `"${a.assigned_hub || facilities[0]?.name || 'Yaba Head Office'}"`,
       `"${getActivityTimestamp(a)}"`,
       `"${(a.permissions || ROLE_DEFAULT_PERMISSIONS[a.role] || []).length}"`,
       `"${a.status || 'active'}"`
@@ -690,7 +943,7 @@ export const ManageAccountsPage: React.FC = () => {
       `"${a.name}"`,
       `"${a.email}"`,
       `"${a.roleLabel}"`,
-      `"${a.assigned_hub ? `${a.assigned_hub} Office` : 'Central Kitchen Office'}"`,
+      `"${a.assigned_hub || facilities[0]?.name || 'Yaba Head Office'}"`,
       `"${a.status || 'active'}"`
     ])
 
@@ -752,12 +1005,43 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Role',
       defaultWidth: 180,
       accessor: (acc) => (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-kumo-line bg-kumo-base text-[13px] font-medium text-kumo-strong shadow-2xs whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-[13px] font-medium text-kumo-strong shadow-2xs whitespace-nowrap cursor-pointer transition-colors"
+          title="Click to view and configure role & permissions"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
           <span>{acc.roleLabel}</span>
-        </span>
+        </button>
       ),
       sortValue: (acc) => acc.roleLabel,
+    },
+    {
+      key: 'permissions',
+      header: 'Active Permissions',
+      defaultWidth: 200,
+      accessor: (acc) => {
+        const perms = acc.permissions || ROLE_DEFAULT_PERMISSIONS[acc.role] || []
+        return (
+          <button
+            type="button"
+            onClick={() => navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)}
+            className="group/perms flex items-center gap-1.5 cursor-pointer max-w-full text-left"
+            title="Click to view and configure granted permissions on Role & Permission page"
+          >
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[12px] font-semibold rounded-md bg-kumo-canvas border border-kumo-line text-kumo-strong group-hover/perms:border-primary/50 group-hover/perms:text-primary transition-colors shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{perms.length} Policies</span>
+            </span>
+            <span className="text-[12px] text-kumo-subtle truncate max-w-[100px]">
+              {perms.slice(0, 1).join(', ')}
+              {perms.length > 1 && ` +${perms.length - 1}`}
+            </span>
+          </button>
+        )
+      },
+      sortValue: (acc) => (acc.permissions || ROLE_DEFAULT_PERMISSIONS[acc.role] || []).length,
     },
     {
       key: 'office',
@@ -765,7 +1049,7 @@ export const ManageAccountsPage: React.FC = () => {
       defaultWidth: 200,
       accessor: (acc) => (
         <span className="text-[13px] text-kumo-default font-sans whitespace-nowrap">
-          {acc.assigned_hub ? `${acc.assigned_hub} Office` : 'Central Kitchen Office'}
+          {acc.assigned_hub || facilities[0]?.name || 'Yaba Head Office'}
         </span>
       ),
       sortValue: (acc) => acc.assigned_hub || '',
@@ -795,127 +1079,22 @@ export const ManageAccountsPage: React.FC = () => {
       header: 'Actions',
       defaultWidth: 160,
       accessor: (acc) => (
-        <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={(e) => e.stopPropagation()}>
-          <Tooltip content="Edit credentials, route, office, and role policy">
-            <TableActionButton
-              variant="outline"
-              onClick={() => navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)}
-              leftIcon={<Edit2 className="w-3.5 h-3.5" />}
-            >
-              Edit
-            </TableActionButton>
-          </Tooltip>
-
-          {/* Context Popover for Extended Actions */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpenMenuEmail(openMenuEmail === acc.email ? null : acc.email)
-              }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer"
-              aria-label={`Options for ${acc.name}`}
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </button>
-
-            {openMenuEmail === acc.email && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenuEmail(null)
-                  }}
-                />
-                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-xl z-50 p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60">
-                  <div className="py-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenMenuEmail(null)
-                        navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                      <span>Edit Route Page</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountToChangeRole(acc)
-                        setEditRole(acc.role)
-                        setEditPermissions(acc.permissions || ROLE_DEFAULT_PERMISSIONS[acc.role] || [])
-                        setOpenMenuEmail(null)
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Shield className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                      <span>Change Role</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInspectPermissionsAccount(acc)
-                        setOpenMenuEmail(null)
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                      <span>View Permissions</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountToChangePassword(acc)
-                        setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
-                        setOpenMenuEmail(null)
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <Key className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                      <span>Change Password</span>
-                    </button>
-                    {acc.email.toLowerCase() !== activeAccountEmail.toLowerCase() && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          switchAccount(acc.email)
-                          setOpenMenuEmail(null)
-                        }}
-                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <UserCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                        <span>Switch to Account</span>
-                      </button>
-                    )}
-                  </div>
-                  <div className="py-0.5">
-                    <button
-                      type="button"
-                      disabled={availableAccounts.length <= 1}
-                      onClick={() => {
-                        setAccountToDelete(acc)
-                        setOpenMenuEmail(null)
-                      }}
-                      className={cn(
-                        'w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors',
-                        availableAccounts.length <= 1
-                          ? 'opacity-40 cursor-not-allowed text-kumo-subtle'
-                          : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
-                      )}
-                    >
-                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <AccountRowActionCell
+          acc={acc}
+          activeAccountEmail={activeAccountEmail}
+          availableAccounts={availableAccounts}
+          openMenuEmail={openMenuEmail}
+          setOpenMenuEmail={setOpenMenuEmail}
+          onEditRoute={(email) => navigate(`/accounts/route/${encodeURIComponent(email)}`)}
+          onChangeRole={(account) => navigate(`/accounts/route/${encodeURIComponent(account.email)}`)}
+          onInspectPermissions={(account) => navigate(`/accounts/route/${encodeURIComponent(account.email)}`)}
+          onChangePassword={(account) => {
+            setAccountToChangePassword(account)
+            setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+          }}
+          onSwitchAccount={(email) => switchAccount(email)}
+          onDeleteAccount={(account) => setAccountToDelete(account)}
+        />
       ),
     },
   ]
@@ -931,6 +1110,50 @@ export const ManageAccountsPage: React.FC = () => {
 
     return (
       <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
+        {/* Navigation Breadcrumb & Header */}
+        <div className="flex items-center justify-between gap-4 pt-1">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/accounts')}
+              className="w-9 h-9 rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs shrink-0"
+              aria-label="Back to team accounts"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission</h1>
+                <span className="text-kumo-subtle text-base font-normal">/</span>
+                <span className="text-base font-semibold text-kumo-default">{targetStaff.name}</span>
+              </div>
+              <p className="text-[13px] text-kumo-subtle mt-0.5">
+                Define and manage role policies, authority scopes, and functional operational access for <strong className="text-kumo-strong">{targetStaff.name}</strong> ({targetStaff.email}).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => navigate('/accounts')}
+              className="h-10 px-4 text-[13px] font-medium"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() => handleSaveRouteAndPolicies()}
+              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </div>
 
         {/* Tab Switcher matching Screenshot 1 & 3: [ Permission policies | Groups | Settings ] */}
         <div className="flex items-center justify-between gap-4">
@@ -1061,152 +1284,112 @@ export const ManageAccountsPage: React.FC = () => {
                 </div>
 
                 <div className="p-6 space-y-5">
-                  {/* Scope Selector Dropdown & Target Selector */}
+                  {/* Scope Selector Dropdown & Target Selector matching Cloudflare reference */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="w-full">
                       <Select
-                        value={policyScope}
+                        value={editRole}
                         onValueChange={(val) => {
-                          const newScope = String(val)
-                          setPolicyScope(newScope)
-                          if (newScope === 'Operating Office') {
-                            setPolicyAppliesTo(editOffice || 'Central Kitchen (Ikeja Office)')
-                          } else if (newScope === 'Delivery Zone') {
-                            setPolicyAppliesTo(editZone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
-                          } else if (newScope === 'All Facilities') {
-                            setPolicyAppliesTo('All Facilities (Central Kitchen, Lekki, VI, Yaba)')
-                          } else {
-                            setPolicyAppliesTo('Entire SmokeyOps Organization')
+                          const chosen = String(val)
+                          if (!chosen) {
+                            setEditRole('' as any)
+                            setEditPermissions([])
+                            return
                           }
+                          const newRole = chosen as UserRole
+                          setEditRole(newRole)
+                          const roleConfig = SYSTEM_ROLE_CONFIGS.find(r => r.id === newRole)
+                          const roleDefaults = ROLE_DEFAULT_PERMISSIONS[newRole] || []
+                          setEditPermissions(roleDefaults)
+                          showToast(`Assigned ${roleConfig?.label || newRole} baseline policies`, 'info')
+                        }}
+                        options={roleScopeOptions}
+                        placeholder="Select a scope..."
+                        buttonClassName="h-10 text-[13px] font-medium rounded-xl"
+                      />
+                    </div>
+
+                    <div className="w-full">
+                      <Select
+                        value={policyAppliesTo}
+                        onValueChange={(val) => {
+                          const chosen = String(val)
+                          setPolicyAppliesTo(chosen)
+                          setEditOffice(chosen)
                         }}
                         groups={[
                           {
                             label: 'ACCOUNT-LEVEL',
                             options: [
-                              {
-                                value: 'Enterprise Account',
-                                label: `${targetStaff.email}'s Account`
-                              }
+                              { value: 'Entire account', label: 'Entire account' },
                             ]
                           },
                           {
                             label: 'RESOURCE-SPECIFIC',
-                            options: [
-                              { value: 'Operating Office', label: 'Individual Offices' },
-                              { value: 'Delivery Zone', label: 'Individual Delivery Zones' },
-                              { value: 'All Facilities', label: 'All Operating Facilities' },
-                            ]
+                            options: (facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                              value: f.name,
+                              label: f.name
+                            }))
                           }
                         ]}
-                        className="w-full"
-                        buttonClassName="h-10 rounded-xl"
+                        placeholder="Applies to..."
+                        buttonClassName="h-10 text-[13px] rounded-xl"
                       />
                     </div>
+                  </div>
 
-                    <div className="w-full">
-                      {policyScope === 'Operating Office' ? (
-                        <Select
-                          value={policyAppliesTo}
-                          onValueChange={(val) => {
-                            setPolicyAppliesTo(String(val))
-                            setEditOffice(String(val))
-                          }}
-                          groups={[
-                            {
-                              label: 'PRODUCTION KITCHENS',
-                              options: [
-                                { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                                { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' }
-                              ]
-                            },
-                            {
-                              label: 'DISPATCH & LOGISTICS HUBS',
-                              options: [
-                                { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                                { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                                { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                                ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
-                              ]
-                            }
-                          ]}
-                          className="w-full"
-                          buttonClassName="h-10 rounded-xl"
-                        />
-                      ) : policyScope === 'Delivery Zone' ? (
-                        <Select
-                          value={policyAppliesTo}
-                          onValueChange={(val) => {
-                            setPolicyAppliesTo(String(val))
-                            setEditZone(String(val))
-                          }}
-                          groups={[
-                            {
-                              label: 'DELIVERY METROPOLITAN ZONES',
-                              options: [
-                                { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
-                                { value: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)', label: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)' },
-                                { value: 'Zone 3: Greater Lagos & Inter-hub Trunk', label: 'Zone 3: Greater Lagos & Inter-hub Trunk' },
-                              ]
-                            }
-                          ]}
-                          className="w-full"
-                          buttonClassName="h-10 rounded-xl"
-                        />
-                      ) : (
-                        <div className="w-full flex items-center justify-between px-3 h-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] font-sans">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-kumo-tint text-kumo-strong text-[13px] font-sans">
-                            <Building2 className="w-3.5 h-3.5 text-kumo-subtle" />
-                            <span>{policyAppliesTo}</span>
-                          </span>
+                  {!editRole ? (
+                    <div className="border-2 border-dashed border-kumo-line rounded-2xl p-16 text-center my-6">
+                      <p className="text-[13px] text-kumo-subtle select-none font-medium">
+                        Roles will appear after you select a scope.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Light Blue Info Banner with (i) circle and dismiss (x) */}
+                      {showInfoBanner && (
+                        <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-[13px] text-blue-900 dark:text-blue-200 animate-in fade-in">
+                          <div className="flex items-start gap-2.5">
+                            <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                            <p className="leading-relaxed">
+                              These role permissions only grant access within the selected scope: <strong className="font-semibold">{policyAppliesTo}</strong>. To grant access across all operational kitchens, inventory facilities, and dispatch stations, change the scope to <strong className="font-semibold">All Operating Facilities</strong>.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowInfoBanner(false)}
+                            className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       )}
-                    </div>
-                  </div>
 
-                  {/* Light Blue Info Banner with (i) circle and dismiss (x) */}
-                  {showInfoBanner && (
-                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start justify-between gap-3 text-[13px] text-blue-900 dark:text-blue-200 animate-in fade-in">
-                      <div className="flex items-start gap-2.5">
-                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                        <p className="leading-relaxed">
-                          These role permissions only grant access within the selected scope: <strong className="font-semibold">{policyAppliesTo}</strong>. To grant access across all operational kitchens, inventory facilities, and dispatch stations, change the scope to <strong className="font-semibold">All Operating Facilities</strong>.
-                        </p>
+                      {/* Explanatory text */}
+                      <p className="text-[13px] text-kumo-default leading-relaxed">
+                        Define what operational permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === editRole)?.label || editRole}</strong> should have for <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> within the scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
+                      </p>
+
+                      {/* Search bar matching Screenshot 1 */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={policySearchQuery}
+                          onChange={(e) => setPolicySearchQuery(e.target.value)}
+                          placeholder="Search by role or permission name..."
+                          className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
+                        />
+                        {policySearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setPolicySearchQuery('')}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowInfoBanner(false)}
-                        className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer shrink-0"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Explanatory text */}
-                  <p className="text-[13px] text-kumo-default leading-relaxed">
-                    Define what operational permissions <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> should have within the resource-specific scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
-                  </p>
-
-                  {/* Search bar matching Screenshot 1 */}
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={policySearchQuery}
-                      onChange={(e) => setPolicySearchQuery(e.target.value)}
-                      placeholder="Search by role or permission name..."
-                      className="w-full h-10 pl-10 pr-10 rounded-xl border border-kumo-line bg-kumo-base text-[13px] text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:border-kumo-brand transition-colors"
-                    />
-                    {policySearchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setPolicySearchQuery('')}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
 
                   {/* Collapsible Accordion Groups with Counters & Master Toggle matching Screenshot 1 & 2 */}
                   <div className="border border-kumo-line rounded-xl overflow-hidden bg-kumo-base divide-y divide-kumo-line">
@@ -1299,6 +1482,8 @@ export const ManageAccountsPage: React.FC = () => {
                       )
                     })}
                   </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Bottom Footer Actions matching Screenshot 1 & 2 */}
@@ -1318,7 +1503,7 @@ export const ManageAccountsPage: React.FC = () => {
                     <Button
                       variant="outline"
                       type="button"
-                      onClick={() => setIsEditingPolicy(false)}
+                      onClick={() => navigate('/accounts')}
                       className="h-9 px-4 text-[13px] font-medium"
                     >
                       Cancel
@@ -1326,10 +1511,11 @@ export const ManageAccountsPage: React.FC = () => {
                     <Button
                       variant="primary"
                       type="button"
+                      disabled={!editRole}
                       onClick={() => handleSaveRouteAndPolicies()}
                       className="h-9 px-5 text-[13px] font-semibold shadow-xs"
                     >
-                      Save
+                      Save Changes
                     </Button>
                   </div>
                 </div>
@@ -1371,13 +1557,10 @@ export const ManageAccountsPage: React.FC = () => {
                 <Select
                   value={editOffice}
                   onValueChange={(val) => setEditOffice(String(val))}
-                  options={[
-                    { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                    { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                    { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                    { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                    ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
-                  ]}
+                  options={(facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                    value: f.name,
+                    label: f.name
+                  }))}
                   placeholder="Select assigned office..."
                 />
               </div>
@@ -1517,7 +1700,7 @@ export const ManageAccountsPage: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role Matrix & Policies</h1>
+              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission</h1>
               <p className="text-[13px] text-kumo-subtle mt-0.5">
                 Define and manage system-wide role policies, authority scopes, and functional operational access across all offices.
               </p>
@@ -1530,7 +1713,7 @@ export const ManageAccountsPage: React.FC = () => {
               size="sm"
               type="button"
               onClick={() => navigate('/accounts')}
-              className="h-9 px-4 text-[13px] font-medium"
+              className="h-10 px-4 text-[13px] font-medium"
             >
               Cancel
             </Button>
@@ -1540,7 +1723,7 @@ export const ManageAccountsPage: React.FC = () => {
               type="button"
               disabled={!isScopeSelected}
               onClick={handleSaveMatrixPolicy}
-              className="h-9 px-4 text-[13px] font-semibold shadow-xs"
+              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
             >
               Create policy
             </Button>
@@ -1549,26 +1732,21 @@ export const ManageAccountsPage: React.FC = () => {
 
         {/* Create Policy Card (Exact match to Screenshot 2 & Screenshot 1) */}
         <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-          {/* Card Header matching Screenshot 2 */}
+          {/* Card Header: 16px (text-base font-semibold) */}
           <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40">
-            <h2 className="text-sm font-bold text-kumo-strong">Create policy</h2>
+            <h2 className="text-base font-semibold text-kumo-strong">Create policy</h2>
           </div>
 
           <div className="p-6 space-y-5">
-            {/* Top Scope Selectors Row (Screenshot 2: Select a scope... & Applies to...) */}
+            {/* Top Scope Selectors Row: 40px height */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="w-full">
                 <Select
                   value={matrixScope}
                   onValueChange={(val) => handleMatrixScopeChange(String(val))}
-                  options={[
-                    { value: '', label: 'Select a scope...' },
-                    ...SYSTEM_ROLE_CONFIGS.map(r => ({
-                      value: r.id,
-                      label: `${r.label} (${(ROLE_DEFAULT_PERMISSIONS[r.id] || []).length} baseline policies)`
-                    }))
-                  ]}
+                  options={roleScopeOptions}
                   placeholder="Select a scope..."
+                  buttonClassName="h-10 text-[13px]"
                 />
               </div>
 
@@ -1585,17 +1763,14 @@ export const ManageAccountsPage: React.FC = () => {
                     },
                     {
                       label: 'RESOURCE-SPECIFIC',
-                      options: [
-                        { value: 'Central Kitchen (Ikeja Office)', label: 'Central Kitchen (Ikeja Office)' },
-                        { value: 'Yaba Head Office', label: 'Yaba Head Office' },
-                        { value: 'Lekki Dispatch Staging Office', label: 'Lekki Dispatch Staging Office' },
-                        { value: 'Main Storage Warehouse Office', label: 'Main Storage Warehouse Office' },
-                        { value: 'Victoria Island Dark Kitchen (VI Office)', label: 'Victoria Island Dark Kitchen (VI Office)' },
-                        ...(facilities || []).map(f => ({ value: `${f.name} Office`, label: `${f.name} Office` }))
-                      ]
+                      options: (facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                        value: f.name,
+                        label: f.name
+                      }))
                     }
                   ]}
                   placeholder="Applies to..."
+                  buttonClassName="h-10 text-[13px]"
                 />
               </div>
             </div>
@@ -1886,12 +2061,10 @@ export const ManageAccountsPage: React.FC = () => {
                 },
                 {
                   label: 'RESOURCE-SPECIFIC',
-                  options: [
-                    { label: 'Central Kitchen (Ikeja Office)', value: 'Central Kitchen (Ikeja Office)' },
-                    { label: 'Yaba Head Office', value: 'Yaba Head Office' },
-                    { label: 'Lekki Dispatch Staging Office', value: 'Lekki Dispatch Staging Office' },
-                    { label: 'Main Storage Warehouse Office', value: 'Main Storage Warehouse Office' }
-                  ]
+                  options: (facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                    label: f.name,
+                    value: f.name
+                  }))
                 }
               ]}
               className="w-full"
@@ -2182,7 +2355,7 @@ export const ManageAccountsPage: React.FC = () => {
               leftIcon={<Shield className="w-4 h-4 text-kumo-subtle" />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
             >
-              Role Matrix
+              Role & Permission
             </Button>
             <Button
               variant="primary"
@@ -2201,18 +2374,11 @@ export const ManageAccountsPage: React.FC = () => {
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
-          onChange={(val) => {
-            if (val === 'matrix') {
-              navigate('/accounts/matrix')
-            } else {
-              setActiveTab(val as any)
-            }
-          }}
+          onChange={(val) => setActiveTab(val as any)}
           tabs={[
             { id: 'all', label: 'All Accounts', badge: availableAccounts.length },
             { id: 'active', label: 'Active', badge: activeCount },
             { id: 'inactive', label: 'Inactive', badge: inactiveCount > 0 ? inactiveCount : undefined },
-            { id: 'matrix', label: 'Role Matrix' },
           ]}
         />
       </div>
@@ -2253,10 +2419,10 @@ export const ManageAccountsPage: React.FC = () => {
               key: 'office',
               options: [
                 { label: 'All Offices', value: 'all' },
-                { label: 'Central Kitchen (Ikeja Office)', value: 'Central Kitchen' },
-                { label: 'Yaba Head Office', value: 'Yaba' },
-                { label: 'Lekki Dispatch Staging Office', value: 'Lekki' },
-                { label: 'Main Storage Warehouse Office', value: 'Main Storage' }
+                ...(facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                  label: f.name,
+                  value: f.name
+                }))
               ],
               activeValue: selectedOfficeFilter,
               onChange: setSelectedOfficeFilter
@@ -2338,115 +2504,7 @@ export const ManageAccountsPage: React.FC = () => {
         )}
       </Dialog>
 
-      {/* CHANGE ROLE MODAL */}
-      <Dialog
-        isOpen={Boolean(accountToChangeRole)}
-        onClose={() => setAccountToChangeRole(null)}
-        title="Change Operator Role"
-        description={`Update system role and authority level for ${accountToChangeRole?.name}.`}
-        maxWidth="md"
-      >
-        {accountToChangeRole && (
-          <div className="space-y-4 font-sans text-left">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-kumo-strong">Select New Role</label>
-              <div className="space-y-2">
-                {SYSTEM_ROLE_CONFIGS.map((r) => {
-                  const isSelected = editRole === r.id
-                  return (
-                    <div
-                      key={r.id}
-                      onClick={() => handleEditRoleChange(r.id)}
-                      className={cn(
-                        'p-3 rounded-xl border cursor-pointer transition-colors flex items-start gap-3',
-                        isSelected
-                          ? 'bg-primary/5 border-primary text-kumo-strong'
-                          : 'bg-kumo-base border-kumo-line text-kumo-default hover:bg-kumo-tint'
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        checked={isSelected}
-                        onChange={() => handleEditRoleChange(r.id)}
-                        className="mt-0.5 text-primary focus:ring-primary"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-kumo-strong">{r.label}</p>
-                        <p className="text-[13px] text-kumo-subtle mt-0.5">{r.description}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-kumo-line">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setAccountToChangeRole(null)}
-                className="h-9 px-4 text-[13px]"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                type="button"
-                onClick={() => {
-                  const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === editRole)
-                  const roleLabel = roleConfig ? roleConfig.label : editRole
-                  updateAccount(accountToChangeRole.email, {
-                    role: editRole,
-                    roleLabel,
-                    permissions: editPermissions,
-                  })
-                  setAccountToChangeRole(null)
-                  showToast(`Updated role to ${roleLabel}`, 'success')
-                }}
-                className="h-9 px-4 text-[13px] font-semibold"
-              >
-                Apply Role
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-
-      {/* VIEW PERMISSIONS MODAL */}
-      <Dialog
-        isOpen={Boolean(inspectPermissionsAccount)}
-        onClose={() => setInspectPermissionsAccount(null)}
-        title={`Active Permissions: ${inspectPermissionsAccount?.name}`}
-        description={`Role: ${inspectPermissionsAccount?.roleLabel} • Office: ${inspectPermissionsAccount?.assigned_hub ? `${inspectPermissionsAccount.assigned_hub} Office` : 'Central Kitchen Office'}`}
-        maxWidth="lg"
-      >
-        {inspectPermissionsAccount && (
-          <div className="space-y-3 font-sans text-left">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
-              {(inspectPermissionsAccount.permissions || ROLE_DEFAULT_PERMISSIONS[inspectPermissionsAccount.role] || []).map((p) => (
-                <div
-                  key={p}
-                  className="flex items-center gap-2 p-2 rounded-lg border border-kumo-line bg-kumo-canvas/50"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="font-medium text-[13px] text-kumo-strong">{p}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-end pt-3 border-t border-kumo-line">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setInspectPermissionsAccount(null)}
-                className="h-9 px-4 text-[13px]"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
 
       {/* DELETE ACCOUNT CONFIRMATION */}
       <Dialog
@@ -2458,23 +2516,23 @@ export const ManageAccountsPage: React.FC = () => {
       >
         {accountToDelete && (
           <div className="space-y-4 font-sans text-left">
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-start gap-3">
+            <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div className="text-red-900 dark:text-red-200">
-                <p className="font-semibold text-sm">{accountToDelete.name}</p>
-                <p className="text-[13px] opacity-80">{accountToDelete.email}</p>
-                <p className="text-[13px] opacity-80 mt-1">
+                <p className="font-semibold text-base">{accountToDelete.name}</p>
+                <p className="text-sm opacity-80">{accountToDelete.email}</p>
+                <p className="text-sm opacity-80 mt-1">
                   Assigned role: <strong>{accountToDelete.roleLabel}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-kumo-line">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">
               <Button
                 variant="outline"
                 type="button"
                 onClick={() => setAccountToDelete(null)}
-                className="h-9 px-4 text-[13px]"
+                className="h-10 px-4 text-sm"
               >
                 Cancel
               </Button>
@@ -2482,7 +2540,7 @@ export const ManageAccountsPage: React.FC = () => {
                 variant="destructive"
                 type="button"
                 onClick={handleConfirmDelete}
-                className="h-9 px-4 text-[13px] font-semibold"
+                className="h-10 px-4 text-sm font-semibold"
               >
                 Confirm Delete
               </Button>

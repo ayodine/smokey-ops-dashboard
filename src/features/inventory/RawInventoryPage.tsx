@@ -1050,9 +1050,9 @@ export const RawInventoryPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs flex justify-between items-center">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm flex justify-between items-center">
             <span className="text-kumo-subtle">Total Procurement Value:</span>
-            <span className="font-bold text-emerald-700 text-sm">{formatNaira(receiveQty * receiveUnitCost)}</span>
+            <span className="font-bold text-emerald-700 text-base">{formatNaira(receiveQty * receiveUnitCost)}</span>
           </div>
 
           <Input
@@ -1081,7 +1081,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Manual inventory reconciliation, kitchen wastage, or shrinkage recording."
       >
         <form onSubmit={handleSubmitAdjust} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Current On-Hand:</span>
               <span className="font-bold text-kumo-strong">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
@@ -1159,8 +1159,8 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between leading-4">
-                <label className="block text-xs font-medium text-kumo-strong leading-4">
+              <div className="flex items-center justify-between leading-5">
+                <label className="block text-sm font-semibold text-kumo-strong leading-5">
                   Unit of Measure <span className="text-kumo-danger">*</span>
                 </label>
                 <button
@@ -1174,13 +1174,13 @@ export const RawInventoryPage: React.FC = () => {
                       setCustomUnitText(productForm.unit || '')
                     }
                   }}
-                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-4"
+                  className="text-[13px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-5"
                 >
                   {isCustomUnitMode ? (
                     '← Standard list'
                   ) : (
                     <>
-                      <Pencil className="w-3 h-3" />
+                      <Pencil className="w-3.5 h-3.5" />
                       <span>Custom label</span>
                     </>
                   )}
@@ -1188,7 +1188,7 @@ export const RawInventoryPage: React.FC = () => {
               </div>
 
               {isCustomUnitMode ? (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Input
                     placeholder="e.g. Derica, Stick, Kongo, Bale, Sachet..."
                     value={customUnitText}
@@ -1200,13 +1200,12 @@ export const RawInventoryPage: React.FC = () => {
                     autoFocus
                     required
                   />
-                  <p className="text-[10px] text-kumo-subtle">
+                  <p className="text-[13px] text-kumo-subtle">
                     Type any custom measure label (Derica, Kongo, Bale, Sticks, etc.)
                   </p>
                 </div>
               ) : (
                 <Select
-                  size="sm"
                   value={
                     ALL_INVENTORY_UNITS.some(u => u.value === productForm.unit)
                       ? productForm.unit
@@ -1264,18 +1263,18 @@ export const RawInventoryPage: React.FC = () => {
         description="Counts are hidden during physical stock counting to prevent bias and ensure accuracy."
       >
         <form onSubmit={handleSubmitBlindStocktake} className="space-y-4">
-          <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded text-xs text-blue-800 dark:text-blue-300">
+          <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-sm text-blue-800 dark:text-blue-300">
             <strong>Counting Rule:</strong> Enter the actual physical count verified on the shelf or chiller. Any difference will be reviewed by a supervisor.
           </div>
 
           <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
             {rawProducts.slice(0, 5).map(prod => (
-              <div key={prod.id} className="p-3 bg-kumo-surface border border-kumo-line rounded flex items-center justify-between gap-3">
+              <div key={prod.id} className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-xs text-kumo-strong truncate">{prod.name}</div>
-                  <div className="text-[11px] text-kumo-subtle">{prod.sku} • Unit: {prod.unit}</div>
+                  <div className="font-semibold text-sm text-kumo-strong truncate">{prod.name}</div>
+                  <div className="text-[13px] text-kumo-subtle">{prod.sku} • Unit: {prod.unit}</div>
                 </div>
-                <div className="w-32 shrink-0">
+                <div className="w-36 shrink-0">
                   <Input
                     type="number"
                     step="any"
@@ -1298,7 +1297,7 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           {stocktakeFeedback && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded border border-emerald-200 flex items-center gap-2">
+            <div className="p-3.5 bg-emerald-50 text-emerald-800 text-sm rounded-lg border border-emerald-200 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{stocktakeFeedback}</span>
             </div>
@@ -1323,7 +1322,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Update inventory count to match what was counted and record supervisor approval."
       >
         <form onSubmit={handleConfirmResolve} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Digital Count:</span>
               <span className="font-medium text-kumo-strong">{selectedVariance?.digital_count} {selectedVariance?.unit}</span>
@@ -1334,7 +1333,7 @@ export const RawInventoryPage: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Discrepancy (Delta):</span>
-              <span className="font-bold text-rose-600">
+              <span className="font-bold text-rose-600 text-sm sm:text-base">
                 {selectedVariance?.variance_qty} {selectedVariance?.unit} ({formatNaira(selectedVariance?.variance_value || 0)})
               </span>
             </div>
@@ -1366,7 +1365,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Allocate this perishable lot directly to a kitchen smoke batch so it gets smoked first to prevent food waste."
       >
         <form onSubmit={handleSubmitPrioritize} className="space-y-4">
-          <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs space-y-1.5">
+          <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-sm space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
               <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
@@ -1418,14 +1417,14 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div>
-            <label className="block text-xs font-medium text-kumo-default mb-1">
+            <label className="block text-sm font-semibold text-kumo-default mb-1.5">
               Kitchen Shift Remarks & Smoker Instructions
             </label>
             <textarea
               value={prioritizeRemarks}
               onChange={(e) => setPrioritizeRemarks(e.target.value)}
               rows={2}
-              className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-amber-500 focus:outline-none"
+              className="w-full text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-3 focus:border-amber-500 focus:outline-none"
               placeholder="e.g. Smoke first on morning shift run..."
               required
             />
@@ -1455,7 +1454,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Record shrinkage for expired or spoiled stock. This removes units from raw inventory and logs an audited write-off."
       >
         <form onSubmit={handleSubmitWaste} className="space-y-4">
-          <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs space-y-1.5">
+          <div className="p-3.5 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-sm space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
               <span className="font-semibold text-kumo-strong font-mono">{selectedLot?.lot_number}</span>
@@ -1474,7 +1473,7 @@ export const RawInventoryPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-rose-200 dark:border-rose-900/50">
               <span className="font-semibold text-rose-800 dark:text-rose-300">Financial Loss (Shrinkage):</span>
-              <span className="font-bold text-rose-600 dark:text-rose-400 text-sm">
+              <span className="font-bold text-rose-600 dark:text-rose-400 text-base">
                 {formatNaira((Number(wasteQty) || 0) * (selectedLot?.unit_cost || 0))}
               </span>
             </div>
@@ -1492,14 +1491,14 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
             <div>
-              <label className="block text-xs font-medium text-kumo-default mb-1">
+              <label className="block text-sm font-semibold text-kumo-default mb-1.5">
                 Reason for Write-Off
               </label>
               <input
                 type="text"
                 readOnly
                 value="Expired / Past Date"
-                className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong p-2.5 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
+                className="w-full h-10 text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong px-3 py-2 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
               />
             </div>
           </div>
@@ -1513,14 +1512,14 @@ export const RawInventoryPage: React.FC = () => {
           />
 
           <div>
-            <label className="block text-xs font-medium text-kumo-default mb-1">
+            <label className="block text-sm font-semibold text-kumo-default mb-1.5">
               Spoilage / Disposal Notes
             </label>
             <textarea
               value={wasteNotes}
               onChange={(e) => setWasteNotes(e.target.value)}
               rows={2}
-              className="w-full text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-rose-500 focus:outline-none"
+              className="w-full text-sm sm:text-base rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-3 focus:border-rose-500 focus:outline-none"
               placeholder="e.g. Past shelf-life threshold. Cold chain storage inspected."
               required
             />

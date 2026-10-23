@@ -123,13 +123,13 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
           type="button"
           onClick={onOpenCommandMenu}
           data-kumo-component="Button"
-          className="group flex items-center justify-between w-full h-8 px-3 rounded-lg bg-kumo-base ring ring-kumo-line hover:bg-kumo-tint text-xs font-normal text-kumo-subtle transition-colors cursor-pointer shadow-xs font-sans"
+          className="group flex items-center justify-between w-full h-10 px-3.5 rounded-lg bg-kumo-base border border-kumo-line hover:bg-kumo-tint text-xs font-normal text-kumo-subtle transition-colors cursor-pointer shadow-2xs font-sans"
         >
-          <div className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 shrink-0 opacity-60" />
-            <span className="truncate">Search SKUs, batches, POs, waybills...</span>
+          <div className="flex items-center gap-2.5 truncate">
+            <Search className="w-4 h-4 shrink-0 opacity-60 text-kumo-subtle" />
+            <span className="truncate text-[13px]">Search SKUs, batches, POs, waybills...</span>
           </div>
-          <kbd className="font-sans text-[11px] px-1.5 py-0.5 rounded-md border border-kumo-line bg-kumo-tint text-kumo-subtle shrink-0">
+          <kbd className="font-sans text-[10px] font-semibold leading-none tracking-normal px-1.5 py-0.5 min-w-[22px] h-[18px] rounded-[4px] border border-kumo-line bg-kumo-canvas/90 text-kumo-subtle shrink-0 inline-flex items-center justify-center select-none">
             ⌘K
           </kbd>
         </button>
@@ -331,7 +331,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     })}
                 </div>
 
-                {/* Action Footer: + Add New Branch/Office */}
+                {/* Action Footer: + Add New Office / Branch */}
                 <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
                   <button
                     type="button"
@@ -339,7 +339,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     className="w-full px-4 py-3 text-left text-sm font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
                   >
                     <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                    <span>Add New Branch/Office</span>
+                    <span>Add New Office / Branch</span>
                   </button>
                 </div>
               </div>
@@ -348,11 +348,11 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
         </div>
       </div>
 
-      {/* MODAL: Register New Branch/Office */}
+      {/* MODAL: Register New Office / Branch */}
       <Dialog
         isOpen={isAddFacilityModalOpen}
         onClose={() => setIsAddFacilityModalOpen(false)}
-        title="Register New Branch/Office"
+        title="Register New Office / Branch"
         description="Add a regional branch office, fulfillment depot, or dark kitchen."
       >
         <form onSubmit={handleAddFacilitySubmit} className="space-y-4">
@@ -388,15 +388,16 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             onChange={(e) => setFacilityForm(prev => ({ ...prev, address: e.target.value }))}
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-kumo-line">
             <Button
               variant="outline"
+              size="md"
               type="button"
               onClick={() => setIsAddFacilityModalOpen(false)}
             >
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Save & Switch Branch/Office
             </Button>
           </div>

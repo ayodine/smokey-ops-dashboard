@@ -413,9 +413,9 @@ export const PackagingInventoryPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs flex justify-between font-mono">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm flex justify-between font-mono">
             <span className="text-kumo-subtle">Total Consignment Cost:</span>
-            <span className="font-bold text-emerald-700">{formatNaira(receiveQty * receiveCost)}</span>
+            <span className="font-bold text-emerald-700 text-base">{formatNaira(receiveQty * receiveCost)}</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
@@ -437,10 +437,10 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Log damaged packaging, warehouse count corrections, or scrap."
       >
         <form onSubmit={handleConfirmAdjust} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-sm space-y-1.5">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Current Count:</span>
-              <span className="font-mono font-bold text-kumo-strong">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
+              <span className="font-mono font-bold text-kumo-strong text-base">{selectedProduct?.stock_qty} {selectedProduct?.unit}</span>
             </div>
           </div>
 

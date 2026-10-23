@@ -85,22 +85,14 @@ export const AccountHomePage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Title & Subtitle (Clean PageHeader without Add Stock or Inventory Management buttons) */}
+      {/* Page Title & Subtitle: Renamed to Operation Overview */}
       <PageHeader
-        title="Home overview"
+        title="Operation Overview"
         subtitle={`${totalItemCount} stock items · ${lowStockCount} running low · ${expiringCount} expiring within 30 days`}
       />
 
       {/* =========================================================================
-          SECTION 1: CLOUDFLARE DOMAIN / NAVIGATION SECTION (3-COLUMN HUB)
-          - Inventory Control (Sub-categories with link icons)
-          - Production Runs (Batches, packaging, shift tasks)
-          - Recents (Breadcrumbs with bold leaf labels)
-         ========================================================================= */}
-      <CloudflareNavigationHub />
-
-      {/* =========================================================================
-          SECTION 2: KPI CARDS
+          SECTION 1: KPI CARDS (De-saturated to Clean Grey / Neutral Palette)
          ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: TOTAL STOCK VALUE */}
@@ -112,7 +104,7 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Total stock value
             </span>
-            <div className="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center font-bold text-xs">
               ₦
             </div>
           </div>
@@ -120,7 +112,7 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {formatNaira(totalValuation)}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {totalItemCount} items
             </span>
           </div>
@@ -135,15 +127,15 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Running low
             </span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex items-center justify-center">
-              <Archive className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
+              <Archive className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {lowStockCount}
             </span>
-            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               needs reorder
             </span>
           </div>
@@ -158,16 +150,16 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Expiring soon
             </span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {expiringCount}
             </span>
-            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-              urgent within 7 days
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              within 7 days
             </span>
           </div>
         </div>
@@ -181,15 +173,15 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Out of stock
             </span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 flex items-center justify-center">
-              <Ban className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
+              <Ban className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
             </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
               {outOfStockCount}
             </span>
-            <span className="text-xs font-medium text-kumo-subtle">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               needs supplier order
             </span>
           </div>
@@ -197,14 +189,22 @@ export const AccountHomePage: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          SECTION 3: METRIC GRAPH & CHART FROM CLOUDFLARE (ANALYTICS SECTION)
+          SECTION 2: CLOUDFLARE NAVIGATION SECTION (3-COLUMN HUB)
+          - Inventory Control
+          - Production Runs (with clean production icon)
+          - Recents
          ========================================================================= */}
-      <CloudflareAnalyticsSection />
+      <CloudflareNavigationHub />
 
       {/* =========================================================================
-          SECTION 4: ORDER FLOWCHART DIAGRAM
+          SECTION 3: ORDER TRACKING FLOWCHART DIAGRAM
          ========================================================================= */}
       <OrderWorkflowCanvasOverlay />
+
+      {/* =========================================================================
+          SECTION 4: ANALYTICS SECTION (METRIC GRAPH & LIGHT-MODE INTERACTIVE TOOLTIP)
+         ========================================================================= */}
+      <CloudflareAnalyticsSection />
     </div>
   )
 }

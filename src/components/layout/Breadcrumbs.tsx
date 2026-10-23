@@ -4,7 +4,14 @@ import { ChevronRight, Home } from 'lucide-react'
 
 export const Breadcrumbs: React.FC = () => {
   const location = useLocation()
-  const pathnames = location.pathname.split('/').filter(x => x)
+  const rawPathnames = location.pathname.split('/').filter(x => x)
+  // If on /accounts/route/:email, omit the email param so breadcrumbs end cleanly at Role & Permission matching reference
+  const pathnames = rawPathnames.filter((_, idx) => {
+    if (rawPathnames[0] === 'accounts' && rawPathnames[1] === 'route' && idx === 2) {
+      return false
+    }
+    return true
+  })
 
   const labelMap: Record<string, string> = {
     overview: 'Home overview',
@@ -35,8 +42,8 @@ export const Breadcrumbs: React.FC = () => {
     returns: 'Returns & RMA',
     accounts: 'Manage accounts',
     admin: 'Admin',
-    route: 'Edit route',
-    matrix: 'Role matrix',
+    route: 'Role & Permission',
+    matrix: 'Role & Permission',
   }
 
   // Helper for sentence case fallback

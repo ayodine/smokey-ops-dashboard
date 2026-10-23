@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSmokeyOps, type UserRole } from '@/context/SmokeyOpsContext'
 import { cn } from '@/lib/utils'
@@ -213,8 +213,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     setIsCreateAccountOpen(false)
   }
 
-  // Recents collapsible state
-  const [isRecentsOpen, setIsRecentsOpen] = useState(true)
+  // Recents collapsible state with persistence
+  const [isRecentsOpen, setIsRecentsOpen] = useState(() => {
+    return localStorage.getItem('ops_sidebar_recents_open') !== 'false'
+  })
+
+  const toggleRecents = () => {
+    setIsRecentsOpen(prev => {
+      const next = !prev
+      localStorage.setItem('ops_sidebar_recents_open', String(next))
+      return next
+    })
+  }
 
   // Filter sections based on account role (RBAC)
   const navSections = useMemo(() => {
@@ -241,13 +251,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     return RECENT_NAV_ITEMS
   }, [currentAccount.role])
 
-  // Track expanded collapsible sections
+  // Track expanded collapsible sections with persistence
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    return {
+    const saved = localStorage.getItem('ops_sidebar_open_sections')
+    const defaults = {
+      sale: true,
       inventory: true,
       production: true,
       logistics: true,
     }
+    if (saved) {
+      try {
+        return { ...defaults, ...JSON.parse(saved) }
+      } catch {
+        return defaults
+      }
+    }
+    return defaults
   })
 
   const toggleSection = (id: string) => {
@@ -255,7 +275,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       setIsCollapsed(false)
       localStorage.setItem('ops_sidebar_collapsed', 'false')
     }
-    setOpenSections(prev => ({ ...prev, [id]: !prev[id] }))
+    setOpenSections(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      localStorage.setItem('ops_sidebar_open_sections', JSON.stringify(next))
+      return next
+    })
   }
 
   const toggleCollapse = () => {
@@ -265,6 +289,92 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       return next
     })
   }
+
+  // Automatically ensure the section containing the active route is expanded
+  useEffect(() => {
+    const activeSection = navSections.find(sec =>
+      sec.items.some(item => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`))
+    )
+    if (activeSection && !openSections[activeSection.id]) {
+      setOpenSections(prev => {
+        const next = { ...prev, [activeSection.id]: true }
+        localStorage.setItem('ops_sidebar_open_sections', JSON.stringify(next))
+        return next
+      })
+    }
+  }, [location.pathname, navSections, openSections])
+
+  // Reference to the scrollable navigation container and active item for scroll retention & visibility
+  const navScrollRef = useRef<HTMLDivElement>(null)
+  const activeItemRef = useRef<HTMLAnchorElement>(null)
+
+  // Determine active item href (exact match first, then longest matching prefix)
+  const activeHref = useMemo(() => {
+    for (const sec of navSections) {
+      for (const item of sec.items) {
+        if (location.pathname === item.href) return item.href
+      }
+    }
+    for (const sec of navSections) {
+      for (const item of sec.items) {
+        if (location.pathname.startsWith(`${item.href}/`)) return item.href
+      }
+    }
+    return null
+  }, [location.pathname, navSections])
+
+  // Handle manual scrolling to persist position across refreshes
+  const handleNavScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    sessionStorage.setItem('smokey_sidebar_nav_scroll', String(e.currentTarget.scrollTop))
+  }
+
+  // Preserve scroll on beforeunload as safety
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (navScrollRef.current) {
+        sessionStorage.setItem('smokey_sidebar_nav_scroll', String(navScrollRef.current.scrollTop))
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // Restore scroll position on refresh and guarantee selected side menu is in-view without manual scrolling
+  useLayoutEffect(() => {
+    const navEl = navScrollRef.current
+    if (!navEl) return
+
+    // 1. Restore saved scroll position if available
+    const savedScroll = sessionStorage.getItem('smokey_sidebar_nav_scroll')
+    if (savedScroll !== null) {
+      const parsed = parseFloat(savedScroll)
+      if (!isNaN(parsed)) {
+        navEl.scrollTop = parsed
+      }
+    }
+
+    // 2. Ensure selected active side menu is comfortably in view
+    const ensureInView = () => {
+      const container = navScrollRef.current
+      const activeEl = activeItemRef.current
+      if (!container || !activeEl) return
+
+      const containerRect = container.getBoundingClientRect()
+      const activeRect = activeEl.getBoundingClientRect()
+
+      if (activeRect.top < containerRect.top) {
+        container.scrollTop -= (containerRect.top - activeRect.top) + 12
+        sessionStorage.setItem('smokey_sidebar_nav_scroll', String(container.scrollTop))
+      } else if (activeRect.bottom > containerRect.bottom) {
+        container.scrollTop += (activeRect.bottom - containerRect.bottom) + 12
+        sessionStorage.setItem('smokey_sidebar_nav_scroll', String(container.scrollTop))
+      }
+    }
+
+    ensureInView()
+    const timer = requestAnimationFrame(ensureInView)
+    return () => cancelAnimationFrame(timer)
+  }, [location.pathname, openSections, isMobileOpen])
 
   const sidebarContent = (
     <div
@@ -453,7 +563,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             <div>
               <button
                 type="button"
-                onClick={() => setIsRecentsOpen(prev => !prev)}
+                onClick={toggleRecents}
                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2.5">
@@ -500,11 +610,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       )}
 
       {/* 3. Main Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <div 
+        ref={navScrollRef}
+        onScroll={handleNavScroll}
+        className="flex-1 overflow-y-auto px-2 py-3 space-y-4"
+      >
         {navSections.map(section => {
           const SectionIcon = section.icon
           const isOpen = openSections[section.id]
-          const isSectionActive = section.items.some(item => location.pathname.startsWith(item.href))
+          const isSectionActive = section.items.some(item => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`))
 
           return (
             <div key={section.id} className="space-y-1">
@@ -547,11 +661,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
                   <ul className="m-0 list-none flex flex-col gap-y-0.5 p-0">
                     {section.items.map(subItem => {
-                      const isSubActive = location.pathname === subItem.href || location.pathname.startsWith(`${subItem.href}/`)
+                      const isSubActive = subItem.href === activeHref
 
                       return (
                         <li key={subItem.href} className="relative">
                           <Link
+                            ref={isSubActive ? activeItemRef : undefined}
+                            data-active={isSubActive ? 'true' : undefined}
                             to={subItem.href}
                             onClick={onCloseMobile}
                             className={cn(
@@ -678,7 +794,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         description="Configure role permissions and operational KYC details."
         maxWidth="lg"
       >
-        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans">
+        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans text-sm">
           <Select
             label="Role & Permissions"
             value={newRole}
@@ -691,139 +807,138 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               { value: 'dispatcher', label: 'Logistics Dispatcher' },
               { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
             ]}
-            size="sm"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Full Name</label>
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Full Name</label>
               <input
                 type="text"
                 required
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="e.g. Yusuf Alabi"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Account Email</label>
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Account Email</label>
               <input
                 type="email"
                 required
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="staff@smokeyhut.com"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Phone Number</label>
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Phone Number</label>
               <input
                 type="text"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="08012345678"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Staff / Employee ID</label>
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Staff / Employee ID</label>
               <input
                 type="text"
                 value={newStaffId}
                 onChange={(e) => setNewStaffId(e.target.value)}
                 placeholder="e.g. SHD-FLT-18"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Operating Hub / Office
               </label>
-              <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-xs text-zinc-900 dark:text-zinc-100">
+              <div className="flex items-center justify-between h-10 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-sm sm:text-base text-zinc-900 dark:text-zinc-100">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="font-medium truncate">
                     {selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}
                   </span>
                 </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
                   Active HQ
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">National ID / NIN</label>
+              <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">National ID / NIN</label>
               <input
                 type="text"
                 value={newNationalId}
                 onChange={(e) => setNewNationalId(e.target.value)}
                 placeholder="7829-4821-9921"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
               />
             </div>
           </div>
 
           {/* Rider Specific KYC Details */}
           {newRole === 'rider' && (
-            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-2.5 animate-in fade-in">
-              <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in fade-in">
+              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
                 <span>Driver Fleet KYC Details</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
+                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
                   <input
                     type="text"
                     value={newVehicleType}
                     onChange={(e) => setNewVehicleType(e.target.value)}
                     placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
+                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
                   <input
                     type="text"
                     value={newPlateNumber}
                     onChange={(e) => setNewPlateNumber(e.target.value)}
                     placeholder="LND-482-XA"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
+                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
                   <input
                     type="text"
                     value={newLicenseNumber}
                     onChange={(e) => setNewLicenseNumber(e.target.value)}
                     placeholder="DL-98234-LAG"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
+                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
                   <input
                     type="number"
                     min="5000"
                     step="5000"
                     value={newCodLimit}
                     onChange={(e) => setNewCodLimit(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    className="w-full h-10 px-3 py-2 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
               </div>
@@ -833,18 +948,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           {/* Temporary Sign-in Credentials Flow */}
           <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-500" />
+              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Key className="w-4 h-4 text-amber-500" />
                 <span>Temporary Sign-in Credentials</span>
               </div>
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
                 Auto-Provisioned
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                   Sign-in Username / Handle
                 </label>
                 <input
@@ -853,21 +968,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                   value={newUsername || (newEmail ? newEmail.split('@')[0].toLowerCase() : '')}
                   onChange={(e) => setNewUsername(e.target.value)}
                   placeholder="e.g. yusuf.ops"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
+                  className="w-full h-10 px-3.5 py-2.5 text-sm sm:text-base rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <label className="block text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
                     Temporary Password
                   </label>
                   <button
                     type="button"
                     onClick={() => setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
-                    className="text-[10px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[13px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <RefreshCw className="w-2.5 h-2.5" />
+                    <RefreshCw className="w-3 h-3" />
                     <span>Regenerate</span>
                   </button>
                 </div>
@@ -877,25 +992,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                     required
                     value={newTempPassword}
                     onChange={(e) => setNewTempPassword(e.target.value)}
-                    className="w-full pl-3 pr-8 py-2 text-xs font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="w-full h-10 pl-3.5 pr-10 py-2 text-sm sm:text-base font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-0.5 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
+            <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
               <input
                 type="checkbox"
                 checked={mustChangePassword}
                 onChange={(e) => setMustChangePassword(e.target.checked)}
-                className="rounded border-zinc-300 text-primary focus:ring-primary w-3.5 h-3.5"
+                className="rounded border-zinc-300 text-primary focus:ring-primary w-4 h-4"
               />
               <span>Force password change on first sign-in (Recommended)</span>
             </label>
@@ -905,15 +1020,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             <button
               type="button"
               onClick={() => setIsCreateAccountOpen(false)}
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] active:bg-[#8a1413] rounded-lg cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
+              className="h-10 px-4 py-2 text-sm font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] active:bg-[#8a1413] rounded-lg cursor-pointer shadow-xs transition-colors flex items-center gap-2"
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              <UserPlus className="w-4 h-4" />
               <span>Create Account</span>
             </button>
           </div>
@@ -929,33 +1044,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         maxWidth="md"
       >
         {createdAccountSummary && (
-          <div className="space-y-4 font-sans text-xs">
+          <div className="space-y-4 font-sans text-sm">
             <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2 text-amber-900 dark:text-amber-200">
-              <div className="font-semibold text-xs flex items-center gap-1.5">
+              <div className="font-semibold text-sm flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <span>Onboarding Credentials for {createdAccountSummary.name}</span>
               </div>
-              <p className="text-[11px] opacity-90 leading-relaxed">
+              <p className="text-[13px] opacity-90 leading-relaxed">
                 A temporary password has been set. The operator will be prompted to choose a permanent password on first login.
               </p>
             </div>
 
-            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5">
+            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Username:</span>
-                <span className="font-mono font-bold text-kumo-strong text-xs px-2 py-1 bg-kumo-base border border-kumo-line rounded">
+                <span className="font-mono font-bold text-kumo-strong text-sm px-2.5 py-1 bg-kumo-base border border-kumo-line rounded">
                   {createdAccountSummary.username}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Account Email:</span>
-                <span className="font-mono font-medium text-kumo-strong text-xs">
+                <span className="font-mono font-medium text-kumo-strong text-sm">
                   {createdAccountSummary.email}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-kumo-subtle">Temporary Password:</span>
-                <span className="font-mono font-bold text-emerald-600 text-xs px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
+                <span className="font-mono font-bold text-emerald-600 text-sm px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
                   {createdAccountSummary.tempPass}
                 </span>
               </div>
@@ -976,15 +1091,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                   setCopiedTempCreds(true)
                   setTimeout(() => setCopiedTempCreds(false), 2000)
                 }}
-                className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-kumo-tint hover:bg-kumo-line border border-kumo-line text-kumo-strong transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="h-10 px-4 py-2 text-sm font-semibold rounded-lg bg-kumo-tint hover:bg-kumo-line border border-kumo-line text-kumo-strong transition-colors flex items-center gap-2 cursor-pointer"
               >
-                {copiedTempCreds ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedTempCreds ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedTempCreds ? 'Copied to Clipboard' : 'Copy Credentials'}</span>
               </button>
               <Button
                 variant="primary"
-                size="sm"
-                type="button"
+                size="md"
                 onClick={() => setCreatedAccountSummary(null)}
               >
                 Done

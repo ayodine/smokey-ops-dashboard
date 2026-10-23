@@ -546,16 +546,14 @@ export const WebsiteOrdersPage: React.FC = () => {
       </div>
 
       {/* 4. DataTable with Search, Category filters, and Full Order Data */}
-      <div className="rounded-xl border border-kumo-line bg-kumo-base shadow-2xs overflow-hidden">
-        <DataTable
-          data={filteredOrders}
-          columns={columns}
-          searchable={true}
-          searchPlaceholder="Search order ID, customer name, phone, or address..."
-          tableId="website_orders_table"
-          exportFilename="website_orders.csv"
-        />
-      </div>
+      <DataTable
+        data={filteredOrders}
+        columns={columns}
+        searchable={true}
+        searchPlaceholder="Search order ID, customer name, phone, or address..."
+        tableId="website_orders_table"
+        exportFilename="website_orders.csv"
+      />
 
       {/* 5. Order Details Modal */}
       {selectedOrder && (
@@ -565,8 +563,8 @@ export const WebsiteOrdersPage: React.FC = () => {
           title={`Order Details: ${selectedOrder.order_ref}`}
           className="max-w-lg"
         >
-          <div className="space-y-4 text-xs font-sans">
-            <div className="rounded-lg bg-kumo-canvas border border-kumo-line p-3.5 space-y-2">
+          <div className="space-y-4 text-sm sm:text-base font-sans">
+            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-4 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-kumo-subtle">Customer:</span>
                 <span className="font-semibold text-kumo-strong">{selectedOrder.customer_name}</span>
@@ -583,7 +581,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-lg bg-kumo-canvas border border-kumo-line p-3.5 space-y-2">
+            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-4 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-kumo-subtle">Ordered Items:</span>
                 <span className="font-semibold text-kumo-strong text-right">
@@ -592,7 +590,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-kumo-subtle">Order Total:</span>
-                <span className="font-bold text-sm text-kumo-strong">
+                <span className="font-bold text-base sm:text-lg text-kumo-strong">
                   {formatNaira(selectedOrder.total_amount)}
                 </span>
               </div>
@@ -607,7 +605,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                 <StatusBadge
                   status={selectedOrder.payment_status === 'paid' ? 'PAID' : 'PENDING'}
                   label={selectedOrder.payment_status === 'paid' ? 'Paid' : 'Pending'}
-                  size="sm"
+                  size="md"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -625,7 +623,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
                     selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
                   }
-                  size="sm"
+                  size="md"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -634,22 +632,22 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg text-amber-800 dark:text-amber-300">
+            <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl text-amber-800 dark:text-amber-300">
               <span className="font-semibold block mb-0.5">Order Notes:</span>
               <span>{selectedOrder.notes}</span>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-kumo-line">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setIsDetailsModalOpen(false)}
               >
                 Close
               </Button>
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={() => {
                   setIsDetailsModalOpen(false)
                   navigate('/overview')

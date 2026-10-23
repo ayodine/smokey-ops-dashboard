@@ -410,7 +410,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
 
               return (
                 <div key={cat} className="py-1.5 first:pt-0 last:pb-0">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-kumo-subtle">
+                  <div className="px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-kumo-subtle">
                     {cat}
                   </div>
                   <div className="space-y-0.5 mt-0.5">
@@ -427,38 +427,38 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
                           data-active={isSelected}
                           onClick={() => handleSelectItem(item)}
                           onMouseEnter={() => setSelectedIndex(itemIdx)}
-                          className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors ${
                             isSelected
                               ? 'bg-primary/10 text-primary'
                               : 'hover:bg-kumo-tint text-kumo-strong'
                           }`}
                         >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
                             <div
-                              className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                                 isSelected
                                   ? 'bg-primary text-white shadow-xs'
                                   : 'bg-kumo-tint text-kumo-default border border-kumo-line/60'
                               }`}
                             >
-                              <Icon className="w-3.5 h-3.5" />
+                              <Icon className="w-[19px] h-[19px]" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-xs truncate leading-snug">
+                              <p className="font-semibold text-[14px] truncate leading-snug">
                                 {item.title}
                               </p>
                               {item.subtitle && (
-                                <p className="text-[11px] text-kumo-subtle truncate mt-0.5">
+                                <p className="text-[13px] text-kumo-subtle truncate mt-0.5">
                                   {item.subtitle}
                                 </p>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <div className="flex items-center gap-2.5 shrink-0 ml-3">
                             {item.badge && (
                               <span
-                                className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${
+                                className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${
                                   isSelected
                                     ? 'bg-primary/20 text-primary border-primary/30'
                                     : 'bg-kumo-tint text-kumo-subtle border-kumo-line'
@@ -468,7 +468,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
                               </span>
                             )}
                             <ArrowRight
-                              className={`w-3.5 h-3.5 transition-transform ${
+                              className={`w-4 h-4 transition-transform ${
                                 isSelected
                                   ? 'opacity-100 translate-x-0 text-primary'
                                   : 'opacity-0 -translate-x-1'

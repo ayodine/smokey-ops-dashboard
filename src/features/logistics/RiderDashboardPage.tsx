@@ -831,18 +831,18 @@ export const RiderDashboardPage: React.FC = () => {
         maxWidth="lg"
       >
         {previewOrder && (
-          <div className="space-y-4 font-sans text-xs">
+          <div className="space-y-4 font-sans text-sm">
             {/* Status & Timing Banner */}
-            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between flex-wrap gap-2">
+            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between flex-wrap gap-2">
               <div>
-                <span className="text-kumo-subtle text-[11px] block">Order Reference</span>
-                <span className="text-sm font-bold text-kumo-strong">#{previewOrder.order_ref}</span>
+                <span className="text-kumo-subtle text-[13px] block">Order Reference</span>
+                <span className="text-base font-bold text-kumo-strong">#{previewOrder.order_ref}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-kumo-subtle">
+                <span className="text-[13px] text-kumo-subtle">
                   {previewOrder.status === 'delivered' ? `Delivered: ${previewOrder.delivered_at || previewOrder.dispatch_date}` : `Dispatched: ${previewOrder.dispatch_date}`}
                 </span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                <span className={`inline-flex items-center px-2.5 py-1 rounded text-[13px] font-semibold border ${
                   previewOrder.status === 'delivered'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                     : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
@@ -853,79 +853,79 @@ export const RiderDashboardPage: React.FC = () => {
             </div>
 
             {/* Customer & Route Details */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+            <div className="border border-kumo-line rounded-lg p-4 space-y-2.5 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-[13px] uppercase tracking-wider">
                 Customer & Destination Route
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 <div>
-                  <span className="text-kumo-subtle text-[11px] block">Recipient Name</span>
-                  <span className="font-semibold text-kumo-strong">{previewOrder.customer_name}</span>
+                  <span className="text-kumo-subtle text-[13px] block">Recipient Name</span>
+                  <span className="font-semibold text-kumo-strong text-base">{previewOrder.customer_name}</span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle text-[11px] block">Phone Contact</span>
+                  <span className="text-kumo-subtle text-[13px] block">Phone Contact</span>
                   <a
                     href={`tel:${previewOrder.phone}`}
-                    className="inline-flex items-center gap-1 font-semibold text-kumo-strong hover:underline"
+                    className="inline-flex items-center gap-1.5 font-semibold text-kumo-strong hover:underline text-base"
                   >
-                    <Phone className="w-3 h-3 text-kumo-subtle" />
+                    <Phone className="w-4 h-4 text-kumo-subtle" />
                     <span>{previewOrder.phone}</span>
                   </a>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-kumo-subtle text-[11px] block">Drop-off Address</span>
-                  <p className="text-kumo-strong font-medium mt-0.5">{previewOrder.address}</p>
+                  <span className="text-kumo-subtle text-[13px] block">Drop-off Address</span>
+                  <p className="text-kumo-strong font-medium text-sm sm:text-base mt-0.5">{previewOrder.address}</p>
                   <a
                     href={`https://maps.google.com/?q=${encodeURIComponent(previewOrder.address)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium mt-1.5"
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium mt-2"
                   >
-                    <MapPin className="w-3.5 h-3.5" />
+                    <MapPin className="w-4 h-4" />
                     <span>Open in Google Maps for Navigation</span>
-                    <ExternalLink className="w-3 h-3" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
               </div>
             </div>
 
             {/* Kitchen Food Package */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+            <div className="border border-kumo-line rounded-lg p-4 space-y-2.5 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-[13px] uppercase tracking-wider">
                 Kitchen Packaged Items
               </h4>
-              <p className="text-kumo-strong font-medium text-xs">
+              <p className="text-kumo-strong font-medium text-sm sm:text-base">
                 {previewOrder.items_summary || 'Smokey Hut Kitchen Meal Pack'}
               </p>
               {previewOrder.notes && (
-                <div className="p-2.5 bg-muted/20 border border-kumo-line rounded text-[11px] text-kumo-strong">
-                  <span className="font-semibold text-kumo-subtle block mb-0.5">Kitchen Special Instructions:</span>
+                <div className="p-3 bg-muted/20 border border-kumo-line rounded text-[13px] text-kumo-strong">
+                  <span className="font-semibold text-kumo-subtle block mb-1">Kitchen Special Instructions:</span>
                   {previewOrder.notes}
                 </div>
               )}
             </div>
 
             {/* Financial Commission & Billing */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-xs uppercase tracking-wider text-[11px]">
+            <div className="border border-kumo-line rounded-lg p-4 space-y-2.5 bg-kumo-canvas">
+              <h4 className="font-semibold text-kumo-strong text-[13px] uppercase tracking-wider">
                 Trip Commission & Payment Status
               </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 pt-1">
                 <div>
-                  <span className="text-kumo-subtle text-[11px] block">Trip Fee Earned</span>
-                  <span className="font-bold text-sm text-kumo-strong font-mono">
+                  <span className="text-kumo-subtle text-[13px] block">Trip Fee Earned</span>
+                  <span className="font-bold text-base text-kumo-strong font-mono">
                     {formatNaira(previewOrder.delivery_fee)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle text-[11px] block">Payment Mode</span>
-                  <span className="font-medium text-kumo-strong">
+                  <span className="text-kumo-subtle text-[13px] block">Payment Mode</span>
+                  <span className="font-medium text-kumo-strong text-sm sm:text-base">
                     {previewOrder.payment_mode === 'cod' ? `COD (${formatNaira(previewOrder.cod_amount || 0)})` : 'Online Prepaid'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-kumo-subtle text-[11px] block">Settlement Status</span>
-                  <span className="font-medium text-kumo-strong">
+                  <span className="text-kumo-subtle text-[13px] block">Settlement Status</span>
+                  <span className="font-medium text-kumo-strong text-sm sm:text-base">
                     {previewOrder.status === 'delivered' ? 'Settled to Wallet' : 'Pending Completion'}
                   </span>
                 </div>
@@ -934,7 +934,7 @@ export const RiderDashboardPage: React.FC = () => {
               {/* Third-Party receipt proof if available */}
               {previewOrder.fee_evidence_path && (
                 <div className="pt-2 border-t border-kumo-line mt-2">
-                  <span className="text-kumo-subtle text-[11px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
+                  <span className="text-kumo-subtle text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
                   <div className="max-w-xs border border-kumo-line rounded-lg overflow-hidden">
                     <img
                       src={previewOrder.fee_evidence_path}
@@ -947,10 +947,10 @@ export const RiderDashboardPage: React.FC = () => {
             </div>
 
             {/* Actions in Modal Footer */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-kumo-line">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={() => setPreviewOrder(null)}
               >
                 Close
@@ -959,7 +959,7 @@ export const RiderDashboardPage: React.FC = () => {
                 <>
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="md"
                     onClick={() => {
                       const target = previewOrder
                       setPreviewOrder(null)
@@ -971,7 +971,7 @@ export const RiderDashboardPage: React.FC = () => {
                   </Button>
                   <Button
                     variant="primary"
-                    size="sm"
+                    size="md"
                     onClick={() => {
                       const target = previewOrder
                       setPreviewOrder(null)
@@ -997,24 +997,24 @@ export const RiderDashboardPage: React.FC = () => {
         title="Decline Delivery Order"
         maxWidth="md"
       >
-        <div className="space-y-4 font-sans text-xs">
-          <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-amber-800 dark:text-amber-200">
-            <p className="font-semibold">
+        <div className="space-y-4 font-sans text-sm">
+          <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl text-amber-800 dark:text-amber-200">
+            <p className="font-semibold text-base">
               Declining Order #{declineTargetOrder?.order_ref}
             </p>
-            <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5 font-normal">
+            <p className="text-[13px] text-amber-700 dark:text-amber-300 mt-1 font-normal">
               This order will return to the central Logistics Dispatch Board under <em>Awaiting Assignment</em> for re-dispatch to another fleet rider or 3PL courier.
             </p>
           </div>
 
           <div>
-            <label className="block font-semibold text-kumo-strong mb-1.5">
+            <label className="block font-semibold text-kumo-strong text-sm mb-1.5">
               Reason for Declining:
             </label>
             <select
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value)}
-              className="w-full text-xs bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg p-2.5 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary"
+              className="w-full h-10 text-sm sm:text-base bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg px-3 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary"
             >
               <option value="Bike mechanical issue / flat tire">Bike mechanical issue / flat tire</option>
               <option value="Outside current delivery zone">Outside current operational delivery zone</option>
@@ -1026,7 +1026,7 @@ export const RiderDashboardPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-kumo-strong mb-1.5">
+            <label className="block font-semibold text-kumo-strong text-sm mb-1.5">
               Additional Dispatch Notes (Optional):
             </label>
             <textarea
@@ -1034,21 +1034,21 @@ export const RiderDashboardPage: React.FC = () => {
               placeholder="e.g. Chain snapped on Lekki-Ikoyi link bridge, waiting for repair..."
               value={customDeclineNotes}
               onChange={(e) => setCustomDeclineNotes(e.target.value)}
-              className="w-full text-xs bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg p-2.5 focus:outline-hidden focus:ring-1 focus:ring-primary placeholder:text-kumo-subtle/70 font-normal"
+              className="w-full text-sm sm:text-base bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg p-3 focus:outline-hidden focus:ring-1 focus:ring-primary placeholder:text-kumo-subtle/70 font-normal"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-kumo-line">
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-kumo-line">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={() => setDeclineTargetOrder(null)}
             >
               Keep Assignment
             </Button>
             <Button
               variant="destructive"
-              size="sm"
+              size="md"
               onClick={handleConfirmDecline}
             >
               Confirm Decline
@@ -1066,42 +1066,42 @@ export const RiderDashboardPage: React.FC = () => {
         title="Confirm Customer Handover"
         maxWidth="md"
       >
-        <div className="space-y-4 font-sans text-xs">
-          <div className="bg-emerald-500/10 border border-emerald-500/20 p-3.5 rounded-xl text-emerald-800 dark:text-emerald-200">
-            <h4 className="font-bold text-sm">
+        <div className="space-y-4 font-sans text-sm">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl text-emerald-800 dark:text-emerald-200">
+            <h4 className="font-bold text-base">
               Deliver Order #{confirmDeliveryTarget?.order_ref}?
             </h4>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 font-normal">
+            <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1 font-normal">
               Customer: <strong>{confirmDeliveryTarget?.customer_name}</strong> ({confirmDeliveryTarget?.phone})
             </p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 font-normal">
+            <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-0.5 font-normal">
               Address: {confirmDeliveryTarget?.address}
             </p>
           </div>
 
-          <div className="p-3 bg-kumo-canvas border border-kumo-line rounded-xl">
-            <div className="flex items-center justify-between text-xs">
+          <div className="p-3.5 bg-kumo-canvas border border-kumo-line rounded-xl">
+            <div className="flex items-center justify-between text-sm">
               <span className="text-kumo-subtle font-normal">Commission Credited:</span>
-              <span className="font-bold text-emerald-600 text-sm">
+              <span className="font-bold text-emerald-600 text-base">
                 +{formatNaira(confirmDeliveryTarget?.delivery_fee || 0)}
               </span>
             </div>
-            <p className="text-[11px] text-kumo-subtle mt-1 font-normal">
+            <p className="text-[13px] text-kumo-subtle mt-1 font-normal">
               The fee will be auto-credited to your outstanding wallet balance and moved to your Delivered Orders archive.
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-kumo-line">
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-kumo-line">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={() => setConfirmDeliveryTarget(null)}
             >
               Cancel
             </Button>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               onClick={() => confirmDeliveryTarget && handleConfirmDelivered(confirmDeliveryTarget)}
             >
               Confirm Delivered

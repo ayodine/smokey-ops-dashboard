@@ -117,9 +117,9 @@ export const KitchenTasksPage: React.FC = () => {
       header: 'Task State',
       accessor: (t) => {
         const statusMap = {
-          pending: { status: 'pending' as const, label: 'PENDING' },
-          in_progress: { status: 'in_production' as const, label: 'ON-GOING' },
-          done: { status: 'active' as const, label: 'COMPLETED' },
+          pending: { status: 'pending' as const, label: 'pending' },
+          in_progress: { status: 'in_production' as const, label: 'in-progress' },
+          done: { status: 'active' as const, label: 'completed' },
         }
         const s = statusMap[t.status]
         return <StatusBadge status={s.status} label={s.label} />
@@ -301,11 +301,11 @@ export const KitchenTasksPage: React.FC = () => {
             required
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" type="button" onClick={() => setIsCreateModalOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-kumo-line">
+            <Button variant="outline" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" size="md" type="submit">
               Assign Task
             </Button>
           </div>
