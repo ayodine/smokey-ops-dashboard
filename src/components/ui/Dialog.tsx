@@ -76,12 +76,12 @@ export const Dialog: React.FC<DialogProps> = ({
           <div>
             <h3
               id="dialog-title"
-              className="text-lg font-bold text-kumo-strong tracking-[0.015em] leading-snug"
+              className="text-base font-semibold text-kumo-strong tracking-[0.01em] leading-snug"
             >
               {title}
             </h3>
             {description && (
-              <p className="mt-1 text-sm text-kumo-subtle tracking-normal leading-relaxed">{description}</p>
+              <p className="mt-0.5 text-xs text-kumo-subtle tracking-normal leading-relaxed">{description}</p>
             )}
           </div>
           <button
@@ -89,12 +89,12 @@ export const Dialog: React.FC<DialogProps> = ({
             aria-label="Close dialog"
             className="p-1.5 rounded-lg text-kumo-subtle hover:text-kumo-default hover:bg-kumo-tint transition-colors cursor-pointer shrink-0 ml-3"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body Content - 14px to 16px base font */}
-        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 text-sm sm:text-base text-kumo-default">
+        {/* Body Content - reduced by 2px to 12px-14px */}
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 text-xs sm:text-sm text-kumo-default">
           {children}
         </div>
 

@@ -563,52 +563,52 @@ export const WebsiteOrdersPage: React.FC = () => {
           title={`Order Details: ${selectedOrder.order_ref}`}
           className="max-w-lg"
         >
-          <div className="space-y-4 text-sm sm:text-base font-sans">
-            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+          <div className="space-y-3 text-xs sm:text-sm font-sans">
+            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Customer:</span>
-                <span className="font-semibold text-kumo-strong">{selectedOrder.customer_name}</span>
+                <span className="font-semibold text-kumo-strong text-xs sm:text-sm">{selectedOrder.customer_name}</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Phone:</span>
-                <span className="font-medium text-kumo-default">{selectedOrder.phone}</span>
+                <span className="font-medium text-kumo-default text-xs">{selectedOrder.phone}</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Delivery Address:</span>
-                <span className="font-medium text-kumo-strong text-right max-w-[240px]">
+                <span className="font-medium text-kumo-strong text-right max-w-[240px] text-xs leading-normal">
                   {selectedOrder.address}
                 </span>
               </div>
             </div>
 
-            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+            <div className="rounded-xl bg-kumo-canvas border border-kumo-line p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Ordered Items:</span>
-                <span className="font-semibold text-kumo-strong text-right">
+                <span className="font-semibold text-kumo-strong text-right text-xs leading-normal max-w-[240px]">
                   {selectedOrder.items_summary}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Order Total:</span>
-                <span className="font-bold text-base sm:text-lg text-kumo-strong">
+                <span className="font-bold text-sm sm:text-base text-kumo-strong">
                   {formatNaira(selectedOrder.total_amount)}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Delivery Fee:</span>
-                <span className="font-medium text-kumo-default">
+                <span className="font-medium text-kumo-default text-xs">
                   {formatNaira(selectedOrder.delivery_fee)}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Payment Status:</span>
                 <StatusBadge
                   status={selectedOrder.payment_status === 'paid' ? 'PAID' : 'PENDING'}
                   label={selectedOrder.payment_status === 'paid' ? 'Paid' : 'Pending'}
-                  size="md"
+                  size="sm"
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Fulfillment Stage:</span>
                 <StatusBadge
                   status={
@@ -623,18 +623,18 @@ export const WebsiteOrdersPage: React.FC = () => {
                     selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
                     selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
                   }
-                  size="md"
+                  size="sm"
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-kumo-subtle">Assigned Rider:</span>
-                <span className="font-medium text-kumo-strong">{selectedOrder.rider_name}</span>
+                <span className="font-medium text-kumo-strong text-xs sm:text-sm">{selectedOrder.rider_name}</span>
               </div>
             </div>
 
-            <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl text-amber-800 dark:text-amber-300">
-              <span className="font-semibold block mb-0.5">Order Notes:</span>
-              <span>{selectedOrder.notes}</span>
+            <div className="p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+              <span className="font-semibold block mb-0.5 text-xs">Order Notes:</span>
+              <span className="text-xs leading-normal">{selectedOrder.notes}</span>
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">

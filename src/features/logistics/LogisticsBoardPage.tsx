@@ -402,18 +402,18 @@ export const LogisticsBoardPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleConfirmAssign} className="space-y-4">
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded text-sm space-y-1.5">
-            <div className="flex justify-between">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+            <div className="flex justify-between items-baseline text-xs">
               <span className="text-kumo-subtle">Customer:</span>
-              <span className="font-semibold text-kumo-strong text-base">{selectedDelivery?.customer_name}</span>
+              <span className="font-semibold text-kumo-strong text-xs sm:text-sm">{selectedDelivery?.customer_name}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-baseline text-xs">
               <span className="text-kumo-subtle">Delivery Address:</span>
-              <span className="text-kumo-strong font-medium truncate max-w-xs">{selectedDelivery?.address}</span>
+              <span className="text-kumo-strong font-medium truncate max-w-xs text-xs">{selectedDelivery?.address}</span>
             </div>
-            <div className="flex justify-between items-center font-sans">
+            <div className="flex justify-between items-center text-xs font-sans">
               <span className="text-kumo-subtle font-medium">Customer Paid Fee:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-base">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
+              <span className="font-semibold text-emerald-600 font-sans text-xs sm:text-sm">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
             </div>
           </div>
 
