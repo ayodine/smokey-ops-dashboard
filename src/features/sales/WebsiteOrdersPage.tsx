@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -8,7 +8,7 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
-import { SEED_SCHEDULED_ORDERS } from '@/lib/smokeyData'
+import { supabase } from '@/lib/supabase'
 import { formatNaira, formatDate } from '@/lib/utils'
 import {
   ShoppingBag,
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 
 export interface WebsiteOrder {
-  id: number
+  id: string | number
   order_ref: string
   customer_name: string
   phone: string
@@ -43,240 +43,111 @@ export interface WebsiteOrder {
   notes: string
 }
 
-// Map the 14 SEED orders to website sales orders with rich dishes and fulfillment details
-export const INITIAL_WEBSITE_ORDERS: WebsiteOrder[] = [
-  {
-    id: 8551,
-    order_ref: "SHD-07662",
-    customer_name: "Jesutofunmi Bukola",
-    phone: "09036054778",
-    address: "8/10 Oladimeji Johnson crescent, Iyana Ipaja",
-    items_summary: "Full Smokey Guineafowl + 1L Smokey Jollof Rice",
-    total_amount: 28700,
-    delivery_fee: 4000,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_transit",
-    scheduled_delivery_at: "2026-09-25 12:30:00",
-    rider_name: "Rider Wasiu (Internal)",
-    notes: "Lunch order delivery via Website storefront"
-  },
-  {
-    id: 8550,
-    order_ref: "SHD-07661",
-    customer_name: "Anita Ihaza",
-    phone: "07062364644",
-    address: "4 Awoseyin Lane, Shomolu",
-    items_summary: "Smoked Goat Meat Asun Bowl + Extra Pepper Sauce",
-    total_amount: 27700,
-    delivery_fee: 2500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "packaging",
-    scheduled_delivery_at: "2026-09-25 13:30:00",
-    rider_name: "Rider Joshua (Internal)",
-    notes: "Office lunch party dispatch"
-  },
-  {
-    id: 8549,
-    order_ref: "SHD-07660",
-    customer_name: "Ahmad Sanusi",
-    phone: "08055443322",
-    address: "35 Glover Road, Ikoyi",
-    items_summary: "Smoked Turkey Wings (3pcs) + Fried Yam Feast",
-    total_amount: 62500,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "cooking",
-    scheduled_delivery_at: "2026-09-26 15:00:00",
-    rider_name: "Pending Assignment",
-    notes: "Pre-order VIP catering package"
-  },
-  {
-    id: 8552,
-    order_ref: "SHD-07663",
-    customer_name: "Dr. Funsho Williams",
-    phone: "08023456789",
-    address: "14 Kingsway Rd, Ikoyi",
-    items_summary: "Full Guinea Fowl Feast + Sweet Plantain",
-    total_amount: 54000,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "delivered",
-    scheduled_delivery_at: "2026-10-22 12:00:00",
-    rider_name: "Rider Wasiu (Internal)",
-    notes: "Executive medical board lunch buffet"
-  },
-  {
-    id: 8553,
-    order_ref: "SHD-07664",
-    customer_name: "Kemi Adebayo",
-    phone: "08139876543",
-    address: "Plot 19 Admiralty Way, Lekki Phase 1",
-    items_summary: "Smoked Brisket Strips + 2x 50cl Palmwine",
-    total_amount: 38200,
-    delivery_fee: 3000,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_transit",
-    scheduled_delivery_at: "2026-10-22 13:00:00",
-    rider_name: "Rider Yusuf (Fleet)",
-    notes: "Corporate lunch meeting package"
-  },
-  {
-    id: 8554,
-    order_ref: "SHD-07665",
-    customer_name: "Emeka Okonkwo",
-    phone: "07061122334",
-    address: "42 Bode Thomas St, Surulere",
-    items_summary: "Party Jollof Rice (3L Tub) + Peppered Gizzard",
-    total_amount: 45000,
-    delivery_fee: 2500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "delivered",
-    scheduled_delivery_at: "2026-10-22 13:30:00",
-    rider_name: "Rider Joshua (Internal)",
-    notes: "Birthday gathering smokey platter"
-  },
-  {
-    id: 8555,
-    order_ref: "SHD-07666",
-    customer_name: "Halima Abubakar",
-    phone: "08092233445",
-    address: "22 Walter Carrington Cres, VI",
-    items_summary: "Smoked Beef Brisket Feast + Extra Ribs Combo",
-    total_amount: 72000,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_transit",
-    scheduled_delivery_at: "2026-10-22 14:00:00",
-    rider_name: "Rider Wasiu (Internal)",
-    notes: "Diplomatic mission lunch delivery"
-  },
-  {
-    id: 8556,
-    order_ref: "SHD-07667",
-    customer_name: "Tunde Bakare Jr.",
-    phone: "08145566778",
-    address: "16 Isaac John St, GRA Ikeja",
-    items_summary: "Full Guinea Fowl + Roasted Corn & Ube",
-    total_amount: 31500,
-    delivery_fee: 3000,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "packaging",
-    scheduled_delivery_at: "2026-10-22 14:30:00",
-    rider_name: "Pending Assignment",
-    notes: "Family dinner advance order"
-  },
-  {
-    id: 8557,
-    order_ref: "SHD-07668",
-    customer_name: "Zainab Dantata",
-    phone: "08037788990",
-    address: "Zone B, Banana Island, Ikoyi",
-    items_summary: "Premium Jumbo Smokey Box (Snail, Ribs, Brisket)",
-    total_amount: 88000,
-    delivery_fee: 4500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "cooking",
-    scheduled_delivery_at: "2026-10-22 15:00:00",
-    rider_name: "Pending Assignment",
-    notes: "VIP catering banquet boxes"
-  },
-  {
-    id: 8558,
-    order_ref: "SHD-07669",
-    customer_name: "Chinedu Anya",
-    phone: "08059900112",
-    address: "11 Toyin Street, Ikeja",
-    items_summary: "Smoked Turkey Wings (2pcs) + Jollof Rice",
-    total_amount: 29800,
-    delivery_fee: 2500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_transit",
-    scheduled_delivery_at: "2026-10-22 15:30:00",
-    rider_name: "Rider Joshua (Internal)",
-    notes: "Staff appreciation celebration"
-  },
-  {
-    id: 8559,
-    order_ref: "SHD-07670",
-    customer_name: "Amina Danjuma",
-    phone: "07083344556",
-    address: "28 Adeola Hopewell St, VI",
-    items_summary: "Peppered Jumbo Snail + Fried Plantain Bowls",
-    total_amount: 41200,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_intake",
-    scheduled_delivery_at: "2026-10-22 16:00:00",
-    rider_name: "Pending Assignment",
-    notes: "Evening cocktail event catering"
-  },
-  {
-    id: 8560,
-    order_ref: "SHD-07671",
-    customer_name: "Olumide Fashola",
-    phone: "08182233441",
-    address: "55 Marina Road, Lagos Island",
-    items_summary: "Smoked Goat Meat Asun Platter + Palmwine",
-    total_amount: 63000,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "in_intake",
-    scheduled_delivery_at: "2026-10-22 16:30:00",
-    rider_name: "Pending Assignment",
-    notes: "Bank headquarters conference snacks"
-  },
-  {
-    id: 8561,
-    order_ref: "SHD-07672",
-    customer_name: "Fatima Balarabe",
-    phone: "08031199223",
-    address: "Plot 10 Bisway St, Maroko VI",
-    items_summary: "Full Smokey Guineafowl + Coleslaw & Drinks",
-    total_amount: 51000,
-    delivery_fee: 3500,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "delivered",
-    scheduled_delivery_at: "2026-10-23 11:30:00",
-    rider_name: "Rider Wasiu (Internal)",
-    notes: "Advance reservation weekend lunch"
-  },
-  {
-    id: 8562,
-    order_ref: "SHD-07673",
-    customer_name: "Segun Obasanjo Jr.",
-    phone: "09081122334",
-    address: "8 Alexander Ave, Ikoyi",
-    items_summary: "Whole Guinea Fowl Banquet + 2x Jollof Tubs",
-    total_amount: 95000,
-    delivery_fee: 4000,
-    channel: "Website Storefront",
-    payment_status: "paid",
-    fulfillment_status: "delivered",
-    scheduled_delivery_at: "2026-10-24 13:00:00",
-    rider_name: "Rider Wasiu (Internal)",
-    notes: "Weekend family reunion banquet"
+// Convert raw Supabase orders + order_items records into typed WebsiteOrder objects
+export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
+  const status = String(raw.delivery_status || raw.status || '').toLowerCase()
+  let fulfillment_status: WebsiteOrder['fulfillment_status'] = 'in_intake'
+  if (status.includes('deliver')) fulfillment_status = 'delivered'
+  else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery')) fulfillment_status = 'in_transit'
+  else if (status.includes('cook') || status.includes('prep') || status.includes('process')) fulfillment_status = 'cooking'
+  else if (status.includes('pack')) fulfillment_status = 'packaging'
+  else fulfillment_status = 'in_intake'
+
+  const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
+    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join(' + ')
+    : 'Assorted Smokey Delicacies'
+
+  let channel = 'Website Storefront'
+  if (raw.traffic_source) {
+    channel = raw.traffic_source
+  } else if (raw.notes && raw.notes.includes('[via WhatsApp Menu]')) {
+    channel = 'WhatsApp Store'
+  } else if (raw.notes && raw.notes.includes('[via Walk-in POS]')) {
+    channel = 'Walk-in POS'
+  } else if (raw.channel === 'storefront') {
+    channel = 'Website Storefront'
   }
-]
+
+  const isPaid = Boolean(raw.paid_at) || raw.status === 'processing' || raw.status === 'delivered' || raw.status === 'paid'
+
+  return {
+    id: raw.id,
+    order_ref: String(raw.id || ''),
+    customer_name: raw.customer_name || 'Storefront Customer',
+    phone: raw.customer_phone || 'N/A',
+    address: raw.delivery_address || 'Storefront Counter Pickup',
+    items_summary: items,
+    total_amount: Number(raw.total) || 0,
+    delivery_fee: Number(raw.delivery_fee) || 0,
+    channel,
+    payment_status: isPaid ? 'paid' : (raw.status === 'cancelled' ? 'refunded' : 'pending'),
+    fulfillment_status,
+    scheduled_delivery_at: raw.scheduled_delivery_date || raw.created_at || new Date().toISOString(),
+    rider_name: raw.delivery_status ? 'Assigned Rider' : 'Pending Rider',
+    notes: raw.notes || ''
+  }
+}
 
 export const WebsiteOrdersPage: React.FC = () => {
   const navigate = useNavigate()
-  const [orders, setOrders] = useState<WebsiteOrder[]>(INITIAL_WEBSITE_ORDERS)
+  const [orders, setOrders] = useState<WebsiteOrder[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'kitchen' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+
+  const fetchLiveOrders = async (showIndicator = false) => {
+    if (showIndicator) setIsRefreshing(true)
+    try {
+      // 1. First attempt direct Supabase client query
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(200)
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setOrders(data.map(mapSupabaseOrderToWebsiteOrder))
+        return
+      }
+
+      // 2. Fallback to Vite dev server API proxy (uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS in local dev)
+      const res = await fetch('/api/live-orders')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          setOrders(json.data.map(mapSupabaseOrderToWebsiteOrder))
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load live website orders:', err)
+    } finally {
+      setLoading(false)
+      if (showIndicator) setIsRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchLiveOrders()
+
+    // Real-time Supabase postgres_changes listener
+    const channel = supabase
+      .channel('ops_website_orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          fetchLiveOrders()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   // KPIs
   const totalOrdersCount = orders.length
@@ -438,7 +309,7 @@ export const WebsiteOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12 font-sans">
-      {/* 1. Page Header (Matching RawInventoryPage template replica) */}
+      {/* 1. Page Header */}
       <PageHeader
         title="Website Sales Orders"
         subtitle="Manage customer orders originating directly from the website storefront, track payment confirmation, and monitor live kitchen-to-doorstep dispatch."
@@ -456,65 +327,48 @@ export const WebsiteOrdersPage: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => {
-                const newOrder: WebsiteOrder = {
-                  id: Date.now(),
-                  order_ref: `SHD-0${Math.floor(7000 + Math.random() * 2000)}`,
-                  customer_name: "New Web Customer",
-                  phone: "08012345678",
-                  address: "12 Victoria Island, Lagos",
-                  items_summary: "Full Guinea Fowl + Jollof Tub",
-                  total_amount: 32500,
-                  delivery_fee: 3000,
-                  channel: "Website Storefront",
-                  payment_status: "paid",
-                  fulfillment_status: "in_intake",
-                  scheduled_delivery_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                  rider_name: "Pending Assignment",
-                  notes: "Real-time incoming web checkout order"
-                }
-                setOrders((prev) => [newOrder, ...prev])
-              }}
-              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => fetchLiveOrders(true)}
+              disabled={isRefreshing}
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
             >
-              Simulate Web Order
+              {isRefreshing ? 'Refreshing...' : 'Refresh Live Orders'}
             </Button>
           </div>
         }
       />
 
-      {/* 2. KPI Stat Strip (4 MetricCards matching RawInventoryPage) */}
+      {/* 2. KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
           title="Total Web Orders"
-          value={totalOrdersCount}
+          value={loading ? '...' : totalOrdersCount}
           description="Storefront customer intake"
           icon={<ShoppingBag className="w-4 h-4 text-primary" />}
         />
         <MetricCard
           title="Total Gross Revenue"
-          value={formatNaira(totalGrossRevenue)}
+          value={loading ? '...' : formatNaira(totalGrossRevenue)}
           description="Customer payment settlement"
           trend={{ value: 12.5, isPositive: true }}
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
           title="Kitchen & Packaging"
-          value={activeFulfillmentCount}
+          value={loading ? '...' : activeFulfillmentCount}
           description="Orders being prepped"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
           variant="default"
         />
         <MetricCard
           title="Out for Delivery"
-          value={outForDeliveryCount}
+          value={loading ? '...' : outForDeliveryCount}
           description="Active riders on transit"
           icon={<Truck className="w-4 h-4 text-blue-500" />}
         />
       </div>
 
-      {/* 3. Filter Tabs (KumoTabs matching RawInventoryPage) */}
+      {/* 3. Filter Tabs */}
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
