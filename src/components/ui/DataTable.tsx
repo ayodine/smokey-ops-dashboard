@@ -238,9 +238,19 @@ export function DataTable<T>({
   const filteredData = useMemo(() => {
     let result = [...data]
 
-    if (searchQuery.trim() && searchFilter) {
+    if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim()
-      result = result.filter(item => searchFilter(item, q))
+      if (searchFilter) {
+        result = result.filter(item => searchFilter(item, q))
+      } else {
+        result = result.filter(item => {
+          return Object.values(item as any).some(val => {
+            if (val === null || val === undefined) return false
+            if (typeof val === 'object') return false
+            return String(val).toLowerCase().includes(q)
+          })
+        })
+      }
     }
 
     // Helper to get date string from item

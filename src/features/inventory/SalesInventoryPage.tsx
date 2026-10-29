@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { SalesProduct, DailySalesItem } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { formatNaira, formatQuantity } from '@/lib/utils'
+import { formatNaira, formatQuantity, cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import { 
   Package, 
   DollarSign, 
@@ -22,8 +23,41 @@ import {
   AlertTriangle, 
   Plus, 
   SlidersHorizontal,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
+
+export interface LiveSalesProduct extends SalesProduct {
+  image?: string | null
+  category_name?: string
+}
+
+export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
+  const stock = Number(p.stock ?? 0)
+  const price = Number(p.price ?? 0)
+  const cost = Number(p.cost_price ?? Math.round(price * 0.45))
+  const reorder = Number(p.reorder_level ?? 10)
+  const allocated = Math.min(stock, 1) // Reserved for active packaging queue
+  const available = Math.max(0, stock - allocated)
+
+  return {
+    id: p.id,
+    sku: `SMK-${String(p.id).padStart(4, '0')}`,
+    name: p.name,
+    product_type: 'sales',
+    unit: p.unit || 'portion',
+    reorder_level: reorder,
+    unit_cost: cost,
+    selling_price: price,
+    stock_qty: stock,
+    qty_allocated: allocated,
+    qty_available: available,
+    inventory_value: stock * price,
+    is_active: p.is_active !== false ? 1 : 0,
+    image: p.image || null,
+    category_name: p.category_id || 'Dish'
+  }
+}
 
 export const SalesInventoryPage: React.FC = () => {
   const {
@@ -33,10 +67,14 @@ export const SalesInventoryPage: React.FC = () => {
     saveSalesProduct
   } = useSmokeyOps()
 
+  const [liveProducts, setLiveProducts] = useState<LiveSalesProduct[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+
   const [activeTab, setActiveTab] = useState<'inventory' | 'daily'>('inventory')
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<SalesProduct | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<LiveSalesProduct | null>(null)
 
   // Adjust Form
   const [adjustDelta, setAdjustDelta] = useState<number>(5)
@@ -52,20 +90,77 @@ export const SalesInventoryPage: React.FC = () => {
     reorder_level: 20
   })
 
+  // Live Supabase Backend Ingestion
+  const fetchLiveProducts = async (showIndicator = false) => {
+    if (showIndicator) setIsRefreshing(true)
+    try {
+      // 1. Direct Supabase query
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .is('deleted_at', null)
+        .order('name', { ascending: true })
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setLiveProducts(data.map(mapSupabaseProductToSalesProduct))
+        return
+      }
+
+      // 2. Dev server proxy fallback
+      const res = await fetch('/api/products')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data)) {
+          setLiveProducts(json.data.map(mapSupabaseProductToSalesProduct))
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching Supabase products, using local fallback:', err)
+      setLiveProducts(salesProducts.map(p => ({ ...p, image: null })))
+    } finally {
+      setLoading(false)
+      if (showIndicator) setIsRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchLiveProducts()
+
+    // Real-time Supabase postgres_changes listener on products table
+    const channel = supabase
+      .channel('ops_sales_inventory_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchLiveProducts()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Active products list
+  const displayProducts = liveProducts.length > 0 ? liveProducts : salesProducts
+
   // KPIs
-  const totalSKUs = salesProducts.length
-  const totalValuation = salesProducts.reduce((acc, p) => acc + (p.stock_qty * p.selling_price), 0)
+  const totalSKUs = displayProducts.length
+  const totalValuation = displayProducts.reduce((acc, p) => acc + (p.stock_qty * p.selling_price), 0)
   const totalUnitsSoldToday = dailySales.reduce((acc, d) => acc + d.qty_sold, 0)
   const totalRealizationToday = dailySales.reduce((acc, d) => acc + d.total_value, 0)
 
-  const handleOpenAdjust = (p: SalesProduct) => {
+  const handleOpenAdjust = (p: LiveSalesProduct) => {
     setSelectedProduct(p)
     setAdjustDelta(5)
-    setAdjustNotes('End of shift inventory recount')
+    setAdjustNotes('Batch production yield intake')
     setIsAdjustModalOpen(true)
   }
 
-  const handleOpenEdit = (p?: SalesProduct) => {
+  const handleOpenEdit = (p?: LiveSalesProduct) => {
     if (p) {
       setSelectedProduct(p)
       setProductForm({
@@ -80,8 +175,8 @@ export const SalesInventoryPage: React.FC = () => {
       setSelectedProduct(null)
       setProductForm({
         name: '',
-        sku: `WEB-SKU-${String(salesProducts.length + 10).padStart(3, '0')}`,
-        unit: 'unit',
+        sku: `SMK-${String(displayProducts.length + 1).padStart(4, '0')}`,
+        unit: 'portion',
         selling_price: 15000,
         unit_cost: 7000,
         reorder_level: 20
@@ -90,9 +185,35 @@ export const SalesInventoryPage: React.FC = () => {
     setIsProductModalOpen(true)
   }
 
-  const handleConfirmAdjust = (e: React.FormEvent) => {
+  const handleConfirmAdjust = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return
+    const nextStock = Math.max(0, selectedProduct.stock_qty + Number(adjustDelta))
+
+    // 1. Live update to Supabase backend
+    try {
+      await supabase
+        .from('products')
+        .update({ stock: nextStock })
+        .eq('id', selectedProduct.id)
+    } catch (err) {
+      console.warn('Direct Supabase stock update note:', err)
+    }
+
+    // 2. Optimistic local update
+    setLiveProducts(prev =>
+      prev.map(p =>
+        p.id === selectedProduct.id
+          ? {
+              ...p,
+              stock_qty: nextStock,
+              qty_available: Math.max(0, nextStock - p.qty_allocated),
+              inventory_value: nextStock * p.selling_price
+            }
+          : p
+      )
+    )
+
     adjustSalesStock(selectedProduct.id, Number(adjustDelta), adjustNotes)
     setIsAdjustModalOpen(false)
   }
@@ -111,20 +232,53 @@ export const SalesInventoryPage: React.FC = () => {
     setIsProductModalOpen(false)
   }
 
-  const inventoryColumns: ColumnDef<SalesProduct>[] = [
+  const inventoryColumns: ColumnDef<LiveSalesProduct>[] = [
     {
-      key: 'sku',
-      header: 'SKU Ref',
-      accessor: (p) => <span className="font-medium text-xs text-kumo-strong font-sans">{p.sku}</span>,
-      sortValue: (p) => p.sku,
+      key: 'image',
+      header: 'Product',
+      defaultWidth: 90,
+      accessor: (p) => (
+        <div className="w-12 h-12 rounded-xl bg-kumo-canvas border border-kumo-line overflow-hidden shrink-0 flex items-center justify-center shadow-2xs relative group">
+          {p.image ? (
+            <img
+              src={p.image}
+              alt={p.name}
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              loading="lazy"
+              onError={(e) => {
+                ;(e.currentTarget as HTMLElement).style.display = 'none'
+                const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
+            />
+          ) : null}
+          <div
+            className={cn(
+              "w-full h-full flex items-center justify-center text-kumo-subtle",
+              p.image ? "hidden" : "flex"
+            )}
+          >
+            <Package className="w-5 h-5 opacity-40" />
+          </div>
+        </div>
+      ),
+      sortValue: (p) => p.name,
     },
     {
       key: 'name',
       header: 'Sales Item / Dish',
+      defaultWidth: 230,
       accessor: (p) => (
         <div>
-          <div className="font-medium text-kumo-strong font-sans">{p.name}</div>
-          <div className="text-[11px] text-kumo-subtle uppercase font-sans">{p.unit}</div>
+          <div className="font-semibold text-xs text-kumo-strong font-sans">{p.name}</div>
+          <div className="text-[11px] text-kumo-subtle flex items-center gap-2 mt-0.5 font-sans">
+            <span className="font-mono text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+              {p.sku}
+            </span>
+            <span className="text-[11px] text-kumo-subtle uppercase">
+              {p.unit}
+            </span>
+          </div>
         </div>
       ),
       sortValue: (p) => p.name,
@@ -262,15 +416,27 @@ export const SalesInventoryPage: React.FC = () => {
         title="Sales Inventory & Finished Goods"
         subtitle="Sales-ready smoked guinea fowls, 1-liter rice bowls, beef jerky, and fresh palm wine available for order fulfillment."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleOpenEdit()}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Add Sales Product
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchLiveProducts(true)}
+              disabled={isRefreshing}
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              {isRefreshing ? 'Syncing...' : 'Sync Backend'}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleOpenEdit()}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Add Sales Product
+            </Button>
+          </div>
         }
       />
 
@@ -303,13 +469,13 @@ export const SalesInventoryPage: React.FC = () => {
         />
       </div>
 
-      {/* Filter Tabs inheriting from Raw Ingredients page */}
+      {/* Filter Tabs */}
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
-            { id: 'inventory', label: 'In Stock', badge: salesProducts.length },
+            { id: 'inventory', label: 'In Stock', badge: displayProducts.length },
             { id: 'daily', label: 'Daily Sales' },
           ]}
         />
@@ -319,7 +485,7 @@ export const SalesInventoryPage: React.FC = () => {
       <div>
         {activeTab === 'inventory' ? (
           <DataTable
-            data={salesProducts}
+            data={displayProducts}
             columns={inventoryColumns}
             searchable={true}
             searchPlaceholder="Search finished food item or SKU..."

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { supabase } from '@/lib/supabase'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, cn } from '@/lib/utils'
 import {
   ShoppingBag,
   DollarSign,
@@ -23,7 +23,13 @@ import {
   RefreshCw,
   Phone,
   MapPin,
-  FileText
+  FileText,
+  Search,
+  X,
+  Loader2,
+  Calendar,
+  Sparkles,
+  ChevronRight
 } from 'lucide-react'
 
 export interface WebsiteOrder {
@@ -41,6 +47,29 @@ export interface WebsiteOrder {
   scheduled_delivery_at: string
   rider_name: string
   notes: string
+}
+
+// Helper to highlight matching characters in auto-complete suggestions
+export const highlightSearchMatch = (text: string, query: string) => {
+  if (!query || !query.trim() || !text) return text
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.trim().toLowerCase() ? (
+          <span
+            key={i}
+            className="bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold px-0.5 rounded"
+          >
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
 }
 
 // Convert raw Supabase orders + order_items records into typed WebsiteOrder objects
@@ -97,6 +126,15 @@ export const WebsiteOrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
 
+  // Search State with Full Historical Supabase Querying & Autocomplete Suggestions
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isSearchingBackend, setIsSearchingBackend] = useState(false)
+  const [backendSuggestions, setBackendSuggestions] = useState<WebsiteOrder[]>([])
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const fetchLiveOrders = async (showIndicator = false) => {
     if (showIndicator) setIsRefreshing(true)
     try {
@@ -149,6 +187,127 @@ export const WebsiteOrdersPage: React.FC = () => {
     }
   }, [])
 
+  // Debounced Historical Backend Search (queries orders as far back as sales database inception)
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q || q.length < 2) {
+      setBackendSuggestions([])
+      setIsSearchingBackend(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingBackend(true)
+      try {
+        const res = await fetch(`/api/live-orders?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const json = await res.json()
+          if (json.data && Array.isArray(json.data)) {
+            setBackendSuggestions(json.data.map(mapSupabaseOrderToWebsiteOrder))
+          }
+        } else {
+          // Direct fallback to Supabase
+          const { data } = await supabase
+            .from('orders')
+            .select('*, order_items(*)')
+            .is('deleted_at', null)
+            .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
+            .order('created_at', { ascending: false })
+            .limit(30)
+          if (Array.isArray(data)) {
+            setBackendSuggestions(data.map(mapSupabaseOrderToWebsiteOrder))
+          }
+        }
+      } catch (err) {
+        console.warn('Historical search error:', err)
+      } finally {
+        setIsSearchingBackend(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Merge client-loaded orders and historical backend search results for instant autocomplete suggestions
+  const suggestions = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return []
+
+    const map = new Map<string | number, { order: WebsiteOrder; matchType: string; matchedValue: string }>()
+
+    const evaluateOrder = (o: WebsiteOrder) => {
+      if (map.has(o.id)) return
+      if (o.order_ref.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Order ID', matchedValue: o.order_ref })
+      } else if (o.customer_name.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Customer', matchedValue: o.customer_name })
+      } else if (o.phone.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Phone', matchedValue: o.phone })
+      } else if (o.items_summary.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Dish', matchedValue: o.items_summary })
+      } else if (o.address.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Address', matchedValue: o.address })
+      } else if (o.notes.toLowerCase().includes(q)) {
+        map.set(o.id, { order: o, matchType: 'Notes', matchedValue: o.notes })
+      }
+    }
+
+    // Client memory orders first
+    orders.forEach(evaluateOrder)
+
+    // Deep historical backend orders second
+    backendSuggestions.forEach(evaluateOrder)
+
+    return Array.from(map.values()).slice(0, 8)
+  }, [searchQuery, orders, backendSuggestions])
+
+  const handleSelectSuggestion = (order: WebsiteOrder) => {
+    setSearchQuery(order.order_ref)
+    setIsSearchOpen(false)
+    // If not in current orders list (e.g. from 6 months ago), prepend it so table displays it!
+    setOrders((prev) => {
+      if (prev.some((o) => o.id === order.id)) return prev
+      return [order, ...prev]
+    })
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSearchOpen || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        setIsSearchOpen(false)
+      }
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveSuggestionIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (suggestions[activeSuggestionIndex]) {
+        handleSelectSuggestion(suggestions[activeSuggestionIndex].order)
+      } else {
+        setIsSearchOpen(false)
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchOpen(false)
+    }
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // KPIs
   const totalOrdersCount = orders.length
   const totalGrossRevenue = orders.reduce((sum, ord) => sum + ord.total_amount, 0)
@@ -159,7 +318,7 @@ export const WebsiteOrdersPage: React.FC = () => {
   const deliveredCount = orders.filter((o) => o.fulfillment_status === 'delivered').length
 
   // Filtered orders by tab
-  const filteredOrders = useMemo(() => {
+  const tabFilteredOrders = useMemo(() => {
     switch (activeTab) {
       case 'intake':
         return orders.filter((o) => o.fulfillment_status === 'in_intake')
@@ -173,6 +332,23 @@ export const WebsiteOrdersPage: React.FC = () => {
         return orders
     }
   }, [orders, activeTab])
+
+  // Combined searched orders matching search query
+  const searchedOrders = useMemo(() => {
+    if (!searchQuery.trim()) return tabFilteredOrders
+    const q = searchQuery.toLowerCase().trim()
+    return tabFilteredOrders.filter((o) => {
+      return (
+        o.order_ref.toLowerCase().includes(q) ||
+        o.customer_name.toLowerCase().includes(q) ||
+        o.phone.toLowerCase().includes(q) ||
+        o.address.toLowerCase().includes(q) ||
+        o.items_summary.toLowerCase().includes(q) ||
+        o.channel.toLowerCase().includes(q) ||
+        o.notes.toLowerCase().includes(q)
+      )
+    })
+  }, [tabFilteredOrders, searchQuery])
 
   const handleOpenDetails = (order: WebsiteOrder) => {
     setSelectedOrder(order)
@@ -268,7 +444,7 @@ export const WebsiteOrdersPage: React.FC = () => {
       accessor: (o) => {
         const stageMap: Record<string, { status: BadgeStatus | string; label: string }> = {
           in_intake: { status: 'ORDER_INTAKE', label: 'Order Intake' },
-          cooking: { status: 'COOKING', label: 'Cooking' },
+          cooking: { status: 'COOKING', label: 'Production' },
           packaging: { status: 'PACKAGING', label: 'Packaging' },
           in_transit: { status: 'IN_TRANSIT', label: 'In Transit' },
           delivered: { status: 'DELIVERED', label: 'Delivered' }
@@ -354,7 +530,7 @@ export const WebsiteOrdersPage: React.FC = () => {
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
-          title="Kitchen & Packaging"
+          title="Production & Packaging"
           value={loading ? '...' : activeFulfillmentCount}
           description="Orders being prepped"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
@@ -382,7 +558,7 @@ export const WebsiteOrdersPage: React.FC = () => {
             },
             {
               id: 'kitchen',
-              label: 'Kitchen & Packaging',
+              label: 'Production & Packaging',
               badge: activeFulfillmentCount
             },
             {
@@ -399,14 +575,148 @@ export const WebsiteOrdersPage: React.FC = () => {
         />
       </div>
 
-      {/* 4. DataTable with Search, Category filters, and Full Order Data */}
+      {/* 4. Historical Search & Dropdown Autocomplete Assist */}
+      <div className="relative font-sans" ref={searchContainerRef}>
+        <div className="relative flex items-center">
+          <Search className="w-4 h-4 absolute left-3.5 text-kumo-subtle pointer-events-none z-10" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setIsSearchOpen(true)
+              setActiveSuggestionIndex(0)
+            }}
+            onFocus={() => {
+              if (searchQuery.trim().length > 0) setIsSearchOpen(true)
+            }}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search orders as far back as database inception (Order ID, Customer, Phone, Dish, Address)..."
+            className="w-full h-11 pl-10 pr-24 rounded-xl border border-kumo-line bg-kumo-card text-xs sm:text-sm text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-zinc-400/20 focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs font-sans"
+          />
+
+          <div className="absolute right-3 flex items-center gap-2">
+            {isSearchingBackend && (
+              <span className="flex items-center gap-1.5 text-[11px] text-kumo-subtle">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                <span className="hidden sm:inline">Indexing...</span>
+              </span>
+            )}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('')
+                  setIsSearchOpen(false)
+                }}
+                className="p-1 rounded-md text-kumo-subtle hover:text-kumo-strong hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Autocomplete Dropdown with Highlighted Suggestions */}
+        {isSearchOpen && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/40 px-3 font-sans">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                Historical Sales Database Matches
+              </span>
+              <span>Use ↑ ↓ to navigate, Enter to view in table</span>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 p-1">
+              {suggestions.map(({ order, matchType, matchedValue }, idx) => {
+                const isActive = idx === activeSuggestionIndex
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => handleSelectSuggestion(order)}
+                    onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                    className={cn(
+                      "p-3 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs",
+                      isActive
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300"
+                    )}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                          {matchType}
+                        </span>
+                        <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate">
+                          {highlightSearchMatch(matchedValue, searchQuery)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2 truncate">
+                        <span className="font-mono text-zinc-700 dark:text-zinc-300 font-medium">{order.order_ref}</span>
+                        <span>•</span>
+                        <span>{highlightSearchMatch(order.customer_name, searchQuery)}</span>
+                        <span>•</span>
+                        <span>{order.items_summary}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 font-mono">
+                        {formatNaira(order.total_amount)}
+                      </div>
+                      <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                        {formatDate(order.scheduled_delivery_at)}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Active Query Filter Pill — Clean Desaturated Grey */}
+        {searchQuery.trim() && (
+          <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 font-sans shadow-2xs">
+            <span className="flex items-center gap-1.5">
+              <span>Showing results filtered across sales database for:</span>
+              <strong className="underline underline-offset-2 font-semibold text-zinc-900 dark:text-zinc-100">"{searchQuery.trim()}"</strong>
+              <span className="text-[11px] text-zinc-500 font-mono">({searchedOrders.length} orders found)</span>
+            </span>
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setIsSearchOpen(false)
+              }}
+              className="text-xs font-semibold hover:underline flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
+              Reset Search Filter
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 5. DataTable with Search, Category filters, and Full Order Data */}
       <DataTable
-        data={filteredOrders}
+        data={searchedOrders}
         columns={columns}
-        searchable={true}
-        searchPlaceholder="Search order ID, customer name, phone, or address..."
+        searchable={false}
         tableId="website_orders_table"
         exportFilename="website_orders.csv"
+        searchFilter={(order, query) => {
+          const q = query.toLowerCase()
+          return (
+            order.order_ref.toLowerCase().includes(q) ||
+            order.customer_name.toLowerCase().includes(q) ||
+            order.phone.toLowerCase().includes(q) ||
+            order.address.toLowerCase().includes(q) ||
+            order.items_summary.toLowerCase().includes(q) ||
+            order.channel.toLowerCase().includes(q) ||
+            order.notes.toLowerCase().includes(q)
+          )
+        }}
       />
 
       {/* 5. Order Details Modal */}
@@ -473,7 +783,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                   }
                   label={
                     selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
-                    selectedOrder.fulfillment_status === 'cooking' ? 'Cooking' :
+                    selectedOrder.fulfillment_status === 'cooking' ? 'Kitchen Production' :
                     selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
                     selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
                   }
@@ -504,7 +814,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                 size="md"
                 onClick={() => {
                   setIsDetailsModalOpen(false)
-                  navigate('/overview')
+                  navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
                 }}
                 leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
               >
