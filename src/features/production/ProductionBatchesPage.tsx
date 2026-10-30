@@ -668,11 +668,11 @@ export const ProductionBatchesPage: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
         title="Start Cooking Batch (Recipe & Ingredients)"
         description="Select the dish to cook, target output portions, and choose raw ingredients to use."
-        maxWidth="lg"
+        maxWidth="3xl"
       >
-        <form onSubmit={handleConfirmCreate} className="space-y-4">
+        <form onSubmit={handleConfirmCreate} className="space-y-4 font-sans">
           {templateSuccessFeedback && (
-            <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{templateSuccessFeedback}</span>
             </div>
@@ -689,66 +689,70 @@ export const ProductionBatchesPage: React.FC = () => {
                 label: `${t.output_product_name} — ${t.version_name} (Std: ${t.standard_batch_size} units)`
               }))
             ]}
+            size="md"
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Output Finished Product"
-              value={selectedOutputProduct}
-              onChange={(e) => {
-                setSelectedOutputProduct(Number(e.target.value))
-                setSelectedRecipeTemplateId('custom')
-              }}
-              options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
-            />
-            <UnitInput
-              label="Batch Target Output"
-              value={expectedOutput}
-              onChangeValue={handleExpectedOutputChange}
-              unit="portions"
-              min={1}
-              required
-            />
-          </div>
+          <Select
+            label="Output Finished Product"
+            value={selectedOutputProduct}
+            onChange={(e) => {
+              setSelectedOutputProduct(Number(e.target.value))
+              setSelectedRecipeTemplateId('custom')
+            }}
+            options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
+            size="md"
+          />
+
+          <UnitInput
+            label="Batch Target Output"
+            value={expectedOutput}
+            onChangeValue={handleExpectedOutputChange}
+            unit="portions"
+            min={1}
+            required
+          />
 
           {/* BOM Ingredients List */}
-          <div className="space-y-2.5 pt-2 border-t border-kumo-line">
+          <div className="space-y-3 pt-3 border-t border-kumo-line">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider font-sans">
+              <span className="text-[12px] font-semibold text-kumo-strong uppercase tracking-wider font-sans">
                 Raw Ingredients to Use (Recipe List)
               </span>
-              <div className="flex items-center gap-3">
-                <button
+              <div className="flex items-center gap-2">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setTemplateVersionName('')
                     setIsSaveTemplateModalOpen(true)
                   }}
-                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
                 >
-                  <Sparkles className="w-3.5 h-3.5" /> Save as Recipe Template
-                </button>
-                <button
+                  Save as Recipe Template
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
                   onClick={handleAddBomRow}
-                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium font-sans"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Add Ingredient
-                </button>
+                  Add Ingredient
+                </Button>
               </div>
             </div>
 
             {/* Sub-header labels for alignment */}
-            <div className="grid grid-cols-12 gap-2 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
-              <div className="col-span-7">Raw Material</div>
-              <div className="col-span-4">Batch Allocation</div>
+            <div className="grid grid-cols-12 gap-3 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
+              <div className="col-span-8">Raw Material</div>
+              <div className="col-span-3">Batch Allocation</div>
               <div className="col-span-1 text-center">Remove</div>
             </div>
 
-            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
               {bomRows.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs font-sans">
-                  <div className="col-span-7">
+                <div key={idx} className="grid grid-cols-12 gap-3 items-center text-xs font-sans">
+                  <div className="col-span-8">
                     <Select
                       value={row.product_id}
                       onChange={(e) => handleUpdateBomRow(idx, 'product_id', e.target.value)}
@@ -756,22 +760,22 @@ export const ProductionBatchesPage: React.FC = () => {
                         value: rp.id,
                         label: `${rp.name} (${rp.stock_qty} ${formatUnit(rp.unit)} on-hand)`
                       }))}
-                      size="sm"
-                      buttonClassName="h-9 text-[13px] font-normal"
+                      size="md"
+                      buttonClassName="h-10 text-[13px] font-normal"
                     />
                   </div>
-                  <div className="col-span-4">
-                    <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-9 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                  <div className="col-span-3">
+                    <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
                       <input
                         type="number"
                         step="any"
                         min="0.1"
                         value={row.quantity}
                         onChange={(e) => handleUpdateBomRow(idx, 'quantity', Number(e.target.value))}
-                        className="w-full h-full px-2.5 text-xs font-sans text-kumo-strong bg-transparent focus:outline-none"
+                        className="w-full h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
                         placeholder="0.0"
                       />
-                      <span className="px-2.5 h-full flex items-center text-[11px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line shrink-0 select-none lowercase">
+                      <span className="px-3 h-full flex items-center text-[12px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line shrink-0 select-none lowercase">
                         {formatUnit(row.unit)}
                       </span>
                     </div>
@@ -780,10 +784,10 @@ export const ProductionBatchesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleRemoveBomRow(idx)}
-                      className="p-1.5 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded cursor-pointer transition-colors"
-                      title="Remove row"
+                      className="p-2 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
+                      title="Remove ingredient"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -798,8 +802,8 @@ export const ProductionBatchesPage: React.FC = () => {
             onChange={(e) => setBatchRemarks(e.target.value)}
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
+          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
             <Button variant="primary" size="md" type="submit">
@@ -824,26 +828,25 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <UnitInput
-              label="Actual Cooked Output"
-              value={actualOutput}
-              onChangeValue={setActualOutput}
-              unit="portions"
-              min={0}
-              helperText="Will be added directly to Sales Inventory"
-              required
-            />
-            <UnitInput
-              label="Cooking Loss / Wastage"
-              value={wastage}
-              onChangeValue={setWastage}
-              unit="portions"
-              min={0}
-              helperText="Unusable / burnt portions"
-              required
-            />
-          </div>
+          <UnitInput
+            label="Actual Cooked Output"
+            value={actualOutput}
+            onChangeValue={setActualOutput}
+            unit="portions"
+            min={0}
+            helperText="Will be added directly to Sales Inventory"
+            required
+          />
+
+          <UnitInput
+            label="Cooking Loss / Wastage"
+            value={wastage}
+            onChangeValue={setWastage}
+            unit="portions"
+            min={0}
+            helperText="Unusable / burnt portions"
+            required
+          />
 
           {/* Cooking Yield Tolerance Calculation (Section 9.2 Invariant 2) */}
           {(() => {

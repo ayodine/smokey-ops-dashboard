@@ -339,7 +339,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             className={cn(
-              'flex w-full items-center justify-between rounded-xl bg-kumo-base border border-kumo-line px-3.5 text-left text-[13px] text-kumo-strong shadow-2xs transition-colors cursor-pointer select-none font-sans',
+              'flex w-full items-center justify-between rounded-lg bg-kumo-base border border-kumo-line px-3.5 text-left text-[13px] text-kumo-strong shadow-2xs transition-colors cursor-pointer select-none font-sans',
               size === 'sm' ? 'h-9 text-[13px]' : 'h-10 text-[13px]',
               'hover:bg-kumo-canvas/40 focus:outline-none focus:border-kumo-brand focus:ring-1 focus:ring-kumo-brand',
               disabled && 'opacity-50 cursor-not-allowed bg-kumo-canvas/60',
@@ -432,10 +432,10 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                               >
                                 <div className="flex items-center gap-2.5 min-w-0 pr-2">
                                   {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-                                  <div className="truncate">
-                                    <span className="truncate block">{opt.label}</span>
+                                  <div className="min-w-0">
+                                    <span className="block font-normal text-kumo-strong leading-snug">{opt.label}</span>
                                     {opt.description && (
-                                      <span className="text-[12px] text-kumo-subtle block font-normal truncate mt-0.5">
+                                      <span className="text-[12px] text-kumo-subtle block font-normal mt-0.5 leading-tight">
                                         {opt.description}
                                       </span>
                                     )}
