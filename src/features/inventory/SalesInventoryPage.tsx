@@ -27,7 +27,8 @@ import {
   RefreshCw,
   Flame,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Eye
 } from 'lucide-react'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -98,7 +99,14 @@ export const SalesInventoryPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'daily'>('inventory')
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<LiveSalesProduct | null>(null)
+  const [selectedDetailsProduct, setSelectedDetailsProduct] = useState<LiveSalesProduct | null>(null)
+
+  const handleOpenDetails = (p: LiveSalesProduct) => {
+    setSelectedDetailsProduct(p)
+    setIsDetailsModalOpen(true)
+  }
 
   // Adjust Form
   const [adjustDelta, setAdjustDelta] = useState<number>(5)
@@ -314,8 +322,8 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'stock_qty',
-      header: 'Physical Ready (Warmer/Chiller)',
-      defaultWidth: 170,
+      header: 'Actual (On-Hand)',
+      defaultWidth: 175,
       accessor: (p) => {
         const isLow = p.stock_qty <= p.reorder_level
         return (
@@ -347,8 +355,8 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'estimated_incoming_qty',
-      header: 'In-Smoker / Next Batch',
-      defaultWidth: 170,
+      header: 'Estimated (In-Smoker)',
+      defaultWidth: 175,
       accessor: (p) => {
         const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
         const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
@@ -380,7 +388,7 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'sellable_qty',
-      header: 'Total Sellable (Website Storefront)',
+      header: 'Total Sellable (Online)',
       defaultWidth: 230,
       accessor: (p) => {
         const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
@@ -444,9 +452,18 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      defaultWidth: 180,
+      defaultWidth: 230,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View full stock, pipeline, and cost breakdown">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(p)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
           <Tooltip content="Manually adjust on-hand stock">
             <TableActionButton
               variant="outline"
@@ -593,6 +610,7 @@ export const SalesInventoryPage: React.FC = () => {
             searchPlaceholder="Search finished food item or SKU..."
             title="Sales Product"
             exportFilename="smokey-sales-inventory"
+            onRowClick={(p) => handleOpenDetails(p)}
           />
         ) : (
           <DataTable
@@ -720,6 +738,243 @@ export const SalesInventoryPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* Dish Details Modal — Desaturated Grey Layout with Clean Aligned Rows matching Website Orders */}
+      {selectedDetailsProduct && (() => {
+        const p = selectedDetailsProduct
+        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+        const allocated = p.qty_allocated || 0
+        const sellable = Math.max(0, p.stock_qty + incomingQty - allocated)
+        const unitMargin = p.selling_price - p.unit_cost
+        const marginPct = p.selling_price > 0 ? Math.round((unitMargin / p.selling_price) * 100) : 0
+        const activeBatches = incomingInfo?.batches || []
+
+        return (
+          <Dialog
+            isOpen={isDetailsModalOpen}
+            onClose={() => setIsDetailsModalOpen(false)}
+            title={`Dish Details: ${p.name}`}
+            description="Physical holding inventory, active smoker batches, and storefront availability."
+            maxWidth="2xl"
+            footer={
+              <div className="flex items-center justify-between w-full">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                >
+                  Close
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      setIsDetailsModalOpen(false)
+                      handleOpenAdjust(p)
+                    }}
+                    leftIcon={<SlidersHorizontal className="w-3.5 h-3.5" />}
+                  >
+                    Adjust Stock
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      setIsDetailsModalOpen(false)
+                      handleOpenEdit(p)
+                    }}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  >
+                    Edit Dish & Pricing
+                  </Button>
+                </div>
+              </div>
+            }
+          >
+            <div className="space-y-4 font-sans text-xs">
+              {/* Master Divided Card Container (Desaturated Grey matching Website Orders modal) */}
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+                
+                {/* Section 1: Three-Tier Inventory & Availability */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                      Inventory Availability & Pipeline
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Actual (On-Hand)</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-900 dark:text-zinc-100 font-bold">
+                          {formatQuantity(p.stock_qty)} {p.unit}s
+                        </span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                          (Ready in holding warmer / chiller)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Estimated (In-Smoker)</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                          +{formatQuantity(incomingQty)} {p.unit}s
+                        </span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                          (Active smoking & next shift runs)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Packaging Allocation</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                          {allocated} {p.unit}s
+                        </span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                          (Locked for active orders being packed)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Total Sellable (Online)</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-900 dark:text-zinc-100 font-bold text-sm">
+                          {formatQuantity(sellable)} {p.unit}s
+                        </span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                          (Formula: Actual + Estimated - Allocated)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Storefront Status</span>
+                      <div>
+                        {p.stock_qty > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                            In Stock Ready
+                          </span>
+                        ) : incomingQty > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                            Pre-Order (Smoking in Pit)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                            Sold Out
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Reorder Threshold</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                        Alert triggers when stock drops below {p.reorder_level} {p.unit}s
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Commercial Pricing & Valuation */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                      Commercial & Cost Profile
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">SKU Reference</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{p.sku}</span>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Selling Price</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatNaira(p.selling_price)}</span>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Production Cost Benchmark</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatNaira(p.unit_cost)}</span>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Unit Gross Margin</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatNaira(unitMargin)}</span>
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                          {marginPct}% margin
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">On-Hand Physical Valuation</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatNaira(p.stock_qty * p.selling_price)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Active Batches Feeding This Dish */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                      In-Flight Production Batches Feeding This Dish
+                    </span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                      {activeBatches.length} active run{activeBatches.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  {activeBatches.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-zinc-500 dark:text-zinc-400 italic">
+                      No active smoking batches currently feeding this item.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1">
+                      {activeBatches.map(b => (
+                        <div
+                          key={b.id}
+                          className="p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 flex items-center justify-between flex-wrap gap-2 text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{b.batch_ref}</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                                {b.status === 'in_production' ? 'Cooking in Pit' : 'Queued Prep'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                              Schedule: {b.batch_schedule === 'tomorrow_morning' ? 'Tomorrow Morning Run' : 'Today Pit Run'} • Target: {b.estimated_ready_time || 'Pending'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">
+                              +{b.expected_output} {p.unit}s
+                            </span>
+                            <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">
+                              Buffered online
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </Dialog>
+        )
+      })()}
     </div>
   )
 }
