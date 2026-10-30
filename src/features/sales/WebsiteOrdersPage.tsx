@@ -738,6 +738,7 @@ export const WebsiteOrdersPage: React.FC = () => {
       <DataTable
         data={searchedOrders}
         columns={columns}
+        onRowClick={handleOpenDetails}
         searchable={false}
         tableId="website_orders_table"
         exportFilename="website_orders.csv"
@@ -755,7 +756,7 @@ export const WebsiteOrdersPage: React.FC = () => {
         }}
       />
 
-      {/* 5. Order Details Modal — Adopting Image 2 Structured Divided Sections */}
+      {/* 5. Order Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
       {selectedOrder && (
         <Dialog
           isOpen={isDetailsModalOpen}
@@ -787,48 +788,25 @@ export const WebsiteOrdersPage: React.FC = () => {
           }
         >
           <div className="space-y-4 font-sans text-xs">
-            {/* Master Divided Card Container (Adopting Image 2 design) */}
-            <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
+            {/* Master Divided Card Container (Desaturated Grey matching Image 2) */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               
               {/* Section 1: Order Information & Timestamps */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                    <Receipt className="w-3.5 h-3.5 text-kumo-subtle" />
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Order Information
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <StatusBadge
-                      status={selectedOrder.payment_status === 'paid' ? 'PAID' : 'PENDING'}
-                      label={selectedOrder.payment_status === 'paid' ? 'Paid' : 'Pending'}
-                      size="sm"
-                    />
-                    <StatusBadge
-                      status={
-                        selectedOrder.fulfillment_status === 'in_intake' ? 'ORDER_INTAKE' :
-                        selectedOrder.fulfillment_status === 'cooking' ? 'COOKING' :
-                        selectedOrder.fulfillment_status === 'packaging' ? 'PACKAGING' :
-                        selectedOrder.fulfillment_status === 'in_transit' ? 'IN_TRANSIT' : 'DELIVERED'
-                      }
-                      label={
-                        selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
-                        selectedOrder.fulfillment_status === 'cooking' ? 'Kitchen Production' :
-                        selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
-                        selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
-                      }
-                      size="sm"
-                    />
-                  </div>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Order Reference</span>
-                    <span className="text-kumo-strong font-mono font-semibold">{selectedOrder.order_ref}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Reference</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{selectedOrder.order_ref}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Date & Time</span>
-                    <span className="text-kumo-strong font-medium">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Date & Time</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
                       {(() => {
                         const d = selectedOrder.created_at ? new Date(selectedOrder.created_at) : null
                         const isValid = d && !isNaN(d.getTime())
@@ -838,15 +816,32 @@ export const WebsiteOrdersPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Sales Channel</span>
-                    <span className="text-kumo-strong font-medium">{selectedOrder.channel}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Payment Status</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedOrder.payment_status}
+                    </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Payment Method</span>
-                    <span className="text-kumo-strong font-medium capitalize">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Fulfillment Stage</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                      {
+                        selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
+                        selectedOrder.fulfillment_status === 'cooking' ? 'Kitchen Production' :
+                        selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
+                        selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Sales Channel</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedOrder.channel}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Payment Method</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">
                       {selectedOrder.payment_method || 'Paystack'}
                       {selectedOrder.paid_at && (
-                        <span className="text-xs text-kumo-subtle font-normal ml-2">
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal ml-2">
                           (Paid on {new Date(selectedOrder.paid_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} at {new Date(selectedOrder.paid_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})
                         </span>
                       )}
@@ -858,43 +853,42 @@ export const WebsiteOrdersPage: React.FC = () => {
               {/* Section 2: Customer & Delivery Details */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-kumo-subtle" />
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Customer & Destination
                   </span>
                   <a
                     href={`tel:${selectedOrder.phone}`}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium underline underline-offset-2"
                   >
                     <Phone className="w-3 h-3" />
                     <span>Call Customer</span>
                   </a>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Customer Name</span>
-                    <span className="text-kumo-strong font-semibold">{selectedOrder.customer_name}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedOrder.customer_name}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Phone Number</span>
-                    <span className="text-kumo-strong font-mono">{selectedOrder.phone}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Number</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedOrder.phone}</span>
                   </div>
                   {selectedOrder.customer_email && (
                     <div className="flex items-start text-[13px]">
-                      <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Email Address</span>
-                      <span className="text-kumo-strong font-medium">{selectedOrder.customer_email}</span>
+                      <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Email Address</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedOrder.customer_email}</span>
                     </div>
                   )}
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Delivery Address</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
                     <div className="flex-1">
-                      <span className="text-kumo-strong font-medium block leading-snug">{selectedOrder.address}</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium block leading-snug">{selectedOrder.address}</span>
                       <a
                         href={`https://maps.google.com/?q=${encodeURIComponent(selectedOrder.address)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1 font-medium"
+                        className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline mt-1 font-medium"
                       >
                         <MapPin className="w-3 h-3" />
                         <span>Open in Google Maps</span>
@@ -903,9 +897,9 @@ export const WebsiteOrdersPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Assigned Courier</span>
-                    <span className="text-kumo-strong font-medium flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 text-kumo-subtle" />
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Courier</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-zinc-400" />
                       {selectedOrder.rider_name}
                     </span>
                   </div>
@@ -915,11 +909,10 @@ export const WebsiteOrdersPage: React.FC = () => {
               {/* Section 3: Ordered Dishes */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                    <UtensilsCrossed className="w-3.5 h-3.5 text-kumo-subtle" />
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Ordered Dishes
                   </span>
-                  <span className="text-[11px] font-semibold text-kumo-subtle uppercase">
+                  <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                     {selectedOrder.raw_items && selectedOrder.raw_items.length > 0
                       ? `${selectedOrder.raw_items.length} item(s)`
                       : 'Kitchen Pack'}
@@ -928,17 +921,17 @@ export const WebsiteOrdersPage: React.FC = () => {
 
                 <div className="pt-1">
                   {selectedOrder.raw_items && selectedOrder.raw_items.length > 0 ? (
-                    <div className="divide-y divide-kumo-line/40">
+                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                       {selectedOrder.raw_items.map((item: any, idx: number) => (
-                        <div key={idx} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                        <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
                           <div className="flex items-center gap-2.5">
-                            <span className="font-semibold text-primary font-mono text-xs px-2 py-0.5 rounded bg-primary/10">
+                            <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                               {item.qty || 1}x
                             </span>
-                            <span className="font-medium text-kumo-strong">{item.name || 'Smokey Dish'}</span>
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{item.name || 'Smokey Dish'}</span>
                           </div>
                           {item.price && (
-                            <span className="font-mono text-xs font-semibold text-kumo-strong">
+                            <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                               {formatNaira((item.qty || 1) * item.price)}
                             </span>
                           )}
@@ -948,8 +941,8 @@ export const WebsiteOrdersPage: React.FC = () => {
                   ) : (
                     <div className="space-y-1.5">
                       {selectedOrder.items_summary.split(' + ').map((dish, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-[13px] text-kumo-strong font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                        <div key={idx} className="flex items-center gap-2 text-[13px] text-zinc-900 dark:text-zinc-100 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
                           <span>{dish.trim()}</span>
                         </div>
                       ))}
@@ -961,28 +954,27 @@ export const WebsiteOrdersPage: React.FC = () => {
               {/* Section 4: Billing Breakdown */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-kumo-subtle" />
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Billing & Payment
                   </span>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Meals Subtotal</span>
-                    <span className="text-kumo-strong font-mono font-medium">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Meals Subtotal</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">
                       {formatNaira(Math.max(0, selectedOrder.total_amount - selectedOrder.delivery_fee))}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Delivery Fee</span>
-                    <span className="text-kumo-strong font-mono font-medium">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Fee</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">
                       {selectedOrder.delivery_fee > 0 ? formatNaira(selectedOrder.delivery_fee) : 'Free Delivery'}
                     </span>
                   </div>
-                  <div className="flex items-start text-[14px] pt-1.5 border-t border-kumo-line/60">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-strong font-semibold">Total Amount</span>
-                    <span className="text-primary font-mono font-bold text-base">
+                  <div className="flex items-start text-[14px] pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-900 dark:text-zinc-100 font-semibold">Total Amount</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-bold text-base">
                       {formatNaira(selectedOrder.total_amount)}
                     </span>
                   </div>
@@ -991,14 +983,13 @@ export const WebsiteOrdersPage: React.FC = () => {
 
               {/* Section 5: Order Notes (if present) */}
               {selectedOrder.notes && (
-                <div className="p-4 space-y-2 bg-kumo-canvas/30">
+                <div className="p-4 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-kumo-subtle" />
+                    <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                       Order Notes
                     </span>
                   </div>
-                  <p className="text-[13px] text-kumo-strong leading-relaxed pt-0.5">
+                  <p className="text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed pt-0.5">
                     {selectedOrder.notes}
                   </p>
                 </div>

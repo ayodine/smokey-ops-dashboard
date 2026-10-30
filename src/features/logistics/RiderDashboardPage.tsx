@@ -873,37 +873,36 @@ export const RiderDashboardPage: React.FC = () => {
       >
         {previewOrder && (
           <div className="space-y-4 font-sans text-xs">
-            {/* Master Divided Card Container (Adopting Image 2 design) */}
-            <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
+            {/* Master Divided Card Container (Desaturated Grey matching Image 2) */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               
               {/* Section 1: Order & Timing */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Order Information
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
-                    previewOrder.status === 'delivered'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                  }`}>
-                    {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
                   </span>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Order Reference</span>
-                    <span className="text-kumo-strong font-mono font-semibold">#{previewOrder.order_ref}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Reference</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">#{previewOrder.order_ref}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Dispatched Date</span>
-                    <span className="text-kumo-strong font-medium">{previewOrder.dispatch_date}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Status</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                      {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Dispatched Date</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{previewOrder.dispatch_date}</span>
                   </div>
                   {previewOrder.delivered_at && (
                     <div className="flex items-start text-[13px]">
-                      <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Delivered At</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">{previewOrder.delivered_at}</span>
+                      <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivered At</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium">{previewOrder.delivered_at}</span>
                     </div>
                   )}
                 </div>
@@ -912,36 +911,36 @@ export const RiderDashboardPage: React.FC = () => {
               {/* Section 2: Customer & Route Details */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Customer & Destination Route
                   </span>
                   <a
                     href={`tel:${previewOrder.phone}`}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium underline underline-offset-2"
                   >
                     <Phone className="w-3 h-3" />
                     <span>Call Recipient</span>
                   </a>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Recipient Name</span>
-                    <span className="text-kumo-strong font-semibold">{previewOrder.customer_name}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Recipient Name</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{previewOrder.customer_name}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Phone Contact</span>
-                    <span className="text-kumo-strong font-mono">{previewOrder.phone}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Contact</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{previewOrder.phone}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Drop-off Address</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Drop-off Address</span>
                     <div className="flex-1">
-                      <span className="text-kumo-strong font-medium block leading-snug">{previewOrder.address}</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium block leading-snug">{previewOrder.address}</span>
                       <a
                         href={`https://maps.google.com/?q=${encodeURIComponent(previewOrder.address)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1 font-medium"
+                        className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline mt-1 font-medium"
                       >
                         <MapPin className="w-3 h-3" />
                         <span>Open in Google Maps for Navigation</span>
@@ -955,17 +954,17 @@ export const RiderDashboardPage: React.FC = () => {
               {/* Section 3: Kitchen Food Package */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Kitchen Packaged Items
                   </span>
                 </div>
                 <div className="pt-1">
-                  <p className="text-kumo-strong font-medium text-[13px] leading-relaxed">
+                  <p className="text-zinc-900 dark:text-zinc-100 font-medium text-[13px] leading-relaxed">
                     {previewOrder.items_summary || 'Smokey Hut Kitchen Meal Pack'}
                   </p>
                   {previewOrder.notes && (
-                    <div className="mt-2.5 p-2.5 bg-kumo-canvas/50 border border-kumo-line rounded-lg text-xs text-kumo-strong">
-                      <span className="font-semibold text-kumo-subtle block mb-0.5">Special Instructions:</span>
+                    <div className="mt-2.5 p-2.5 bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-700 dark:text-zinc-300">
+                      <span className="font-semibold text-zinc-500 block mb-0.5">Special Instructions:</span>
                       {previewOrder.notes}
                     </div>
                   )}
@@ -975,35 +974,35 @@ export const RiderDashboardPage: React.FC = () => {
               {/* Section 4: Commission & Payment */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     Trip Commission & Payment Status
                   </span>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Trip Fee Earned</span>
-                    <span className="text-kumo-strong font-mono font-bold text-sm">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Trip Fee Earned</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-bold text-sm">
                       {formatNaira(previewOrder.delivery_fee)}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Payment Mode</span>
-                    <span className="text-kumo-strong font-medium">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Payment Mode</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
                       {previewOrder.payment_mode === 'cod' ? `Cash on Delivery (${formatNaira(previewOrder.cod_amount || 0)})` : 'Prepaid Online'}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Settlement Status</span>
-                    <span className="text-kumo-strong font-medium">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Settlement Status</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
                       {previewOrder.status === 'delivered' ? 'Settled to Rider Balance' : 'Pending Delivery Confirmation'}
                     </span>
                   </div>
 
                   {previewOrder.fee_evidence_path && (
-                    <div className="pt-2 border-t border-kumo-line mt-2">
-                      <span className="text-kumo-subtle text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
-                      <div className="max-w-xs border border-kumo-line rounded-lg overflow-hidden">
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 mt-2">
+                      <span className="text-zinc-500 text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
+                      <div className="max-w-xs border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                         <img
                           src={previewOrder.fee_evidence_path}
                           alt="Courier Receipt"

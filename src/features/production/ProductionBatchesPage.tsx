@@ -943,32 +943,31 @@ export const ProductionBatchesPage: React.FC = () => {
             {/* Section 1: Batch Overview */}
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
-                  <Utensils className="w-3.5 h-3.5 text-kumo-subtle" />
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                   Batch Specifications
                 </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
                   {selectedBatch?.status.replace('_', ' ')}
                 </span>
               </div>
 
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2.5 pt-1">
                 <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Target Dish</span>
-                  <span className="text-kumo-strong font-semibold">{selectedBatch?.output_product_name}</span>
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Target Dish</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedBatch?.output_product_name}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Batch Reference</span>
-                  <span className="text-kumo-strong font-mono font-medium">{selectedBatch?.batch_ref}</span>
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Batch Reference</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">{selectedBatch?.batch_ref}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Planned Output</span>
-                  <span className="text-kumo-strong font-medium font-mono">{selectedBatch?.expected_output} portions</span>
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Planned Output</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium font-mono">{selectedBatch?.expected_output} portions</span>
                 </div>
                 {selectedBatch?.remarks && (
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Pit / QC Notes</span>
-                    <span className="text-kumo-strong font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Pit / QC Notes</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
                   </div>
                 )}
               </div>
@@ -977,22 +976,22 @@ export const ProductionBatchesPage: React.FC = () => {
             {/* Section 2: Formulated Ingredients (BOM) */}
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                   Formulated Ingredients (BOM)
                 </span>
-                <span className="text-[11px] font-semibold text-kumo-subtle uppercase">
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                   {selectedBatch?.raw_materials.length || 0} Ingredients
                 </span>
               </div>
 
-              <div className="pt-1 divide-y divide-kumo-line/40">
+              <div className="pt-1 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {selectedBatch?.raw_materials.map((m, idx) => (
                   <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
                     <div>
-                      <span className="font-medium text-kumo-strong">{m.name}</span>
-                      <span className="text-xs text-kumo-subtle ml-2 font-mono">[{m.sku}]</span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{m.name}</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2 font-mono">[{m.sku}]</span>
                     </div>
-                    <span className="font-mono font-semibold text-kumo-strong text-xs px-2.5 py-1 rounded bg-kumo-tint/60 border border-kumo-line">
+                    <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200 text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                       {m.quantity} {m.unit}
                     </span>
                   </div>
