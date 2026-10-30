@@ -33,7 +33,8 @@ import {
   Receipt,
   User,
   UtensilsCrossed,
-  CreditCard
+  CreditCard,
+  Package
 } from 'lucide-react'
 
 export interface WebsiteOrder {
@@ -50,7 +51,7 @@ export interface WebsiteOrder {
   channel: string
   payment_status: 'paid' | 'pending' | 'refunded'
   payment_method?: string
-  fulfillment_status: 'in_intake' | 'cooking' | 'packaging' | 'in_transit' | 'delivered'
+  fulfillment_status: 'in_intake' | 'packaging' | 'ready_for_dispatch' | 'in_transit' | 'delivered'
   created_at: string
   scheduled_delivery_at: string
   paid_at?: string
@@ -85,11 +86,17 @@ export const highlightSearchMatch = (text: string, query: string) => {
 export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   const status = String(raw.delivery_status || raw.status || '').toLowerCase()
   let fulfillment_status: WebsiteOrder['fulfillment_status'] = 'in_intake'
-  if (status.includes('deliver')) fulfillment_status = 'delivered'
-  else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery')) fulfillment_status = 'in_transit'
-  else if (status.includes('cook') || status.includes('prep') || status.includes('process')) fulfillment_status = 'cooking'
-  else if (status.includes('pack')) fulfillment_status = 'packaging'
-  else fulfillment_status = 'in_intake'
+  if (status.includes('deliver')) {
+    fulfillment_status = 'delivered'
+  } else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery') || status.includes('on_road')) {
+    fulfillment_status = 'in_transit'
+  } else if (status.includes('ready') || status.includes('packed') || status.includes('packaged')) {
+    fulfillment_status = 'ready_for_dispatch'
+  } else if (status.includes('pack') || status.includes('process') || status.includes('prep') || status.includes('cook') || status.includes('paid')) {
+    fulfillment_status = 'packaging'
+  } else {
+    fulfillment_status = 'in_intake'
+  }
 
   const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
     ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join(' + ')
@@ -136,7 +143,7 @@ export const WebsiteOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<WebsiteOrder[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'kitchen' | 'transit' | 'delivered'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
 
@@ -326,7 +333,7 @@ export const WebsiteOrdersPage: React.FC = () => {
   const totalOrdersCount = orders.length
   const totalGrossRevenue = orders.reduce((sum, ord) => sum + ord.total_amount, 0)
   const activeFulfillmentCount = orders.filter(
-    (o) => o.fulfillment_status === 'cooking' || o.fulfillment_status === 'packaging'
+    (o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch'
   ).length
   const outForDeliveryCount = orders.filter((o) => o.fulfillment_status === 'in_transit').length
   const deliveredCount = orders.filter((o) => o.fulfillment_status === 'delivered').length
@@ -336,8 +343,8 @@ export const WebsiteOrdersPage: React.FC = () => {
     switch (activeTab) {
       case 'intake':
         return orders.filter((o) => o.fulfillment_status === 'in_intake')
-      case 'kitchen':
-        return orders.filter((o) => o.fulfillment_status === 'cooking' || o.fulfillment_status === 'packaging')
+      case 'packaging':
+        return orders.filter((o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch')
       case 'transit':
         return orders.filter((o) => o.fulfillment_status === 'in_transit')
       case 'delivered':
@@ -476,16 +483,16 @@ export const WebsiteOrdersPage: React.FC = () => {
     {
       key: 'status',
       header: 'Fulfillment',
-      defaultWidth: 145,
+      defaultWidth: 155,
       accessor: (o) => {
         const stageMap: Record<string, { status: BadgeStatus | string; label: string }> = {
           in_intake: { status: 'ORDER_INTAKE', label: 'Order Intake' },
-          cooking: { status: 'COOKING', label: 'Production' },
           packaging: { status: 'PACKAGING', label: 'Packaging' },
+          ready_for_dispatch: { status: 'IN_TRANSIT', label: 'Ready for Dispatch' },
           in_transit: { status: 'IN_TRANSIT', label: 'In Transit' },
           delivered: { status: 'DELIVERED', label: 'Delivered' }
         }
-        const config = stageMap[o.fulfillment_status] || { status: 'PENDING', label: 'Pending' }
+        const config = stageMap[o.fulfillment_status] || { status: 'PACKAGING', label: 'Packaging' }
         return <StatusBadge status={config.status} label={config.label} size="sm" />
       },
       sortValue: (o) => o.fulfillment_status
@@ -566,10 +573,10 @@ export const WebsiteOrdersPage: React.FC = () => {
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
-          title="Production & Packaging"
+          title="Packaging Queue"
           value={loading ? '...' : activeFulfillmentCount}
-          description="Orders being prepped"
-          icon={<Clock className="w-4 h-4 text-amber-500" />}
+          description="Orders being packed from sales stock"
+          icon={<Package className="w-4 h-4 text-amber-500" />}
           variant="default"
         />
         <MetricCard
@@ -593,8 +600,8 @@ export const WebsiteOrdersPage: React.FC = () => {
               badge: orders.filter((o) => o.fulfillment_status === 'in_intake').length
             },
             {
-              id: 'kitchen',
-              label: 'Production & Packaging',
+              id: 'packaging',
+              label: 'Packaging Queue',
               badge: activeFulfillmentCount
             },
             {
@@ -826,8 +833,8 @@ export const WebsiteOrdersPage: React.FC = () => {
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
                       {
                         selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
-                        selectedOrder.fulfillment_status === 'cooking' ? 'Kitchen Production' :
                         selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
+                        selectedOrder.fulfillment_status === 'ready_for_dispatch' ? 'Ready for Dispatch' :
                         selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
                       }
                     </span>
