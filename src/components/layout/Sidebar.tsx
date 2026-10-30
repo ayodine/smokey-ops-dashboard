@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { useWarehouse } from '@/context/WarehouseContext'
 import { cn } from '@/lib/utils'
 import {
   Boxes,
@@ -38,64 +39,6 @@ interface NavSection {
   items: NavItem[]
 }
 
-const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'sales',
-    title: 'SALES',
-    icon: ShoppingBag,
-    defaultHref: '/sales/orders',
-    items: [
-      { label: 'Website Orders', href: '/sales/orders', badge: '14' },
-      { label: 'Sales Inventory', href: '/inventory/sales', badge: '15' },
-    ],
-  },
-  {
-    id: 'inventory',
-    title: 'INVENTORY',
-    icon: Boxes,
-    defaultHref: '/inventory/raw',
-    items: [
-      { label: 'Raw Inventory', href: '/inventory/raw', badge: '13' },
-      { label: 'Stock Movements', href: '/inventory/movements', badge: '16' },
-      { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: '12' },
-      { label: 'Warehouses & Depots', href: '/inventory/warehouses', badge: '2' },
-    ],
-  },
-  {
-    id: 'production',
-    title: 'PRODUCTION',
-    icon: Factory,
-    defaultHref: '/production/batches',
-    items: [
-      { label: 'Production Batches', href: '/production/batches', badge: '12' },
-      { label: 'Kitchen Shift Tasks', href: '/production/tasks', badge: '12' },
-    ],
-  },
-  {
-    id: 'packaging',
-    title: 'PACKAGING',
-    icon: Package,
-    defaultHref: '/production/packaging',
-    items: [
-      { label: 'Packaging Execution', href: '/production/packaging', badge: '11' },
-      { label: 'Packaging Materials', href: '/inventory/packaging', badge: '14' },
-    ],
-  },
-  {
-    id: 'logistic',
-    title: 'LOGISTIC',
-    icon: Truck,
-    defaultHref: '/logistics/board',
-    items: [
-      { label: 'Dispatch Board', href: '/logistics/board', badge: '12' },
-      { label: 'Delivery Schedule', href: '/logistics/schedule', badge: '11' },
-      { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: '11' },
-      { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: '11' },
-      { label: 'Third Party Delivery', href: '/logistics/third-party', badge: '12' },
-    ],
-  },
-]
-
 interface SidebarProps {
   isMobileOpen: boolean
   onCloseMobile: () => void
@@ -109,7 +52,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     return localStorage.getItem('ops_sidebar_collapsed') === 'true'
   })
 
-  const { activeAccountEmail, currentAccount, switchAccount, availableAccounts } = useSmokeyOps()
+  const {
+    activeAccountEmail,
+    currentAccount,
+    switchAccount,
+    availableAccounts,
+    rawProducts,
+    packagingProducts,
+    salesProducts,
+    suppliers,
+    riders,
+    rawMovements,
+    productionBatches,
+    kitchenTasks,
+    packagingQueue,
+    logisticsDeliveries,
+    scheduledOrders,
+    storePickups,
+    thirdPartySummaries
+  } = useSmokeyOps()
+
+  const { facilities } = useWarehouse()
+
+  // Live active orders count from Supabase
+  const [activeOrdersCount, setActiveOrdersCount] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/live-orders')
+      .then(res => res.json())
+      .then(json => {
+        if (isMounted && json?.data && Array.isArray(json.data)) {
+          const active = json.data.filter((o: any) => o.status !== 'delivered' && o.status !== 'cancelled')
+          setActiveOrdersCount(active.length)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
@@ -126,8 +108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     )
   }, [availableAccounts, accountSearchQuery])
 
-  // Filter sections based on account role (RBAC)
-  const navSections = useMemo(() => {
+  // Filter sections and compute dynamic real-time badge counts from Supabase
+  const navSections = useMemo<NavSection[]>(() => {
     if (currentAccount.role === 'rider') {
       return [
         {
@@ -141,8 +123,89 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         },
       ]
     }
-    return NAV_SECTIONS
-  }, [currentAccount.role])
+
+    const activeBatchesCount = productionBatches.filter(b => b.status === 'in_production').length
+    const pendingTasksCount = kitchenTasks.filter(t => t.status !== 'done').length
+    const pendingPackagingCount = packagingQueue.filter(q => q.order_status !== 'packaged').length
+    const activeDispatchesCount = logisticsDeliveries.filter(d => ['pending', 'assigned', 'in_transit', 'out_for_delivery'].includes(d.status)).length
+    const scheduledOrdersCount = scheduledOrders.filter(o => o.order_status !== 'dispatched').length
+    const pendingPickupsCount = storePickups.filter(p => p.order_status === 'ready_for_pickup').length
+
+    return [
+      {
+        id: 'sales',
+        title: 'SALES',
+        icon: ShoppingBag,
+        defaultHref: '/sales/orders',
+        items: [
+          { label: 'Website Orders', href: '/sales/orders', badge: activeOrdersCount !== undefined ? activeOrdersCount : undefined },
+          { label: 'Sales Inventory', href: '/inventory/sales', badge: salesProducts.length },
+        ],
+      },
+      {
+        id: 'inventory',
+        title: 'INVENTORY',
+        icon: Boxes,
+        defaultHref: '/inventory/raw',
+        items: [
+          { label: 'Raw Inventory', href: '/inventory/raw', badge: rawProducts.length },
+          { label: 'Stock Movements', href: '/inventory/movements', badge: rawMovements.length > 0 ? rawMovements.length : undefined },
+          { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: suppliers.length },
+          { label: 'Warehouses & Depots', href: '/inventory/warehouses', badge: facilities.length },
+        ],
+      },
+      {
+        id: 'production',
+        title: 'PRODUCTION',
+        icon: Factory,
+        defaultHref: '/production/batches',
+        items: [
+          { label: 'Production Batches', href: '/production/batches', badge: activeBatchesCount > 0 ? activeBatchesCount : undefined },
+          { label: 'Kitchen Shift Tasks', href: '/production/tasks', badge: pendingTasksCount > 0 ? pendingTasksCount : undefined },
+        ],
+      },
+      {
+        id: 'packaging',
+        title: 'PACKAGING',
+        icon: Package,
+        defaultHref: '/production/packaging',
+        items: [
+          { label: 'Packaging Execution', href: '/production/packaging', badge: pendingPackagingCount > 0 ? pendingPackagingCount : undefined },
+          { label: 'Packaging Materials', href: '/inventory/packaging', badge: packagingProducts.length },
+        ],
+      },
+      {
+        id: 'logistic',
+        title: 'LOGISTIC',
+        icon: Truck,
+        defaultHref: '/logistics/board',
+        items: [
+          { label: 'Dispatch Board', href: '/logistics/board', badge: activeDispatchesCount > 0 ? activeDispatchesCount : undefined },
+          { label: 'Delivery Schedule', href: '/logistics/schedule', badge: scheduledOrdersCount > 0 ? scheduledOrdersCount : undefined },
+          { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: riders.length },
+          { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: pendingPickupsCount > 0 ? pendingPickupsCount : undefined },
+          { label: 'Third Party Delivery', href: '/logistics/third-party', badge: thirdPartySummaries.length > 0 ? thirdPartySummaries.length : undefined },
+        ],
+      },
+    ]
+  }, [
+    currentAccount.role,
+    activeOrdersCount,
+    salesProducts.length,
+    rawProducts.length,
+    rawMovements.length,
+    suppliers.length,
+    facilities.length,
+    productionBatches,
+    kitchenTasks,
+    packagingQueue,
+    packagingProducts.length,
+    logisticsDeliveries,
+    scheduledOrders,
+    riders.length,
+    storePickups,
+    thirdPartySummaries.length
+  ])
 
   // Track expanded collapsible sections with persistence
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
@@ -544,7 +607,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                             >
                               {subItem.label}
                             </span>
-                            {subItem.badge && (
+                            {subItem.badge !== undefined && subItem.badge !== null && subItem.badge !== '' && (
                               <span
                                 className={cn(
                                   'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold select-none border ml-1.5',
