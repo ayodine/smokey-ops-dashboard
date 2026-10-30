@@ -91,7 +91,16 @@ interface SmokeyOpsContextType {
   kitchenTasks: KitchenTask[]
 
   // Production Actions
-  createBatch: (data: { outputProductId: number; outputProductName: string; expectedOutput: number; remarks?: string; rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }> }) => void
+  createBatch: (data: {
+    outputProductId: number
+    outputProductName: string
+    expectedOutput: number
+    remarks?: string
+    batch_schedule?: 'today' | 'tomorrow_morning'
+    feed_sales_inventory?: boolean
+    estimated_ready_time?: string
+    rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }>
+  }) => void
   updateBatch: (batchId: number, data: Partial<ProductionBatch>) => void
   saveCustomRecipeTemplate: (template: Omit<RecipeTemplate, 'id'>) => void
   updateRecipeTemplate: (id: number, template: Partial<RecipeTemplate>) => void
@@ -638,6 +647,33 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(SEED_PACKAGING_QUEUE)
   const [packagingMaterialsDaily, setPackagingMaterialsDaily] = useState<PackagingMaterialDaily[]>(SEED_PACKAGING_MATERIALS_DAILY)
   const [kitchenTasks, setKitchenTasks] = useState<KitchenTask[]>(SEED_KITCHEN_TASKS)
+
+  // Two-Tier Inventory Pipeline: Calculate live incoming estimated batches from active/scheduled smoke runs
+  const activeIncomingBatchesByProduct = useMemo(() => {
+    const map: Record<number, number> = {}
+    productionBatches.forEach(b => {
+      if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false) {
+        map[b.output_product_id] = (map[b.output_product_id] || 0) + (b.expected_output || 0)
+      }
+    })
+    return map
+  }, [productionBatches])
+
+  // Augment salesProducts with dynamic incoming batch buffer and total sellable online capacity
+  const augmentedSalesProducts = useMemo(() => {
+    return salesProducts.map(sp => {
+      const incoming = activeIncomingBatchesByProduct[sp.id] || 0
+      const allocated = sp.qty_allocated || 0
+      const physicalAvailable = Math.max(0, sp.stock_qty - allocated)
+      const sellable = Math.max(0, sp.stock_qty + incoming - allocated)
+      return {
+        ...sp,
+        estimated_incoming_qty: incoming,
+        qty_available: physicalAvailable,
+        sellable_qty: sellable
+      }
+    })
+  }, [salesProducts, activeIncomingBatchesByProduct])
 
   // Logistics Domain
   const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(SEED_LOGISTICS_DELIVERIES)
@@ -1582,13 +1618,35 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // PRODUCTION MUTATIONS
   // -------------------------------------------------------------
 
-  const createBatch = ({ outputProductId, outputProductName, expectedOutput, remarks, rawMaterials }: { outputProductId: number; outputProductName: string; expectedOutput: number; remarks?: string; rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }> }) => {
+  const createBatch = ({
+    outputProductId,
+    outputProductName,
+    expectedOutput,
+    remarks,
+    batch_schedule = 'today',
+    feed_sales_inventory = true,
+    estimated_ready_time,
+    rawMaterials
+  }: {
+    outputProductId: number
+    outputProductName: string
+    expectedOutput: number
+    remarks?: string
+    batch_schedule?: 'today' | 'tomorrow_morning'
+    feed_sales_inventory?: boolean
+    estimated_ready_time?: string
+    rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }>
+  }) => {
     // 1. Deduct raw materials consumed
     rawMaterials.forEach(mat => {
       adjustRawStock(mat.product_id, -mat.quantity, `Batch allocation for ${outputProductName}`, "consumption")
     })
 
     const batchRef = `BAT-${String(productionBatches.length + 23).padStart(5, '0')}`
+    const defaultReadyTime = batch_schedule === 'tomorrow_morning'
+      ? 'Tomorrow 9:30 AM'
+      : `Today ${new Date(Date.now() + 4 * 3600 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+
     const newBatch: ProductionBatch = {
       id: Date.now(),
       batch_ref: batchRef,
@@ -1598,6 +1656,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       actual_output: 0,
       wastage: 0,
       status: "draft",
+      batch_schedule,
+      feed_sales_inventory,
+      estimated_ready_time: estimated_ready_time || defaultReadyTime,
       started_at: null,
       completed_at: null,
       remarks,
@@ -1607,21 +1668,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProductionBatches(prev => [newBatch, ...prev])
 
     showSuccessModal({
-      title: 'Cooking Batch Created',
-      message: `Recipe formulated for ${outputProductName}. Raw ingredients allocated from inventory.`,
+      title: batch_schedule === 'tomorrow_morning' ? 'Next-Day Morning Smoke Scheduled' : 'Cooking Batch Created',
+      message: feed_sales_inventory
+        ? `Batch formulated. +${expectedOutput} units buffered to Sales Inventory so online orders continue uninterrupted.`
+        : `Batch formulated for ${outputProductName}. Raw ingredients allocated from inventory.`,
       details: [
         { label: 'Batch Ref', value: batchRef },
         { label: 'Target Dish', value: outputProductName },
-        { label: 'Expected Yield', value: `${expectedOutput} portions` },
-        { label: 'Ingredients Used', value: `${rawMaterials.length} items` },
+        { label: 'Planned Output', value: `${expectedOutput} portions` },
+        { label: 'Target Completion', value: estimated_ready_time || defaultReadyTime },
+        { label: 'Website Buffer Feed', value: feed_sales_inventory ? `+${expectedOutput} Units Bookable Online` : 'Internal Prep Only' },
       ],
     })
-    showToast(`Batch ${batchRef} created for ${outputProductName}`, 'success')
+    showToast(`Batch ${batchRef} created: +${expectedOutput} units buffered to sales`, 'success')
   }
 
   const startBatch = (batchId: number) => {
     setProductionBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: "in_production", started_at: new Date().toISOString().replace('T', ' ').substring(0, 19) } : b))
-    showToast(`Batch cooking started`, 'info')
+    showToast(`Batch cooking started in smoker pit`, 'info')
   }
 
   const completeBatch = (batchId: number, actualOutput: number, wastage: number, remarks?: string) => {
@@ -1638,23 +1702,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       remarks: remarks || b.remarks
     } : b))
 
-    // 2. Automatically INCREMENT stock in Sales Inventory!
+    // 2. Automatically INCREMENT physical stock in Sales Inventory (reconciling estimated incoming buffer)
     const targetSales = salesProducts.find(sp => sp.id === batch.output_product_id || sp.name.toLowerCase() === batch.output_product_name.toLowerCase())
     if (targetSales) {
       adjustSalesStock(targetSales.id, actualOutput, `Batch ${batch.batch_ref} yield deposit`)
     }
 
     showSuccessModal({
-      title: 'Cooking Batch Completed',
-      message: `Finished food has been credited to Sales Inventory and is ready for dispatch.`,
+      title: 'Cooking Batch Completed & Reconciled',
+      message: `Verified actual yield deposited into Physical Sales Inventory. Estimated incoming buffer has been converted to ready stock.`,
       details: [
         { label: 'Batch Ref', value: batch.batch_ref },
         { label: 'Finished Dish', value: batch.output_product_name },
-        { label: 'Actual Yield', value: `+${actualOutput} portions` },
-        { label: 'Cooking Loss', value: `${wastage} portions` },
+        { label: 'Estimated Batch Buffer', value: `${batch.expected_output} portions (Reconciled)` },
+        { label: 'Actual Physical Deposited', value: `+${actualOutput} portions` },
+        { label: 'Cooking Shrinkage / Loss', value: `${wastage} portions` },
       ],
     })
-    showToast(`Batch ${batch.batch_ref} completed: +${actualOutput} portions deposited`, 'success')
+    showToast(`Batch ${batch.batch_ref} completed: +${actualOutput} physical portions deposited`, 'success')
   }
 
   const cancelBatch = (batchId: number) => {
@@ -2073,7 +2138,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         rawUsage,
         packagingProducts,
         packagingReceiptsTotals,
-        salesProducts,
+        salesProducts: augmentedSalesProducts,
         dailySales,
         salesMovements,
         suppliers,

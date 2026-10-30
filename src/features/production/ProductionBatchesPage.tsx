@@ -14,7 +14,7 @@ import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
-import { formatNaira, formatQuantity, formatDate } from '@/lib/utils'
+import { formatNaira, formatQuantity, formatDate, cn } from '@/lib/utils'
 
 const formatUnit = (unit?: string) => {
   if (!unit) return ''
@@ -44,7 +44,8 @@ import {
   Save,
   Check,
   Utensils,
-  Settings
+  Settings,
+  ShoppingCart
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -117,12 +118,31 @@ export const ProductionBatchesPage: React.FC = () => {
   const [selectedOutputProduct, setSelectedOutputProduct] = useState<number>(salesProducts[0]?.id || 38)
   const [expectedOutput, setExpectedOutput] = useState<number>(50)
   const [batchRemarks, setBatchRemarks] = useState<string>('Standard morning smoke run in Pit #1')
+  const [batchSchedule, setBatchSchedule] = useState<'today' | 'tomorrow_morning'>('today')
+  const [estimatedReadyTime, setEstimatedReadyTime] = useState<string>('Today 1:30 PM')
+  const [feedSalesInventory, setFeedSalesInventory] = useState<boolean>(true)
   const [bomRows, setBomRows] = useState<RawMaterialBOM[]>([
     { product_id: 62, sku: 'SKU-00028', name: 'FRESH GUINEAFOWL', quantity: 50, unit: 'PIECES' },
     { product_id: 53, sku: 'SKU-00019', name: 'DRY PEPPER', quantity: 2.5, unit: 'KG' },
     { product_id: 54, sku: 'SKU-00020', name: 'SPICIES (SECRET BLEND)', quantity: 1.0, unit: 'PACK' },
     { product_id: 52, sku: 'SKU-00018', name: 'FIREWOOD', quantity: 4.0, unit: 'BUNDLE' },
   ])
+
+  const handleOpenTodayBatch = () => {
+    setBatchSchedule('today')
+    setEstimatedReadyTime('Today 1:30 PM')
+    setFeedSalesInventory(true)
+    setBatchRemarks('Standard daytime smoke cycle')
+    setIsCreateModalOpen(true)
+  }
+
+  const handleOpenTomorrowBatch = () => {
+    setBatchSchedule('tomorrow_morning')
+    setEstimatedReadyTime('Tomorrow 9:30 AM')
+    setFeedSalesInventory(true)
+    setBatchRemarks('Next-day morning smoke cycle. Feeds overnight website pre-orders.')
+    setIsCreateModalOpen(true)
+  }
 
   // Recipe Template Selection Handler (Invariant 2: Standard BOM Determinism)
   const handleSelectRecipeTemplate = (val: string) => {
@@ -425,6 +445,9 @@ export const ProductionBatchesPage: React.FC = () => {
       outputProductName: targetProduct.name,
       expectedOutput: Number(expectedOutput),
       remarks: batchRemarks,
+      batch_schedule: batchSchedule,
+      feed_sales_inventory: feedSalesInventory,
+      estimated_ready_time: estimatedReadyTime,
       rawMaterials: bomRows
     })
     setIsCreateModalOpen(false)
@@ -471,8 +494,20 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'expected_output',
-      header: 'Planned Output',
-      accessor: (b) => <span className="font-medium text-kumo-strong font-sans text-xs">{b.expected_output} units</span>,
+      header: 'Planned Output & Sales Feed',
+      accessor: (b) => (
+        <div>
+          <div className="font-semibold text-kumo-strong font-sans text-xs">{b.expected_output} units</div>
+          {b.feed_sales_inventory !== false ? (
+            <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>+{b.expected_output} to Web Storefront</span>
+            </div>
+          ) : (
+            <span className="text-[10px] text-zinc-400 font-sans">Internal only</span>
+          )}
+        </div>
+      ),
       sortValue: (b) => b.expected_output,
     },
     {
@@ -483,8 +518,26 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'started_at',
-      header: 'Queue Status',
-      accessor: () => <span className="text-xs text-kumo-subtle font-sans">Awaiting Pit Start</span>,
+      header: 'Schedule & Target Ready',
+      accessor: (b) => (
+        <div>
+          <div className="flex items-center gap-1 font-sans">
+            {b.batch_schedule === 'tomorrow_morning' ? (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                <Clock className="w-2.5 h-2.5" />
+                Tomorrow Morning
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Today Run
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-kumo-subtle font-sans mt-0.5">
+            Est: {b.estimated_ready_time || 'Awaiting ignition'}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'created_by_name',
@@ -555,8 +608,18 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'expected_output',
-      header: 'Batch Capacity',
-      accessor: (b) => <span className="font-medium text-kumo-strong font-sans text-xs">{b.expected_output} units</span>,
+      header: 'Smoker Output & Buffer Feed',
+      accessor: (b) => (
+        <div>
+          <div className="font-semibold text-kumo-strong font-sans text-xs">{b.expected_output} units</div>
+          {b.feed_sales_inventory !== false && (
+            <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+              <Flame className="w-3 h-3 text-amber-500 animate-pulse shrink-0" />
+              <span>Selling on Batch (+{b.expected_output})</span>
+            </div>
+          )}
+        </div>
+      ),
       sortValue: (b) => b.expected_output,
     },
     {
@@ -567,8 +630,18 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'started_at',
-      header: 'Cooking Since',
-      accessor: (b) => <span className="text-xs text-kumo-subtle font-sans">{b.started_at ? formatDate(b.started_at) : 'In progress'}</span>,
+      header: 'Target Ready Time',
+      accessor: (b) => (
+        <div>
+          <div className="text-xs font-semibold text-kumo-strong font-sans flex items-center gap-1">
+            <Clock className="w-3 h-3 text-zinc-500" />
+            <span>{b.estimated_ready_time || 'Est. 2-3 hrs'}</span>
+          </div>
+          <div className="text-[11px] text-kumo-subtle font-sans mt-0.5">
+            Cooking since {b.started_at ? formatDate(b.started_at) : 'Active'}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'created_by_name',
@@ -621,11 +694,16 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'yield',
-      header: 'Planned vs Actual Yield',
+      header: 'Sales Inventory Deposit',
       accessor: (b) => (
-        <div className="flex items-center gap-2 font-sans">
-          <span className="text-xs text-kumo-subtle font-sans">{b.expected_output} planned</span>
-          <span className="font-semibold text-emerald-700 font-sans text-xs">→ {b.actual_output} units</span>
+        <div className="font-sans">
+          <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400 text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>+{b.actual_output} units physical</span>
+          </div>
+          <div className="text-[11px] text-kumo-subtle mt-0.5">
+            Reconciled from {b.expected_output} estimated buffer
+          </div>
         </div>
       ),
       sortValue: (b) => b.actual_output,
@@ -684,20 +762,31 @@ export const ProductionBatchesPage: React.FC = () => {
         title="Production Batches & Cooking Recipes"
         subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            Start Cooking Batch
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenTomorrowBatch}
+              leftIcon={<Clock className="w-4 h-4 text-amber-600" />}
+              className="h-10 px-3.5 text-xs sm:text-sm font-medium"
+            >
+              Plan Tomorrow's Smoke (Pre-Order Feed)
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenTodayBatch}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              Start Cooking Batch
+            </Button>
+          </div>
         }
       />
 
       {/* KPI Stat Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <MetricCard
           title="Total Batches"
           value={totalBatches}
@@ -711,10 +800,16 @@ export const ProductionBatchesPage: React.FC = () => {
           icon={<Clock className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
-          title="Producing (In Pit)"
+          title="In Pit Smokers"
           value={filteredProducing.length}
-          description="Cooking in smoker chambers"
+          description="Cooking in chambers"
           icon={<Flame className="w-4 h-4 text-rose-500" />}
+        />
+        <MetricCard
+          title="Web Store Buffer"
+          value={`+${productionBatches.filter(b => (b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false).reduce((acc, b) => acc + (b.expected_output || 0), 0)} units`}
+          description="Buffering online menu"
+          icon={<ShoppingCart className="w-4 h-4 text-emerald-600" />}
         />
         <MetricCard
           title="Finished Batches"
@@ -802,6 +897,88 @@ export const ProductionBatchesPage: React.FC = () => {
               <span>{templateSuccessFeedback}</span>
             </div>
           )}
+
+          {/* Batch Schedule & Storefront Buffer Mode */}
+          <div className="p-4 rounded-xl border border-kumo-line bg-kumo-surface/60 space-y-3 font-sans">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider block">
+                Batch Schedule & Storefront Buffer Feed
+              </span>
+              <span className="text-[11px] text-kumo-subtle font-medium">
+                {batchSchedule === 'tomorrow_morning' ? 'Overnight Pre-Order Feed' : 'Daytime Active Production'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setBatchSchedule('today')
+                  setEstimatedReadyTime('Today 1:30 PM')
+                }}
+                className={cn(
+                  "p-3 rounded-lg border text-left transition-all cursor-pointer font-sans",
+                  batchSchedule === 'today'
+                    ? "bg-white dark:bg-zinc-800 border-primary ring-1 ring-primary shadow-2xs"
+                    : "bg-kumo-base border-kumo-line hover:bg-kumo-tint"
+                )}
+              >
+                <div className="font-semibold text-xs text-kumo-strong flex items-center justify-between">
+                  <span>Today's Smoke Run</span>
+                  {batchSchedule === 'today' && <span className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div className="text-[11px] text-kumo-subtle mt-1 leading-relaxed">
+                  Active daytime smoking. Buffers online store availability while the batch is cooking in pits.
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBatchSchedule('tomorrow_morning')
+                  setEstimatedReadyTime('Tomorrow 9:30 AM')
+                }}
+                className={cn(
+                  "p-3 rounded-lg border text-left transition-all cursor-pointer font-sans",
+                  batchSchedule === 'tomorrow_morning'
+                    ? "bg-white dark:bg-zinc-800 border-amber-600 ring-1 ring-amber-600 shadow-2xs"
+                    : "bg-kumo-base border-kumo-line hover:bg-kumo-tint"
+                )}
+              >
+                <div className="font-semibold text-xs text-kumo-strong flex items-center justify-between">
+                  <span>Tomorrow Morning Run (Pre-Orders)</span>
+                  {batchSchedule === 'tomorrow_morning' && <span className="w-2 h-2 rounded-full bg-amber-600" />}
+                </div>
+                <div className="text-[11px] text-kumo-subtle mt-1 leading-relaxed">
+                  End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.
+                </div>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-kumo-line">
+              <Input
+                label="Target Ready Time"
+                value={estimatedReadyTime}
+                onChange={(e) => setEstimatedReadyTime(e.target.value)}
+                placeholder="e.g. Today 2:30 PM or Tomorrow 9:30 AM"
+                required
+              />
+              <div className="flex flex-col justify-end">
+                <label className="flex items-center gap-2.5 p-2.5 rounded-lg border border-kumo-line bg-kumo-base cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={feedSalesInventory}
+                    onChange={(e) => setFeedSalesInventory(e.target.checked)}
+                    className="w-4 h-4 text-primary rounded border-zinc-300 focus:ring-primary shrink-0"
+                  />
+                  <div className="text-xs min-w-0">
+                    <span className="font-semibold text-kumo-strong block truncate">Feed Storefront Buffer</span>
+                    <span className="text-[10px] text-kumo-subtle block truncate">Keeps item bookable online while smoking</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
 
           {/* SECTION 1: Recipe Template & Target Output */}
           <div className="space-y-4">
@@ -992,7 +1169,7 @@ export const ProductionBatchesPage: React.FC = () => {
         isOpen={isCompleteModalOpen}
         onClose={() => setIsCompleteModalOpen(false)}
         title={`Complete Batch: ${selectedBatch?.batch_ref} (${selectedBatch?.output_product_name})`}
-        description="Verify actual cooking yield, log waste, and automatically deposit finished items into Sales Inventory."
+        description="Verify actual cooking yield, log pit shrinkage, and reconcile estimated buffer into Physical Ready Stock in Sales Inventory."
         maxWidth="xl"
         footer={
           <div className="flex justify-end items-center gap-2.5 w-full">
@@ -1006,10 +1183,16 @@ export const ProductionBatchesPage: React.FC = () => {
         }
       >
         <form id="complete-batch-form" onSubmit={handleConfirmComplete} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Target Output:</span>
-              <span className="font-semibold text-kumo-strong font-sans">{selectedBatch?.expected_output} units</span>
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-2 font-sans">
+            <div className="flex justify-between items-center pb-2 border-b border-kumo-line/60">
+              <span className="text-kumo-subtle font-medium">Estimated Storefront Buffer:</span>
+              <span className="font-semibold text-kumo-strong font-sans">{selectedBatch?.expected_output} portions (Active buffer)</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px] text-kumo-subtle">
+              <span>Reconciliation Action:</span>
+              <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                Converts estimated buffer into verified Physical Ready Stock
+              </span>
             </div>
           </div>
 

@@ -157,11 +157,14 @@ export interface SalesProduct {
   reorder_level: number
   unit_cost: number
   selling_price: number
-  stock_qty: number // Total On-Hand
+  stock_qty: number // Total Physical On-Hand (Ready in Warmers/Chillers)
   qty_allocated: number // Reserved for orders in packaging/dispatch
-  qty_available: number // stock_qty - qty_allocated
+  qty_available: number // Physical stock ready for instant fulfillment (stock_qty - qty_allocated)
   inventory_value: number
   is_active: number
+  // Two-Tier Inventory Pipeline (Active/Scheduled Smoker Batches Buffer)
+  estimated_incoming_qty?: number // Quantity currently in smoker pits or scheduled next-day
+  sellable_qty?: number // Total available for sale on online storefront = max(0, stock_qty + estimated_incoming_qty - qty_allocated)
 }
 
 export interface DailySalesItem {
@@ -223,6 +226,9 @@ export interface ProductionBatch {
   actual_output: number
   wastage: number
   status: 'draft' | 'in_production' | 'completed' | 'cancelled'
+  batch_schedule?: 'today' | 'tomorrow_morning'
+  feed_sales_inventory?: boolean
+  estimated_ready_time?: string
   started_at: string | null
   completed_at: string | null
   remarks?: string
@@ -1206,7 +1212,75 @@ export const SEED_SUPPLIERS: Supplier[] = [
   }
 ]
 
-export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = []
+export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
+  {
+    id: 101,
+    batch_ref: "BAT-00021",
+    output_product_id: 38,
+    output_product_name: "Full Smokey Guineafowl",
+    expected_output: 50,
+    actual_output: 0,
+    wastage: 0,
+    status: "in_production",
+    batch_schedule: "today",
+    feed_sales_inventory: true,
+    estimated_ready_time: "Today 1:30 PM",
+    started_at: "2026-10-30 09:15:00",
+    completed_at: null,
+    remarks: "Standard morning smoke run in Pit #1. Feeds active web storefront buffer.",
+    created_by_name: "Babajide (Lead Pitmaster)",
+    raw_materials: [
+      { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 50, unit: "pieces" },
+      { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2.5, unit: "kg" },
+      { product_id: 3, sku: "RAW-SPICES", name: "SPICIES", quantity: 1, unit: "packs" },
+      { product_id: 4, sku: "RAW-FIREWOOD", name: "FIREWOOD", quantity: 4, unit: "bundle" }
+    ]
+  },
+  {
+    id: 102,
+    batch_ref: "BAT-00022",
+    output_product_id: 39,
+    output_product_name: "Full Smokey Guineafowl (Chopped)",
+    expected_output: 40,
+    actual_output: 0,
+    wastage: 0,
+    status: "draft",
+    batch_schedule: "tomorrow_morning",
+    feed_sales_inventory: true,
+    estimated_ready_time: "Tomorrow 9:30 AM",
+    started_at: null,
+    completed_at: null,
+    remarks: "Overnight pre-order buffer. Pit fires up at 6:00 AM tomorrow.",
+    created_by_name: "Babajide (Lead Pitmaster)",
+    raw_materials: [
+      { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 40, unit: "pieces" },
+      { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2, unit: "kg" },
+      { product_id: 4, sku: "RAW-FIREWOOD", name: "FIREWOOD", quantity: 3, unit: "bundle" }
+    ]
+  },
+  {
+    id: 100,
+    batch_ref: "BAT-00020",
+    output_product_id: 57,
+    output_product_name: "Charcoal Roasted Whole Catfish (Family)",
+    expected_output: 25,
+    actual_output: 24,
+    wastage: 1,
+    status: "completed",
+    batch_schedule: "today",
+    feed_sales_inventory: true,
+    estimated_ready_time: "Today 10:00 AM",
+    started_at: "2026-10-30 06:30:00",
+    completed_at: "2026-10-30 09:45:00",
+    remarks: "Early morning smoke cycle. Deposited +24 fish into Sales Inventory.",
+    created_by_name: "Babajide (Lead Pitmaster)",
+    raw_materials: [
+      { product_id: 8, sku: "RAW-CATFISH", name: "FRESH CATFISH", quantity: 25, unit: "pieces" },
+      { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 1.5, unit: "kg" },
+      { product_id: 5, sku: "RAW-CHARCOAL", name: "HARDWOOD CHARCOAL", quantity: 2, unit: "bag" }
+    ]
+  }
+]
 
 export const SEED_PACKAGING_QUEUE: PackagingQueueOrder[] = []
 

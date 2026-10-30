@@ -24,7 +24,10 @@ import {
   Plus, 
   SlidersHorizontal,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Flame,
+  Clock,
+  CheckCircle2
 } from 'lucide-react'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -62,10 +65,31 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
 export const SalesInventoryPage: React.FC = () => {
   const {
     salesProducts,
+    productionBatches,
     dailySales,
     adjustSalesStock,
     saveSalesProduct
   } = useSmokeyOps()
+
+  // Calculate live incoming batch buffers per dish from ongoing/scheduled production runs
+  const incomingByDish = React.useMemo(() => {
+    const map: Record<string, { qty: number; batches: typeof productionBatches }> = {}
+    productionBatches.forEach(b => {
+      if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false) {
+        const keyId = String(b.output_product_id)
+        const keyName = b.output_product_name.toLowerCase().trim()
+
+        if (!map[keyId]) map[keyId] = { qty: 0, batches: [] }
+        map[keyId].qty += b.expected_output
+        map[keyId].batches.push(b)
+
+        if (!map[keyName]) map[keyName] = { qty: 0, batches: [] }
+        map[keyName].qty += b.expected_output
+        map[keyName].batches.push(b)
+      }
+    })
+    return map
+  }, [productionBatches])
 
   const [liveProducts, setLiveProducts] = useState<LiveSalesProduct[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -152,6 +176,11 @@ export const SalesInventoryPage: React.FC = () => {
   const totalValuation = displayProducts.reduce((acc, p) => acc + (p.stock_qty * p.selling_price), 0)
   const totalUnitsSoldToday = dailySales.reduce((acc, d) => acc + d.qty_sold, 0)
   const totalRealizationToday = dailySales.reduce((acc, d) => acc + d.total_value, 0)
+  const totalIncomingUnits = React.useMemo(() => {
+    return productionBatches
+      .filter(b => (b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false)
+      .reduce((acc, b) => acc + (b.expected_output || 0), 0)
+  }, [productionBatches])
 
   const handleOpenAdjust = (p: LiveSalesProduct) => {
     setSelectedProduct(p)
@@ -285,47 +314,114 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'stock_qty',
-      header: 'Ready Stock (On-Hand)',
+      header: 'Physical Ready (Warmer/Chiller)',
+      defaultWidth: 170,
       accessor: (p) => {
         const isLow = p.stock_qty <= p.reorder_level
         return (
-          <div className="flex items-center gap-2 font-sans">
-            <span className="font-medium text-kumo-strong font-sans">
-              {formatQuantity(p.stock_qty)} {p.unit}s
-            </span>
-            {isLow && (
-              <span
-                data-badge="critical-low"
-                className="badge-critical-low inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 whitespace-nowrap select-none"
-                style={{ backgroundColor: '#FCE8EC', borderColor: '#F3B0BB', color: '#C8102E' }}
-              >
-                Critical Low
+          <div className="font-sans">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-kumo-strong text-xs">
+                {formatQuantity(p.stock_qty)} {p.unit}s
               </span>
-            )}
+              {p.stock_qty === 0 ? (
+                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                  0 in warmer
+                </span>
+              ) : isLow ? (
+                <span
+                  data-badge="critical-low"
+                  className="badge-critical-low inline-flex items-center justify-center px-2 py-0.2 rounded-full text-[10px] font-semibold border shrink-0 whitespace-nowrap select-none bg-red-50 text-red-600 border-red-200"
+                >
+                  Low Stock
+                </span>
+              ) : null}
+            </div>
+            <div className="text-[11px] text-kumo-subtle mt-0.5">
+              {p.stock_qty > 0 ? 'Ready for instant dispatch' : 'Awaiting cooking yield'}
+            </div>
           </div>
         )
       },
       sortValue: (p) => p.stock_qty,
     },
     {
-      key: 'qty_available',
-      header: 'Available',
-      accessor: (p) => (
-        <span className="font-medium text-emerald-700 text-xs font-sans">
-          {formatQuantity(p.qty_available ?? p.stock_qty)} {p.unit}s
-        </span>
-      ),
-      sortValue: (p) => p.qty_available ?? p.stock_qty,
+      key: 'estimated_incoming_qty',
+      header: 'In-Smoker / Next Batch',
+      defaultWidth: 170,
+      accessor: (p) => {
+        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+        const primaryBatch = incomingInfo?.batches[0]
+
+        if (incomingQty === 0) {
+          return <span className="text-xs text-kumo-subtle font-sans font-mono">—</span>
+        }
+
+        return (
+          <div className="font-sans">
+            <div className="flex items-center gap-1.5 font-semibold text-xs text-amber-600 dark:text-amber-400">
+              <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>+{incomingQty} in production</span>
+            </div>
+            <div className="text-[11px] text-kumo-subtle mt-0.5 flex items-center gap-1">
+              <Clock className="w-3 h-3 text-zinc-400 shrink-0" />
+              <span className="truncate">
+                {primaryBatch?.estimated_ready_time || (primaryBatch?.batch_schedule === 'tomorrow_morning' ? 'Tomorrow morning' : 'Cooking in pit')}
+              </span>
+            </div>
+          </div>
+        )
+      },
+      sortValue: (p) => {
+        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+        return incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+      },
     },
     {
-      key: 'qty_allocated',
-      header: 'Allocated',
-      accessor: (p) => (
-        <span className="text-xs text-kumo-subtle font-sans">
-          {formatQuantity(p.qty_allocated ?? 0)} {p.unit}s
-        </span>
-      ),
-      sortValue: (p) => p.qty_allocated ?? 0,
+      key: 'sellable_qty',
+      header: 'Total Sellable (Website Storefront)',
+      defaultWidth: 230,
+      accessor: (p) => {
+        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+        const allocated = p.qty_allocated || 0
+        const sellable = Math.max(0, p.stock_qty + incomingQty - allocated)
+
+        return (
+          <div className="font-sans">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-kumo-strong">
+                {formatQuantity(sellable)} {p.unit}s
+              </span>
+              {p.stock_qty > 0 ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  In Stock Ready
+                </span>
+              ) : incomingQty > 0 ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3 text-amber-600" />
+                  Selling on Batch (Pre-Order)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">
+                  <AlertTriangle className="w-3 h-3 text-red-600" />
+                  Out of Stock
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-kumo-subtle mt-0.5">
+              {allocated > 0 ? `(${allocated} reserved for packaging queue)` : 'No active hold reservations'}
+            </div>
+          </div>
+        )
+      },
+      sortValue: (p) => {
+        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+        return Math.max(0, p.stock_qty + incomingQty - (p.qty_allocated || 0))
+      },
     },
     {
       key: 'selling_price',
@@ -441,29 +537,35 @@ export const SalesInventoryPage: React.FC = () => {
       />
 
       {/* KPI Stat Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <MetricCard
-          title="Total Finished SKUs"
+          title="Total Finished Dishes"
           value={totalSKUs}
           description="Finished menu items"
           icon={<Package className="w-4 h-4 text-primary" />}
         />
         <MetricCard
-          title="Inventory Valuation"
+          title="Physical Valuation"
           value={formatNaira(totalValuation)}
-          description="Potential retail realization"
+          description="Ready physical on-hand"
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+        />
+        <MetricCard
+          title="In-Smoker Buffer"
+          value={`+${totalIncomingUnits} portions`}
+          description="Active & scheduled batch feed"
+          icon={<Flame className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
           title="Units Sold Today"
           value={`${totalUnitsSoldToday} units`}
-          description="Orders & walk-in POS sales"
+          description="Orders & POS sales"
           icon={<ShoppingCart className="w-4 h-4 text-blue-500" />}
         />
         <MetricCard
           title="Gross Sales Today"
           value={formatNaira(totalRealizationToday)}
-          description="Live daily sales realization"
+          description="Daily sales realization"
           trend={{ value: 12.4, isPositive: true }}
           icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
         />
