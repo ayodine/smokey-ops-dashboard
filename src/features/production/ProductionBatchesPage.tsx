@@ -772,10 +772,10 @@ export const ProductionBatchesPage: React.FC = () => {
                         min="0.1"
                         value={row.quantity}
                         onChange={(e) => handleUpdateBomRow(idx, 'quantity', Number(e.target.value))}
-                        className="w-full h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
+                        className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
                         placeholder="0.0"
                       />
-                      <span className="px-3 h-full flex items-center text-[12px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line shrink-0 select-none lowercase">
+                      <span className="w-20 shrink-0 h-full flex items-center justify-center text-center px-2 text-[12px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
                         {formatUnit(row.unit)}
                       </span>
                     </div>

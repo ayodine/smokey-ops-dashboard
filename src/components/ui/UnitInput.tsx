@@ -183,9 +183,9 @@ export const UnitInput: React.FC<UnitInputProps> = ({
                     updatePosition()
                     setIsUnitDropdownOpen(prev => !prev)
                   }}
-                  className="h-full px-2.5 flex items-center gap-1 text-[13px] font-medium text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer select-none lowercase"
+                  className="h-full w-20 px-2 flex items-center justify-center gap-1 text-[13px] font-medium text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer select-none lowercase"
                 >
-                  <span className="truncate max-w-[60px] sm:max-w-[80px]">{unit || 'unit'}</span>
+                  <span className="truncate">{unit || 'unit'}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
                 </button>
 
@@ -238,7 +238,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
               </div>
             )
           ) : (
-            <span className="px-3 h-full flex items-center text-[13px] font-medium text-kumo-subtle select-none lowercase">
+            <span className="w-20 shrink-0 h-full flex items-center justify-center text-center px-2 text-[13px] font-medium text-kumo-subtle select-none lowercase">
               {unit}
             </span>
           )}
