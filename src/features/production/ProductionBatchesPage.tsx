@@ -795,7 +795,7 @@ export const ProductionBatchesPage: React.FC = () => {
           </div>
         }
       >
-        <form id="start-cooking-batch-form" onSubmit={handleConfirmCreate} className="space-y-4 font-sans">
+        <form id="start-cooking-batch-form" onSubmit={handleConfirmCreate} className="space-y-5 font-sans">
           {templateSuccessFeedback && (
             <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -803,93 +803,101 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-              <label className="text-[13px] font-medium text-kumo-strong font-sans">
-                Cooking Recipe Template
-              </label>
-              <div className="flex items-center gap-2">
-                {selectedRecipeTemplateId !== 'custom' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditTemplate(Number(selectedRecipeTemplateId))}
-                      className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer flex items-center gap-1"
-                    >
-                      <Pencil className="w-3 h-3" />
-                      <span>Edit Template</span>
-                    </button>
-                    <span className="text-kumo-line text-xs">|</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTemplate(Number(selectedRecipeTemplateId))}
-                      className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
-                    <span className="text-kumo-line text-xs">|</span>
-                  </>
-                )}
+          {/* SECTION 1: Recipe Template & Target Output */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                <label className="text-[13px] font-semibold text-kumo-strong font-sans">
+                  Cooking Recipe Template
+                </label>
                 <button
                   type="button"
                   onClick={() => setIsManageTemplatesModalOpen(true)}
-                  className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer flex items-center gap-1"
+                  className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong flex items-center gap-1.5 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-kumo-tint border border-transparent hover:border-kumo-line"
                 >
-                  <Settings className="w-3 h-3" />
+                  <Settings className="w-3.5 h-3.5" />
                   <span>Manage Templates ({recipeTemplates.length})</span>
                 </button>
               </div>
+
+              <Select
+                value={selectedRecipeTemplateId}
+                onChange={(e) => handleSelectRecipeTemplate(e.target.value)}
+                options={[
+                  { value: 'custom', label: 'Custom Formulation (Manual Recipe)' },
+                  ...recipeTemplates.map(t => ({
+                    value: t.id,
+                    label: `${t.output_product_name} — ${t.version_name} (Std: ${t.standard_batch_size} units)`
+                  }))
+                ]}
+                size="md"
+              />
+
+              {/* Contextual Template Status & Actions */}
+              {selectedRecipeTemplateId !== 'custom' && (
+                <div className="mt-2.5 px-3.5 py-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 rounded-lg flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                      Formula: {recipeTemplates.find(t => t.id === Number(selectedRecipeTemplateId))?.version_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1 transition-colors cursor-pointer hover:underline"
+                    >
+                      <Pencil className="w-3 h-3 text-zinc-500" />
+                      <span>Edit Template</span>
+                    </button>
+                    <span className="text-zinc-300 dark:text-zinc-600">•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors cursor-pointer hover:underline"
+                    >
+                      <Trash2 className="w-3 h-3 text-red-500" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+
             <Select
-              value={selectedRecipeTemplateId}
-              onChange={(e) => handleSelectRecipeTemplate(e.target.value)}
-              options={[
-                { value: 'custom', label: 'Custom Formulation (Manual Recipe)' },
-                ...recipeTemplates.map(t => ({
-                  value: t.id,
-                  label: `${t.output_product_name} — ${t.version_name} (Std: ${t.standard_batch_size} units)`
-                }))
-              ]}
+              label="Output Finished Product"
+              value={selectedOutputProduct}
+              onChange={(e) => {
+                setSelectedOutputProduct(Number(e.target.value))
+                setSelectedRecipeTemplateId('custom')
+              }}
+              options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
               size="md"
+            />
+
+            <UnitInput
+              label="Batch Target Output"
+              value={expectedOutput}
+              onChangeValue={handleExpectedOutputChange}
+              unit="portions"
+              min={1}
+              required
             />
           </div>
 
-          <Select
-            label="Output Finished Product"
-            value={selectedOutputProduct}
-            onChange={(e) => {
-              setSelectedOutputProduct(Number(e.target.value))
-              setSelectedRecipeTemplateId('custom')
-            }}
-            options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
-            size="md"
-          />
-
-          <UnitInput
-            label="Batch Target Output"
-            value={expectedOutput}
-            onChangeValue={handleExpectedOutputChange}
-            unit="portions"
-            min={1}
-            required
-          />
-
-          {/* BOM Ingredients List */}
-          <div className="space-y-3 pt-3 border-t border-kumo-line">
+          {/* SECTION 2: BOM Ingredients List with Generous Spacing */}
+          <div className="pt-6 mt-6 border-t border-kumo-line space-y-3.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-[12px] font-semibold text-kumo-strong uppercase tracking-wider font-sans">
-                Raw Ingredients to Use (Recipe List)
-              </span>
+              <div>
+                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider font-sans block">
+                  Raw Ingredients to Use (Recipe List)
+                </span>
+                <span className="text-[11px] text-kumo-subtle font-normal">
+                  Allocate ingredient quantities to deduct from inventory for this batch
+                </span>
+              </div>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsManageTemplatesModalOpen(true)}
-                >
-                  Manage Templates
-                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -898,6 +906,7 @@ export const ProductionBatchesPage: React.FC = () => {
                     setTemplateVersionName('')
                     setIsSaveTemplateModalOpen(true)
                   }}
+                  leftIcon={<Save className="w-3.5 h-3.5" />}
                 >
                   Save as Recipe Template
                 </Button>
@@ -966,12 +975,15 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           </div>
 
-          <Input
-            label="Production supervisor remarks"
-            placeholder="e.g. Quality checks, temperature profile, shift directives"
-            value={batchRemarks}
-            onChange={(e) => setBatchRemarks(e.target.value)}
-          />
+          {/* SECTION 3: Remarks with Top Spacing */}
+          <div className="pt-5 border-t border-kumo-line">
+            <Input
+              label="Production supervisor remarks"
+              placeholder="e.g. Quality checks, temperature profile, shift directives"
+              value={batchRemarks}
+              onChange={(e) => setBatchRemarks(e.target.value)}
+            />
+          </div>
         </form>
       </Dialog>
 
