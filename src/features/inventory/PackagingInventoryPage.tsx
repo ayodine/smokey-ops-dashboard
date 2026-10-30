@@ -85,11 +85,11 @@ export const PackagingInventoryPage: React.FC = () => {
   const [issueProductId, setIssueProductId] = useState<number>(packagingProducts[0]?.id || 93)
   const [issueQty, setIssueQty] = useState<number>(50)
   const [issuedTo, setIssuedTo] = useState<string>('Packaging Bench Shift Crew')
-  const [issueNotes, setIssueNotes] = useState<string>('Stock drawn from Central Warehouse for daily order packing')
+  const [issueNotes, setIssueNotes] = useState<string>('Stock drawn from Central Store for daily order packing')
 
   // Return to Central Form State
   const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>('Supervisor Ayo')
-  const [returnNotes, setReturnNotes] = useState<string>('EOD shift balance: unused packaging materials returned to Central Warehouse')
+  const [returnNotes, setReturnNotes] = useState<string>('EOD shift balance: unused packaging materials returned to Central Store')
   const [returnItemEntries, setReturnItemEntries] = useState<Array<{ productId: number; returnQty: number; damagedQty: number }>>([])
 
   // Filter transfers for packaging
@@ -231,13 +231,13 @@ export const PackagingInventoryPage: React.FC = () => {
     },
     {
       key: 'central_stock_qty',
-      header: 'Central Hub Stock',
+      header: 'Central Store Stock',
       accessor: (p) => (
         <div className="font-sans">
           <span className="font-semibold text-zinc-900 dark:text-zinc-100">
             {formatQuantity(p.central_stock_qty ?? p.stock_qty)} {p.unit}
           </span>
-          <div className="text-[10px] text-zinc-500">Warehouse Storage</div>
+          <div className="text-[10px] text-zinc-500">Central Store</div>
         </div>
       ),
       sortValue: (p) => p.central_stock_qty ?? p.stock_qty,
@@ -429,7 +429,7 @@ export const PackagingInventoryPage: React.FC = () => {
         if (t.transfer_type === 'issue_packaging') {
           return (
             <div className="flex items-center gap-1.5 text-xs text-blue-700 font-medium">
-              <span>Central Hub</span>
+              <span>Central Store</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span>Packaging Bench</span>
             </div>
@@ -440,7 +440,7 @@ export const PackagingInventoryPage: React.FC = () => {
             <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
               <span>Packaging Bench</span>
               <ArrowDownLeft className="w-3.5 h-3.5" />
-              <span>Central Hub</span>
+              <span>Central Store</span>
             </div>
           )
         }
@@ -526,7 +526,7 @@ export const PackagingInventoryPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Packaging Inventory & Stock Movement Hub"
-        subtitle="Manage Central Hub packaging reserves, issue materials to the packaging execution bench, and verify daily shift reconciliation."
+        subtitle="Manage Central Store packaging reserves, issue materials to the packaging execution bench, and verify daily shift reconciliation."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -584,9 +584,9 @@ export const PackagingInventoryPage: React.FC = () => {
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          title="Central Hub Reserve"
+          title="Central Store Reserve"
           value={`${formatQuantity(totalCentralStock)} units`}
-          description="Stored in central reserve hub"
+          description="Stored in Central Store"
           icon={<Package className="w-4 h-4 text-zinc-600" />}
         />
         <MetricCard
@@ -676,7 +676,7 @@ export const PackagingInventoryPage: React.FC = () => {
         isOpen={isIssueModalOpen}
         onClose={() => setIsIssueModalOpen(false)}
         title="Issue Packaging Stock to Packaging Bench"
-        description="Withdraw packaging materials from the Central Hub and transfer them to the Packaging Execution Bench."
+        description="Withdraw packaging materials from the Central Store and transfer them to the Packaging Execution Bench."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -701,7 +701,7 @@ export const PackagingInventoryPage: React.FC = () => {
             }}
             options={packagingProducts.map(p => ({
               value: p.id,
-              label: `${p.name} [${p.sku}] — Central Hub: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
+              label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
             }))}
           />
 
@@ -731,7 +731,7 @@ export const PackagingInventoryPage: React.FC = () => {
 
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
-              <span className="text-kumo-subtle">Central Hub Stock After Issue:</span>
+              <span className="text-kumo-subtle">Central Store Stock After Issue:</span>
               <span className="font-mono font-semibold text-kumo-strong">
                 {Math.max(0, (packagingProducts.find(p => p.id === issueProductId)?.central_stock_qty ?? 0) - issueQty)} units
               </span>
@@ -750,8 +750,8 @@ export const PackagingInventoryPage: React.FC = () => {
       <Dialog
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
-        title="EOD Shift Return to Central Hub"
-        description="Return unused packaging materials from the packaging bench back to Central Hub reserve and account for damages."
+        title="EOD Shift Return to Central Store"
+        description="Return unused packaging materials from the packaging bench back to Central Store reserve and account for damages."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -853,7 +853,7 @@ export const PackagingInventoryPage: React.FC = () => {
         isOpen={isReceiveModalOpen}
         onClose={() => setIsReceiveModalOpen(false)}
         title="Receive Packaging Materials"
-        description="Record incoming shipment of packaging items into Central Hub stock."
+        description="Record incoming shipment of packaging items into Central Store stock."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1005,7 +1005,7 @@ export const PackagingInventoryPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Central Hub Stock Qty"
+              label="Central Store Stock Qty"
               type="number"
               min="0"
               value={newMaterialForm.central_stock_qty}
@@ -1104,7 +1104,7 @@ export const PackagingInventoryPage: React.FC = () => {
 
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Central Hub Stock</span>
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Central Store Stock</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">
                       {formatQuantity(selectedDetailsProduct.central_stock_qty ?? selectedDetailsProduct.stock_qty)} {selectedDetailsProduct.unit}
                     </span>

@@ -899,7 +899,7 @@ export const ProductionBatchesPage: React.FC = () => {
                   Allocate
                 </TableActionButton>
               </Tooltip>
-              <Tooltip content="Preserve unused prep mix back into Central Warehouse Hub cold storage">
+              <Tooltip content="Preserve unused prep mix back into Central Store cold storage">
                 <TableActionButton
                   variant="outline"
                   onClick={() => {
@@ -1961,7 +1961,7 @@ export const ProductionBatchesPage: React.FC = () => {
         isOpen={isCreatePrepModalOpen}
         onClose={() => setIsCreatePrepModalOpen(false)}
         title="Formulate Recipe Prep Mix"
-        description="Withdraw raw ingredients from Central Warehouse to prepare an intermediate mix (e.g. Pepper Mix, Marinade) shared across cooking batches."
+        description="Withdraw raw ingredients from Central Store to prepare an intermediate mix (e.g. Pepper Mix, Marinade) shared across cooking batches."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -2030,7 +2030,7 @@ export const ProductionBatchesPage: React.FC = () => {
           <div className="space-y-2.5 pt-3 border-t border-kumo-line">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-kumo-strong text-xs uppercase tracking-wider">
-                Raw Ingredients (Deducted from Central Warehouse)
+                Raw Ingredients (Deducted from Central Store)
               </span>
               <Button
                 type="button"
@@ -2196,13 +2196,13 @@ export const ProductionBatchesPage: React.FC = () => {
         </Dialog>
       )}
 
-      {/* MODAL 7: Return Surplus Prep to Central Hub Cold Storage */}
+      {/* MODAL 7: Return Surplus Prep to Central Store Cold Storage */}
       {selectedPrep && (
         <Dialog
           isOpen={isReturnPrepModalOpen}
           onClose={() => setIsReturnPrepModalOpen(false)}
           title={`Return Surplus Prep: ${selectedPrep.recipe_name}`}
-          description="Return leftover prep mix back to Central Warehouse cold storage as a tracked inventory lot."
+          description="Return leftover prep mix back to Central Store cold storage as a tracked inventory lot."
           maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -2275,7 +2275,7 @@ export const ProductionBatchesPage: React.FC = () => {
           isOpen={isPrepProvenanceModalOpen}
           onClose={() => setIsPrepProvenanceModalOpen(false)}
           title={`Recipe Prep Provenance: ${selectedPrep.prep_ref}`}
-          description="End-to-end provenance: raw materials withdrawn from Central Warehouse and multi-batch distribution ledger."
+          description="End-to-end provenance: raw materials withdrawn from Central Store and multi-batch distribution ledger."
           maxWidth="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -2292,7 +2292,7 @@ export const ProductionBatchesPage: React.FC = () => {
                       setIsReturnPrepModalOpen(true)
                     }}
                   >
-                    Return to Hub
+                    Return to Central Store
                   </Button>
                   <Button
                     variant="primary"
@@ -2346,7 +2346,7 @@ export const ProductionBatchesPage: React.FC = () => {
                   </div>
                   {selectedPrep.returned_to_hub_qty && selectedPrep.returned_to_hub_qty > 0 ? (
                     <div className="flex items-start text-[13px]">
-                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Returned to Central Hub</span>
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Returned to Central Store</span>
                       <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
                         {selectedPrep.returned_to_hub_qty} {selectedPrep.unit} ({selectedPrep.return_notes || 'Cold storage'})
                       </span>
@@ -2355,7 +2355,7 @@ export const ProductionBatchesPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section 2: Raw Materials Withdrawn from Central Warehouse */}
+              {/* Section 2: Raw Materials Withdrawn from Central Store */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">

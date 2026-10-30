@@ -739,8 +739,8 @@ export const RawInventoryPage: React.FC = () => {
       key: 'transfer_type',
       header: 'Station Route',
       accessor: (t) => {
-        const fromLabel = t.from_station.replace(/_/g, ' ')
-        const toLabel = t.to_station.replace(/_/g, ' ')
+        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
+        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
         return (
           <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
             <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>

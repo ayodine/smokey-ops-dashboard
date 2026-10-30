@@ -130,7 +130,7 @@ export interface PackagingProduct {
   unit: string
   reorder_level: number
   unit_cost: number
-  central_stock_qty: number // Stock stored in Central Warehouse
+  central_stock_qty: number // Stock stored in Central Store
   bench_stock_qty: number   // Active stock on Packaging Bench
   stock_qty: number         // Total On-Hand = central_stock_qty + bench_stock_qty
   qty_allocated: number     // Reserved for packaging queue orders
@@ -1664,7 +1664,7 @@ export const SEED_INTER_STATION_TRANSFERS: InterStationTransfer[] = [
       { product_id: 96, product_name: "SMALL BRAND NYLON", quantity: 200, unit: "PIECES" },
       { product_id: 95, product_name: "BRANDED POLYBAG", quantity: 100, unit: "PCS" }
     ],
-    notes: "Shift stock requisition from Central Warehouse for packaging bench",
+    notes: "Shift stock requisition from Central Store for packaging bench",
     authorized_by: "Central Storekeeper",
     created_at: "2026-10-30 08:15:00",
     status: "completed"
@@ -1680,7 +1680,7 @@ export const SEED_INTER_STATION_TRANSFERS: InterStationTransfer[] = [
       { product_id: 12, product_name: "Red Onions", quantity: 6, unit: "kg" },
       { product_id: 15, product_name: "Smokey Secret Spice Blend", quantity: 2, unit: "kg" }
     ],
-    notes: "Raw ingredients issued from Central Warehouse for Pepper Mix PRP-042",
+    notes: "Raw ingredients issued from Central Store for Pepper Mix PRP-042",
     authorized_by: "Central Storekeeper",
     created_at: "2026-10-30 08:25:00",
     status: "completed"
@@ -1695,7 +1695,7 @@ export const SEED_INTER_STATION_TRANSFERS: InterStationTransfer[] = [
       { product_id: 93, product_name: "BIG BRANDED BAG", quantity: 3, unit: "PIECES" },
       { product_id: 96, product_name: "SMALL BRAND NYLON", quantity: 5, unit: "PIECES" }
     ],
-    notes: "EOD return of unused packaging materials back to Central Warehouse",
+    notes: "EOD return of unused packaging materials back to Central Store",
     authorized_by: "Packaging Supervisor",
     created_at: "2026-10-30 18:00:00",
     status: "completed"

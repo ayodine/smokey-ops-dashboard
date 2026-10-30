@@ -148,8 +148,8 @@ export const StockMovementsPage: React.FC = () => {
       key: 'transfer_type',
       header: 'Station Route',
       accessor: (t) => {
-        const fromLabel = t.from_station.replace(/_/g, ' ')
-        const toLabel = t.to_station.replace(/_/g, ' ')
+        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
+        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
         return (
           <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
             <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>
@@ -192,7 +192,7 @@ export const StockMovementsPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Stock Movements & Inter-Station Transfer Ledger"
-        subtitle="Complete ledger of what was dished out from the Central Warehouse to packaging and production, what was used, and what was returned at EOD."
+        subtitle="Complete ledger of what was dished out from the Central Store to packaging and production, what was used, and what was returned at EOD."
       />
 
       {/* KPI Strip */}
@@ -206,7 +206,7 @@ export const StockMovementsPage: React.FC = () => {
         <MetricCard
           title="Inter-Station Transfers"
           value={interStationTransfers.length}
-          description="Central Hub ↔ Outlet movements"
+          description="Central Store ↔ Outlet movements"
           icon={<ArrowRightLeft className="w-4 h-4 text-blue-600" />}
         />
         <MetricCard
@@ -391,7 +391,7 @@ export const StockMovementsPage: React.FC = () => {
           isOpen={isTransferModalOpen}
           onClose={() => setIsTransferModalOpen(false)}
           title={`Inter-Station Transfer Audit: ${selectedTransfer.transfer_ref}`}
-          description="Immutable ledger record of materials moved between Central Warehouse and processing stations."
+          description="Immutable ledger record of materials moved between Central Store and processing stations."
           maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -425,13 +425,13 @@ export const StockMovementsPage: React.FC = () => {
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Origin Location</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
-                      {selectedTransfer.from_station.replace(/_/g, ' ')}
+                      {selectedTransfer.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Destination Station</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
-                      {selectedTransfer.to_station.replace(/_/g, ' ')}
+                      {selectedTransfer.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">

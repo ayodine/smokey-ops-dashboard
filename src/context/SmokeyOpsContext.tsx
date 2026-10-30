@@ -1883,20 +1883,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const issuePackagingFromCentral = (
     items: Array<{ productId: number; quantity: number }>,
     issuedTo: string,
-    notes: string = "Shift stock issued from Central Warehouse to Packaging Bench"
+    notes: string = "Shift stock issued from Central Store to Packaging Bench"
   ): boolean => {
-    // Validate stock in Central Warehouse
+    // Validate stock in Central Store
     for (const item of items) {
       const prod = packagingProducts.find(p => p.id === item.productId)
       if (!prod) return false
       const centralAvail = prod.central_stock_qty ?? prod.stock_qty
       if (centralAvail < item.quantity) {
-        showToast(`Insufficient Central Warehouse stock for ${prod.name}. Available: ${centralAvail}`, 'error')
+        showToast(`Insufficient Central Store stock for ${prod.name}. Available: ${centralAvail}`, 'error')
         return false
       }
     }
 
-    // Move from Central Warehouse to Packaging Bench
+    // Move from Central Store to Packaging Bench
     setPackagingProducts(prev => prev.map(p => {
       const matched = items.find(it => it.productId === p.id)
       if (!matched) return p
@@ -1943,7 +1943,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     showSuccessModal({
       title: 'Packaging Stock Dispatched to Bench',
-      message: `Materials have been deducted from Central Warehouse Hub and loaded onto the Packaging Execution Bench.`,
+      message: `Materials have been deducted from Central Store and loaded onto the Packaging Execution Bench.`,
       details: [
         { label: 'Transfer Ref', value: transferRef },
         { label: 'Issued To', value: issuedTo },
@@ -1960,7 +1960,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     notes: string = "EOD Return of unused packaging materials",
     verifiedBy: string = "Shift Supervisor"
   ) => {
-    // Move from Packaging Bench back to Central Warehouse
+    // Move from Packaging Bench back to Central Store
     setPackagingProducts(prev => prev.map(p => {
       const matched = items.find(it => it.productId === p.id)
       if (!matched) return p
@@ -2065,7 +2065,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         total_variance_qty: totVariance,
         reconciled_by: verifiedBy,
         reconciled_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        notes: `${notes}. All returned stock credited to Central Warehouse.`
+        notes: `${notes}. All returned stock credited to Central Store.`
       }
 
       if (existing) {
@@ -2075,16 +2075,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })
 
     showSuccessModal({
-      title: 'Packaging Return Credited to Central Warehouse',
-      message: `Unused materials successfully returned to Central Warehouse Hub. Central stock replenished and Daily Reconciliation balanced.`,
+      title: 'Packaging Return Credited to Central Store',
+      message: `Unused materials successfully returned to Central Store. Central stock replenished and Daily Reconciliation balanced.`,
       details: [
         { label: 'Returned Items', value: `${items.filter(x => x.returnQty > 0).length} materials` },
         { label: 'Damaged Logged', value: `${items.reduce((acc, x) => acc + (x.damagedQty || 0), 0)} units` },
         { label: 'Verified By', value: verifiedBy },
-        { label: 'Warehouse Balance', value: 'Reconciled & Balanced' },
+        { label: 'Central Store Balance', value: 'Reconciled & Balanced' },
       ],
     })
-    showToast(`Returned unused materials to Central Warehouse`, 'success')
+    showToast(`Returned unused materials to Central Store`, 'success')
   }
 
   const performDailyPackagingReconciliation = (
@@ -2160,12 +2160,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     unit: string,
     preparedBy: string
   ) => {
-    // 1. Deduct raw ingredients from Central Warehouse
+    // 1. Deduct raw ingredients from Central Store
     rawIngredients.forEach(ing => {
-      adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Warehouse for recipe prep: ${recipeName}`, "consumption")
+      adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Store for recipe prep: ${recipeName}`, "consumption")
     })
 
-    // 2. Transfer from Central Warehouse to Production Floor
+    // 2. Transfer from Central Store to Production Floor
     const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
     const transferItems = rawIngredients.map(ing => {
       const raw = rawProducts.find(r => r.id === ing.productId)
@@ -2211,7 +2211,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     showSuccessModal({
       title: 'Intermediate Recipe Prep Created',
-      message: `Raw ingredients deducted from Central Warehouse. ${yieldQty} ${unit} of ${recipeName} is now active and ready for cross-product allocation.`,
+      message: `Raw ingredients deducted from Central Store. ${yieldQty} ${unit} of ${recipeName} is now active and ready for cross-product allocation.`,
       details: [
         { label: 'Prep Ref', value: prepRef },
         { label: 'Recipe Mix', value: recipeName },
@@ -2281,7 +2281,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const newReturnedToHub = (prep.returned_to_hub_qty || 0) + returnQty
     const newStatus = newRemaining === 0 ? 'returned_to_hub' : prep.status
 
-    // 1. Record transfer back to Central Warehouse Hub
+    // 1. Record transfer back to Central Store
     const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
     const newTransfer: InterStationTransfer = {
       id: Date.now(),
@@ -2304,13 +2304,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     setInterStationTransfers(prev => [newTransfer, ...prev])
 
-    // 2. Deposit into Central Warehouse Hub cold storage as a tracked InventoryLot
+    // 2. Deposit into Central Store cold storage as a tracked InventoryLot
     const lotId = Date.now()
     const newLot: InventoryLot = {
       id: lotId,
       lot_number: `LOT-PREP-${prep.prep_ref}`,
       product_id: prep.id,
-      product_name: `[Hub Cold Storage] ${prep.recipe_name}`,
+      product_name: `[Central Store Cold Storage] ${prep.recipe_name}`,
       sku: `HUB-PREP-${prep.prep_ref}`,
       supplier_name: 'Internal Production Floor',
       unit: prep.unit,
@@ -2338,17 +2338,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } : p))
 
     showSuccessModal({
-      title: 'Surplus Recipe Prep Preserved in Central Hub',
-      message: `${returnQty} ${prep.unit} of ${prep.recipe_name} has been returned to the Central Warehouse Hub cold storage.`,
+      title: 'Surplus Recipe Prep Preserved in Central Store',
+      message: `${returnQty} ${prep.unit} of ${prep.recipe_name} has been returned to the Central Store cold storage.`,
       details: [
         { label: 'Prep Ref', value: prep.prep_ref },
         { label: 'Quantity Preserved', value: `${returnQty} ${prep.unit}` },
-        { label: 'Hub Cold Storage Lot', value: newLot.lot_number },
+        { label: 'Cold Storage Lot', value: newLot.lot_number },
         { label: 'Storage Location', value: newLot.location || 'Central Cold Room Chiller #2' },
         { label: 'Returned By', value: returnedBy },
       ],
     })
-    showToast(`Surplus ${returnQty} ${prep.unit} returned to Central Warehouse cold storage`, 'success')
+    showToast(`Surplus ${returnQty} ${prep.unit} returned to Central Store cold storage`, 'success')
   }
 
   const adjustSalesStock = (productId: number, delta: number, notes: string) => {

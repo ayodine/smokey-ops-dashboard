@@ -548,12 +548,12 @@ export const PackagingExecutionPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* Quick Requisition from Central Warehouse Modal */}
+      {/* Quick Requisition from Central Store Modal */}
       <Dialog
         isOpen={isRequisitionModalOpen}
         onClose={() => setIsRequisitionModalOpen(false)}
-        title="Requisition Packaging from Central Hub"
-        description="Request stock replenishment from Central Hub reserve directly to the Packaging Bench."
+        title="Requisition Packaging from Central Store"
+        description="Request stock replenishment from Central Store reserve directly to the Packaging Bench."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -590,7 +590,7 @@ export const PackagingExecutionPage: React.FC = () => {
             }}
             options={packagingProducts.map(p => ({
               value: p.id,
-              label: `${p.name} [${p.sku}] — Central Hub: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
+              label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
             }))}
           />
 
@@ -617,7 +617,7 @@ export const PackagingExecutionPage: React.FC = () => {
 
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
-              <span className="text-kumo-subtle">Central Hub Stock Available:</span>
+              <span className="text-kumo-subtle">Central Store Stock Available:</span>
               <span className="font-mono font-semibold text-kumo-strong">
                 {packagingProducts.find(p => p.id === requisitionProductId)?.central_stock_qty ?? 0} units
               </span>
