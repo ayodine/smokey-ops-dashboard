@@ -273,14 +273,14 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'image',
       header: 'Product',
-      defaultWidth: 90,
+      defaultWidth: 80,
       accessor: (p) => (
-        <div className="w-12 h-12 rounded-xl bg-kumo-canvas border border-kumo-line overflow-hidden shrink-0 flex items-center justify-center shadow-2xs relative group">
+        <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
           {p.image ? (
             <img
               src={p.image}
               alt={p.name}
-              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
                 ;(e.currentTarget as HTMLElement).style.display = 'none'
@@ -291,11 +291,11 @@ export const SalesInventoryPage: React.FC = () => {
           ) : null}
           <div
             className={cn(
-              "w-full h-full flex items-center justify-center text-kumo-subtle",
+              "w-full h-full flex items-center justify-center text-zinc-400",
               p.image ? "hidden" : "flex"
             )}
           >
-            <Package className="w-5 h-5 opacity-40" />
+            <Package className="w-4 h-4 opacity-50" />
           </div>
         </div>
       ),
@@ -304,17 +304,12 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'name',
       header: 'Sales Item / Dish',
-      defaultWidth: 230,
+      defaultWidth: 220,
       accessor: (p) => (
-        <div>
-          <div className="font-semibold text-xs text-kumo-strong font-sans">{p.name}</div>
-          <div className="text-[11px] text-kumo-subtle flex items-center gap-2 mt-0.5 font-sans">
-            <span className="font-mono text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-              {p.sku}
-            </span>
-            <span className="text-[11px] text-kumo-subtle uppercase">
-              {p.unit}
-            </span>
+        <div className="font-sans">
+          <div className="font-medium text-xs text-zinc-800 dark:text-zinc-200">{p.name}</div>
+          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {p.sku} • {p.unit.toUpperCase()}
           </div>
         </div>
       ),
@@ -323,62 +318,26 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'stock_qty',
       header: 'Physical (On-Hand)',
-      defaultWidth: 175,
-      accessor: (p) => {
-        const isLow = p.stock_qty <= p.reorder_level
-        return (
-          <div className="font-sans">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-kumo-strong text-xs">
-                {formatQuantity(p.stock_qty)} {p.unit}s
-              </span>
-              {p.stock_qty === 0 ? (
-                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                  0 in warmer
-                </span>
-              ) : isLow ? (
-                <span
-                  data-badge="critical-low"
-                  className="badge-critical-low inline-flex items-center justify-center px-2 py-0.2 rounded-full text-[10px] font-semibold border shrink-0 whitespace-nowrap select-none bg-red-50 text-red-600 border-red-200"
-                >
-                  Low Stock
-                </span>
-              ) : null}
-            </div>
-            <div className="text-[11px] text-kumo-subtle mt-0.5">
-              {p.stock_qty > 0 ? 'Ready for instant dispatch' : 'Awaiting cooking yield'}
-            </div>
-          </div>
-        )
-      },
+      defaultWidth: 150,
+      accessor: (p) => (
+        <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">
+          {formatQuantity(p.stock_qty)} {p.unit}s
+        </span>
+      ),
       sortValue: (p) => p.stock_qty,
     },
     {
       key: 'estimated_incoming_qty',
       header: 'Estimated (In-Oven)',
-      defaultWidth: 175,
+      defaultWidth: 150,
       accessor: (p) => {
         const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
         const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
-        const primaryBatch = incomingInfo?.batches[0]
-
-        if (incomingQty === 0) {
-          return <span className="text-xs text-kumo-subtle font-sans font-mono">—</span>
-        }
 
         return (
-          <div className="font-sans">
-            <div className="flex items-center gap-1.5 font-semibold text-xs text-amber-600 dark:text-amber-400">
-              <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>+{incomingQty} in production</span>
-            </div>
-            <div className="text-[11px] text-kumo-subtle mt-0.5 flex items-center gap-1">
-              <Clock className="w-3 h-3 text-zinc-400 shrink-0" />
-              <span className="truncate">
-                {primaryBatch?.estimated_ready_time || (primaryBatch?.batch_schedule === 'tomorrow_morning' ? 'Tomorrow morning' : 'Cooking in oven')}
-              </span>
-            </div>
-          </div>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">
+            {incomingQty > 0 ? `+${formatQuantity(incomingQty)} ${p.unit}s` : '—'}
+          </span>
         )
       },
       sortValue: (p) => {
@@ -389,7 +348,7 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'sellable_qty',
       header: 'Total Sellable (Online)',
-      defaultWidth: 230,
+      defaultWidth: 165,
       accessor: (p) => {
         const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
         const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
@@ -397,32 +356,9 @@ export const SalesInventoryPage: React.FC = () => {
         const sellable = Math.max(0, p.stock_qty + incomingQty - allocated)
 
         return (
-          <div className="font-sans">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-kumo-strong">
-                {formatQuantity(sellable)} {p.unit}s
-              </span>
-              {p.stock_qty > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  In Stock Ready
-                </span>
-              ) : incomingQty > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
-                  <Clock className="w-3 h-3 text-amber-600" />
-                  Selling on Batch (Pre-Order)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">
-                  <AlertTriangle className="w-3 h-3 text-red-600" />
-                  Out of Stock
-                </span>
-              )}
-            </div>
-            <div className="text-[11px] text-kumo-subtle mt-0.5">
-              {allocated > 0 ? `(${allocated} reserved for packaging queue)` : 'No active hold reservations'}
-            </div>
-          </div>
+          <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">
+            {formatQuantity(sellable)} {p.unit}s
+          </span>
         )
       },
       sortValue: (p) => {
@@ -434,25 +370,25 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'selling_price',
       header: 'Selling Price',
-      accessor: (p) => <span className="text-xs font-medium text-emerald-600 font-sans">{formatNaira(p.selling_price)}</span>,
+      accessor: (p) => <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(p.selling_price)}</span>,
       sortValue: (p) => p.selling_price,
     },
     {
       key: 'unit_cost',
       header: 'Cost Benchmark',
-      accessor: (p) => <span className="text-xs text-kumo-subtle font-sans">{formatNaira(p.unit_cost)}</span>,
+      accessor: (p) => <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">{formatNaira(p.unit_cost)}</span>,
       sortValue: (p) => p.unit_cost,
     },
     {
       key: 'inventory_value',
       header: 'Retail Valuation',
-      accessor: (p) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(p.stock_qty * p.selling_price)}</span>,
+      accessor: (p) => <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(p.stock_qty * p.selling_price)}</span>,
       sortValue: (p) => p.stock_qty * p.selling_price,
     },
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 170,
+      defaultWidth: 160,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Manually adjust on-hand stock">
@@ -480,36 +416,36 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'sku',
       header: 'SKU Ref',
-      accessor: (d) => <span className="font-medium text-xs text-kumo-strong font-sans">{d.sku}</span>,
+      accessor: (d) => <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">{d.sku}</span>,
       sortValue: (d) => d.sku,
     },
     {
       key: 'product_name',
       header: 'Sold Product',
-      accessor: (d) => <span className="font-medium text-kumo-strong font-sans">{d.product_name}</span>,
+      accessor: (d) => <span className="font-medium text-xs text-zinc-800 dark:text-zinc-200 font-sans">{d.product_name}</span>,
       sortValue: (d) => d.product_name,
     },
     {
       key: 'qty_sold',
       header: 'Units Sold (Today)',
-      accessor: (d) => <span className="font-medium text-emerald-600 font-sans">{d.qty_sold} {d.unit}s</span>,
+      accessor: (d) => <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">{d.qty_sold} {d.unit}s</span>,
       sortValue: (d) => d.qty_sold,
     },
     {
       key: 'order_count',
       header: 'Customer Orders',
-      accessor: (d) => <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-kumo-surface text-kumo-default border border-kumo-line font-sans">{d.order_count} tickets</span>,
+      accessor: (d) => <span className="text-xs text-zinc-600 dark:text-zinc-400 font-sans">{d.order_count} tickets</span>,
       sortValue: (d) => d.order_count,
     },
     {
       key: 'channel_breakdown',
       header: 'Channel Distribution',
-      accessor: (d) => <span className="text-xs text-kumo-subtle font-sans">{d.channel_breakdown}</span>,
+      accessor: (d) => <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">{d.channel_breakdown}</span>,
     },
     {
       key: 'total_value',
       header: 'Gross Revenue',
-      accessor: (d) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(d.total_value)}</span>,
+      accessor: (d) => <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(d.total_value)}</span>,
       sortValue: (d) => d.total_value,
     },
   ]
@@ -620,8 +556,19 @@ export const SalesInventoryPage: React.FC = () => {
         onClose={() => setIsAdjustModalOpen(false)}
         title={`Adjust Stock: ${selectedProduct?.name}`}
         description="Manual finished stock intake or inventory reconciliation."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="sales-adjust-form">
+              Save Adjustment
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmAdjust} className="space-y-4">
+        <form id="sales-adjust-form" onSubmit={handleConfirmAdjust} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Current Stock:</span>
@@ -629,7 +576,7 @@ export const SalesInventoryPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Selling Price:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-xs">{formatNaira(selectedProduct?.selling_price || 0)}</span>
+              <span className="font-semibold text-kumo-strong font-sans text-xs">{formatNaira(selectedProduct?.selling_price || 0)}</span>
             </div>
           </div>
 
@@ -648,15 +595,6 @@ export const SalesInventoryPage: React.FC = () => {
             onChange={(e) => setAdjustNotes(e.target.value)}
             required
           />
-
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line font-sans">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Save Adjustment
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -666,8 +604,19 @@ export const SalesInventoryPage: React.FC = () => {
         onClose={() => setIsProductModalOpen(false)}
         title={selectedProduct ? `Edit Product: ${selectedProduct.name}` : 'Register New Sales Product'}
         description="Configure pricing, cost benchmark, and reorder threshold."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="sales-product-form">
+              {selectedProduct ? 'Update Product' : 'Create Product'}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmProduct} className="space-y-4 text-xs font-sans">
+        <form id="sales-product-form" onSubmit={handleConfirmProduct} className="space-y-4 text-xs font-sans">
           <Input
             label="Product Title"
             value={productForm.name}
@@ -675,39 +624,37 @@ export const SalesInventoryPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="SKU Code"
-              value={productForm.sku}
-              onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
-              required
-            />
-            <Input
-              label="Unit Label"
-              value={productForm.unit}
-              onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
-              required
-            />
-          </div>
+          <Input
+            label="SKU Code"
+            value={productForm.sku}
+            onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
+            required
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Selling Price (₦)"
-              type="number"
-              min="0"
-              value={productForm.selling_price}
-              onChange={(e) => setProductForm(prev => ({ ...prev, selling_price: Number(e.target.value) }))}
-              required
-            />
-            <Input
-              label="Unit Cost Benchmark (₦)"
-              type="number"
-              min="0"
-              value={productForm.unit_cost}
-              onChange={(e) => setProductForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
-              required
-            />
-          </div>
+          <Input
+            label="Unit Label"
+            value={productForm.unit}
+            onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
+            required
+          />
+
+          <Input
+            label="Selling Price (₦)"
+            type="number"
+            min="0"
+            value={productForm.selling_price}
+            onChange={(e) => setProductForm(prev => ({ ...prev, selling_price: Number(e.target.value) }))}
+            required
+          />
+
+          <Input
+            label="Unit Cost Benchmark (₦)"
+            type="number"
+            min="0"
+            value={productForm.unit_cost}
+            onChange={(e) => setProductForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
+            required
+          />
 
           <UnitInput
             label="Reorder Alert Threshold"
@@ -718,15 +665,6 @@ export const SalesInventoryPage: React.FC = () => {
             min={0}
             required
           />
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              {selectedProduct ? 'Update Product' : 'Create Product'}
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -812,7 +750,7 @@ export const SalesInventoryPage: React.FC = () => {
                     <div className="flex items-start text-[13px]">
                       <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Estimated (In-Oven)</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                        <span className="text-zinc-900 dark:text-zinc-100 font-semibold">
                           +{formatQuantity(incomingQty)} {p.unit}s
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
@@ -948,7 +886,7 @@ export const SalesInventoryPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">
+                            <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
                               +{b.expected_output} {p.unit}s
                             </span>
                             <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">
