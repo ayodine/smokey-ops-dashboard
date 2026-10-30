@@ -43,7 +43,8 @@ import {
   Pencil,
   Save,
   Check,
-  Utensils
+  Utensils,
+  Settings
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -57,7 +58,9 @@ export const ProductionBatchesPage: React.FC = () => {
     completeBatch,
     cancelBatch,
     updateBatch,
-    saveCustomRecipeTemplate
+    saveCustomRecipeTemplate,
+    updateRecipeTemplate,
+    deleteRecipeTemplate
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed'>('active')
@@ -65,6 +68,26 @@ export const ProductionBatchesPage: React.FC = () => {
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null)
+
+  // Manage & Edit Recipe Templates State
+  const [isManageTemplatesModalOpen, setIsManageTemplatesModalOpen] = useState(false)
+  const [isEditTemplateModalOpen, setIsEditTemplateModalOpen] = useState(false)
+  const [templateToEdit, setTemplateToEdit] = useState<any | null>(null)
+  const [editTemplateForm, setEditTemplateForm] = useState<{
+    version_name: string
+    standard_batch_size: number
+    ingredients: Array<{
+      raw_product_id: number
+      sku: string
+      name: string
+      standard_qty_per_unit: number
+      unit: string
+    }>
+  }>({
+    version_name: '',
+    standard_batch_size: 50,
+    ingredients: []
+  })
 
   // Edit Batch State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -186,6 +209,97 @@ export const ProductionBatchesPage: React.FC = () => {
 
   const handleRemoveBomRow = (index: number) => {
     setBomRows(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleOpenEditTemplate = (templateId: number) => {
+    const tmpl = recipeTemplates.find(t => t.id === templateId)
+    if (!tmpl) return
+    setTemplateToEdit(tmpl)
+    setEditTemplateForm({
+      version_name: tmpl.version_name,
+      standard_batch_size: tmpl.standard_batch_size,
+      ingredients: tmpl.ingredients.map(ing => ({ ...ing }))
+    })
+    setIsEditTemplateModalOpen(true)
+  }
+
+  const handleSaveEditedTemplate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!templateToEdit || !editTemplateForm.version_name.trim()) return
+
+    updateRecipeTemplate(templateToEdit.id, {
+      version_name: editTemplateForm.version_name.trim(),
+      standard_batch_size: Number(editTemplateForm.standard_batch_size) || 1,
+      ingredients: editTemplateForm.ingredients
+    })
+
+    // If currently selected template in create modal, refresh loaded formulation
+    if (selectedRecipeTemplateId === templateToEdit.id) {
+      setExpectedOutput(Number(editTemplateForm.standard_batch_size) || 1)
+      setBomRows(editTemplateForm.ingredients.map(ing => ({
+        product_id: ing.raw_product_id,
+        sku: ing.sku,
+        name: ing.name,
+        quantity: Number((ing.standard_qty_per_unit * (Number(editTemplateForm.standard_batch_size) || 1)).toFixed(3)),
+        unit: ing.unit
+      })))
+      setBatchRemarks(`Standard BOM Run: ${editTemplateForm.version_name.trim()} (Yield Target: ${editTemplateForm.standard_batch_size} units)`)
+    }
+
+    setIsEditTemplateModalOpen(false)
+    setTemplateToEdit(null)
+  }
+
+  const handleDeleteTemplate = (templateId: number) => {
+    deleteRecipeTemplate(templateId)
+    if (selectedRecipeTemplateId === templateId) {
+      setSelectedRecipeTemplateId('custom')
+    }
+  }
+
+  const handleUpdateEditTemplateIngredient = (idx: number, field: string, val: any) => {
+    setEditTemplateForm(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.map((ing, i) => {
+        if (i !== idx) return ing
+        if (field === 'raw_product_id') {
+          const raw = rawProducts.find(p => p.id === Number(val))
+          return {
+            ...ing,
+            raw_product_id: Number(val),
+            name: raw?.name || ing.name,
+            sku: raw?.sku || ing.sku,
+            unit: raw?.unit || ing.unit
+          }
+        }
+        return { ...ing, [field]: val }
+      })
+    }))
+  }
+
+  const handleRemoveEditTemplateIngredient = (idx: number) => {
+    setEditTemplateForm(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, i) => i !== idx)
+    }))
+  }
+
+  const handleAddEditTemplateIngredient = () => {
+    const raw = rawProducts[0]
+    if (!raw) return
+    setEditTemplateForm(prev => ({
+      ...prev,
+      ingredients: [
+        ...prev.ingredients,
+        {
+          raw_product_id: raw.id,
+          sku: raw.sku,
+          name: raw.name,
+          standard_qty_per_unit: 1,
+          unit: raw.unit
+        }
+      ]
+    }))
   }
 
   const handleUpdateBomRow = (index: number, field: string, val: any) => {
@@ -689,19 +803,57 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           )}
 
-          <Select
-            label="Cooking Recipe Template"
-            value={selectedRecipeTemplateId}
-            onChange={(e) => handleSelectRecipeTemplate(e.target.value)}
-            options={[
-              { value: 'custom', label: 'Custom Formulation (Manual Recipe)' },
-              ...recipeTemplates.map(t => ({
-                value: t.id,
-                label: `${t.output_product_name} — ${t.version_name} (Std: ${t.standard_batch_size} units)`
-              }))
-            ]}
-            size="md"
-          />
+          <div>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+              <label className="text-[13px] font-medium text-kumo-strong font-sans">
+                Cooking Recipe Template
+              </label>
+              <div className="flex items-center gap-2">
+                {selectedRecipeTemplateId !== 'custom' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>Edit Template</span>
+                    </button>
+                    <span className="text-kumo-line text-xs">|</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
+                    <span className="text-kumo-line text-xs">|</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsManageTemplatesModalOpen(true)}
+                  className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <Settings className="w-3 h-3" />
+                  <span>Manage Templates ({recipeTemplates.length})</span>
+                </button>
+              </div>
+            </div>
+            <Select
+              value={selectedRecipeTemplateId}
+              onChange={(e) => handleSelectRecipeTemplate(e.target.value)}
+              options={[
+                { value: 'custom', label: 'Custom Formulation (Manual Recipe)' },
+                ...recipeTemplates.map(t => ({
+                  value: t.id,
+                  label: `${t.output_product_name} — ${t.version_name} (Std: ${t.standard_batch_size} units)`
+                }))
+              ]}
+              size="md"
+            />
+          </div>
 
           <Select
             label="Output Finished Product"
@@ -730,6 +882,14 @@ export const ProductionBatchesPage: React.FC = () => {
                 Raw Ingredients to Use (Recipe List)
               </span>
               <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsManageTemplatesModalOpen(true)}
+                >
+                  Manage Templates
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -1139,6 +1299,231 @@ export const ProductionBatchesPage: React.FC = () => {
           </form>
         </Dialog>
       )}
+      {/* MODAL: Manage Recipe Templates */}
+      <Dialog
+        isOpen={isManageTemplatesModalOpen}
+        onClose={() => setIsManageTemplatesModalOpen(false)}
+        title="Manage Recipe Templates"
+        description="Standard Bill of Materials (BOM) formulas used for automated cooking allocations, yield tracking, and pit runs."
+        maxWidth="3xl"
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-xs text-kumo-subtle font-sans">
+              {recipeTemplates.length} standard template{recipeTemplates.length === 1 ? '' : 's'} configured
+            </span>
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setIsManageTemplatesModalOpen(false)}
+            >
+              Done
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 font-sans max-h-[60vh] overflow-y-auto pr-1">
+          {recipeTemplates.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-kumo-line rounded-lg text-kumo-subtle text-xs">
+              No recipe templates saved yet. Configure ingredients in the batch creator and click "Save as Recipe Template".
+            </div>
+          ) : (
+            recipeTemplates.map((template) => (
+              <div
+                key={template.id}
+                className="bg-kumo-base border border-kumo-line rounded-xl overflow-hidden shadow-2xs transition-colors"
+              >
+                {/* Header row */}
+                <div className="px-4 py-3 bg-kumo-surface/50 border-b border-kumo-line flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-kumo-strong truncate">
+                      {template.output_product_name}
+                    </div>
+                    <div className="text-xs text-kumo-subtle font-mono">
+                      {template.version_name}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditTemplate(template.id)}
+                      className="px-2.5 py-1 text-xs font-medium text-kumo-strong hover:bg-kumo-tint rounded-md border border-kumo-line transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                      className="px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md border border-red-200 dark:border-red-900/50 transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body key-value divided details */}
+                <div className="p-4 space-y-3 text-xs">
+                  <div className="grid grid-cols-12 gap-3 pb-2.5 border-b border-kumo-line/60">
+                    <div className="col-span-4 text-kumo-subtle font-medium">Standard Batch Output:</div>
+                    <div className="col-span-8 font-semibold text-kumo-strong">
+                      {template.standard_batch_size} portions
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-3 pb-2.5 border-b border-kumo-line/60">
+                    <div className="col-span-4 text-kumo-subtle font-medium">Target Yield & Tolerance:</div>
+                    <div className="col-span-8 text-kumo-default">
+                      {template.standard_yield_percent}% (±{template.allowed_variance_pct}%)
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-4 text-kumo-subtle font-medium">Formulated Ingredients:</div>
+                    <div className="col-span-8 space-y-1">
+                      {template.ingredients.map((ing, i) => (
+                        <div key={i} className="flex justify-between items-center py-0.5 text-kumo-default">
+                          <span className="font-medium text-kumo-strong">{ing.name}</span>
+                          <span className="text-kumo-subtle font-mono">
+                            {ing.standard_qty_per_unit} {formatUnit(ing.unit)} / portion
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Dialog>
+
+      {/* MODAL: Edit Recipe Template */}
+      <Dialog
+        isOpen={isEditTemplateModalOpen}
+        onClose={() => setIsEditTemplateModalOpen(false)}
+        title={`Edit Recipe Template: ${templateToEdit?.version_name || ''}`}
+        description="Update version naming, standard batch capacity, and formulated raw ingredient ratios."
+        maxWidth="2xl"
+        footer={
+          <div className="flex justify-end items-center gap-2.5 w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setIsEditTemplateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="edit-recipe-template-form"
+            >
+              Save Template Changes
+            </Button>
+          </div>
+        }
+      >
+        <form
+          id="edit-recipe-template-form"
+          onSubmit={handleSaveEditedTemplate}
+          className="space-y-4 font-sans max-h-[60vh] overflow-y-auto pr-1"
+        >
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1">
+            <span className="text-kumo-subtle font-medium">Target Dish:</span>
+            <div className="font-semibold text-kumo-strong text-sm">
+              {templateToEdit?.output_product_name}
+            </div>
+          </div>
+
+          <Input
+            label="Template Version / Name"
+            value={editTemplateForm.version_name}
+            onChange={(e) => setEditTemplateForm(prev => ({ ...prev, version_name: e.target.value }))}
+            required
+            placeholder="e.g. Standard Smokery Run (Batch 50)"
+          />
+
+          <UnitInput
+            label="Standard Batch Capacity"
+            value={editTemplateForm.standard_batch_size}
+            onChangeValue={(v) => setEditTemplateForm(prev => ({ ...prev, standard_batch_size: Number(v) || 1 }))}
+            unit="portions"
+            min={1}
+            required
+          />
+
+          <div className="space-y-2.5 pt-3 border-t border-kumo-line">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-semibold text-kumo-strong uppercase tracking-wider">
+                Ingredients Formulation (Qty per 1 finished portion)
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={handleAddEditTemplateIngredient}
+              >
+                Add Ingredient
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-12 gap-3 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
+              <div className="col-span-7">Raw Material</div>
+              <div className="col-span-4">Qty per Portion</div>
+              <div className="col-span-1 text-center">Remove</div>
+            </div>
+
+            <div className="space-y-2">
+              {editTemplateForm.ingredients.map((ing, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-3 items-center text-xs">
+                  <div className="col-span-7">
+                    <Select
+                      value={ing.raw_product_id}
+                      onChange={(e) => handleUpdateEditTemplateIngredient(idx, 'raw_product_id', e.target.value)}
+                      options={rawProducts.map(rp => ({
+                        value: rp.id,
+                        label: `${rp.name} (${formatUnit(rp.unit)})`
+                      }))}
+                      size="md"
+                      buttonClassName="h-10 text-[13px] font-normal"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.001"
+                        value={ing.standard_qty_per_unit}
+                        onChange={(e) => handleUpdateEditTemplateIngredient(idx, 'standard_qty_per_unit', Number(e.target.value))}
+                        className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
+                        placeholder="0.0"
+                        required
+                      />
+                      <span className="w-16 shrink-0 h-full flex items-center justify-center text-center px-2 text-[12px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
+                        {formatUnit(ing.unit)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEditTemplateIngredient(idx)}
+                      className="p-2 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
+                      title="Remove ingredient"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </form>
+      </Dialog>
     </div>
   )
 }

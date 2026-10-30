@@ -94,6 +94,8 @@ interface SmokeyOpsContextType {
   createBatch: (data: { outputProductId: number; outputProductName: string; expectedOutput: number; remarks?: string; rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }> }) => void
   updateBatch: (batchId: number, data: Partial<ProductionBatch>) => void
   saveCustomRecipeTemplate: (template: Omit<RecipeTemplate, 'id'>) => void
+  updateRecipeTemplate: (id: number, template: Partial<RecipeTemplate>) => void
+  deleteRecipeTemplate: (id: number) => void
   startBatch: (batchId: number) => void
   completeBatch: (batchId: number, actualOutput: number, wastage: number, remarks?: string) => void
   cancelBatch: (batchId: number) => void
@@ -1682,6 +1684,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Saved recipe template: ${template.version_name}`, 'success')
   }
 
+  const updateRecipeTemplate = (id: number, updated: Partial<RecipeTemplate>) => {
+    setRecipeTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t))
+    showToast('Recipe template updated successfully', 'success')
+  }
+
+  const deleteRecipeTemplate = (id: number) => {
+    const tmpl = recipeTemplates.find(t => t.id === id)
+    setRecipeTemplates(prev => prev.filter(t => t.id !== id))
+    showToast(`Deleted recipe template: ${tmpl?.version_name || id}`, 'info')
+  }
+
   const addPackagingQueueOrder = (data: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => {
     const orderRef = `SHD-${String(Math.floor(7000 + Math.random() * 2000))}`
     const newOrder: PackagingQueueOrder = {
@@ -2089,6 +2102,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createBatch,
         updateBatch,
         saveCustomRecipeTemplate,
+        updateRecipeTemplate,
+        deleteRecipeTemplate,
         startBatch,
         completeBatch,
         cancelBatch,
