@@ -8,6 +8,7 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cn } from '@/lib/utils'
@@ -141,6 +142,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
 
 export const WebsiteOrdersPage: React.FC = () => {
   const navigate = useNavigate()
+  const { logisticsDeliveries, packagingQueue, scheduledOrders } = useSmokeyOps()
   const [orders, setOrders] = useState<WebsiteOrder[]>(SEED_WEBSITE_ORDERS)
   const [loading, setLoading] = useState<boolean>(false)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
@@ -335,30 +337,105 @@ export const WebsiteOrdersPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Enrich orders with live operational workflow state from SmokeyOpsContext (logistics, packaging, and scheduled pipeline)
+  const displayOrders = useMemo(() => {
+    const deliveryMap = new Map(logisticsDeliveries.map(d => [d.order_ref, d]))
+    const packagingMap = new Map(packagingQueue.map(p => [p.order_ref, p]))
+    const scheduledMap = new Map(scheduledOrders.map(s => [s.order_ref, s]))
+
+    const enriched = orders.map(ord => {
+      const activeDelivery = deliveryMap.get(ord.order_ref)
+      const activePkg = packagingMap.get(ord.order_ref)
+      const activeSched = scheduledMap.get(ord.order_ref)
+
+      let fulfillment_status: WebsiteOrder['fulfillment_status'] = ord.fulfillment_status
+      let rider_name = ord.rider_name
+
+      if (activeDelivery) {
+        if (activeDelivery.status === 'delivered') {
+          fulfillment_status = 'delivered'
+          rider_name = activeDelivery.assigned_rider || 'Delivered'
+        } else if (activeDelivery.status === 'in_transit' || activeDelivery.status === 'out_for_delivery' || activeDelivery.status === 'assigned') {
+          fulfillment_status = 'in_transit'
+          rider_name = activeDelivery.assigned_rider || 'Assigned Rider'
+        } else if (activeDelivery.status === 'pending') {
+          fulfillment_status = 'ready_for_dispatch'
+          rider_name = 'Awaiting Rider Assignment'
+        }
+      } else if (activePkg) {
+        if (activePkg.order_status === 'packaged') {
+          fulfillment_status = 'ready_for_dispatch'
+          rider_name = 'Packaged — Ready for Dispatch'
+        } else if (activePkg.order_status === 'in_packaging') {
+          fulfillment_status = 'packaging'
+          rider_name = 'Packing in Progress'
+        } else if (activePkg.order_status === 'ready_for_fulfillment') {
+          fulfillment_status = 'packaging'
+          rider_name = 'Queued for Pack'
+        }
+      } else if (activeSched && activeSched.order_status === 'payment_confirmed') {
+        fulfillment_status = 'in_intake'
+        rider_name = 'Scheduled Pre-order'
+      }
+
+      return {
+        ...ord,
+        fulfillment_status,
+        rider_name
+      }
+    })
+
+    // Also include any scheduled pre-orders from scheduledOrders so they show under Order Intake
+    scheduledOrders.forEach(so => {
+      if (!enriched.some(o => o.order_ref === so.order_ref)) {
+        enriched.push({
+          id: so.id,
+          order_ref: so.order_ref,
+          customer_name: so.customer_name,
+          phone: so.phone,
+          address: so.address,
+          items_summary: so.notes || 'Scheduled Pre-order Feast',
+          total_amount: so.total_amount,
+          delivery_fee: so.delivery_fee,
+          channel: 'Website Storefront',
+          payment_status: so.payment_status,
+          fulfillment_status: 'in_intake',
+          created_at: so.scheduled_delivery_at,
+          scheduled_delivery_at: so.scheduled_delivery_at,
+          rider_name: 'Scheduled Pre-order',
+          notes: so.notes
+        })
+      }
+    })
+
+    return enriched
+  }, [orders, logisticsDeliveries, packagingQueue, scheduledOrders])
+
   // KPIs
-  const totalOrdersCount = orders.length
-  const totalGrossRevenue = orders.reduce((sum, ord) => sum + ord.total_amount, 0)
-  const activeFulfillmentCount = orders.filter(
+  const totalOrdersCount = displayOrders.length
+  const totalGrossRevenue = displayOrders.reduce((sum, ord) => sum + ord.total_amount, 0)
+  const intakeCount = displayOrders.filter((o) => o.fulfillment_status === 'in_intake').length
+  const activeFulfillmentCount = displayOrders.filter(
     (o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch'
   ).length
-  const outForDeliveryCount = orders.filter((o) => o.fulfillment_status === 'in_transit').length
-  const deliveredCount = orders.filter((o) => o.fulfillment_status === 'delivered').length
+  const outForDeliveryCount = displayOrders.filter((o) => o.fulfillment_status === 'in_transit').length
+  const deliveredCount = displayOrders.filter((o) => o.fulfillment_status === 'delivered').length
 
   // Filtered orders by tab
   const tabFilteredOrders = useMemo(() => {
     switch (activeTab) {
       case 'intake':
-        return orders.filter((o) => o.fulfillment_status === 'in_intake')
+        return displayOrders.filter((o) => o.fulfillment_status === 'in_intake')
       case 'packaging':
-        return orders.filter((o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch')
+        return displayOrders.filter((o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch')
       case 'transit':
-        return orders.filter((o) => o.fulfillment_status === 'in_transit')
+        return displayOrders.filter((o) => o.fulfillment_status === 'in_transit')
       case 'delivered':
-        return orders.filter((o) => o.fulfillment_status === 'delivered')
+        return displayOrders.filter((o) => o.fulfillment_status === 'delivered')
       default:
-        return orders
+        return displayOrders
     }
-  }, [orders, activeTab])
+  }, [displayOrders, activeTab])
 
   // Combined searched orders matching search query
   const searchedOrders = useMemo(() => {
@@ -599,11 +676,11 @@ export const WebsiteOrdersPage: React.FC = () => {
           activeTab={activeTab}
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
-            { id: 'all', label: 'All Orders', badge: orders.length },
+            { id: 'all', label: 'All Orders', badge: totalOrdersCount },
             {
               id: 'intake',
               label: 'Order Intake',
-              badge: orders.filter((o) => o.fulfillment_status === 'in_intake').length
+              badge: intakeCount
             },
             {
               id: 'packaging',
