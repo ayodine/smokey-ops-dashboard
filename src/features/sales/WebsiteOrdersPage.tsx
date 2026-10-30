@@ -153,7 +153,6 @@ export const WebsiteOrdersPage: React.FC = () => {
   // Reschedule / Schedule Delivery State
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false)
   const [rescheduleDate, setRescheduleDate] = useState('')
-  const [rescheduleTime, setRescheduleTime] = useState('12:00 PM - 02:00 PM')
   const [rescheduleNotes, setRescheduleNotes] = useState('')
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false)
 
@@ -878,9 +877,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     const initialDate = selectedOrder.scheduled_delivery_at
                       ? selectedOrder.scheduled_delivery_at.split(' ')[0]
                       : new Date().toISOString().split('T')[0]
-                    const opening = getOfficeOpeningHourForDate(initialDate)
                     setRescheduleDate(initialDate)
-                    setRescheduleTime(opening.label)
                     setRescheduleNotes(selectedOrder.notes || '')
                     setIsRescheduleModalOpen(true)
                   }}
@@ -1122,7 +1119,7 @@ export const WebsiteOrdersPage: React.FC = () => {
           isOpen={isRescheduleModalOpen}
           onClose={() => setIsRescheduleModalOpen(false)}
           title={`Schedule Delivery: ${selectedOrder.order_ref}`}
-          description="Assign or modify the scheduled delivery date and dispatch window for this order."
+          description="Assign or modify the scheduled delivery date for this order."
           maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -1141,10 +1138,11 @@ export const WebsiteOrdersPage: React.FC = () => {
                 onClick={async () => {
                   if (!rescheduleDate) return
                   setIsSubmittingSchedule(true)
+                  const opening = getOfficeOpeningHourForDate(rescheduleDate)
                   const success = await rescheduleOrderDelivery(
                     selectedOrder.order_ref,
                     rescheduleDate,
-                    rescheduleTime,
+                    undefined,
                     rescheduleNotes,
                     {
                       customer_name: selectedOrder.customer_name,
@@ -1159,7 +1157,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                   if (success) {
                     setSelectedOrder(prev => prev ? {
                       ...prev,
-                      scheduled_delivery_at: `${rescheduleDate} ${rescheduleTime}`,
+                      scheduled_delivery_at: `${rescheduleDate} ${opening.timeStr}`,
                       fulfillment_status: 'in_intake'
                     } : null)
                     setIsRescheduleModalOpen(false)
@@ -1203,53 +1201,17 @@ export const WebsiteOrdersPage: React.FC = () => {
                     type="date"
                     min={new Date().toISOString().split('T')[0]}
                     value={rescheduleDate}
-                    onChange={(e) => {
-                      const newDate = e.target.value
-                      setRescheduleDate(newDate)
-                      if (newDate) {
-                        const op = getOfficeOpeningHourForDate(newDate)
-                        setRescheduleTime(op.label)
-                      }
-                    }}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 font-medium"
                   />
                   {rescheduleDate && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-md px-2.5 py-1.5 font-medium">
-                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-md px-2.5 py-1.5 font-medium">
+                      <Clock className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
                       <span>
                         Office Opening Time: <strong>{getOfficeOpeningHourForDate(rescheduleDate).label}</strong> (Standard dispatch start)
                       </span>
                     </div>
                   )}
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
-                    Delivery Window / Time Slot
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      '11:00 AM - 01:00 PM',
-                      '01:00 PM - 03:00 PM',
-                      '03:00 PM - 05:00 PM',
-                      '05:00 PM - 07:00 PM',
-                      '07:00 PM - 09:00 PM',
-                    ].map((slot) => (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => setRescheduleTime(slot)}
-                        className={cn(
-                          "px-2.5 py-1.5 rounded-lg border text-xs font-semibold text-center transition-all",
-                          rescheduleTime === slot
-                            ? "border-red-600 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 dark:border-red-600"
-                            : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-                        )}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <div>
