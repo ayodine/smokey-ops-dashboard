@@ -23,12 +23,20 @@ import {
   InventoryLot,
   RecipeTemplate,
   StocktakeVariance,
+  PackagingReconciliationItem,
+  PackagingDailyReconciliation,
+  IntermediatePrepAllocation,
+  IntermediatePrep,
+  InterStationTransfer,
   SEED_RAW_PRODUCTS,
   SEED_RAW_DELIVERIES,
   SEED_RAW_MOVEMENTS,
   SEED_RAW_USAGE,
   SEED_PACKAGING_PRODUCTS,
   SEED_PACKAGING_RECEIPTS_TOTALS,
+  SEED_PACKAGING_RECONCILIATIONS,
+  SEED_INTERMEDIATE_PREPS,
+  SEED_INTER_STATION_TRANSFERS,
   SEED_SALES_PRODUCTS,
   SEED_DAILY_SALES,
   SEED_SALES_MOVEMENTS,
@@ -85,6 +93,19 @@ interface SmokeyOpsContextType {
   updateSupplier: (supplier: Supplier) => void
   submitStocktakeCount: (counts: Array<{ productId: number; physicalCount: number; category: 'raw' | 'packaging' | 'sales' }>, countedBy: string) => number
   resolveStocktakeVariance: (varianceId: number, supervisorNotes: string) => void
+
+  // Hub & Outlets Inventory State
+  packagingReconciliations: PackagingDailyReconciliation[]
+  intermediatePreps: IntermediatePrep[]
+  interStationTransfers: InterStationTransfer[]
+
+  // Hub & Outlets Actions
+  issuePackagingFromCentral: (items: Array<{ productId: number; quantity: number }>, issuedTo: string, notes?: string) => boolean
+  returnPackagingToCentral: (items: Array<{ productId: number; returnQty: number; damagedQty: number }>, notes?: string, verifiedBy?: string) => void
+  performDailyPackagingReconciliation: (date: string, counts: Array<{ productId: number; actualClosingBench: number; damagedQty?: number }>, reconciledBy: string, notes?: string) => void
+  createIntermediatePrep: (recipeName: string, rawIngredients: Array<{ productId: number; quantity: number }>, yieldQty: number, unit: string, preparedBy: string) => void
+  allocatePrepToBatch: (prepId: number, batchRef: string, productName: string, allocatedQty: number, allocatedBy: string, batchId?: number) => boolean
+  returnPrepToCentral: (prepId: number, returnQty: number, notes: string, returnedBy: string) => void
 
   // Production State
   productionBatches: ProductionBatch[]
@@ -661,6 +682,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [packagingProducts, setPackagingProducts] = useState<PackagingProduct[]>(SEED_PACKAGING_PRODUCTS)
   const [packagingReceiptsTotals, setPackagingReceiptsTotals] = useState<PackagingReceiptTotal[]>(SEED_PACKAGING_RECEIPTS_TOTALS)
+  const [packagingReconciliations, setPackagingReconciliations] = useState<PackagingDailyReconciliation[]>(SEED_PACKAGING_RECONCILIATIONS)
+  const [intermediatePreps, setIntermediatePreps] = useState<IntermediatePrep[]>(SEED_INTERMEDIATE_PREPS)
+  const [interStationTransfers, setInterStationTransfers] = useState<InterStationTransfer[]>(SEED_INTER_STATION_TRANSFERS)
 
   const [salesProducts, setSalesProducts] = useState<SalesProduct[]>(SEED_SALES_PRODUCTS)
   const [dailySales] = useState<DailySalesItem[]>(SEED_DAILY_SALES)
@@ -1800,8 +1824,18 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const p = packagingProducts.find(item => item.id === productId)
     if (!p) return
 
-    const newQty = p.stock_qty + quantity
-    setPackagingProducts(prev => prev.map(item => item.id === productId ? { ...item, stock_qty: newQty, unit_cost: unitCost, inventory_value: newQty * unitCost } : item))
+    const newCentral = (p.central_stock_qty ?? p.stock_qty) + quantity
+    const bench = p.bench_stock_qty ?? 0
+    const newTotal = newCentral + bench
+    setPackagingProducts(prev => prev.map(item => item.id === productId ? {
+      ...item,
+      central_stock_qty: newCentral,
+      bench_stock_qty: bench,
+      stock_qty: newTotal,
+      qty_available: Math.max(0, newTotal - item.qty_allocated),
+      unit_cost: unitCost,
+      inventory_value: newTotal * unitCost
+    } : item))
 
     setPackagingReceiptsTotals(prev => {
       const existing = prev.find(r => r.product_id === productId)
@@ -1831,9 +1865,488 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const adjustPackagingStock = (productId: number, delta: number, _notes: string) => {
     setPackagingProducts(prev => prev.map(p => {
       if (p.id !== productId) return p
-      const newQty = Math.max(0, p.stock_qty + delta)
-      return { ...p, stock_qty: newQty, inventory_value: newQty * p.unit_cost }
+      const newCentral = Math.max(0, (p.central_stock_qty ?? p.stock_qty) + delta)
+      const bench = p.bench_stock_qty ?? 0
+      const newTotal = newCentral + bench
+      return {
+        ...p,
+        central_stock_qty: newCentral,
+        bench_stock_qty: bench,
+        stock_qty: newTotal,
+        qty_available: Math.max(0, newTotal - p.qty_allocated),
+        inventory_value: newTotal * p.unit_cost
+      }
     }))
+  }
+
+  // Hub & Outlets Inventory Methods
+  const issuePackagingFromCentral = (
+    items: Array<{ productId: number; quantity: number }>,
+    issuedTo: string,
+    notes: string = "Shift stock issued from Central Warehouse to Packaging Bench"
+  ): boolean => {
+    // Validate stock in Central Warehouse
+    for (const item of items) {
+      const prod = packagingProducts.find(p => p.id === item.productId)
+      if (!prod) return false
+      const centralAvail = prod.central_stock_qty ?? prod.stock_qty
+      if (centralAvail < item.quantity) {
+        showToast(`Insufficient Central Warehouse stock for ${prod.name}. Available: ${centralAvail}`, 'error')
+        return false
+      }
+    }
+
+    // Move from Central Warehouse to Packaging Bench
+    setPackagingProducts(prev => prev.map(p => {
+      const matched = items.find(it => it.productId === p.id)
+      if (!matched) return p
+      const currentCentral = p.central_stock_qty ?? p.stock_qty
+      const currentBench = p.bench_stock_qty ?? 0
+      const newCentral = Math.max(0, currentCentral - matched.quantity)
+      const newBench = currentBench + matched.quantity
+      const totalStock = newCentral + newBench
+      return {
+        ...p,
+        central_stock_qty: newCentral,
+        bench_stock_qty: newBench,
+        stock_qty: totalStock,
+        qty_available: Math.max(0, totalStock - p.qty_allocated),
+        inventory_value: totalStock * p.unit_cost
+      }
+    }))
+
+    // Record Inter-Station Transfer
+    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
+    const transferItems = items.map(it => {
+      const prod = packagingProducts.find(p => p.id === it.productId)
+      return {
+        product_id: it.productId,
+        product_name: prod ? prod.name : 'Unknown Material',
+        quantity: it.quantity,
+        unit: prod ? prod.unit : 'PCS'
+      }
+    })
+
+    const newTransfer: InterStationTransfer = {
+      id: Date.now(),
+      transfer_ref: transferRef,
+      from_station: 'central_warehouse',
+      to_station: 'packaging_bench',
+      transfer_type: 'issue_packaging',
+      items: transferItems,
+      notes: `${notes} (Issued to: ${issuedTo})`,
+      authorized_by: "Central Storekeeper",
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      status: 'completed'
+    }
+    setInterStationTransfers(prev => [newTransfer, ...prev])
+
+    showSuccessModal({
+      title: 'Packaging Stock Dispatched to Bench',
+      message: `Materials have been deducted from Central Warehouse Hub and loaded onto the Packaging Execution Bench.`,
+      details: [
+        { label: 'Transfer Ref', value: transferRef },
+        { label: 'Issued To', value: issuedTo },
+        { label: 'Materials Count', value: `${items.length} materials` },
+        { label: 'Destination', value: 'Packaging Execution Bench' },
+      ],
+    })
+    showToast(`Dispatched ${items.length} packaging materials to bench`, 'success')
+    return true
+  }
+
+  const returnPackagingToCentral = (
+    items: Array<{ productId: number; returnQty: number; damagedQty: number }>,
+    notes: string = "EOD Return of unused packaging materials",
+    verifiedBy: string = "Shift Supervisor"
+  ) => {
+    // Move from Packaging Bench back to Central Warehouse
+    setPackagingProducts(prev => prev.map(p => {
+      const matched = items.find(it => it.productId === p.id)
+      if (!matched) return p
+      const retQty = matched.returnQty || 0
+      const damQty = matched.damagedQty || 0
+      const totalOffBench = retQty + damQty
+
+      const currentCentral = p.central_stock_qty ?? 0
+      const currentBench = p.bench_stock_qty ?? 0
+      const newBench = Math.max(0, currentBench - totalOffBench)
+      const newCentral = currentCentral + retQty
+      const totalStock = newCentral + newBench
+
+      return {
+        ...p,
+        central_stock_qty: newCentral,
+        bench_stock_qty: newBench,
+        stock_qty: totalStock,
+        qty_available: Math.max(0, totalStock - p.qty_allocated),
+        inventory_value: totalStock * p.unit_cost
+      }
+    }))
+
+    // Record Inter-Station Transfer for returned goods
+    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
+    const transferItems = items.filter(it => it.returnQty > 0).map(it => {
+      const prod = packagingProducts.find(p => p.id === it.productId)
+      return {
+        product_id: it.productId,
+        product_name: prod ? prod.name : 'Unknown Material',
+        quantity: it.returnQty,
+        unit: prod ? prod.unit : 'PCS'
+      }
+    })
+
+    if (transferItems.length > 0) {
+      const newTransfer: InterStationTransfer = {
+        id: Date.now(),
+        transfer_ref: transferRef,
+        from_station: 'packaging_bench',
+        to_station: 'central_warehouse',
+        transfer_type: 'return_packaging',
+        items: transferItems,
+        notes: `${notes} (Verified by: ${verifiedBy})`,
+        authorized_by: verifiedBy,
+        created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        status: 'completed'
+      }
+      setInterStationTransfers(prev => [newTransfer, ...prev])
+    }
+
+    // Auto-update or create daily reconciliation record
+    const todayStr = new Date().toISOString().split('T')[0]
+    setPackagingReconciliations(prev => {
+      const existing = prev.find(r => r.date === todayStr)
+      const reconItems: PackagingReconciliationItem[] = items.map(it => {
+        const prod = packagingProducts.find(p => p.id === it.productId)
+        const name = prod ? prod.name : 'Unknown Material'
+        const sku = prod ? prod.sku : 'SKU'
+        const unit = prod ? prod.unit : 'PCS'
+        const opening = existing?.items.find(x => x.product_id === it.productId)?.opening_bench_stock ?? (prod?.bench_stock_qty ?? 10)
+        const issued = existing?.items.find(x => x.product_id === it.productId)?.issued_from_central ?? 0
+        const used = existing?.items.find(x => x.product_id === it.productId)?.used_for_orders ?? 0
+        const returned = it.returnQty
+        const damaged = it.damagedQty
+        const expected = opening + issued - used - returned - damaged
+        const actual = prod ? Math.max(0, (prod.bench_stock_qty ?? 0) - (returned + damaged)) : 0
+        const variance = actual - expected
+        return {
+          product_id: it.productId,
+          product_name: name,
+          sku,
+          unit,
+          opening_bench_stock: opening,
+          issued_from_central: issued,
+          used_for_orders: used,
+          returned_to_central: returned,
+          damaged_wasted: damaged,
+          expected_bench_stock: expected,
+          actual_closing_bench: actual,
+          variance,
+          status: variance === 0 ? 'balanced' : 'discrepancy'
+        }
+      })
+
+      const totIssued = reconItems.reduce((acc, x) => acc + x.issued_from_central, 0)
+      const totUsed = reconItems.reduce((acc, x) => acc + x.used_for_orders, 0)
+      const totReturned = reconItems.reduce((acc, x) => acc + x.returned_to_central, 0)
+      const totDamaged = reconItems.reduce((acc, x) => acc + x.damaged_wasted, 0)
+      const totVariance = reconItems.reduce((acc, x) => acc + Math.abs(x.variance), 0)
+
+      const reconRecord: PackagingDailyReconciliation = {
+        id: existing ? existing.id : Date.now(),
+        recon_ref: existing ? existing.recon_ref : `REC-${todayStr.replace(/-/g, '')}-01`,
+        date: todayStr,
+        status: totVariance === 0 ? 'balanced' : 'discrepancy',
+        items: reconItems,
+        total_issued_qty: totIssued,
+        total_used_qty: totUsed,
+        total_returned_qty: totReturned,
+        total_damaged_qty: totDamaged,
+        total_variance_qty: totVariance,
+        reconciled_by: verifiedBy,
+        reconciled_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        notes: `${notes}. All returned stock credited to Central Warehouse.`
+      }
+
+      if (existing) {
+        return prev.map(r => r.date === todayStr ? reconRecord : r)
+      }
+      return [reconRecord, ...prev]
+    })
+
+    showSuccessModal({
+      title: 'Packaging Return Credited to Central Warehouse',
+      message: `Unused materials successfully returned to Central Warehouse Hub. Central stock replenished and Daily Reconciliation balanced.`,
+      details: [
+        { label: 'Returned Items', value: `${items.filter(x => x.returnQty > 0).length} materials` },
+        { label: 'Damaged Logged', value: `${items.reduce((acc, x) => acc + (x.damagedQty || 0), 0)} units` },
+        { label: 'Verified By', value: verifiedBy },
+        { label: 'Warehouse Balance', value: 'Reconciled & Balanced' },
+      ],
+    })
+    showToast(`Returned unused materials to Central Warehouse`, 'success')
+  }
+
+  const performDailyPackagingReconciliation = (
+    date: string,
+    counts: Array<{ productId: number; actualClosingBench: number; damagedQty?: number }>,
+    reconciledBy: string,
+    notes: string = "Shift reconciliation verified"
+  ) => {
+    const existing = packagingReconciliations.find(r => r.date === date)
+    const reconItems: PackagingReconciliationItem[] = counts.map(c => {
+      const prod = packagingProducts.find(p => p.id === c.productId)
+      const prevItem = existing?.items.find(x => x.product_id === c.productId)
+      const opening = prevItem?.opening_bench_stock ?? 20
+      const issued = prevItem?.issued_from_central ?? 50
+      const used = prevItem?.used_for_orders ?? 15
+      const returned = prevItem?.returned_to_central ?? 5
+      const damaged = c.damagedQty ?? (prevItem?.damaged_wasted ?? 0)
+      const expected = opening + issued - used - returned - damaged
+      const variance = c.actualClosingBench - expected
+      return {
+        product_id: c.productId,
+        product_name: prod ? prod.name : 'Unknown Material',
+        sku: prod ? prod.sku : 'SKU',
+        unit: prod ? prod.unit : 'PCS',
+        opening_bench_stock: opening,
+        issued_from_central: issued,
+        used_for_orders: used,
+        returned_to_central: returned,
+        damaged_wasted: damaged,
+        expected_bench_stock: expected,
+        actual_closing_bench: c.actualClosingBench,
+        variance,
+        status: variance === 0 ? 'balanced' : 'discrepancy'
+      }
+    })
+
+    const totIssued = reconItems.reduce((acc, x) => acc + x.issued_from_central, 0)
+    const totUsed = reconItems.reduce((acc, x) => acc + x.used_for_orders, 0)
+    const totReturned = reconItems.reduce((acc, x) => acc + x.returned_to_central, 0)
+    const totDamaged = reconItems.reduce((acc, x) => acc + x.damaged_wasted, 0)
+    const totVariance = reconItems.reduce((acc, x) => acc + Math.abs(x.variance), 0)
+
+    const newRecord: PackagingDailyReconciliation = {
+      id: existing ? existing.id : Date.now(),
+      recon_ref: existing ? existing.recon_ref : `REC-${date.replace(/-/g, '')}-01`,
+      date,
+      status: totVariance === 0 ? 'balanced' : 'discrepancy',
+      items: reconItems,
+      total_issued_qty: totIssued,
+      total_used_qty: totUsed,
+      total_returned_qty: totReturned,
+      total_damaged_qty: totDamaged,
+      total_variance_qty: totVariance,
+      reconciled_by: reconciledBy,
+      reconciled_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      notes
+    }
+
+    setPackagingReconciliations(prev => {
+      if (prev.some(r => r.date === date)) {
+        return prev.map(r => r.date === date ? newRecord : r)
+      }
+      return [newRecord, ...prev]
+    })
+
+    showToast(totVariance === 0 ? `Reconciliation Balanced (0 variance)` : `Reconciliation Saved with ${totVariance} variance`, totVariance === 0 ? 'success' : 'warning')
+  }
+
+  const createIntermediatePrep = (
+    recipeName: string,
+    rawIngredients: Array<{ productId: number; quantity: number }>,
+    yieldQty: number,
+    unit: string,
+    preparedBy: string
+  ) => {
+    // 1. Deduct raw ingredients from Central Warehouse
+    rawIngredients.forEach(ing => {
+      adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Warehouse for recipe prep: ${recipeName}`, "consumption")
+    })
+
+    // 2. Transfer from Central Warehouse to Production Floor
+    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
+    const transferItems = rawIngredients.map(ing => {
+      const raw = rawProducts.find(r => r.id === ing.productId)
+      return {
+        product_id: ing.productId,
+        product_name: raw ? raw.name : 'Unknown Raw Material',
+        quantity: ing.quantity,
+        unit: raw ? raw.unit : 'kg'
+      }
+    })
+
+    const newTransfer: InterStationTransfer = {
+      id: Date.now(),
+      transfer_ref: transferRef,
+      from_station: 'central_warehouse',
+      to_station: 'production_floor',
+      transfer_type: 'issue_raw_for_prep',
+      items: transferItems,
+      notes: `Issued raw materials for intermediate mix: ${recipeName}`,
+      authorized_by: "Central Storekeeper",
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      status: 'completed'
+    }
+    setInterStationTransfers(prev => [newTransfer, ...prev])
+
+    // 3. Create IntermediatePrep record
+    const prepRef = `PRP-${String(intermediatePreps.length + 43).padStart(3, '0')}`
+    const newPrep: IntermediatePrep = {
+      id: Date.now(),
+      prep_ref: prepRef,
+      recipe_name: recipeName,
+      unit,
+      initial_yield_qty: yieldQty,
+      remaining_qty: yieldQty,
+      returned_to_hub_qty: 0,
+      status: 'active',
+      prepared_by: preparedBy,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      source_ingredients: transferItems,
+      allocations: []
+    }
+    setIntermediatePreps(prev => [newPrep, ...prev])
+
+    showSuccessModal({
+      title: 'Intermediate Recipe Prep Created',
+      message: `Raw ingredients deducted from Central Warehouse. ${yieldQty} ${unit} of ${recipeName} is now active and ready for cross-product allocation.`,
+      details: [
+        { label: 'Prep Ref', value: prepRef },
+        { label: 'Recipe Mix', value: recipeName },
+        { label: 'Initial Yield', value: `${yieldQty} ${unit}` },
+        { label: 'Prepared By', value: preparedBy },
+        { label: 'Status', value: 'Active on Production Floor' },
+      ],
+    })
+    showToast(`Created prep mix ${prepRef}: ${yieldQty} ${unit} ready for use`, 'success')
+  }
+
+  const allocatePrepToBatch = (
+    prepId: number,
+    batchRef: string,
+    productName: string,
+    allocatedQty: number,
+    allocatedBy: string,
+    batchId?: number
+  ): boolean => {
+    const prep = intermediatePreps.find(p => p.id === prepId)
+    if (!prep) return false
+
+    if (prep.remaining_qty < allocatedQty) {
+      showToast(`Cannot allocate ${allocatedQty} ${prep.unit}. Only ${prep.remaining_qty} ${prep.unit} remaining!`, 'error')
+      return false
+    }
+
+    const newRemaining = Math.max(0, prep.remaining_qty - allocatedQty)
+    const newStatus = newRemaining === 0 ? 'exhausted' : 'active'
+
+    const newAllocation: IntermediatePrepAllocation = {
+      id: `ALLOC-${Date.now()}`,
+      batch_id: batchId,
+      batch_ref: batchRef,
+      target_product_name: productName,
+      allocated_qty: allocatedQty,
+      allocated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      allocated_by: allocatedBy
+    }
+
+    setIntermediatePreps(prev => prev.map(p => p.id === prepId ? {
+      ...p,
+      remaining_qty: newRemaining,
+      status: newStatus,
+      allocations: [newAllocation, ...p.allocations]
+    } : p))
+
+    showToast(`Allocated ${allocatedQty} ${prep.unit} from ${prep.recipe_name} to ${productName} (${batchRef})`, 'success')
+    return true
+  }
+
+  const returnPrepToCentral = (
+    prepId: number,
+    returnQty: number,
+    notes: string,
+    returnedBy: string
+  ) => {
+    const prep = intermediatePreps.find(p => p.id === prepId)
+    if (!prep) return
+
+    if (prep.remaining_qty < returnQty) {
+      showToast(`Cannot return ${returnQty} ${prep.unit}. Only ${prep.remaining_qty} ${prep.unit} available!`, 'error')
+      return
+    }
+
+    const newRemaining = Math.max(0, prep.remaining_qty - returnQty)
+    const newReturnedToHub = (prep.returned_to_hub_qty || 0) + returnQty
+    const newStatus = newRemaining === 0 ? 'returned_to_hub' : prep.status
+
+    // 1. Record transfer back to Central Warehouse Hub
+    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
+    const newTransfer: InterStationTransfer = {
+      id: Date.now(),
+      transfer_ref: transferRef,
+      from_station: 'production_floor',
+      to_station: 'central_warehouse',
+      transfer_type: 'return_prep_to_hub',
+      items: [
+        {
+          product_id: prep.id,
+          product_name: prep.recipe_name,
+          quantity: returnQty,
+          unit: prep.unit
+        }
+      ],
+      notes: `${notes} (Returned by ${returnedBy})`,
+      authorized_by: returnedBy,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      status: 'completed'
+    }
+    setInterStationTransfers(prev => [newTransfer, ...prev])
+
+    // 2. Deposit into Central Warehouse Hub cold storage as a tracked InventoryLot
+    const lotId = Date.now()
+    const newLot: InventoryLot = {
+      id: lotId,
+      lot_number: `LOT-PREP-${prep.prep_ref}`,
+      product_id: prep.id,
+      product_name: `[Hub Cold Storage] ${prep.recipe_name}`,
+      sku: `HUB-PREP-${prep.prep_ref}`,
+      unit: prep.unit,
+      initial_quantity: returnQty,
+      remaining_quantity: returnQty,
+      received_date: new Date().toISOString().split('T')[0],
+      expiry_date: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      status: 'in_stock',
+      notes: `Returned surplus from ${prep.prep_ref}: ${notes}`,
+      storage_location: 'Central Cold Room Chiller #2'
+    }
+    setInventoryLots(prev => [newLot, ...prev])
+
+    // 3. Update prep record
+    setIntermediatePreps(prev => prev.map(p => p.id === prepId ? {
+      ...p,
+      remaining_qty: newRemaining,
+      returned_to_hub_qty: newReturnedToHub,
+      status: newStatus,
+      return_notes: notes,
+      returned_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      returned_by: returnedBy,
+      hub_lot_id: lotId
+    } : p))
+
+    showSuccessModal({
+      title: 'Surplus Recipe Prep Preserved in Central Hub',
+      message: `${returnQty} ${prep.unit} of ${prep.recipe_name} has been returned to the Central Warehouse Hub cold storage.`,
+      details: [
+        { label: 'Prep Ref', value: prep.prep_ref },
+        { label: 'Quantity Preserved', value: `${returnQty} ${prep.unit}` },
+        { label: 'Hub Cold Storage Lot', value: newLot.lot_number },
+        { label: 'Storage Location', value: newLot.storage_location },
+        { label: 'Returned By', value: returnedBy },
+      ],
+    })
+    showToast(`Surplus ${returnQty} ${prep.unit} returned to Central Warehouse cold storage`, 'success')
   }
 
   const adjustSalesStock = (productId: number, delta: number, notes: string) => {
@@ -2113,11 +2626,22 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const startPackagingOrder = (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => {
-    // 1. Deduct packaging stock
+    // 1. Deduct packaging stock from active bench stock
     materials.forEach(m => {
       const match = packagingProducts.find(p => p.name.toLowerCase() === m.packaging_name.toLowerCase())
       if (match) {
-        adjustPackagingStock(match.id, -m.quantity, `Packaging order #${orderId}`)
+        setPackagingProducts(prev => prev.map(p => {
+          if (p.id !== match.id) return p
+          const newBench = Math.max(0, (p.bench_stock_qty ?? 0) - m.quantity)
+          const newTotal = (p.central_stock_qty ?? 0) + newBench
+          return {
+            ...p,
+            bench_stock_qty: newBench,
+            stock_qty: newTotal,
+            qty_available: Math.max(0, newTotal - p.qty_allocated),
+            inventory_value: newTotal * p.unit_cost
+          }
+        }))
       }
     })
 
@@ -2564,6 +3088,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         savePackagingProduct,
         submitStocktakeCount,
         resolveStocktakeVariance,
+        packagingReconciliations,
+        intermediatePreps,
+        interStationTransfers,
+        issuePackagingFromCentral,
+        returnPackagingToCentral,
+        performDailyPackagingReconciliation,
+        createIntermediatePrep,
+        allocatePrepToBatch,
+        returnPrepToCentral,
         productionBatches,
         packagingQueue,
         packagingMaterialsDaily,

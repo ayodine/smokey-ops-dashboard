@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { RawProduct, RawDelivery, RawMovement, RawUsageItem, InventoryLot, StocktakeVariance } from '@/lib/smokeyData'
+import { RawProduct, RawDelivery, RawMovement, RawUsageItem, InventoryLot, StocktakeVariance, InterStationTransfer } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Pencil,
-  Eye
+  Eye,
+  ArrowRightLeft
 } from 'lucide-react'
 import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 
@@ -79,6 +80,7 @@ export const RawInventoryPage: React.FC = () => {
     inventoryLots,
     salesProducts,
     stocktakeVariances,
+    interStationTransfers,
     receiveRawStockWithLot,
     adjustRawStock,
     writeOffLotWaste,
@@ -88,7 +90,7 @@ export const RawInventoryPage: React.FC = () => {
     resolveStocktakeVariance
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'current' | 'fefo' | 'inbound' | 'outbound' | 'usage' | 'escrow'>('current')
+  const [activeTab, setActiveTab] = useState<'current' | 'fefo' | 'inbound' | 'outbound' | 'transfers' | 'usage' | 'escrow'>('current')
 
   // Expiring Lots Workflow State
   const [isPrioritizeModalOpen, setIsPrioritizeModalOpen] = useState(false)
@@ -728,6 +730,64 @@ export const RawInventoryPage: React.FC = () => {
     },
   ]
 
+  // Column definitions for Inter-Station Transfers (Hub <-> Outlets)
+  const transferColumns: ColumnDef<InterStationTransfer>[] = [
+    {
+      key: 'transfer_ref',
+      header: 'Transfer Ref',
+      accessor: (t) => <span className="font-mono text-xs font-semibold text-kumo-strong">{t.transfer_ref}</span>,
+      sortValue: (t) => t.transfer_ref,
+    },
+    {
+      key: 'created_at',
+      header: 'Timestamp',
+      accessor: (t) => <span className="text-xs text-kumo-subtle">{formatDate(t.created_at)}</span>,
+      sortValue: (t) => t.created_at,
+    },
+    {
+      key: 'transfer_type',
+      header: 'Station Route',
+      accessor: (t) => {
+        const fromLabel = t.from_station.replace(/_/g, ' ')
+        const toLabel = t.to_station.replace(/_/g, ' ')
+        return (
+          <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
+            <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>
+            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{toLabel}</span>
+          </div>
+        )
+      },
+      sortValue: (t) => t.transfer_type,
+    },
+    {
+      key: 'items',
+      header: 'Items Dispatched / Returned',
+      accessor: (t) => (
+        <div className="text-xs space-y-0.5">
+          {t.items.map((it, idx) => (
+            <div key={idx} className="font-mono text-[11px] text-zinc-800 dark:text-zinc-200">
+              {it.quantity} {it.unit} &bull; {it.product_name}
+            </div>
+          ))}
+        </div>
+      ),
+      sortValue: (t) => t.items.length,
+    },
+    {
+      key: 'authorized_by',
+      header: 'Authorized By',
+      accessor: (t) => <span className="text-xs text-kumo-default">{t.authorized_by}</span>,
+      sortValue: (t) => t.authorized_by,
+    },
+    {
+      key: 'notes',
+      header: 'Transfer Audit Notes',
+      accessor: (t) => <span className="text-xs text-kumo-subtle max-w-[220px] truncate block">{t.notes}</span>,
+      sortValue: (t) => t.notes,
+    },
+  ]
+
   // Column definitions for Tab 4: Monthly Usage Summary
   const usageColumns: ColumnDef<RawUsageItem>[] = [
     {
@@ -919,6 +979,7 @@ export const RawInventoryPage: React.FC = () => {
           tabs={[
             { id: 'current', label: 'In Stock', badge: rawProducts.length },
             { id: 'fefo', label: 'Expiring Lots', badge: inventoryLots.length },
+            { id: 'transfers', label: 'Inter-Station Transfers', badge: interStationTransfers.length },
             { id: 'inbound', label: 'Stock In', badge: rawDeliveries.length },
             { id: 'outbound', label: 'Stock Out', badge: rawMovements.length },
             { id: 'usage', label: 'Monthly Usage' },
@@ -955,6 +1016,17 @@ export const RawInventoryPage: React.FC = () => {
             searchPlaceholder="Filter by batch lot number or item..."
             title="Expiring Raw Materials & Batches"
             exportFilename="smokey-expiring-batches"
+          />
+        )}
+
+        {activeTab === 'transfers' && (
+          <DataTable
+            data={interStationTransfers}
+            columns={transferColumns}
+            searchable={true}
+            searchPlaceholder="Search transfer ref, items, or actor..."
+            title="Inter-Station Stock Transfer"
+            exportFilename="smokey-raw-interstation-transfers"
           />
         )}
 

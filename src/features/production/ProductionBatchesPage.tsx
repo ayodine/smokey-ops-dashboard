@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { ProductionBatch, RawMaterialBOM } from '@/lib/smokeyData'
+import { ProductionBatch, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -45,7 +45,11 @@ import {
   Check,
   Utensils,
   Settings,
-  ShoppingCart
+  ShoppingCart,
+  Layers,
+  ArrowRightLeft,
+  RotateCcw,
+  Scale
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -54,6 +58,7 @@ export const ProductionBatchesPage: React.FC = () => {
     salesProducts,
     rawProducts,
     recipeTemplates,
+    intermediatePreps,
     createBatch,
     startBatch,
     completeBatch,
@@ -61,14 +66,46 @@ export const ProductionBatchesPage: React.FC = () => {
     updateBatch,
     saveCustomRecipeTemplate,
     updateRecipeTemplate,
-    deleteRecipeTemplate
+    deleteRecipeTemplate,
+    createIntermediatePrep,
+    allocatePrepToBatch,
+    returnPrepToCentral
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed'>('active')
+  const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed' | 'intermediate_preps'>('active')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null)
+
+  // Intermediate Preps State
+  const [isCreatePrepModalOpen, setIsCreatePrepModalOpen] = useState(false)
+  const [isAllocatePrepModalOpen, setIsAllocatePrepModalOpen] = useState(false)
+  const [isReturnPrepModalOpen, setIsReturnPrepModalOpen] = useState(false)
+  const [isPrepProvenanceModalOpen, setIsPrepProvenanceModalOpen] = useState(false)
+  const [selectedPrep, setSelectedPrep] = useState<IntermediatePrep | null>(null)
+
+  // Create Prep Form State
+  const [prepRecipeName, setPrepRecipeName] = useState('Signature Pepper Mix & Marinade')
+  const [prepUnit, setPrepUnit] = useState<'kg' | 'L'>('kg')
+  const [prepYieldQty, setPrepYieldQty] = useState<number>(20)
+  const [prepPreparedBy, setPrepPreparedBy] = useState('Chef Tunde')
+  const [prepIngredients, setPrepIngredients] = useState<Array<{ productId: number; quantity: number }>>([
+    { productId: 11, quantity: 12 }, // Scotch Bonnet Pepper
+    { productId: 12, quantity: 6 },  // Red Onions
+    { productId: 15, quantity: 2 },  // Spice Blend
+  ])
+
+  // Allocate Prep to Batch Form State
+  const [allocTargetProduct, setAllocTargetProduct] = useState('Smoked Guinea Fowl')
+  const [allocBatchRef, setAllocBatchRef] = useState('BAT-20261030-01')
+  const [allocQty, setAllocQty] = useState<number>(5)
+  const [allocBy, setAllocBy] = useState('Shift Chef')
+
+  // Return Prep to Central Hub Form State
+  const [returnPrepQty, setReturnPrepQty] = useState<number>(2)
+  const [returnPrepNotes, setReturnPrepNotes] = useState('Sealed in food-grade container for Hub Cold Storage')
+  const [returnPrepBy, setReturnPrepBy] = useState('Shift Chef')
 
   // Manage & Edit Recipe Templates State
   const [isManageTemplatesModalOpen, setIsManageTemplatesModalOpen] = useState(false)
@@ -756,6 +793,151 @@ export const ProductionBatchesPage: React.FC = () => {
     },
   ]
 
+  // Columns for Recipe Preps & Intermediate Mixes
+  const intermediateColumns: ColumnDef<IntermediatePrep>[] = [
+    {
+      key: 'prep_ref',
+      header: 'Prep Ref',
+      accessor: (p) => <span className="font-mono text-xs font-semibold text-kumo-strong">{p.prep_ref}</span>,
+      sortValue: (p) => p.prep_ref,
+    },
+    {
+      key: 'recipe_name',
+      header: 'Recipe Mix & Yield',
+      accessor: (p) => (
+        <div>
+          <div className="font-semibold text-kumo-strong">{p.recipe_name}</div>
+          <div className="text-[11px] text-zinc-500">
+            Initial: {p.initial_yield_qty} {p.unit} &bull; Prepared by {p.prepared_by}
+          </div>
+        </div>
+      ),
+      sortValue: (p) => p.recipe_name,
+    },
+    {
+      key: 'remaining_qty',
+      header: 'Remaining Stock',
+      accessor: (p) => {
+        const pct = Math.round((p.remaining_qty / p.initial_yield_qty) * 100)
+        return (
+          <div className="w-36 space-y-1">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="font-bold text-zinc-900 dark:text-zinc-100">{p.remaining_qty} {p.unit}</span>
+              <span className="text-zinc-500">{pct}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${pct > 40 ? 'bg-emerald-600' : pct > 15 ? 'bg-amber-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+              />
+            </div>
+          </div>
+        )
+      },
+      sortValue: (p) => p.remaining_qty,
+    },
+    {
+      key: 'allocations',
+      header: 'Batch Allocations (Cross-Product)',
+      accessor: (p) => (
+        <div className="space-y-1 max-w-[260px]">
+          {p.allocations && p.allocations.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {p.allocations.map((a, idx) => (
+                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                  {a.target_product_name}: <strong className="ml-1 text-primary">{a.allocated_qty} {p.unit}</strong>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-zinc-400 italic">No batches drawn yet</span>
+          )}
+        </div>
+      ),
+      sortValue: (p) => p.allocations.length,
+    },
+    {
+      key: 'returned_to_hub_qty',
+      header: 'Hub Cold Storage',
+      accessor: (p) => {
+        if (!p.returned_to_hub_qty || p.returned_to_hub_qty <= 0) {
+          return <span className="text-xs text-zinc-400">&mdash;</span>
+        }
+        return (
+          <div className="text-xs font-medium text-emerald-700 flex items-center gap-1 font-mono">
+            <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+            <span>+{p.returned_to_hub_qty} {p.unit} in Hub</span>
+          </div>
+        )
+      },
+      sortValue: (p) => p.returned_to_hub_qty || 0,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      accessor: (p) => {
+        if (p.status === 'active') return <StatusBadge status="active" label="active prep" />
+        if (p.status === 'returned_to_hub') return <StatusBadge status="pending" label="returned to hub" />
+        return <StatusBadge status="inactive" label="exhausted" />
+      },
+      sortValue: (p) => p.status,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      defaultWidth: 260,
+      accessor: (p) => (
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="Trace source raw materials and multi-batch distribution timeline">
+            <TableActionButton
+              variant="outline"
+              onClick={() => {
+                setSelectedPrep(p)
+                setIsPrepProvenanceModalOpen(true)
+              }}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Trace
+            </TableActionButton>
+          </Tooltip>
+          {p.remaining_qty > 0 && (
+            <>
+              <Tooltip content="Allocate remaining mix to a cooking batch (Guinea Fowl, Rabbit, Chicken, etc.)">
+                <TableActionButton
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedPrep(p)
+                    setAllocTargetProduct('Smoked Guinea Fowl')
+                    setAllocBatchRef(`BAT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-01`)
+                    setAllocQty(Math.min(5, p.remaining_qty))
+                    setIsAllocatePrepModalOpen(true)
+                  }}
+                  leftIcon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-600" />}
+                >
+                  Allocate
+                </TableActionButton>
+              </Tooltip>
+              <Tooltip content="Preserve unused prep mix back into Central Warehouse Hub cold storage">
+                <TableActionButton
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedPrep(p)
+                    setReturnPrepQty(p.remaining_qty)
+                    setReturnPrepNotes(`End of shift surplus from ${p.prep_ref} preserved in Hub cold storage`)
+                    setIsReturnPrepModalOpen(true)
+                  }}
+                  leftIcon={<RotateCcw className="w-3.5 h-3.5 text-emerald-600" />}
+                >
+                  Return Hub
+                </TableActionButton>
+              </Tooltip>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
@@ -763,6 +945,15 @@ export const ProductionBatchesPage: React.FC = () => {
         subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory."
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCreatePrepModalOpen(true)}
+              leftIcon={<Layers className="w-4 h-4 text-primary" />}
+              className="h-10 px-3.5 text-xs sm:text-sm font-medium"
+            >
+              + Recipe Prep Mix
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -806,10 +997,10 @@ export const ProductionBatchesPage: React.FC = () => {
           icon={<Flame className="w-4 h-4 text-rose-500" />}
         />
         <MetricCard
-          title="Web Store Buffer"
-          value={`+${productionBatches.filter(b => (b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false).reduce((acc, b) => acc + (b.expected_output || 0), 0)} units`}
-          description="Buffering online menu"
-          icon={<ShoppingCart className="w-4 h-4 text-emerald-600" />}
+          title="Recipe Preps Ready"
+          value={`${intermediatePreps.filter(p => p.status === 'active').reduce((acc, p) => acc + p.remaining_qty, 0)} kg/L`}
+          description={`${intermediatePreps.filter(p => p.status === 'active').length} active intermediate mixes`}
+          icon={<Layers className="w-4 h-4 text-blue-600" />}
         />
         <MetricCard
           title="Finished Batches"
@@ -828,6 +1019,7 @@ export const ProductionBatchesPage: React.FC = () => {
             { id: 'active', label: 'Active Batches', badge: prepQueuedBatches.length },
             { id: 'ongoing', label: 'On-going Batches', badge: producingBatches.length },
             { id: 'completed', label: 'Finished Batches', badge: completedBatches.length },
+            { id: 'intermediate_preps', label: 'Recipe Preps & Mixes', badge: intermediatePreps.filter(p => p.status === 'active').length },
           ]}
         />
       </div>
@@ -869,6 +1061,40 @@ export const ProductionBatchesPage: React.FC = () => {
             onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
           />
+        )}
+        {activeTab === 'intermediate_preps' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/40 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-start sm:items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 sm:mt-0" />
+                <span>
+                  <strong>Shared Intermediate Recipe Preps:</strong> Raw ingredients (peppers, onions, spices) are withdrawn from the Central Warehouse Hub into a shared recipe mix. The mix can be reused across multiple batches (e.g. Guinea Fowl &rarr; Rabbit &rarr; Chicken), and remaining surplus can be returned to Central Hub cold storage.
+                </span>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreatePrepModalOpen(true)}
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                className="text-xs h-8 px-3 shrink-0 self-start sm:self-auto"
+              >
+                + New Recipe Prep Mix
+              </Button>
+            </div>
+
+            <DataTable
+              data={intermediatePreps}
+              columns={intermediateColumns}
+              searchable={true}
+              searchPlaceholder="Search recipe preps, mixes..."
+              title="Intermediate Recipe Prep"
+              exportFilename="smokey-intermediate-recipe-preps"
+              onRowClick={(p) => {
+                setSelectedPrep(p)
+                setIsPrepProvenanceModalOpen(true)
+              }}
+            />
+          </div>
         )}
       </div>
 
@@ -1764,6 +1990,467 @@ export const ProductionBatchesPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* MODAL 5: Create Intermediate Recipe Prep Mix */}
+      <Dialog
+        isOpen={isCreatePrepModalOpen}
+        onClose={() => setIsCreatePrepModalOpen(false)}
+        title="Formulate Recipe Prep Mix (Shared Across Batches)"
+        description="Withdraw raw ingredients from Central Warehouse to prepare an intermediate mix (e.g. Pepper Mix, Marinade, Herb Glaze) that can be reused across different dish batches."
+        maxWidth="2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreatePrepModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="button"
+              onClick={() => {
+                if (!prepRecipeName.trim()) return
+                createIntermediatePrep(
+                  prepRecipeName,
+                  prepIngredients,
+                  Number(prepYieldQty),
+                  prepUnit,
+                  prepPreparedBy
+                )
+                setIsCreatePrepModalOpen(false)
+              }}
+            >
+              Withdraw from Hub & Formulate Prep
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 font-sans text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Recipe Mix Name"
+              placeholder="e.g. Signature Pepper Mix & Marinade"
+              value={prepRecipeName}
+              onChange={(e) => setPrepRecipeName(e.target.value)}
+              required
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
+                  Expected Yield
+                </label>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={prepYieldQty}
+                  onChange={(e) => setPrepYieldQty(Number(e.target.value))}
+                  className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs font-mono"
+                  required
+                />
+              </div>
+              <Select
+                label="Yield Unit"
+                value={prepUnit}
+                onChange={(e) => setPrepUnit(e.target.value as any)}
+                options={[
+                  { value: 'kg', label: 'kg (Kilograms)' },
+                  { value: 'L', label: 'L (Litres)' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <Input
+            label="Chef / Prepared By"
+            value={prepPreparedBy}
+            onChange={(e) => setPrepPreparedBy(e.target.value)}
+            placeholder="e.g. Chef Tunde"
+            required
+          />
+
+          <div className="space-y-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wider">
+                Raw Ingredients (Deducted from Central Warehouse Hub)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const firstAvail = rawProducts[0]?.id || 11
+                  setPrepIngredients(prev => [...prev, { productId: firstAvail, quantity: 2 }])
+                }}
+                className="text-primary hover:underline text-xs flex items-center gap-1 font-medium cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Ingredient
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              {prepIngredients.map((ing, idx) => {
+                const prod = rawProducts.find(r => r.id === ing.productId)
+                return (
+                  <div key={idx} className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-lg flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <Select
+                        value={ing.productId}
+                        onChange={(e) => {
+                          const pid = Number(e.target.value)
+                          setPrepIngredients(prev => prev.map((item, i) => i === idx ? { ...item, productId: pid } : item))
+                        }}
+                        options={rawProducts.map(r => ({
+                          value: r.id,
+                          label: `${r.name} (Hub Stock: ${r.stock_qty} ${r.unit})`
+                        }))}
+                        buttonClassName="h-8 text-xs font-normal"
+                      />
+                    </div>
+                    <div className="w-24 shrink-0">
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={ing.quantity}
+                        onChange={(e) => {
+                          const qty = Number(e.target.value)
+                          setPrepIngredients(prev => prev.map((item, i) => i === idx ? { ...item, quantity: qty } : item))
+                        }}
+                        className="w-full h-8 bg-kumo-base border border-kumo-line rounded-lg px-2 text-xs font-mono text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                        placeholder="Qty"
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-500 w-10 shrink-0 font-medium">{prod?.unit || 'kg'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPrepIngredients(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-1 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* MODAL 6: Allocate Prep to Cooking Batch */}
+      {selectedPrep && (
+        <Dialog
+          isOpen={isAllocatePrepModalOpen}
+          onClose={() => setIsAllocatePrepModalOpen(false)}
+          title={`Allocate Prep Mix: ${selectedPrep.recipe_name}`}
+          description={`Draw from ${selectedPrep.prep_ref} to use in a cooking batch for any menu item (e.g. Guinea Fowl, Rabbit, Chicken).`}
+          maxWidth="md"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsAllocatePrepModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => {
+                  const ok = allocatePrepToBatch(
+                    selectedPrep.id,
+                    allocBatchRef,
+                    allocTargetProduct,
+                    Number(allocQty),
+                    allocBy
+                  )
+                  if (ok) setIsAllocatePrepModalOpen(false)
+                }}
+              >
+                Confirm Batch Allocation
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-lg flex justify-between items-center">
+              <div>
+                <span className="text-zinc-500 block">Available Prep Mix:</span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{selectedPrep.recipe_name}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-zinc-500 block text-[11px]">Remaining on Bench:</span>
+                <span className="font-mono font-bold text-emerald-700 text-base">{selectedPrep.remaining_qty} {selectedPrep.unit}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
+                  Target Product / Dish
+                </label>
+                <select
+                  value={allocTargetProduct}
+                  onChange={(e) => setAllocTargetProduct(e.target.value)}
+                  className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2 text-xs text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                >
+                  <option value="Smoked Guinea Fowl">Smoked Guinea Fowl</option>
+                  <option value="Roast Rabbit & Marinade">Roast Rabbit & Marinade</option>
+                  <option value="Smoked Turkey Wings">Smoked Turkey Wings</option>
+                  <option value="Smoked Catfish">Smoked Catfish</option>
+                  <option value="Smokey Beef Jerky (Kilishi)">Smokey Beef Jerky (Kilishi)</option>
+                  <option value="Jollof Rice with Guineafowl">Jollof Rice with Guineafowl</option>
+                </select>
+              </div>
+
+              <Input
+                label="Batch Ref Number"
+                value={allocBatchRef}
+                onChange={(e) => setAllocBatchRef(e.target.value)}
+                placeholder="e.g. BAT-20261030-01"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
+                  Quantity to Draw ({selectedPrep.unit})
+                </label>
+                <input
+                  type="number"
+                  min="0.5"
+                  max={selectedPrep.remaining_qty}
+                  step="0.5"
+                  value={allocQty}
+                  onChange={(e) => setAllocQty(Number(e.target.value))}
+                  className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs font-mono"
+                  required
+                />
+              </div>
+
+              <Input
+                label="Allocated By / Shift Lead"
+                value={allocBy}
+                onChange={(e) => setAllocBy(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs space-y-1">
+              <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                <span>Remaining Prep Mix After Draw:</span>
+                <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                  {Math.max(0, selectedPrep.remaining_qty - allocQty)} {selectedPrep.unit}
+                </span>
+              </div>
+              <div className="text-[11px] text-zinc-500">
+                Any leftover mix can be allocated to another batch later or preserved in Central Hub cold storage.
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* MODAL 7: Return Surplus Prep to Central Hub Cold Storage */}
+      {selectedPrep && (
+        <Dialog
+          isOpen={isReturnPrepModalOpen}
+          onClose={() => setIsReturnPrepModalOpen(false)}
+          title={`Preserve Surplus in Central Hub: ${selectedPrep.recipe_name}`}
+          description={`Return leftover prep mix back to Central Warehouse Hub cold storage as a tracked inventory lot.`}
+          maxWidth="md"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsReturnPrepModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => {
+                  returnPrepToCentral(
+                    selectedPrep.id,
+                    Number(returnPrepQty),
+                    returnPrepNotes,
+                    returnPrepBy
+                  )
+                  setIsReturnPrepModalOpen(false)
+                }}
+              >
+                Confirm Return to Central Cold Storage
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-lg flex justify-between items-center">
+              <div>
+                <span className="text-zinc-500 block">Surplus Available to Return:</span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{selectedPrep.recipe_name}</span>
+              </div>
+              <div className="text-right">
+                <span className="font-mono font-bold text-emerald-700 text-base">{selectedPrep.remaining_qty} {selectedPrep.unit}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
+                  Quantity Returning ({selectedPrep.unit})
+                </label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max={selectedPrep.remaining_qty}
+                  step="0.1"
+                  value={returnPrepQty}
+                  onChange={(e) => setReturnPrepQty(Number(e.target.value))}
+                  className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs font-mono"
+                  required
+                />
+              </div>
+
+              <Input
+                label="Returned By / Chef"
+                value={returnPrepBy}
+                onChange={(e) => setReturnPrepBy(e.target.value)}
+                required
+              />
+            </div>
+
+            <Input
+              label="Preservation Storage Location"
+              value="Central Cold Room Chiller #2"
+              readOnly
+            />
+
+            <Input
+              label="Return & Packaging Notes"
+              value={returnPrepNotes}
+              onChange={(e) => setReturnPrepNotes(e.target.value)}
+              placeholder="e.g. Sealed in airtight food-grade container"
+              required
+            />
+          </div>
+        </Dialog>
+      )}
+
+      {/* MODAL 8: Trace Recipe Prep Provenance & Multi-Batch Distribution */}
+      {selectedPrep && (
+        <Dialog
+          isOpen={isPrepProvenanceModalOpen}
+          onClose={() => setIsPrepProvenanceModalOpen(false)}
+          title={`Recipe Prep Provenance: ${selectedPrep.prep_ref} - ${selectedPrep.recipe_name}`}
+          description="Complete end-to-end provenance: raw materials withdrawn from Central Warehouse and multi-batch distribution ledger."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" onClick={() => setIsPrepProvenanceModalOpen(false)}>
+                Close
+              </Button>
+              {selectedPrep.remaining_qty > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => {
+                      setIsPrepProvenanceModalOpen(false)
+                      setIsAllocatePrepModalOpen(true)
+                    }}
+                    leftIcon={<ArrowRightLeft className="w-3.5 h-3.5" />}
+                  >
+                    Allocate to Batch
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      setIsPrepProvenanceModalOpen(false)
+                      setIsReturnPrepModalOpen(true)
+                    }}
+                    leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                  >
+                    Return to Hub
+                  </Button>
+                </div>
+              )}
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            {/* Step 1: Formulation from Central Warehouse */}
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs uppercase tracking-wider text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-blue-600" />
+                  1. Central Warehouse Raw Formulation
+                </span>
+                <span className="text-zinc-500">{selectedPrep.created_at}</span>
+              </div>
+              <div className="text-zinc-600 dark:text-zinc-400">
+                Initial Yield Prepared: <strong className="text-zinc-900 dark:text-zinc-100">{selectedPrep.initial_yield_qty} {selectedPrep.unit}</strong> by {selectedPrep.prepared_by}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                {selectedPrep.source_ingredients.map((ing, idx) => (
+                  <div key={idx} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded">
+                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{ing.product_name}</div>
+                    <div className="font-mono text-[11px] text-primary">-{ing.quantity} {ing.unit} from Hub</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 2: Multi-Batch Allocations */}
+            <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-2">
+              <span className="font-bold text-xs uppercase tracking-wider text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <ArrowRightLeft className="w-3.5 h-3.5 text-emerald-600" />
+                2. Cross-Product Batch Allocations
+              </span>
+
+              {selectedPrep.allocations && selectedPrep.allocations.length > 0 ? (
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                  {selectedPrep.allocations.map((a, idx) => (
+                    <div key={idx} className="py-2.5 first:pt-1 last:pb-0 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          {a.target_product_name} ({a.batch_ref})
+                        </div>
+                        <div className="text-[11px] text-zinc-500">
+                          Allocated at {a.allocated_at} by {a.allocated_by}
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">
+                        {a.allocated_qty} {selectedPrep.unit}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-zinc-500 italic py-2 text-center">No batches have drawn from this prep yet.</div>
+              )}
+            </div>
+
+            {/* Step 3: Current Balance & Central Hub Return */}
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg flex items-center justify-between">
+              <div>
+                <span className="font-bold text-xs uppercase tracking-wider text-zinc-900 dark:text-zinc-100 block">
+                  3. Current Station Status
+                </span>
+                <span className="text-[11px] text-zinc-500">
+                  {selectedPrep.remaining_qty > 0 
+                    ? `Active on Production Floor — ready for next batch allocation` 
+                    : selectedPrep.returned_to_hub_qty && selectedPrep.returned_to_hub_qty > 0
+                    ? `Preserved in Central Warehouse Hub cold storage (${selectedPrep.return_notes || ''})`
+                    : `Fully consumed in cooking batches`}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] text-zinc-500">Remaining Available</div>
+                <div className="font-mono font-bold text-base text-zinc-900 dark:text-zinc-100">
+                  {selectedPrep.remaining_qty} {selectedPrep.unit}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

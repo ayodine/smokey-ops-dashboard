@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { SalesMovement } from '@/lib/smokeyData'
+import { SalesMovement, InterStationTransfer } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -17,14 +17,17 @@ import {
   RotateCcw, 
   Activity, 
   Filter,
-  Eye
+  Eye,
+  ArrowRightLeft
 } from 'lucide-react'
 
 export const StockMovementsPage: React.FC = () => {
-  const { salesMovements } = useSmokeyOps()
+  const { salesMovements, interStationTransfers } = useSmokeyOps()
   const [filterType, setFilterType] = useState<string>('all')
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState<SalesMovement | null>(null)
+  const [selectedTransfer, setSelectedTransfer] = useState<InterStationTransfer | null>(null)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
 
   const filteredMovements = useMemo(() => {
     if (filterType === 'all') return salesMovements
@@ -128,11 +131,68 @@ export const StockMovementsPage: React.FC = () => {
     },
   ]
 
+  const transferColumns: ColumnDef<InterStationTransfer>[] = [
+    {
+      key: 'transfer_ref',
+      header: 'Transfer Ref',
+      accessor: (t) => <span className="font-mono text-xs font-semibold text-kumo-strong">{t.transfer_ref}</span>,
+      sortValue: (t) => t.transfer_ref,
+    },
+    {
+      key: 'created_at',
+      header: 'Timestamp',
+      accessor: (t) => <span className="text-xs text-kumo-subtle">{formatDate(t.created_at)}</span>,
+      sortValue: (t) => t.created_at,
+    },
+    {
+      key: 'transfer_type',
+      header: 'Station Route',
+      accessor: (t) => {
+        const fromLabel = t.from_station.replace(/_/g, ' ')
+        const toLabel = t.to_station.replace(/_/g, ' ')
+        return (
+          <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
+            <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>
+            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{toLabel}</span>
+          </div>
+        )
+      },
+      sortValue: (t) => t.transfer_type,
+    },
+    {
+      key: 'items',
+      header: 'Items Dispatched / Returned',
+      accessor: (t) => (
+        <div className="text-xs space-y-0.5">
+          {t.items.map((it, idx) => (
+            <div key={idx} className="font-mono text-[11px] text-zinc-800 dark:text-zinc-200">
+              {it.quantity} {it.unit} &bull; {it.product_name}
+            </div>
+          ))}
+        </div>
+      ),
+      sortValue: (t) => t.items.length,
+    },
+    {
+      key: 'authorized_by',
+      header: 'Authorized By',
+      accessor: (t) => <span className="text-xs text-kumo-default">{t.authorized_by}</span>,
+      sortValue: (t) => t.authorized_by,
+    },
+    {
+      key: 'notes',
+      header: 'Transfer Audit Notes',
+      accessor: (t) => <span className="text-xs text-kumo-subtle max-w-[220px] truncate block">{t.notes}</span>,
+      sortValue: (t) => t.notes,
+    },
+  ]
+
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
-        title="Sales Stock Movements Ledger"
-        subtitle="Real-time ledger of finished goods additions from kitchen batches, customer order deductions, and balance sheet corrections."
+        title="Stock Movements & Inter-Station Transfer Ledger"
+        subtitle="Complete ledger of what was dished out from the Central Warehouse to packaging and production, what was used, and what was returned at EOD."
       />
 
       {/* KPI Strip */}
@@ -142,6 +202,12 @@ export const StockMovementsPage: React.FC = () => {
           value={totalMovements}
           description="Activity log entries"
           icon={<Activity className="w-4 h-4 text-primary" />}
+        />
+        <MetricCard
+          title="Inter-Station Transfers"
+          value={interStationTransfers.length}
+          description="Central Hub ↔ Outlet movements"
+          icon={<ArrowRightLeft className="w-4 h-4 text-blue-600" />}
         />
         <MetricCard
           title="Production Yield Added"
@@ -155,12 +221,6 @@ export const StockMovementsPage: React.FC = () => {
           description="Dispatched to customer orders"
           icon={<ArrowUpRight className="w-4 h-4 text-blue-500" />}
         />
-        <MetricCard
-          title="Manual Corrections"
-          value={totalReversals}
-          description="Audits & shrinkage entries"
-          icon={<RotateCcw className="w-4 h-4 text-amber-500" />}
-        />
       </div>
 
       {/* Filter Tabs matching Smokey-React/Tab specification */}
@@ -170,6 +230,7 @@ export const StockMovementsPage: React.FC = () => {
           onChange={(val) => setFilterType(val as any)}
           tabs={[
             { id: 'all', label: 'All Changes', badge: totalMovements },
+            { id: 'transfers', label: 'Inter-Station Transfers (Hub ↔ Outlets)', badge: interStationTransfers.length },
             { id: 'production_output', label: 'Kitchen Cooked' },
             { id: 'sale', label: 'Customer Orders' },
           ]}
@@ -177,19 +238,35 @@ export const StockMovementsPage: React.FC = () => {
       </div>
 
       {/* DataTable */}
-      <DataTable
-        data={filteredMovements}
-        columns={columns}
-        searchable={true}
-        searchPlaceholder="Search movement notes, product, or actor..."
-        title="Movement Ledger Entry"
-        exportFilename="smokey-sales-movements-ledger"
-        onDateRangeChange={setDateRange}
-        onRowClick={(m) => {
-          setSelectedMovement(m)
-          setIsDetailsModalOpen(true)
-        }}
-      />
+      {filterType === 'transfers' ? (
+        <DataTable
+          data={interStationTransfers}
+          columns={transferColumns}
+          searchable={true}
+          searchPlaceholder="Search transfer ref, items, or actor..."
+          title="Inter-Station Stock Transfer"
+          exportFilename="smokey-interstation-transfers-ledger"
+          onDateRangeChange={setDateRange}
+          onRowClick={(t) => {
+            setSelectedTransfer(t)
+            setIsTransferModalOpen(true)
+          }}
+        />
+      ) : (
+        <DataTable
+          data={filteredMovements}
+          columns={columns}
+          searchable={true}
+          searchPlaceholder="Search movement notes, product, or actor..."
+          title="Movement Ledger Entry"
+          exportFilename="smokey-sales-movements-ledger"
+          onDateRangeChange={setDateRange}
+          onRowClick={(m) => {
+            setSelectedMovement(m)
+            setIsDetailsModalOpen(true)
+          }}
+        />
+      )}
 
       {/* Movement Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
       {selectedMovement && (
@@ -301,6 +378,92 @@ export const StockMovementsPage: React.FC = () => {
                       {selectedMovement.user_name}
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Transfer Details Modal */}
+      {selectedTransfer && (
+        <Dialog
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          title={`Inter-Station Transfer Audit: ${selectedTransfer.transfer_ref}`}
+          description="Immutable ledger record of materials moved between Central Warehouse and processing stations."
+          maxWidth="lg"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsTransferModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setIsTransferModalOpen(false)}
+              >
+                Done
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Transfer Dispatch Route
+                </span>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                    <span className="text-zinc-500 text-[11px] uppercase font-semibold">Origin Location</span>
+                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-1 capitalize">
+                      {selectedTransfer.from_station.replace(/_/g, ' ')}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                    <span className="text-zinc-500 text-[11px] uppercase font-semibold">Destination Station</span>
+                    <div className="text-sm font-bold text-emerald-700 mt-1 capitalize">
+                      {selectedTransfer.to_station.replace(/_/g, ' ')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Timestamp</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatDate(selectedTransfer.created_at)}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Authorized By</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedTransfer.authorized_by}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Transfer Notes</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">{selectedTransfer.notes}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Transferred Inventory Items
+                </span>
+
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
+                  {selectedTransfer.items.map((it, idx) => (
+                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">{it.product_name}</span>
+                      <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700">
+                        {it.quantity} {it.unit}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

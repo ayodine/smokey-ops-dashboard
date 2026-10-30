@@ -130,11 +130,87 @@ export interface PackagingProduct {
   unit: string
   reorder_level: number
   unit_cost: number
-  stock_qty: number // Total On-Hand
-  qty_allocated: number // Reserved for packaging queue orders
-  qty_available: number // stock_qty - qty_allocated
+  central_stock_qty: number // Stock stored in Central Warehouse
+  bench_stock_qty: number   // Active stock on Packaging Bench
+  stock_qty: number         // Total On-Hand = central_stock_qty + bench_stock_qty
+  qty_allocated: number     // Reserved for packaging queue orders
+  qty_available: number     // stock_qty - qty_allocated
   inventory_value: number
   is_active: number
+}
+
+export interface PackagingReconciliationItem {
+  product_id: number
+  product_name: string
+  sku: string
+  unit: string
+  opening_bench_stock: number
+  issued_from_central: number
+  used_for_orders: number
+  returned_to_central: number
+  damaged_wasted: number
+  expected_bench_stock: number // opening + issued - used - returned - damaged
+  actual_closing_bench: number
+  variance: number // actual_closing_bench - expected_bench_stock (0 = balanced)
+  status: 'balanced' | 'discrepancy' | 'pending'
+}
+
+export interface PackagingDailyReconciliation {
+  id: number
+  recon_ref: string
+  date: string // YYYY-MM-DD
+  status: 'balanced' | 'discrepancy' | 'open'
+  items: PackagingReconciliationItem[]
+  total_issued_qty: number
+  total_used_qty: number
+  total_returned_qty: number
+  total_damaged_qty: number
+  total_variance_qty: number
+  reconciled_by: string
+  reconciled_at?: string
+  notes?: string
+}
+
+export interface IntermediatePrepAllocation {
+  id: string
+  batch_id?: number
+  batch_ref: string
+  target_product_name: string
+  allocated_qty: number
+  allocated_at: string
+  allocated_by: string
+}
+
+export interface IntermediatePrep {
+  id: number
+  prep_ref: string // e.g. "PRP-042"
+  recipe_name: string // e.g. "Signature Pepper Mix & Marinade"
+  unit: string // "kg", "L"
+  initial_yield_qty: number
+  remaining_qty: number
+  returned_to_hub_qty: number
+  status: 'active' | 'exhausted' | 'returned_to_hub'
+  prepared_by: string
+  created_at: string
+  source_ingredients: Array<{ product_id: number; product_name: string; quantity: number; unit: string }>
+  allocations: IntermediatePrepAllocation[]
+  return_notes?: string
+  returned_at?: string
+  returned_by?: string
+  hub_lot_id?: number
+}
+
+export interface InterStationTransfer {
+  id: number
+  transfer_ref: string
+  from_station: 'central_warehouse' | 'packaging_bench' | 'production_floor'
+  to_station: 'central_warehouse' | 'packaging_bench' | 'production_floor'
+  transfer_type: 'issue_packaging' | 'return_packaging' | 'issue_raw_for_prep' | 'return_prep_to_hub' | 'direct_batch_issue'
+  items: Array<{ product_id: number; product_name: string; quantity: number; unit: string }>
+  notes: string
+  authorized_by: string
+  created_at: string
+  status: 'completed' | 'cancelled'
 }
 
 export interface PackagingReceiptTotal {
@@ -1205,6 +1281,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 500,
     "unit_cost": 420,
+    "central_stock_qty": 88,
+    "bench_stock_qty": 20,
     "stock_qty": 108,
     "qty_allocated": 0,
     "qty_available": 108,
@@ -1219,6 +1297,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PCS",
     "reorder_level": 50,
     "unit_cost": 150,
+    "central_stock_qty": 107,
+    "bench_stock_qty": 30,
     "stock_qty": 137,
     "qty_allocated": 0,
     "qty_available": 137,
@@ -1233,6 +1313,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PCS",
     "reorder_level": 500,
     "unit_cost": 105,
+    "central_stock_qty": 451,
+    "bench_stock_qty": 100,
     "stock_qty": 551,
     "qty_allocated": 0,
     "qty_available": 551,
@@ -1247,6 +1329,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "unit",
     "reorder_level": 20,
     "unit_cost": 0,
+    "central_stock_qty": 0,
+    "bench_stock_qty": 0,
     "stock_qty": 0,
     "qty_allocated": 0,
     "qty_available": 0,
@@ -1261,6 +1345,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PCS",
     "reorder_level": 50,
     "unit_cost": 150,
+    "central_stock_qty": 90,
+    "bench_stock_qty": 25,
     "stock_qty": 115,
     "qty_allocated": 0,
     "qty_available": 115,
@@ -1275,6 +1361,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 300,
     "unit_cost": 85,
+    "central_stock_qty": 48,
+    "bench_stock_qty": 20,
     "stock_qty": 68,
     "qty_allocated": 0,
     "qty_available": 68,
@@ -1289,6 +1377,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 1000,
     "unit_cost": 50,
+    "central_stock_qty": 65,
+    "bench_stock_qty": 20,
     "stock_qty": 85,
     "qty_allocated": 0,
     "qty_available": 85,
@@ -1303,6 +1393,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 500,
     "unit_cost": 20,
+    "central_stock_qty": 38,
+    "bench_stock_qty": 15,
     "stock_qty": 53,
     "qty_allocated": 0,
     "qty_available": 53,
@@ -1317,6 +1409,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 300,
     "unit_cost": 69,
+    "central_stock_qty": 1135,
+    "bench_stock_qty": 200,
     "stock_qty": 1335,
     "qty_allocated": 0,
     "qty_available": 1335,
@@ -1331,6 +1425,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PIECES",
     "reorder_level": 500,
     "unit_cost": 300,
+    "central_stock_qty": 127,
+    "bench_stock_qty": 30,
     "stock_qty": 157,
     "qty_allocated": 0,
     "qty_available": 157,
@@ -1345,6 +1441,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "unit",
     "reorder_level": 300,
     "unit_cost": 42,
+    "central_stock_qty": 693,
+    "bench_stock_qty": 100,
     "stock_qty": 793,
     "qty_allocated": 0,
     "qty_available": 793,
@@ -1359,6 +1457,8 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "unit": "PCS",
     "reorder_level": 50,
     "unit_cost": 100,
+    "central_stock_qty": 57,
+    "bench_stock_qty": 25,
     "stock_qty": 82,
     "qty_allocated": 0,
     "qty_available": 82,
@@ -1400,6 +1500,205 @@ export const SEED_PACKAGING_RECEIPTS_TOTALS: PackagingReceiptTotal[] = [
     total_value: 120000,
     receipt_count: 2,
     last_received: "2026-10-25 12:00:00"
+  }
+]
+
+export const SEED_PACKAGING_RECONCILIATIONS: PackagingDailyReconciliation[] = [
+  {
+    id: 1,
+    recon_ref: "REC-20261030-01",
+    date: "2026-10-30",
+    status: "balanced",
+    total_issued_qty: 355,
+    total_used_qty: 90,
+    total_returned_qty: 10,
+    total_damaged_qty: 0,
+    total_variance_qty: 0,
+    reconciled_by: "Supervisor Ayo",
+    reconciled_at: "2026-10-30 18:15:00",
+    notes: "EOD Packaging shift verified. Bench stock and warehouse return fully reconciled with zero discrepancy.",
+    items: [
+      {
+        product_id: 93,
+        product_name: "BIG BRANDED BAG",
+        sku: "PCK004",
+        unit: "PIECES",
+        opening_bench_stock: 7,
+        issued_from_central: 25,
+        used_for_orders: 9,
+        returned_to_central: 3,
+        damaged_wasted: 0,
+        expected_bench_stock: 20,
+        actual_closing_bench: 20,
+        variance: 0,
+        status: "balanced"
+      },
+      {
+        product_id: 96,
+        product_name: "SMALL BRAND NYLON",
+        sku: "PCK007",
+        unit: "PIECES",
+        opening_bench_stock: 45,
+        issued_from_central: 200,
+        used_for_orders: 40,
+        returned_to_central: 5,
+        damaged_wasted: 0,
+        expected_bench_stock: 200,
+        actual_closing_bench: 200,
+        variance: 0,
+        status: "balanced"
+      },
+      {
+        product_id: 95,
+        product_name: "BRANDED POLYBAG",
+        sku: "PCK006",
+        unit: "PCS",
+        opening_bench_stock: 26,
+        issued_from_central: 100,
+        used_for_orders: 24,
+        returned_to_central: 2,
+        damaged_wasted: 0,
+        expected_bench_stock: 100,
+        actual_closing_bench: 100,
+        variance: 0,
+        status: "balanced"
+      },
+      {
+        product_id: 99,
+        product_name: "YAJI SACHET",
+        sku: "YJ",
+        unit: "PCS",
+        opening_bench_stock: 12,
+        issued_from_central: 30,
+        used_for_orders: 17,
+        returned_to_central: 0,
+        damaged_wasted: 0,
+        expected_bench_stock: 25,
+        actual_closing_bench: 25,
+        variance: 0,
+        status: "balanced"
+      }
+    ]
+  }
+]
+
+export const SEED_INTERMEDIATE_PREPS: IntermediatePrep[] = [
+  {
+    id: 1,
+    prep_ref: "PRP-042",
+    recipe_name: "Signature Pepper Mix & Marinade",
+    unit: "kg",
+    initial_yield_qty: 20,
+    remaining_qty: 4,
+    returned_to_hub_qty: 0,
+    status: "active",
+    prepared_by: "Chef Tunde",
+    created_at: "2026-10-30 08:30:00",
+    source_ingredients: [
+      { product_id: 11, product_name: "Fresh Scotch Bonnet Pepper", quantity: 12, unit: "kg" },
+      { product_id: 12, product_name: "Red Onions", quantity: 6, unit: "kg" },
+      { product_id: 15, product_name: "Smokey Secret Spice Blend", quantity: 2, unit: "kg" }
+    ],
+    allocations: [
+      {
+        id: "ALLOC-001",
+        batch_id: 101,
+        batch_ref: "BATCH-20261030-01",
+        target_product_name: "Smoked Guinea Fowl",
+        allocated_qty: 11,
+        allocated_at: "2026-10-30 09:45:00",
+        allocated_by: "Chef Tunde"
+      },
+      {
+        id: "ALLOC-002",
+        batch_id: 102,
+        batch_ref: "BATCH-20261030-02",
+        target_product_name: "Roast Rabbit & Marinade",
+        allocated_qty: 5,
+        allocated_at: "2026-10-30 13:15:00",
+        allocated_by: "Chef Musa"
+      }
+    ]
+  },
+  {
+    id: 2,
+    prep_ref: "PRP-041",
+    recipe_name: "Smokey Herb Glaze",
+    unit: "L",
+    initial_yield_qty: 10,
+    remaining_qty: 0,
+    returned_to_hub_qty: 2,
+    status: "returned_to_hub",
+    prepared_by: "Chef Musa",
+    created_at: "2026-10-29 09:00:00",
+    source_ingredients: [
+      { product_id: 18, product_name: "Smokey Brown Glaze Base", quantity: 8, unit: "L" },
+      { product_id: 19, product_name: "Thyme & Rosemary Infusion", quantity: 2, unit: "L" }
+    ],
+    allocations: [
+      {
+        id: "ALLOC-003",
+        batch_id: 98,
+        batch_ref: "BATCH-20261029-01",
+        target_product_name: "Smoked Turkey Wings",
+        allocated_qty: 8,
+        allocated_at: "2026-10-29 11:00:00",
+        allocated_by: "Chef Musa"
+      }
+    ],
+    return_notes: "2L surplus sealed and returned to Central Cold Storage under Lot #LOT-GLZ-2910.",
+    returned_at: "2026-10-29 18:30:00",
+    returned_by: "Chef Musa"
+  }
+]
+
+export const SEED_INTER_STATION_TRANSFERS: InterStationTransfer[] = [
+  {
+    id: 1,
+    transfer_ref: "TRF-20261030-01",
+    from_station: "central_warehouse",
+    to_station: "packaging_bench",
+    transfer_type: "issue_packaging",
+    items: [
+      { product_id: 93, product_name: "BIG BRANDED BAG", quantity: 25, unit: "PIECES" },
+      { product_id: 96, product_name: "SMALL BRAND NYLON", quantity: 200, unit: "PIECES" },
+      { product_id: 95, product_name: "BRANDED POLYBAG", quantity: 100, unit: "PCS" }
+    ],
+    notes: "Shift stock requisition from Central Warehouse for packaging bench",
+    authorized_by: "Central Storekeeper",
+    created_at: "2026-10-30 08:15:00",
+    status: "completed"
+  },
+  {
+    id: 2,
+    transfer_ref: "TRF-20261030-02",
+    from_station: "central_warehouse",
+    to_station: "production_floor",
+    transfer_type: "issue_raw_for_prep",
+    items: [
+      { product_id: 11, product_name: "Fresh Scotch Bonnet Pepper", quantity: 12, unit: "kg" },
+      { product_id: 12, product_name: "Red Onions", quantity: 6, unit: "kg" },
+      { product_id: 15, product_name: "Smokey Secret Spice Blend", quantity: 2, unit: "kg" }
+    ],
+    notes: "Raw ingredients issued from Central Warehouse for Pepper Mix PRP-042",
+    authorized_by: "Central Storekeeper",
+    created_at: "2026-10-30 08:25:00",
+    status: "completed"
+  },
+  {
+    id: 3,
+    transfer_ref: "TRF-20261030-03",
+    from_station: "packaging_bench",
+    to_station: "central_warehouse",
+    transfer_type: "return_packaging",
+    items: [
+      { product_id: 93, product_name: "BIG BRANDED BAG", quantity: 3, unit: "PIECES" },
+      { product_id: 96, product_name: "SMALL BRAND NYLON", quantity: 5, unit: "PIECES" }
+    ],
+    notes: "EOD return of unused packaging materials back to Central Warehouse",
+    authorized_by: "Packaging Supervisor",
+    created_at: "2026-10-30 18:00:00",
+    status: "completed"
   }
 ]
 
