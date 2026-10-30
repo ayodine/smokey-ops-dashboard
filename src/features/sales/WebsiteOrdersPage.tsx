@@ -8,7 +8,7 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
-import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cn } from '@/lib/utils'
@@ -878,8 +878,9 @@ export const WebsiteOrdersPage: React.FC = () => {
                     const initialDate = selectedOrder.scheduled_delivery_at
                       ? selectedOrder.scheduled_delivery_at.split(' ')[0]
                       : new Date().toISOString().split('T')[0]
+                    const opening = getOfficeOpeningHourForDate(initialDate)
                     setRescheduleDate(initialDate)
-                    setRescheduleTime('12:00 PM - 02:00 PM')
+                    setRescheduleTime(opening.label)
                     setRescheduleNotes(selectedOrder.notes || '')
                     setIsRescheduleModalOpen(true)
                   }}
@@ -1202,9 +1203,24 @@ export const WebsiteOrdersPage: React.FC = () => {
                     type="date"
                     min={new Date().toISOString().split('T')[0]}
                     value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    onChange={(e) => {
+                      const newDate = e.target.value
+                      setRescheduleDate(newDate)
+                      if (newDate) {
+                        const op = getOfficeOpeningHourForDate(newDate)
+                        setRescheduleTime(op.label)
+                      }
+                    }}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 font-medium"
                   />
+                  {rescheduleDate && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-md px-2.5 py-1.5 font-medium">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        Office Opening Time: <strong>{getOfficeOpeningHourForDate(rescheduleDate).label}</strong> (Standard dispatch start)
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -632,6 +632,26 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
 
 const SmokeyOpsContext = createContext<SmokeyOpsContextType | undefined>(undefined)
 
+/**
+ * Resolves standard office opening dispatch hour for scheduled deliveries:
+ * - Monday to Friday: 08:00 AM (08:00:00)
+ * - Saturday & Sunday: 10:00 AM (10:00:00)
+ */
+export const getOfficeOpeningHourForDate = (dateInput: string): { timeStr: string, label: string, fullDateTime: string } => {
+  const cleanDate = (dateInput || '').split('T')[0].split(' ')[0]
+  const d = new Date(`${cleanDate}T00:00:00`)
+  const day = d.getDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const isWeekend = day === 6 || day === 0
+  const timeStr = isWeekend ? '10:00:00' : '08:00:00'
+  const label = isWeekend ? '10:00 AM' : '08:00 AM'
+
+  // If a specific time was already stored, retain it; otherwise format with opening hours
+  const hasCustomTime = dateInput.includes(':') && (dateInput.includes('T') || dateInput.includes(' '))
+  const fullDateTime = hasCustomTime ? dateInput : `${cleanDate} ${timeStr}`
+
+  return { timeStr, label, fullDateTime }
+}
+
 export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Inventory Domain
   const [rawProducts, setRawProducts] = useState<RawProduct[]>(SEED_RAW_PRODUCTS)
@@ -907,7 +927,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             o.delivery_status === 'Scheduled' ||
             (o.notes && (o.notes.includes('[Scheduled Delivery') || o.notes.includes('[Rescheduled]')))
           )
-          const schedTime = schedDateStr ? new Date(schedDateStr).getTime() : NaN
+          let effectiveSched = schedDateStr || createdAt
+          if (schedDateStr) {
+            effectiveSched = getOfficeOpeningHourForDate(schedDateStr).fullDateTime
+          }
+
+          const schedTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : NaN
           const isScheduledFuture = Boolean(
             (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
             (isExplicitScheduled && !isDelivered && !isInTransit)
@@ -915,7 +940,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
           if (isScheduledFuture) {
             // Holds in delivery schedule table until assigned date/time is reached
-            const effectiveSched = schedDateStr || createdAt
             const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
             newScheduledItems.push({
               id: numericId,
@@ -2360,8 +2384,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     orderDetails?: Partial<ScheduledOrder>
   ): Promise<boolean> => {
     try {
-      const timePart = scheduledTime ? ` ${scheduledTime}` : ''
-      const fullSchedStr = `${scheduledDate}${timePart}`
+      const opening = getOfficeOpeningHourForDate(scheduledDate)
+      const timePart = scheduledTime ? scheduledTime : opening.timeStr
+      const cleanDatePart = scheduledDate.split('T')[0].split(' ')[0]
+      const fullSchedStr = `${cleanDatePart} ${timePart}`
       const auditLog = `[Scheduled Delivery: ${fullSchedStr}] [Rescheduled]`
 
       // 1. Update Supabase orders table
