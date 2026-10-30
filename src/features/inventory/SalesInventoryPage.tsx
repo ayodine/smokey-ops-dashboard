@@ -49,7 +49,7 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
     sku: `SMK-${String(p.id).padStart(4, '0')}`,
     name: p.name,
     product_type: 'sales',
-    unit: p.unit || 'portion',
+    unit: p.unit || 'unit',
     reorder_level: reorder,
     unit_cost: cost,
     selling_price: price,
@@ -213,7 +213,7 @@ export const SalesInventoryPage: React.FC = () => {
       setProductForm({
         name: '',
         sku: `SMK-${String(displayProducts.length + 1).padStart(4, '0')}`,
-        unit: 'portion',
+        unit: 'unit',
         selling_price: 15000,
         unit_cost: 7000,
         reorder_level: 20
@@ -322,7 +322,7 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'stock_qty',
-      header: 'Actual (On-Hand)',
+      header: 'Physical (On-Hand)',
       defaultWidth: 175,
       accessor: (p) => {
         const isLow = p.stock_qty <= p.reorder_level
@@ -355,7 +355,7 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'estimated_incoming_qty',
-      header: 'Estimated (In-Smoker)',
+      header: 'Estimated (In-Oven)',
       defaultWidth: 175,
       accessor: (p) => {
         const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
@@ -375,7 +375,7 @@ export const SalesInventoryPage: React.FC = () => {
             <div className="text-[11px] text-kumo-subtle mt-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3 text-zinc-400 shrink-0" />
               <span className="truncate">
-                {primaryBatch?.estimated_ready_time || (primaryBatch?.batch_schedule === 'tomorrow_morning' ? 'Tomorrow morning' : 'Cooking in pit')}
+                {primaryBatch?.estimated_ready_time || (primaryBatch?.batch_schedule === 'tomorrow_morning' ? 'Tomorrow morning' : 'Cooking in oven')}
               </span>
             </div>
           </div>
@@ -568,8 +568,8 @@ export const SalesInventoryPage: React.FC = () => {
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
-          title="In-Smoker Buffer"
-          value={`+${totalIncomingUnits} portions`}
+          title="In-Oven Buffer"
+          value={`+${totalIncomingUnits} units`}
           description="Active & scheduled batch feed"
           icon={<Flame className="w-4 h-4 text-amber-500" />}
         />
@@ -755,7 +755,7 @@ export const SalesInventoryPage: React.FC = () => {
             isOpen={isDetailsModalOpen}
             onClose={() => setIsDetailsModalOpen(false)}
             title={`Dish Details: ${p.name}`}
-            description="Physical holding inventory, active smoker batches, and storefront availability."
+            description="Physical holding inventory, active oven batches, and storefront availability."
             maxWidth="2xl"
             footer={
               <div className="flex items-center justify-between w-full">
@@ -807,7 +807,7 @@ export const SalesInventoryPage: React.FC = () => {
 
                   <div className="space-y-2.5 pt-1">
                     <div className="flex items-start text-[13px]">
-                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Actual (On-Hand)</span>
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Physical (On-Hand)</span>
                       <div className="flex items-center gap-2">
                         <span className="text-zinc-900 dark:text-zinc-100 font-bold">
                           {formatQuantity(p.stock_qty)} {p.unit}s
@@ -819,13 +819,13 @@ export const SalesInventoryPage: React.FC = () => {
                     </div>
 
                     <div className="flex items-start text-[13px]">
-                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Estimated (In-Smoker)</span>
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Estimated (In-Oven)</span>
                       <div className="flex items-center gap-2">
                         <span className="text-amber-600 dark:text-amber-400 font-semibold">
                           +{formatQuantity(incomingQty)} {p.unit}s
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
-                          (Active smoking & next shift runs)
+                          (Active oven & next shift runs)
                         </span>
                       </div>
                     </div>
@@ -849,7 +849,7 @@ export const SalesInventoryPage: React.FC = () => {
                           {formatQuantity(sellable)} {p.unit}s
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
-                          (Formula: Actual + Estimated - Allocated)
+                          (Formula: Physical + Estimated - Allocated)
                         </span>
                       </div>
                     </div>
@@ -863,7 +863,7 @@ export const SalesInventoryPage: React.FC = () => {
                           </span>
                         ) : incomingQty > 0 ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
-                            Pre-Order (Smoking in Pit)
+                            Pre-Order (Baking in Oven)
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
@@ -927,7 +927,7 @@ export const SalesInventoryPage: React.FC = () => {
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                      In-Flight Production Batches Feeding This Dish
+                      In-Flight Oven Batches Feeding This Dish
                     </span>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
                       {activeBatches.length} active run{activeBatches.length === 1 ? '' : 's'}
@@ -936,7 +936,7 @@ export const SalesInventoryPage: React.FC = () => {
 
                   {activeBatches.length === 0 ? (
                     <div className="py-4 text-center text-xs text-zinc-500 dark:text-zinc-400 italic">
-                      No active smoking batches currently feeding this item.
+                      No active oven batches currently feeding this item.
                     </div>
                   ) : (
                     <div className="space-y-2 pt-1">
@@ -949,11 +949,11 @@ export const SalesInventoryPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{b.batch_ref}</span>
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
-                                {b.status === 'in_production' ? 'Cooking in Pit' : 'Queued Prep'}
+                                {b.status === 'in_production' ? 'Cooking in Oven' : 'Queued Prep'}
                               </span>
                             </div>
                             <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                              Schedule: {b.batch_schedule === 'tomorrow_morning' ? 'Tomorrow Morning Run' : 'Today Pit Run'} • Target: {b.estimated_ready_time || 'Pending'}
+                              Schedule: {b.batch_schedule === 'tomorrow_morning' ? 'Tomorrow Morning Run' : 'Today Oven Run'} • Target: {b.estimated_ready_time || 'Pending'}
                             </div>
                           </div>
                           <div className="text-right">
