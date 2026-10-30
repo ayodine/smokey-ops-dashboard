@@ -55,11 +55,11 @@ export const AccountHomePage: React.FC = () => {
     })
 
     return {
-      totalValuation: valuation > 0 ? valuation : 6825020,
-      totalItemCount: rawProducts.length || 47,
-      lowStockCount: low || 7,
-      expiringCount: expiring || 23,
-      outOfStockCount: out || 1
+      totalValuation: valuation,
+      totalItemCount: rawProducts.length,
+      lowStockCount: low,
+      expiringCount: expiring,
+      outOfStockCount: out
     }
   }, [rawProducts, inventoryLots])
 

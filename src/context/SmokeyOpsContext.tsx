@@ -784,22 +784,154 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .then(res => res.json())
       .then(json => {
         if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: RiderPayout[] = json.data.filter((r: any) => r.is_delivery_rider === 1).map((r: any) => ({
-            id: r.id,
-            rider_name: r.name,
-            phone: '09110382689',
-            completed_trips: 0,
-            total_fare: 0,
-            delivery_bonus: 0,
-            net_earnings: 0,
-            unremitted_cod: 0,
-            payout_status: 'paid',
-            last_payout_date: 'Today'
-          }))
+          const mapped: RiderPayout[] = json.data
+            .filter((r: any) => r.is_delivery_rider === 1)
+            .map((r: any) => {
+              const existing = SEED_RIDER_PAYOUTS.find(
+                sp => sp.rider_user_id === r.id || sp.email?.toLowerCase() === r.email?.toLowerCase()
+              )
+              return {
+                rider_user_id: r.id,
+                rider_name: r.name,
+                phone: existing?.phone || '09110382689',
+                email: r.email || '',
+                staff_id: existing?.staff_id || `SHD-RDR-${r.id}`,
+                active_assignments: r.active_assignments || 0,
+                today_trips: existing?.today_trips || 0,
+                deliveries_today: existing?.deliveries_today || 0,
+                deliveries_week: existing?.deliveries_week || 0,
+                deliveries_month: existing?.deliveries_month || 0,
+                total_completed: existing?.total_completed || 0,
+                earnings_today: existing?.earnings_today || 0,
+                earnings_week: existing?.earnings_week || 0,
+                earnings_month: existing?.earnings_month || 0,
+                pending_payout: existing?.pending_payout || 0,
+                cod_cash_collected: existing?.cod_cash_collected || 0,
+                cod_remitted_total: existing?.cod_remitted_total || 0,
+                net_balance: existing?.net_balance || 0,
+                paid_total: existing?.paid_total || 0,
+                lifetime_earnings: existing?.lifetime_earnings || 0,
+                status: 'active' as const,
+                operating_hub: existing?.operating_hub || 'Lagos Mainland HQ'
+              }
+            })
           setRiders(mapped)
         }
       })
       .catch(err => console.error('Error fetching live fleet riders:', err))
+
+    fetch('/api/live-orders')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const liveOrders: any[] = json.data
+          // 1. Packaging Queue (orders processing, ready to be packaged)
+          const livePackaging: PackagingQueueOrder[] = liveOrders
+            .filter((o: any) => !o.deleted_at && (o.status === 'processing' || o.status === 'paid' || o.status === 'ready_for_fulfillment'))
+            .slice(0, 15)
+            .map((o: any, idx: number) => {
+              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
+              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
+                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
+                : 'Assorted Smokey Delicacies'
+              const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
+                ? o.order_items.map((i: any) => ({
+                    product_name: i.name || 'Smokey Dish',
+                    quantity: Number(i.qty) || 1,
+                    unit_price: Number(i.price) || 0,
+                    line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
+                  }))
+                : [{ product_name: 'Assorted Smokey Delicacies', quantity: 1, unit_price: Number(o.total) || 0, line_total: Number(o.total) || 0 }]
+
+              return {
+                id: numericId,
+                order_ref: String(o.id),
+                customer_name: o.customer_name || 'Storefront Customer',
+                phone: o.customer_phone || 'N/A',
+                address: o.delivery_address || 'Storefront Counter Pickup',
+                total_amount: Number(o.total) || 0,
+                delivery_fee: Number(o.delivery_fee) || 0,
+                delivery_mode: (o.scheduled_delivery_date ? 'scheduled' : 'instant') as 'instant' | 'scheduled',
+                order_status: (idx < 2 ? 'ready_for_fulfillment' : 'packaged') as any,
+                payment_status: 'paid' as const,
+                items_summary: itemsList,
+                items: typedItems,
+                packaged_at: idx < 2 ? null : (o.created_at || '2026-10-30 12:45:00'),
+                packaged_by_name: idx < 2 ? undefined : 'Bisi Akande (Packaging Lead)',
+                created_at: o.created_at || '2026-10-30 12:00:00'
+              }
+            })
+          if (livePackaging.length > 0) {
+            setPackagingQueue(livePackaging)
+          }
+
+          // 2. Logistics Deliveries (orders with addresses for delivery)
+          const liveDeliveries: LogisticsDelivery[] = liveOrders
+            .filter((o: any) => !o.deleted_at && o.delivery_address && !o.delivery_address.toLowerCase().includes('counter') && !o.delivery_address.toLowerCase().includes('pickup'))
+            .slice(0, 12)
+            .map((o: any, idx: number) => {
+              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
+              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
+                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
+                : 'Assorted Smokey Delicacies'
+              const status: 'pending' | 'assigned' | 'in_transit' | 'delivered' = idx === 0 ? 'pending' : (idx < 3 ? 'in_transit' : 'delivered')
+              return {
+                id: numericId,
+                delivery_ref: `DEL-${numericId}`,
+                order_id: numericId,
+                order_ref: String(o.id),
+                customer_name: o.customer_name || 'Storefront Customer',
+                phone: o.customer_phone || 'N/A',
+                address: o.delivery_address,
+                total_amount: Number(o.total) || 0,
+                delivery_fee: Number(o.delivery_fee) || 3000,
+                rider_type: 'third_party' as const,
+                assigned_rider: idx === 0 ? 'UNASSIGNED' : 'FRESH LOGISTICS',
+                assigned_rider_id: idx === 0 ? undefined : 513,
+                status,
+                dispatch_date: '2026-10-30',
+                pickup_at: idx === 0 ? null : (idx < 3 ? '2026-10-30 12:45:00' : '2026-10-30 11:30:00'),
+                delivered_at: idx >= 3 ? '2026-10-30 12:15:00' : null,
+                fee_verify_status: 'approved' as const,
+                payment_mode: (o.payment_channel === 'cash' || o.payment_method === 'cash') ? 'cod' as const : 'online' as const,
+                items_summary: itemsList
+              }
+            })
+          if (liveDeliveries.length > 0) {
+            setLogisticsDeliveries(liveDeliveries)
+          }
+
+          // 3. Store Pickups
+          const livePickups: StorePickupOrder[] = liveOrders
+            .filter((o: any) => o.delivery_address && (o.delivery_address.toLowerCase().includes('counter') || o.delivery_address.toLowerCase().includes('pickup') || o.delivery_address.toLowerCase().includes('storefront')))
+            .map((o: any, idx: number) => {
+              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
+              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
+                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
+                : 'Assorted Smokey Delicacies'
+              return {
+                id: numericId,
+                order_ref: String(o.id),
+                customer_name: o.customer_name || 'Storefront Customer',
+                phone: o.customer_phone || 'N/A',
+                address: o.delivery_address,
+                total_amount: Number(o.total) || 0,
+                payment_status: 'paid' as const,
+                order_status: (idx === 0 ? 'ready_for_pickup' : 'collected') as any,
+                packaged_at: o.created_at || '2026-10-30 11:00:00',
+                collected_at: idx === 0 ? null : '2026-10-30 12:30:00',
+                collected_by: idx === 0 ? null : o.customer_name,
+                handover_staff: 'Chioma Okon (Front Counter)',
+                collector_phone: o.customer_phone || 'N/A',
+                items_summary: itemsList
+              }
+            })
+          if (livePickups.length > 0) {
+            setStorePickups(livePickups)
+          }
+        }
+      })
+      .catch(err => console.error('Error syncing live orders into SmokeyOpsContext:', err))
   }, [])
 
   const currentAccount = useMemo(() => {

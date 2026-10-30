@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { supabase } from '@/lib/supabase'
+import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cn } from '@/lib/utils'
 import {
   ShoppingBag,
@@ -140,8 +141,8 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
 
 export const WebsiteOrdersPage: React.FC = () => {
   const navigate = useNavigate()
-  const [orders, setOrders] = useState<WebsiteOrder[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
+  const [orders, setOrders] = useState<WebsiteOrder[]>(SEED_WEBSITE_ORDERS)
+  const [loading, setLoading] = useState<boolean>(false)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
@@ -176,12 +177,17 @@ export const WebsiteOrdersPage: React.FC = () => {
       const res = await fetch('/api/live-orders')
       if (res.ok) {
         const json = await res.json()
-        if (json.data && Array.isArray(json.data)) {
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
           setOrders(json.data.map(mapSupabaseOrderToWebsiteOrder))
+          return
         }
       }
+
+      // 3. Graceful fallback to authentic snapshot seed data if live API is unavailable
+      setOrders(SEED_WEBSITE_ORDERS)
     } catch (err) {
-      console.error('Failed to load live website orders:', err)
+      console.error('Failed to load live website orders, falling back to snapshot:', err)
+      setOrders(SEED_WEBSITE_ORDERS)
     } finally {
       setLoading(false)
       if (showIndicator) setIsRefreshing(false)

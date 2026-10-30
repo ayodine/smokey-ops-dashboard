@@ -85,25 +85,24 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
   },
   {
     id: 'SHD-09853',
-    customerName: 'Babajide Sanwo',
-    dishName: 'Smoked Beef Brisket Feast and Jollof',
-    totalAmount: 18500,
-    portions: 3,
+    customerName: 'Hafsat Makanju',
+    dishName: 'Full Smokey Guineafowl (Chopped) × 2',
+    totalAmount: 27700,
+    portions: 2,
     channel: 'Website Storefront',
-    hasStock: false,
-    currentStage: 'p1_production_batch',
+    hasStock: true,
+    currentStage: 'p2_in_packaging',
     paymentRef: 'pay_smk_99182',
-    batchId: 'Batch 402',
     riderName: 'Rider Yusuf Internal Fleet',
-    destinationAddress: '8c Taiwo Osipitan Way, Ogba, Lagos',
+    destinationAddress: '11 Fola Agoro Street, Shomolu, Lagos',
     etaMinutes: 22,
     otpCode: '4821',
-    deliveryFee: 4000,
-    history: ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
+    deliveryFee: 2500,
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
   },
   {
     id: 'SHD-07662',
-    customerName: 'Babajide Sanwo',
+    customerName: 'Mercy Moses',
     dishName: '1 Liter Bowl Guineafowl Rice',
     totalAmount: 9500,
     portions: 1,
@@ -112,7 +111,7 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     currentStage: 'p2_in_packaging',
     paymentRef: 'pay_smk_77201',
     riderName: 'Rider Yusuf Internal Fleet',
-    destinationAddress: 'Plot 12 Admiralty Way, Lekki Phase 1',
+    destinationAddress: '35 Coker Road, Ilupeju, Lagos',
     etaMinutes: 35,
     otpCode: '3189',
     deliveryFee: 3000,
@@ -191,7 +190,7 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
     totalAmount: 18000,
     portions: 1,
     channel: 'Website Storefront',
-    hasStock: false,
+    hasStock: true,
     currentStage: 'p1_inventory_deduct',
     paymentRef: 'pay_smk_99215',
     destinationAddress: '4 Awoseyin Lane, Shomolu, Lagos',
@@ -291,19 +290,18 @@ const SMOKEY_OPERATIONAL_ORDERS: PipelineOrder[] = [
   },
   {
     id: 'SHD-07680',
-    customerName: 'Tunde Bakare',
+    customerName: 'Kelechi Amadi',
     dishName: 'Smokey Jumbo Turkey Wings Feast',
     totalAmount: 14500,
     portions: 2,
     channel: 'Website Storefront',
-    hasStock: false,
-    currentStage: 'p1_production_batch',
+    hasStock: true,
+    currentStage: 'p2_in_packaging',
     paymentRef: 'pay_smk_33109',
-    batchId: 'Batch 408',
     destinationAddress: '14 Karimu Kotun St, Victoria Island',
     otpCode: '2290',
     deliveryFee: 3500,
-    history: ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
+    history: ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
   },
   {
     id: 'SHD-07663',
@@ -1141,7 +1139,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       case 'p1_ingestion':
         return 'p1_inventory_deduct'
       case 'p1_inventory_deduct':
-        return hasStock ? 'p2_in_packaging' : 'p1_production_batch'
+        return 'p2_in_packaging'
       case 'p1_production_batch':
         return 'p2_in_packaging'
       case 'p2_in_packaging':
