@@ -967,8 +967,8 @@ export const ProductionBatchesPage: React.FC = () => {
           </div>
 
           <Input
-            label="Pit Remarks & Smoker Instructions"
-            placeholder="e.g. Oak wood smoke for 5 hours at 80°C"
+            label="Production supervisor remarks"
+            placeholder="e.g. Quality checks, temperature profile, shift directives"
             value={batchRemarks}
             onChange={(e) => setBatchRemarks(e.target.value)}
           />
@@ -1126,7 +1126,7 @@ export const ProductionBatchesPage: React.FC = () => {
                 </div>
                 {selectedBatch?.remarks && (
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Pit / QC Notes</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Production supervisor remarks</span>
                     <span className="text-zinc-700 dark:text-zinc-300 font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
                   </div>
                 )}
@@ -1282,10 +1282,10 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
 
             <Input
-              label="Batch Notes & Shift Remarks"
+              label="Production supervisor remarks"
               value={editBatchForm.remarks}
               onChange={(e) => setEditBatchForm(prev => ({ ...prev, remarks: e.target.value }))}
-              placeholder="e.g. Pit #2 smoke cycle, wood type, temperature checks"
+              placeholder="e.g. Quality checks, temperature profile, shift directives"
             />
 
             <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
