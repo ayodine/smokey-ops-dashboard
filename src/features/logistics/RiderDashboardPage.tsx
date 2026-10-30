@@ -828,135 +828,164 @@ export const RiderDashboardPage: React.FC = () => {
         onClose={() => setPreviewOrder(null)}
         title={`Delivery Order Details — #${previewOrder?.order_ref}`}
         description="Comprehensive customer route, kitchen packaging, and commission ledger details."
-        maxWidth="lg"
+        maxWidth="2xl"
       >
         {previewOrder && (
-          <div className="space-y-3.5 font-sans text-xs sm:text-sm">
-            {/* Status & Timing Banner */}
-            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between flex-wrap gap-2 text-xs">
-              <div>
-                <span className="text-kumo-subtle text-[11px] block">Order Reference</span>
-                <span className="text-sm font-bold text-kumo-strong">#{previewOrder.order_ref}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-kumo-subtle">
-                  {previewOrder.status === 'delivered' ? `Delivered: ${previewOrder.delivered_at || previewOrder.dispatch_date}` : `Dispatched: ${previewOrder.dispatch_date}`}
-                </span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                  previewOrder.status === 'delivered'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                    : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                }`}>
-                  {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
-                </span>
-              </div>
-            </div>
-
-            {/* Customer & Route Details */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-[11px] uppercase tracking-wider">
-                Customer & Destination Route
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
-                <div>
-                  <span className="text-kumo-subtle text-[11px] block">Recipient Name</span>
-                  <span className="font-semibold text-kumo-strong text-sm">{previewOrder.customer_name}</span>
+          <div className="space-y-4 font-sans text-xs">
+            {/* Master Divided Card Container (Adopting Image 2 design) */}
+            <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
+              
+              {/* Section 1: Order & Timing */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
+                    Order Information
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
+                    previewOrder.status === 'delivered'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                  }`}>
+                    {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-kumo-subtle text-[11px] block">Phone Contact</span>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Order Reference</span>
+                    <span className="text-kumo-strong font-mono font-semibold">#{previewOrder.order_ref}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Dispatched Date</span>
+                    <span className="text-kumo-strong font-medium">{previewOrder.dispatch_date}</span>
+                  </div>
+                  {previewOrder.delivered_at && (
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Delivered At</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">{previewOrder.delivered_at}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 2: Customer & Route Details */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
+                    Customer & Destination Route
+                  </span>
                   <a
                     href={`tel:${previewOrder.phone}`}
-                    className="inline-flex items-center gap-1.5 font-semibold text-kumo-strong hover:underline text-sm"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
                   >
-                    <Phone className="w-3.5 h-3.5 text-kumo-subtle" />
-                    <span>{previewOrder.phone}</span>
+                    <Phone className="w-3 h-3" />
+                    <span>Call Recipient</span>
                   </a>
                 </div>
-                <div className="sm:col-span-2">
-                  <span className="text-kumo-subtle text-[11px] block">Drop-off Address</span>
-                  <p className="text-kumo-strong font-medium text-xs sm:text-sm mt-0.5">{previewOrder.address}</p>
-                  <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(previewOrder.address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium mt-1.5"
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>Open in Google Maps for Navigation</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-            </div>
 
-            {/* Kitchen Food Package */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-[11px] uppercase tracking-wider">
-                Kitchen Packaged Items
-              </h4>
-              <p className="text-kumo-strong font-medium text-xs sm:text-sm">
-                {previewOrder.items_summary || 'Smokey Hut Kitchen Meal Pack'}
-              </p>
-              {previewOrder.notes && (
-                <div className="p-2.5 bg-muted/20 border border-kumo-line rounded text-xs text-kumo-strong">
-                  <span className="font-semibold text-kumo-subtle block mb-0.5">Kitchen Special Instructions:</span>
-                  {previewOrder.notes}
-                </div>
-              )}
-            </div>
-
-            {/* Financial Commission & Billing */}
-            <div className="border border-kumo-line rounded-lg p-3.5 space-y-2 bg-kumo-canvas">
-              <h4 className="font-semibold text-kumo-strong text-[11px] uppercase tracking-wider">
-                Trip Commission & Payment Status
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-0.5">
-                <div>
-                  <span className="text-kumo-subtle text-[11px] block">Trip Fee Earned</span>
-                  <span className="font-bold text-sm text-kumo-strong font-mono">
-                    {formatNaira(previewOrder.delivery_fee)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-kumo-subtle text-[11px] block">Payment Mode</span>
-                  <span className="font-medium text-kumo-strong text-xs sm:text-sm">
-                    {previewOrder.payment_mode === 'cod' ? `COD (${formatNaira(previewOrder.cod_amount || 0)})` : 'Online Prepaid'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-kumo-subtle text-[11px] block">Settlement Status</span>
-                  <span className="font-medium text-kumo-strong text-xs sm:text-sm">
-                    {previewOrder.status === 'delivered' ? 'Settled to Wallet' : 'Pending Completion'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Third-Party receipt proof if available */}
-              {previewOrder.fee_evidence_path && (
-                <div className="pt-2 border-t border-kumo-line mt-2">
-                  <span className="text-kumo-subtle text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
-                  <div className="max-w-xs border border-kumo-line rounded-lg overflow-hidden">
-                    <img
-                      src={previewOrder.fee_evidence_path}
-                      alt="Courier Receipt"
-                      className="w-full h-auto object-cover max-h-48"
-                    />
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Recipient Name</span>
+                    <span className="text-kumo-strong font-semibold">{previewOrder.customer_name}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Phone Contact</span>
+                    <span className="text-kumo-strong font-mono">{previewOrder.phone}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Drop-off Address</span>
+                    <div className="flex-1">
+                      <span className="text-kumo-strong font-medium block leading-snug">{previewOrder.address}</span>
+                      <a
+                        href={`https://maps.google.com/?q=${encodeURIComponent(previewOrder.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1 font-medium"
+                      >
+                        <MapPin className="w-3 h-3" />
+                        <span>Open in Google Maps for Navigation</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* Section 3: Kitchen Food Package */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                    Kitchen Packaged Items
+                  </span>
+                </div>
+                <div className="pt-1">
+                  <p className="text-kumo-strong font-medium text-[13px] leading-relaxed">
+                    {previewOrder.items_summary || 'Smokey Hut Kitchen Meal Pack'}
+                  </p>
+                  {previewOrder.notes && (
+                    <div className="mt-2.5 p-2.5 bg-kumo-canvas/50 border border-kumo-line rounded-lg text-xs text-kumo-strong">
+                      <span className="font-semibold text-kumo-subtle block mb-0.5">Special Instructions:</span>
+                      {previewOrder.notes}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 4: Commission & Payment */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                    Trip Commission & Payment Status
+                  </span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Trip Fee Earned</span>
+                    <span className="text-kumo-strong font-mono font-bold text-sm">
+                      {formatNaira(previewOrder.delivery_fee)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Payment Mode</span>
+                    <span className="text-kumo-strong font-medium">
+                      {previewOrder.payment_mode === 'cod' ? `Cash on Delivery (${formatNaira(previewOrder.cod_amount || 0)})` : 'Prepaid Online'}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Settlement Status</span>
+                    <span className="text-kumo-strong font-medium">
+                      {previewOrder.status === 'delivered' ? 'Settled to Rider Balance' : 'Pending Delivery Confirmation'}
+                    </span>
+                  </div>
+
+                  {previewOrder.fee_evidence_path && (
+                    <div className="pt-2 border-t border-kumo-line mt-2">
+                      <span className="text-kumo-subtle text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
+                      <div className="max-w-xs border border-kumo-line rounded-lg overflow-hidden">
+                        <img
+                          src={previewOrder.fee_evidence_path}
+                          alt="Courier Receipt"
+                          className="w-full h-auto object-cover max-h-48"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Actions in Modal Footer */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">
+            {/* Actions in Modal Footer matching references */}
+            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="md"
                 onClick={() => setPreviewOrder(null)}
               >
                 Close
               </Button>
               {previewOrder.status !== 'delivered' && (
-                <>
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="md"
@@ -981,7 +1010,7 @@ export const RiderDashboardPage: React.FC = () => {
                   >
                     Confirm Delivered
                   </Button>
-                </>
+                </div>
               )}
             </div>
           </div>

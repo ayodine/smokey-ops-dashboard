@@ -42,7 +42,8 @@ import {
   AlertOctagon,
   Pencil,
   Save,
-  Check
+  Check,
+  Utensils
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -903,66 +904,95 @@ export const ProductionBatchesPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* MODAL 3: Preview BOM Details */}
+      {/* MODAL 3: Preview BOM Details — Adopting Image 2 Structured Divided Sections */}
       <Dialog
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}
         title={`Cooking Recipe: ${selectedBatch?.batch_ref}`}
-        description={`Recipe specifications for ${selectedBatch?.output_product_name}`}
+        description={`Recipe specifications and formulated raw ingredients for ${selectedBatch?.output_product_name}`}
+        maxWidth="2xl"
       >
-        <div className="space-y-4 font-sans">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Product:</span>
-              <span className="font-semibold text-kumo-strong">{selectedBatch?.output_product_name}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Expected Yield:</span>
-              <span className="font-semibold text-kumo-strong font-sans">{selectedBatch?.expected_output} units</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle font-medium">Current Status:</span>
-              <span className="font-semibold uppercase text-primary">{selectedBatch?.status.replace('_', ' ')}</span>
-            </div>
-            {selectedBatch?.remarks && (
-              <div className="pt-1.5 border-t border-kumo-line text-kumo-subtle text-xs">
-                <em>{selectedBatch.remarks}</em>
+        <div className="space-y-4 font-sans text-xs">
+          <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
+            {/* Section 1: Batch Overview */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider flex items-center gap-1.5">
+                  <Utensils className="w-3.5 h-3.5 text-kumo-subtle" />
+                  Batch Specifications
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                  {selectedBatch?.status.replace('_', ' ')}
+                </span>
               </div>
-            )}
-          </div>
 
-          <div>
-            <h4 className="text-xs font-semibold text-kumo-strong uppercase mb-2">Formulated Ingredients</h4>
-            <div className="space-y-1.5">
-              {selectedBatch?.raw_materials.map((m, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs font-sans">
-                  <div>
-                    <span className="font-medium text-kumo-strong">{m.name}</span>
-                    <span className="text-[11px] text-kumo-subtle ml-2 font-sans">[{m.sku}]</span>
-                  </div>
-                  <span className="font-medium text-kumo-strong font-sans">{m.quantity} {m.unit}</span>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Target Dish</span>
+                  <span className="text-kumo-strong font-semibold">{selectedBatch?.output_product_name}</span>
                 </div>
-              ))}
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Batch Reference</span>
+                  <span className="text-kumo-strong font-mono font-medium">{selectedBatch?.batch_ref}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Planned Output</span>
+                  <span className="text-kumo-strong font-medium font-mono">{selectedBatch?.expected_output} portions</span>
+                </div>
+                {selectedBatch?.remarks && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-kumo-subtle font-normal">Pit / QC Notes</span>
+                    <span className="text-kumo-strong font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 2: Formulated Ingredients (BOM) */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider">
+                  Formulated Ingredients (BOM)
+                </span>
+                <span className="text-[11px] font-semibold text-kumo-subtle uppercase">
+                  {selectedBatch?.raw_materials.length || 0} Ingredients
+                </span>
+              </div>
+
+              <div className="pt-1 divide-y divide-kumo-line/40">
+                {selectedBatch?.raw_materials.map((m, idx) => (
+                  <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                    <div>
+                      <span className="font-medium text-kumo-strong">{m.name}</span>
+                      <span className="text-xs text-kumo-subtle ml-2 font-mono">[{m.sku}]</span>
+                    </div>
+                    <span className="font-mono font-semibold text-kumo-strong text-xs px-2.5 py-1 rounded bg-kumo-tint/60 border border-kumo-line">
+                      {m.quantity} {m.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line font-sans">
+          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
             <div>
               {selectedBatch && selectedBatch.status !== 'completed' && selectedBatch.status !== 'cancelled' && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="md"
                   onClick={() => {
                     cancelBatch(selectedBatch.id)
                     setIsPreviewModalOpen(false)
                   }}
-                  className="px-3.5 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5"
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900"
+                  leftIcon={<Trash2 className="w-4 h-4 text-rose-600" />}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Cancel Batch</span>
-                </button>
+                  Cancel Batch
+                </Button>
               )}
             </div>
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsPreviewModalOpen(false)}>
+            <Button variant="secondary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
               Close
             </Button>
           </div>
