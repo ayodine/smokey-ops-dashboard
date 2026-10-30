@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react'
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react'
 import {
   RawProduct,
   RawDelivery,
@@ -46,7 +46,9 @@ import {
   SEED_INVENTORY_LOTS,
   SEED_RECIPE_TEMPLATES,
   SEED_STOCKTAKE_VARIANCES,
+  SEED_WEBSITE_ORDERS,
 } from '@/lib/smokeyData'
+import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
@@ -820,118 +822,264 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
       .catch(err => console.error('Error fetching live fleet riders:', err))
 
-    fetch('/api/live-orders')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const liveOrders: any[] = json.data
-          // 1. Packaging Queue (orders processing, ready to be packaged)
-          const livePackaging: PackagingQueueOrder[] = liveOrders
-            .filter((o: any) => !o.deleted_at && (o.status === 'processing' || o.status === 'paid' || o.status === 'ready_for_fulfillment'))
-            .slice(0, 15)
-            .map((o: any, idx: number) => {
-              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
-              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
-                : 'Assorted Smokey Delicacies'
-              const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
-                ? o.order_items.map((i: any) => ({
-                    product_name: i.name || 'Smokey Dish',
-                    quantity: Number(i.qty) || 1,
-                    unit_price: Number(i.price) || 0,
-                    line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
-                  }))
-                : [{ product_name: 'Assorted Smokey Delicacies', quantity: 1, unit_price: Number(o.total) || 0, line_total: Number(o.total) || 0 }]
+    // Automated flow: fetch live orders and populate Packaging Execution & Delivery Schedule
+    const syncLiveWebsiteOrders = async () => {
+      try {
+        let rawOrders: any[] = []
 
-              return {
-                id: numericId,
-                order_ref: String(o.id),
-                customer_name: o.customer_name || 'Storefront Customer',
-                phone: o.customer_phone || 'N/A',
-                address: o.delivery_address || 'Storefront Counter Pickup',
-                total_amount: Number(o.total) || 0,
-                delivery_fee: Number(o.delivery_fee) || 0,
-                delivery_mode: (o.scheduled_delivery_date ? 'scheduled' : 'instant') as 'instant' | 'scheduled',
-                order_status: (idx < 2 ? 'ready_for_fulfillment' : 'packaged') as any,
-                payment_status: 'paid' as const,
-                items_summary: itemsList,
-                items: typedItems,
-                packaged_at: idx < 2 ? null : (o.created_at || '2026-10-30 12:45:00'),
-                packaged_by_name: idx < 2 ? undefined : 'Bisi Akande (Packaging Lead)',
-                created_at: o.created_at || '2026-10-30 12:00:00'
-              }
-            })
-          if (livePackaging.length > 0) {
-            setPackagingQueue(livePackaging)
+        // 1. Direct Supabase query
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .is('deleted_at', null)
+          .neq('status', 'pending_payment')
+          .order('created_at', { ascending: false })
+          .limit(200)
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          rawOrders = data
+        } else {
+          // 2. Dev server proxy fallback
+          const res = await fetch('/api/live-orders')
+          if (res.ok) {
+            const json = await res.json()
+            if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+              rawOrders = json.data
+            }
           }
+        }
 
-          // 2. Logistics Deliveries (orders with addresses for delivery)
-          const liveDeliveries: LogisticsDelivery[] = liveOrders
-            .filter((o: any) => !o.deleted_at && o.delivery_address && !o.delivery_address.toLowerCase().includes('counter') && !o.delivery_address.toLowerCase().includes('pickup'))
-            .slice(0, 12)
-            .map((o: any, idx: number) => {
-              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
-              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
-                : 'Assorted Smokey Delicacies'
-              const status: 'pending' | 'assigned' | 'in_transit' | 'delivered' = idx === 0 ? 'pending' : (idx < 3 ? 'in_transit' : 'delivered')
-              return {
+        if (rawOrders.length === 0) {
+          rawOrders = SEED_WEBSITE_ORDERS
+        }
+
+        const now = Date.now()
+        const newPackagingItems: PackagingQueueOrder[] = []
+        const newScheduledItems: ScheduledOrder[] = []
+        const deliveredDeliveries: LogisticsDelivery[] = []
+
+        rawOrders.forEach((o: any, idx: number) => {
+          const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
+          const orderRef = String(o.id || `SHD-${numericId}`)
+          const customerName = o.customer_name || 'Storefront Customer'
+          const phone = o.customer_phone || o.phone || 'N/A'
+          const address = o.delivery_address || o.address || 'Storefront Counter Pickup'
+          const totalAmount = Number(o.total || o.total_amount) || 0
+          const deliveryFee = Number(o.delivery_fee) || 0
+          const createdAt = o.created_at || new Date().toISOString()
+          const notes = o.notes || ''
+          const isDelivered = o.delivery_status === 'delivered' || o.status === 'delivered'
+          const isInTransit = o.delivery_status === 'in_transit' || o.delivery_status === 'assigned'
+
+          const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
+            ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
+            : (o.items_summary || 'Assorted Smokey Delicacies')
+
+          const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
+            ? o.order_items.map((i: any) => ({
+                product_name: i.name || 'Smokey Dish',
+                quantity: Number(i.qty) || 1,
+                unit_price: Number(i.price) || 0,
+                line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
+              }))
+            : (Array.isArray(o.items) && o.items.length > 0
+                ? o.items
+                : [{ product_name: itemsList, quantity: 1, unit_price: totalAmount, line_total: totalAmount }])
+
+          // Check if order is scheduled for future delivery
+          const schedDateStr = o.scheduled_delivery_date || o.scheduled_delivery_at
+          const isScheduledFuture = Boolean(
+            schedDateStr && new Date(schedDateStr).getTime() > now
+          )
+
+          if (isScheduledFuture) {
+            // Holds in delivery schedule table until assigned date/time is reached
+            const schedTime = new Date(schedDateStr).getTime()
+            newScheduledItems.push({
+              id: numericId,
+              order_ref: orderRef,
+              customer_name: customerName,
+              phone,
+              address,
+              total_amount: totalAmount,
+              delivery_fee: deliveryFee,
+              scheduled_delivery_at: schedDateStr,
+              payment_status: 'paid',
+              order_status: 'payment_confirmed',
+              notes: notes || 'Scheduled pre-order from website storefront',
+              can_start_schedule: schedTime <= (now + 45 * 60 * 1000)
+            })
+          } else {
+            // Instant website order or scheduled time reached:
+            // Flows automatically into Packaging Queue!
+            const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' = 
+              (isDelivered || isInTransit) ? 'packaged' : 'ready_for_fulfillment'
+
+            newPackagingItems.push({
+              id: numericId,
+              order_ref: orderRef,
+              customer_name: customerName,
+              phone,
+              address,
+              total_amount: totalAmount,
+              delivery_fee: deliveryFee,
+              delivery_mode: schedDateStr ? 'scheduled' : 'instant',
+              payment_status: 'paid',
+              order_status: pkgStatus,
+              items_summary: itemsList,
+              items: typedItems,
+              packaged_at: (isDelivered || isInTransit) ? createdAt : null,
+              packaged_by_name: (isDelivered || isInTransit) ? 'Bisi Akande (Packaging Lead)' : undefined,
+              created_at: createdAt
+            })
+
+            if (isDelivered) {
+              deliveredDeliveries.push({
                 id: numericId,
                 delivery_ref: `DEL-${numericId}`,
                 order_id: numericId,
-                order_ref: String(o.id),
-                customer_name: o.customer_name || 'Storefront Customer',
-                phone: o.customer_phone || 'N/A',
-                address: o.delivery_address,
-                total_amount: Number(o.total) || 0,
-                delivery_fee: Number(o.delivery_fee) || 3000,
-                rider_type: 'third_party' as const,
-                assigned_rider: idx === 0 ? 'UNASSIGNED' : 'FRESH LOGISTICS',
-                assigned_rider_id: idx === 0 ? undefined : 513,
-                status,
-                dispatch_date: '2026-10-30',
-                pickup_at: idx === 0 ? null : (idx < 3 ? '2026-10-30 12:45:00' : '2026-10-30 11:30:00'),
-                delivered_at: idx >= 3 ? '2026-10-30 12:15:00' : null,
-                fee_verify_status: 'approved' as const,
-                payment_mode: (o.payment_channel === 'cash' || o.payment_method === 'cash') ? 'cod' as const : 'online' as const,
+                order_ref: orderRef,
+                customer_name: customerName,
+                phone,
+                address,
+                total_amount: totalAmount,
+                delivery_fee: deliveryFee || 3000,
+                rider_type: 'third_party',
+                assigned_rider: 'FRESH LOGISTICS',
+                assigned_rider_id: 513,
+                status: 'delivered',
+                dispatch_date: createdAt.split('T')[0],
+                pickup_at: createdAt,
+                delivered_at: createdAt,
+                fee_verify_status: 'approved',
+                payment_mode: 'online',
                 items_summary: itemsList
-              }
-            })
-          if (liveDeliveries.length > 0) {
-            setLogisticsDeliveries(liveDeliveries)
+              })
+            }
           }
+        })
 
-          // 3. Store Pickups
-          const livePickups: StorePickupOrder[] = liveOrders
-            .filter((o: any) => o.delivery_address && (o.delivery_address.toLowerCase().includes('counter') || o.delivery_address.toLowerCase().includes('pickup') || o.delivery_address.toLowerCase().includes('storefront')))
-            .map((o: any, idx: number) => {
-              const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
-              const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-                ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
-                : 'Assorted Smokey Delicacies'
+        // Update packagingQueue: merge and preserve in-memory user actions
+        setPackagingQueue(prev => {
+          const prevMap = new Map(prev.map(p => [p.order_ref, p]))
+          const merged = newPackagingItems.map(item => {
+            const existing = prevMap.get(item.order_ref)
+            if (existing) {
               return {
-                id: numericId,
-                order_ref: String(o.id),
-                customer_name: o.customer_name || 'Storefront Customer',
-                phone: o.customer_phone || 'N/A',
-                address: o.delivery_address,
-                total_amount: Number(o.total) || 0,
-                payment_status: 'paid' as const,
-                order_status: (idx === 0 ? 'ready_for_pickup' : 'collected') as any,
-                packaged_at: o.created_at || '2026-10-30 11:00:00',
-                collected_at: idx === 0 ? null : '2026-10-30 12:30:00',
-                collected_by: idx === 0 ? null : o.customer_name,
-                handover_staff: 'Chioma Okon (Front Counter)',
-                collector_phone: o.customer_phone || 'N/A',
-                items_summary: itemsList
+                ...item,
+                order_status: existing.order_status,
+                packaging_materials_picked: existing.packaging_materials_picked,
+                packaged_at: existing.packaged_at,
+                packaged_by_name: existing.packaged_by_name
               }
-            })
-          if (livePickups.length > 0) {
-            setStorePickups(livePickups)
+            }
+            return item
+          })
+          const newRefs = new Set(newPackagingItems.map(i => i.order_ref))
+          const manualOrders = prev.filter(p => !newRefs.has(p.order_ref))
+          return [...merged, ...manualOrders]
+        })
+
+        // Update scheduledOrders: merge and preserve in-memory status
+        setScheduledOrders(prev => {
+          const prevMap = new Map(prev.map(s => [s.order_ref, s]))
+          const base = newScheduledItems.length > 0 ? newScheduledItems : SEED_SCHEDULED_ORDERS
+          return base.map(item => {
+            const existing = prevMap.get(item.order_ref)
+            if (existing) {
+              return {
+                ...item,
+                order_status: existing.order_status,
+                can_start_schedule: existing.can_start_schedule
+              }
+            }
+            return item
+          })
+        })
+
+        // Update logisticsDeliveries: retain active dispatches awaiting rider assignment or on road
+        setLogisticsDeliveries(prev => {
+          const activeDispatches = prev.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
+          const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
+          const nonDuplicateDelivered = deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
+          if (activeDispatches.length === 0 && nonDuplicateDelivered.length === 0) {
+            return SEED_LOGISTICS_DELIVERIES
           }
+          return [...activeDispatches, ...nonDuplicateDelivered]
+        })
+      } catch (err) {
+        console.error('Error syncing live website orders:', err)
+      }
+    }
+
+    syncLiveWebsiteOrders()
+
+    const ordersChannel = supabase
+      .channel('ops_context_orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          syncLiveWebsiteOrders()
         }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ordersChannel)
+    }
+  }, [])
+
+  // Automated background scheduler: checks scheduledOrders every 10 seconds.
+  // If an order's scheduled date/time has arrived, automatically sends it to packagingQueue without user action!
+  useEffect(() => {
+    const checkDueScheduledOrders = () => {
+      const now = Date.now()
+      setScheduledOrders(prevSched => {
+        let hasChanges = false
+        const updated = prevSched.map(order => {
+          const schedTime = new Date(order.scheduled_delivery_at).getTime()
+          // If scheduled time has arrived and order is not yet in packaging queue
+          if (schedTime <= now && order.order_status === 'payment_confirmed') {
+            hasChanges = true
+            // Automatically push into packagingQueue as ready_for_fulfillment
+            setPackagingQueue(prevPkg => {
+              if (prevPkg.some(p => p.order_ref === order.order_ref || p.id === order.id)) {
+                return prevPkg
+              }
+              const newPkgOrder: PackagingQueueOrder = {
+                id: order.id,
+                order_ref: order.order_ref,
+                customer_name: order.customer_name,
+                phone: order.phone,
+                address: order.address,
+                total_amount: order.total_amount,
+                delivery_fee: order.delivery_fee,
+                delivery_mode: "scheduled",
+                payment_status: order.payment_status,
+                order_status: "ready_for_fulfillment",
+                items_summary: `Scheduled Delivery: ${order.notes}`,
+                items: [{ product_name: "Scheduled Pre-order Meal Pack", quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }],
+                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+              }
+              return [newPkgOrder, ...prevPkg]
+            })
+            showToast(`Scheduled order #${order.order_ref} (${order.customer_name}) reached delivery time — automatically sent to Packaging Execution`, 'info')
+            return {
+              ...order,
+              order_status: 'in_queue' as const,
+              can_start_schedule: true
+            }
+          }
+          return order
+        })
+        return hasChanges ? updated : prevSched
       })
-      .catch(err => console.error('Error syncing live orders into SmokeyOpsContext:', err))
+    }
+
+    checkDueScheduledOrders()
+    const timer = setInterval(checkDueScheduledOrders, 10000)
+    return () => clearInterval(timer)
   }, [])
 
   const currentAccount = useMemo(() => {
@@ -1948,7 +2096,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } : o))
 
     // 2. If it's a store pickup, add to storePickups
-    if (order.address.toLowerCase().includes('pickup') || order.delivery_fee === 0) {
+    if (order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0) {
       const newPickup: StorePickupOrder = {
         id: order.id,
         order_ref: order.order_ref,
@@ -1964,18 +2112,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         handover_staff: null,
         items_summary: order.items_summary
       }
-      setStorePickups(prev => [newPickup, ...prev.filter(p => p.id !== order.id)])
+      setStorePickups(prev => [newPickup, ...prev.filter(p => p.id !== order.id && p.order_ref !== order.order_ref)])
+      showToast(`Order #${order.order_ref} packaged and moved to Store Pickup Counter!`, 'success')
     } else {
       // 3. Otherwise, transfer into Logistics Dispatch Queue (Awaiting Assignment)!
       const newDelivery: LogisticsDelivery = {
-        id: Date.now(),
-        delivery_ref: order.order_ref,
+        id: order.id,
+        delivery_ref: `DEL-${order.order_ref.replace(/\D/g, '') || order.id}`,
         order_id: order.id,
         order_ref: order.order_ref,
         customer_name: order.customer_name,
         phone: order.phone,
         address: order.address,
-        delivery_fee: order.delivery_fee,
+        delivery_fee: order.delivery_fee || 3000,
+        total_amount: order.total_amount,
         booked_fee: null,
         rider_type: "internal",
         assigned_rider: "Unassigned",
@@ -1984,10 +2134,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         pickup_at: null,
         delivered_at: null,
         fee_verify_status: "none",
+        payment_mode: 'online',
         items_summary: order.items_summary,
         notes: `Packed by ${staffName}`
       }
-      setLogisticsDeliveries(prev => [newDelivery, ...prev])
+      setLogisticsDeliveries(prev => [newDelivery, ...prev.filter(d => d.order_ref !== order.order_ref && d.id !== order.id)])
+      showToast(`Order #${order.order_ref} packaged and sent to Dispatch Board (Awaiting Rider Assignment)!`, 'success')
     }
 
     // 4. Update daily materials consumed

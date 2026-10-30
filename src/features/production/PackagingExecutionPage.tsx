@@ -255,11 +255,11 @@ export const PackagingExecutionPage: React.FC = () => {
           </Tooltip>
           <Tooltip content="Hand over packed meal to dispatch board">
             <TableActionButton
-              variant="success"
+              variant="primary"
               onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
-              leftIcon={<Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
+              leftIcon={<Send className="w-3.5 h-3.5" strokeWidth={2} />}
             >
-              Confirm Packaged
+              Send to Dispatch
             </TableActionButton>
           </Tooltip>
         </div>

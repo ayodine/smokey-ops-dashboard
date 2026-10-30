@@ -786,17 +786,30 @@ export const WebsiteOrdersPage: React.FC = () => {
               >
                 Close
               </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => {
-                  setIsDetailsModalOpen(false)
-                  navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
-                }}
-                leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-              >
-                View in Flow Diagram
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false)
+                    navigate('/production/packaging')
+                  }}
+                  leftIcon={<Package className="w-3.5 h-3.5 text-zinc-500" />}
+                >
+                  Packaging Execution
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false)
+                    navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
+                  }}
+                  leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
+                >
+                  View in Flow Diagram
+                </Button>
+              </div>
             </div>
           }
         >
