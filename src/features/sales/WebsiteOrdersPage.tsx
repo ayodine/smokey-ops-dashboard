@@ -794,7 +794,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     setIsDetailsModalOpen(false)
                     navigate('/production/packaging')
                   }}
-                  leftIcon={<Package className="w-3.5 h-3.5 text-zinc-500" />}
+                  leftIcon={<ExternalLink className="w-3.5 h-3.5 text-zinc-500" />}
                 >
                   Packaging Execution
                 </Button>
