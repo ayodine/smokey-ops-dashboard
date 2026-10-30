@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { 
   Calendar as CalendarIcon, 
@@ -65,6 +66,7 @@ export interface DateRangePickerProps {
   value?: DateRange
   onChange?: (range: DateRange) => void
   className?: string
+  align?: 'left' | 'right'
 }
 
 const PRESETS = [
@@ -82,11 +84,14 @@ const PRESETS = [
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   value,
   onChange,
-  className
+  className,
+  align = 'right'
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [activePreset, setActivePreset] = useState<string>(value?.presetKey || 'all')
   const [customRangeQuery, setCustomRangeQuery] = useState('')
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   
   // Current viewing month for calendar
   const [viewDate, setViewDate] = useState<Date>(value?.start || new Date(2026, 9, 21)) // October 2026
@@ -98,11 +103,38 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   // Sync with value prop if provided
   useEffect(() => {
     if (value) {
-      if (value.start) setStartDate(value.start)
+      if (value.start) {
+        setStartDate(value.start)
+        setViewDate(value.start)
+      }
       if (value.end) setEndDate(value.end)
       if (value.presetKey) setActivePreset(value.presetKey)
     }
   }, [value])
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+    const updatePosition = () => {
+      if (!triggerRef.current) return
+      const rect = triggerRef.current.getBoundingClientRect()
+      const popoverWidth = Math.min(540, window.innerWidth - 24)
+      const popoverHeight = 450
+      const rawLeft = align === 'left' ? rect.left : rect.right - popoverWidth
+      const clampedLeft = Math.max(12, Math.min(rawLeft, window.innerWidth - popoverWidth - 12))
+      const rawTop = rect.bottom + 8
+      const clampedTop = rawTop + popoverHeight > window.innerHeight
+        ? Math.max(12, window.innerHeight - popoverHeight - 12)
+        : rawTop
+      setPopoverCoords({ top: clampedTop, left: clampedLeft })
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [isOpen, align])
 
   // Timezone selection
   const [selectedTimezone, setSelectedTimezone] = useState('West Africa Time (GMT+1)')
@@ -205,21 +237,34 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
     if (!isSelectingEnd) {
       // Step 1: First click sets start date
+      const endOfDay = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate(), 23, 59, 59)
       setStartDate(clickedMidnight)
-      setEndDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate(), 23, 59, 59))
+      setEndDate(endOfDay)
       setIsSelectingEnd(true)
       setHoverDate(null)
+      onChange?.({
+        start: clickedMidnight,
+        end: endOfDay,
+        presetKey: 'custom'
+      })
     } else {
       // Step 2: Second click sets end date
+      let nextStart = startDate
+      let nextEnd = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate(), 23, 59, 59)
       if (clickedMidnight.getTime() < startDate.getTime()) {
         // Earlier than start, swap
-        setStartDate(clickedMidnight)
-        setEndDate(new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59))
-      } else {
-        setEndDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate(), 23, 59, 59))
+        nextStart = clickedMidnight
+        nextEnd = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59)
       }
+      setStartDate(nextStart)
+      setEndDate(nextEnd)
       setIsSelectingEnd(false)
       setHoverDate(null)
+      onChange?.({
+        start: nextStart,
+        end: nextEnd,
+        presetKey: 'custom'
+      })
     }
   }
 
@@ -247,7 +292,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       : `${formatShortDate(startDate)} - ${formatShortDate(endDate)} ${endDate.getFullYear()}`
 
   return (
-    <div className={cn('relative inline-block font-sans select-none', className)}>
+    <div ref={triggerRef} className={cn('relative inline-block font-sans select-none', className)}>
       {/* Trigger Button Group matching Screenshot */}
       <div className="flex items-center gap-1.5">
         <button
@@ -286,17 +331,20 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       </div>
 
       {/* Popover Card matching Screenshot exactly */}
-      {isOpen && (
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <>
           <div 
-            className="fixed inset-0 z-40" 
+            className="fixed inset-0 z-[90]" 
             onClick={() => {
               setIsSelectingEnd(false)
               setHoverDate(null)
               setIsOpen(false)
             }} 
           />
-          <div className="absolute right-0 top-full mt-2 w-[540px] max-w-[95vw] rounded-2xl border border-kumo-line bg-kumo-base shadow-2xl p-4 font-sans space-y-4 z-50 animate-in fade-in zoom-in-95">
+          <div
+            style={{ top: popoverCoords.top, left: popoverCoords.left }}
+            className="fixed w-[540px] max-w-[95vw] rounded-2xl border border-kumo-line bg-kumo-base shadow-2xl p-4 font-sans space-y-4 z-[100] animate-in fade-in zoom-in-95"
+          >
             {/* Popover caret pointing up */}
             <div className="absolute -top-2 left-24 w-3.5 h-3.5 bg-kumo-base border-t border-l border-kumo-line rotate-45" />
 
@@ -476,7 +524,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               </button>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   )

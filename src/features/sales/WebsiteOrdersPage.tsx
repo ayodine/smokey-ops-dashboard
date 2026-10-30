@@ -7,6 +7,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
+import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
@@ -1197,12 +1198,22 @@ export const WebsiteOrdersPage: React.FC = () => {
                   <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
                     Delivery Date
                   </label>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 font-medium"
+                  <DateRangePicker
+                    align="left"
+                    value={{
+                      start: rescheduleDate ? new Date(`${rescheduleDate}T00:00:00`) : new Date(),
+                      end: rescheduleDate ? new Date(`${rescheduleDate}T23:59:59`) : new Date(),
+                      presetKey: 'custom'
+                    }}
+                    onChange={(range) => {
+                      const target = range.start || range.end
+                      if (target && !isNaN(target.getTime())) {
+                        const y = target.getFullYear()
+                        const m = String(target.getMonth() + 1).padStart(2, '0')
+                        const d = String(target.getDate()).padStart(2, '0')
+                        setRescheduleDate(`${y}-${m}-${d}`)
+                      }
+                    }}
                   />
                   {rescheduleDate && (
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-md px-2.5 py-1.5 font-medium">
