@@ -7,7 +7,8 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { DateRangePicker } from '@/components/ui/DateRangePicker'
+import { Input } from '@/components/ui/Input'
+import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
@@ -876,7 +877,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                   size="md"
                   onClick={() => {
                     const initialDate = selectedOrder.scheduled_delivery_at
-                      ? selectedOrder.scheduled_delivery_at.split(' ')[0]
+                      ? selectedOrder.scheduled_delivery_at.split('T')[0].split(' ')[0]
                       : new Date().toISOString().split('T')[0]
                     setRescheduleDate(initialDate)
                     setRescheduleNotes(selectedOrder.notes || '')
@@ -1123,14 +1124,14 @@ export const WebsiteOrdersPage: React.FC = () => {
           description="Assign or modify the scheduled delivery date for this order."
           maxWidth="lg"
           footer={
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-end gap-2.5 w-full">
               <Button
                 variant="secondary"
                 size="md"
                 onClick={() => setIsRescheduleModalOpen(false)}
                 disabled={isSubmittingSchedule}
               >
-                Close
+                Cancel
               </Button>
               <Button
                 variant="primary"
@@ -1164,7 +1165,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     setIsRescheduleModalOpen(false)
                   }
                 }}
-                leftIcon={isSubmittingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
+                leftIcon={isSubmittingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
               >
                 {isSubmittingSchedule ? 'Saving...' : 'Save Schedule'}
               </Button>
@@ -1172,73 +1173,37 @@ export const WebsiteOrdersPage: React.FC = () => {
           }
         >
           <div className="space-y-4 font-sans text-xs">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
-              
-              {/* Order Context Summary */}
-              <div className="p-4 space-y-2">
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-zinc-500 dark:text-zinc-400">Customer</span>
-                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedOrder.customer_name}</span>
-                </div>
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-zinc-500 dark:text-zinc-400">Delivery Address</span>
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100 text-right max-w-[240px] truncate">{selectedOrder.address}</span>
-                </div>
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-zinc-500 dark:text-zinc-400">Current Schedule</span>
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {selectedOrder.scheduled_delivery_at ? `Scheduled: ${selectedOrder.scheduled_delivery_at}` : 'Immediate ASAP Fulfillment'}
-                  </span>
-                </div>
+            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Customer:</span>
+                <span className="font-semibold text-kumo-strong">{selectedOrder.customer_name}</span>
               </div>
-
-              {/* Schedule Inputs */}
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
-                    Delivery Date
-                  </label>
-                  <DateRangePicker
-                    align="left"
-                    value={{
-                      start: rescheduleDate ? new Date(`${rescheduleDate}T00:00:00`) : new Date(),
-                      end: rescheduleDate ? new Date(`${rescheduleDate}T23:59:59`) : new Date(),
-                      presetKey: 'custom'
-                    }}
-                    onChange={(range) => {
-                      const target = range.start || range.end
-                      if (target && !isNaN(target.getTime())) {
-                        const y = target.getFullYear()
-                        const m = String(target.getMonth() + 1).padStart(2, '0')
-                        const d = String(target.getDate()).padStart(2, '0')
-                        setRescheduleDate(`${y}-${m}-${d}`)
-                      }
-                    }}
-                  />
-                  {rescheduleDate && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-md px-2.5 py-1.5 font-medium">
-                      <Clock className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
-                      <span>
-                        Office Opening Time: <strong>{getOfficeOpeningHourForDate(rescheduleDate).label}</strong> (Standard dispatch start)
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
-                    Dispatch & Kitchen Notes (Optional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={rescheduleNotes}
-                    onChange={(e) => setRescheduleNotes(e.target.value)}
-                    placeholder="e.g. Deliver before 2pm for office party, ring doorbell on arrival."
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 resize-none font-sans"
-                  />
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Delivery Address:</span>
+                <span className="text-kumo-default text-right max-w-[260px] truncate">{selectedOrder.address}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle">Current Schedule:</span>
+                <span className="font-medium text-kumo-strong">
+                  {selectedOrder.scheduled_delivery_at ? formatDate(selectedOrder.scheduled_delivery_at) : 'Immediate ASAP Fulfillment'}
+                </span>
               </div>
             </div>
+
+            <SingleDatePicker
+              label="Delivery Date"
+              value={rescheduleDate}
+              onChange={(dateStr) => setRescheduleDate(dateStr)}
+              helperText={rescheduleDate ? `Office Opening Time: ${getOfficeOpeningHourForDate(rescheduleDate).label} (Standard dispatch start)` : undefined}
+              required
+            />
+
+            <Input
+              label="Dispatch & Kitchen Notes (Optional)"
+              value={rescheduleNotes}
+              onChange={(e) => setRescheduleNotes(e.target.value)}
+              placeholder="e.g. Deliver before 2pm for office party, ring doorbell on arrival."
+            />
           </div>
         </Dialog>
       )}
