@@ -178,16 +178,25 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 160,
+      defaultWidth: 220,
       accessor: (d) => (
-        <TableActionButton
-          variant="primary"
-          icon={<Receipt />}
-          iconStrokeWidth={2}
-          onClick={() => handleOpenEvidence(d)}
-        >
-          Audit Invoice
-        </TableActionButton>
+        <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 shrink-0">
+          <TableActionButton
+            variant="outline"
+            leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            onClick={() => handleOpenEvidence(d)}
+          >
+            Details
+          </TableActionButton>
+          <TableActionButton
+            variant="primary"
+            icon={<Receipt />}
+            iconStrokeWidth={2}
+            onClick={() => handleOpenEvidence(d)}
+          >
+            Audit Invoice
+          </TableActionButton>
+        </div>
       ),
     },
   ]
@@ -257,6 +266,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
             searchPlaceholder="Search order ref or courier..."
             title="Outsourced Delivery"
             exportFilename="smokey-3pl-deliveries-verification"
+            onRowClick={(d) => handleOpenEvidence(d)}
           />
         )}
       </div>
@@ -268,6 +278,37 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         title={`Audit Courier Invoice: ${selectedDelivery?.order_ref}`}
         description="Verify courier waybill receipt and approve or flag billing discrepancies."
         maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setIsEvidenceModalOpen(false)}
+            >
+              Close
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                onClick={() => handleActionVerify('flagged')}
+              >
+                Flag Overcharge
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => handleActionVerify('approved')}
+              >
+                Approve Invoice
+              </Button>
+            </div>
+          </div>
+        }
       >
         <div className="space-y-3.5 font-sans">
           {/* Unified Invoice Summary Card */}
@@ -344,30 +385,6 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
             value={verificationNote}
             onChange={(e) => setVerificationNote(e.target.value)}
           />
-
-          {/* Action Buttons: Only Flag Overcharge or Approve Invoice, spanning full width */}
-          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-kumo-line font-sans w-full">
-            <Button
-              variant="outline"
-              size="md"
-              type="button"
-              className="w-full text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40 dark:border-red-800 cursor-pointer flex items-center justify-center gap-1.5"
-              onClick={() => handleActionVerify('flagged')}
-            >
-              <X className="w-4 h-4 shrink-0" />
-              <span>Flag Overcharge</span>
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              type="button"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer flex items-center justify-center gap-1.5"
-              onClick={() => handleActionVerify('approved')}
-            >
-              <Check className="w-4 h-4 shrink-0" />
-              <span>Approve Invoice</span>
-            </Button>
-          </div>
         </div>
       </Dialog>
 
@@ -378,6 +395,13 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         title={`Waybill Proof of Delivery: ${selectedDelivery?.order_ref}`}
         description={`Delivery proof and billed courier receipt for ${selectedDelivery?.assigned_rider}`}
         maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" onClick={() => setIsSlipViewerOpen(false)}>
+              Close
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-3.5 font-sans">
           {selectedDelivery?.fee_evidence_path?.startsWith('data:') ? (
@@ -466,12 +490,6 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
               </div>
             </div>
           )}
-
-          <div className="flex justify-end pt-2">
-            <Button variant="secondary" size="md" onClick={() => setIsSlipViewerOpen(false)} className="w-full sm:w-auto cursor-pointer">
-              Close Preview
-            </Button>
-          </div>
         </div>
       </Dialog>
     </div>

@@ -27,7 +27,8 @@ import {
   Upload,
   X,
   Image as ImageIcon,
-  FileText
+  FileText,
+  Eye
 } from 'lucide-react'
 
 export const LogisticsBoardPage: React.FC = () => {
@@ -42,7 +43,14 @@ export const LogisticsBoardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned'>('unassigned')
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'in_transit' | 'delivered'>('all')
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedDelivery, setSelectedDelivery] = useState<LogisticsDelivery | null>(null)
+  const [selectedDetailsDelivery, setSelectedDetailsDelivery] = useState<LogisticsDelivery | null>(null)
+
+  const handleOpenDetails = (d: LogisticsDelivery) => {
+    setSelectedDetailsDelivery(d)
+    setIsDetailsModalOpen(true)
+  }
 
   // Assign Form State
   const [riderType, setRiderType] = useState<'internal' | 'third_party'>('internal')
@@ -182,18 +190,29 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 160,
+      defaultWidth: 240,
       accessor: (d) => (
-        <Tooltip content="Assign order to an in-house driver or courier">
-          <TableActionButton
-            variant="primary"
-            icon={<UserCheck />}
-            iconStrokeWidth={2}
-            onClick={() => handleOpenAssign(d)}
-          >
-            Assign Driver
-          </TableActionButton>
-        </Tooltip>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View delivery details and route">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(d)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+          <Tooltip content="Assign order to an in-house driver or courier">
+            <TableActionButton
+              variant="primary"
+              icon={<UserCheck />}
+              iconStrokeWidth={2}
+              onClick={() => handleOpenAssign(d)}
+            >
+              Assign Driver
+            </TableActionButton>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -264,9 +283,19 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 200,
+      defaultWidth: 260,
       accessor: (d) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View delivery details and trip log">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(d)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+
           {d.status === 'assigned' && (
             <Tooltip content="Confirm driver collected food from kitchen">
               <TableActionButton
@@ -358,6 +387,7 @@ export const LogisticsBoardPage: React.FC = () => {
             searchPlaceholder="Search order ref, customer, or address..."
             title="Unassigned Delivery"
             exportFilename="smokey-unassigned-deliveries"
+            onRowClick={(d) => handleOpenDetails(d)}
             onDateRangeChange={setDateRange}
           />
         ) : (
@@ -379,6 +409,7 @@ export const LogisticsBoardPage: React.FC = () => {
               columns={assignedColumns}
               searchable={true}
               searchPlaceholder="Search active deliveries or riders..."
+              onRowClick={(d) => handleOpenDetails(d)}
               title={
                 activeSubTab === 'in_transit' 
                   ? 'In-Transit Trips' 
@@ -543,9 +574,9 @@ export const LogisticsBoardPage: React.FC = () => {
             </div>
           )}
 
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line font-sans">
+          <div className="flex items-center justify-between pt-3 border-t border-kumo-line font-sans">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsAssignModalOpen(false)}>
-              Cancel
+              Close
             </Button>
             <Button variant="primary" size="md" type="submit">
               Confirm Assignment
@@ -553,6 +584,120 @@ export const LogisticsBoardPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* Dispatch Trip Details Modal */}
+      {selectedDetailsDelivery && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Delivery Dispatch: ${selectedDetailsDelivery.order_ref}`}
+          description={`Customer delivery manifest, assigned fleet courier, and trip routing`}
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedDetailsDelivery.status === 'pending' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      setIsDetailsModalOpen(false)
+                      handleOpenAssign(selectedDetailsDelivery)
+                    }}
+                  >
+                    Assign Driver
+                  </Button>
+                )}
+                {selectedDetailsDelivery.status === 'assigned' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      confirmRiderCollect(selectedDetailsDelivery.id)
+                      setIsDetailsModalOpen(false)
+                    }}
+                  >
+                    Confirm Food Pickup
+                  </Button>
+                )}
+                {selectedDetailsDelivery.status === 'in_transit' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      markDelivered(selectedDetailsDelivery.id)
+                      setIsDetailsModalOpen(false)
+                    }}
+                  >
+                    Mark Delivered
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Delivery Destination
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsDelivery.customer_name}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.address}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Paid Fee</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">{formatNaira(selectedDetailsDelivery.delivery_fee)}</span>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Fleet & Dispatch Courier
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current Status</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedDetailsDelivery.status.replace('_', ' ')}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Rider / Fleet</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsDelivery.assigned_rider || 'Unassigned'}</span>
+                </div>
+                {selectedDetailsDelivery.booked_fee && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Courier Booked Fee</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{formatNaira(selectedDetailsDelivery.booked_fee)}</span>
+                  </div>
+                )}
+                {selectedDetailsDelivery.dispatch_date && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Dispatch Date</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsDelivery.dispatch_date}</span>
+                  </div>
+                )}
+                {selectedDetailsDelivery.delivered_at && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivered Timestamp</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsDelivery.delivered_at}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

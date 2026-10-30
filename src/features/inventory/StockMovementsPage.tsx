@@ -4,6 +4,8 @@ import { SalesMovement } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Dialog } from '@/components/ui/Dialog'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
@@ -14,12 +16,15 @@ import {
   ArrowDownLeft, 
   RotateCcw, 
   Activity, 
-  Filter 
+  Filter,
+  Eye
 } from 'lucide-react'
 
 export const StockMovementsPage: React.FC = () => {
   const { salesMovements } = useSmokeyOps()
   const [filterType, setFilterType] = useState<string>('all')
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [selectedMovement, setSelectedMovement] = useState<SalesMovement | null>(null)
 
   const filteredMovements = useMemo(() => {
     if (filterType === 'all') return salesMovements
@@ -180,7 +185,128 @@ export const StockMovementsPage: React.FC = () => {
         title="Movement Ledger Entry"
         exportFilename="smokey-sales-movements-ledger"
         onDateRangeChange={setDateRange}
+        onRowClick={(m) => {
+          setSelectedMovement(m)
+          setIsDetailsModalOpen(true)
+        }}
       />
+
+      {/* Movement Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
+      {selectedMovement && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Stock Movement Audit: ${selectedMovement.sku}`}
+          description="Detailed inventory ledger entry, quantity delta, and audit trail."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Done
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              {/* Section 1: Movement Overview */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Movement Record
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Timestamp</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {formatDate(selectedMovement.created_at)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Product / Item</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">
+                      {selectedMovement.product_name}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">SKU Reference</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">
+                      {selectedMovement.sku}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Movement Type</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedMovement.movement_type.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Inventory Location</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium font-mono uppercase">
+                      {selectedMovement.location}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Quantities & Accounting */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Balance & Accounting
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Quantity Delta</span>
+                    <span className={`font-bold font-mono text-sm ${selectedMovement.quantity > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                      {selectedMovement.quantity > 0 ? `+${selectedMovement.quantity}` : selectedMovement.quantity} {selectedMovement.unit}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Balance After</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">
+                      {formatQuantity(selectedMovement.balance_after)} {selectedMovement.unit}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Financial Valuation</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">
+                      {formatNaira(selectedMovement.value_amount)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Audit / Reference Notes</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-normal">
+                      {selectedMovement.notes || 'Automated inventory ledger log'}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Recorded By</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedMovement.user_name}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

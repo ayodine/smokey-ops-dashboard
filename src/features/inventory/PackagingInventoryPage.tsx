@@ -21,7 +21,8 @@ import {
   ArrowDownLeft, 
   Plus, 
   Layers, 
-  PackageCheck 
+  PackageCheck,
+  Eye
 } from 'lucide-react'
 
 export const PackagingInventoryPage: React.FC = () => {
@@ -37,7 +38,14 @@ export const PackagingInventoryPage: React.FC = () => {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
   const [isNewMaterialModalOpen, setIsNewMaterialModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<PackagingProduct | null>(null)
+  const [selectedDetailsProduct, setSelectedDetailsProduct] = useState<PackagingProduct | null>(null)
+
+  const handleOpenDetails = (prod: PackagingProduct) => {
+    setSelectedDetailsProduct(prod)
+    setIsDetailsModalOpen(true)
+  }
 
   // New Material Form
   const [newMaterialForm, setNewMaterialForm] = useState({
@@ -202,9 +210,18 @@ export const PackagingInventoryPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      defaultWidth: 180,
+      defaultWidth: 230,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View full packaging specification & inventory breakdown">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(p)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
           <Tooltip content="Record incoming packaging containers">
             <TableActionButton
               variant="success"
@@ -361,6 +378,7 @@ export const PackagingInventoryPage: React.FC = () => {
             searchPlaceholder="Search packaging bag, bowl, label..."
             title="Packaging Item"
             exportFilename="smokey-packaging-materials"
+            onRowClick={(p) => handleOpenDetails(p)}
           />
         ) : (
           <DataTable
@@ -554,6 +572,138 @@ export const PackagingInventoryPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* Packaging Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
+      {selectedDetailsProduct && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Packaging Material: ${selectedDetailsProduct.name}`}
+          description="Detailed inventory stock levels, unit valuation, and procurement parameters."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    const p = selectedDetailsProduct
+                    setIsDetailsModalOpen(false)
+                    handleOpenAdjust(p)
+                  }}
+                >
+                  Audit Stock
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    const p = selectedDetailsProduct
+                    setIsDetailsModalOpen(false)
+                    handleOpenReceive(p)
+                  }}
+                >
+                  Receive Intake
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              {/* Section 1: Stock Availability & Valuation */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Inventory Availability & Valuation
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Physical (On-Hand)</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-bold">
+                      {formatQuantity(selectedDetailsProduct.stock_qty)} {selectedDetailsProduct.unit}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Unit Cost Benchmark</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium font-mono">
+                      {formatNaira(selectedDetailsProduct.unit_cost)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Total Line Valuation</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">
+                      {formatNaira(selectedDetailsProduct.inventory_value)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Reorder Threshold</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      Alerts when below {selectedDetailsProduct.reorder_level} {selectedDetailsProduct.unit}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Stock Health</span>
+                    <div>
+                      {selectedDetailsProduct.stock_qty <= 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                          Out of Stock
+                        </span>
+                      ) : selectedDetailsProduct.stock_qty <= selectedDetailsProduct.reorder_level ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                          Low Stock Alert
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                          Healthy Inventory
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Consumable Specifications & Sourcing */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Specification & Procurement
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">SKU Code</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{selectedDetailsProduct.sku}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Measurement Unit</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsProduct.unit}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Preferred Vendor</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">PACKAGING DIRECT LTD</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Packaging Role</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Food Takeout & Delivery Packaging</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

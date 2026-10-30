@@ -262,8 +262,19 @@ export const SuppliersPage: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         title="Register New Supplier"
         description="Add a vendor profile with contact info and primary supply category."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsAddModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="register-supplier-form">
+              Register Supplier
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmAdd} className="space-y-4">
+        <form id="register-supplier-form" onSubmit={handleConfirmAdd} className="space-y-4">
           <Input
             label="Supplier Business Name"
             placeholder="e.g. IBADAN POULTRY AGRO FARMS"
@@ -338,15 +349,6 @@ export const SuppliersPage: React.FC = () => {
             onChange={(e) => setNewSupplier(prev => ({ ...prev, address: e.target.value }))}
             required
           />
-
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line font-sans">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Register Supplier
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -355,11 +357,23 @@ export const SuppliersPage: React.FC = () => {
         <Dialog
           isOpen={isManageModalOpen}
           onClose={() => setIsManageModalOpen(false)}
-          title={`Manage Vendor: ${selectedSupplier.name}`}
+          title={`Vendor Details: ${selectedSupplier.name}`}
           description={`Supplier Code: ${selectedSupplier.supplier_ref} • ${selectedSupplier.category}`}
           maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
+                Close
+              </Button>
+              {manageTab === 'profile' && (
+                <Button variant="primary" size="md" type="submit" form="edit-supplier-form" leftIcon={<Save className="w-4 h-4" />}>
+                  Save Changes
+                </Button>
+              )}
+            </div>
+          }
         >
-          <div className="space-y-4">
+          <div className="space-y-4 font-sans text-xs">
             {/* Tabs */}
             <div>
               <KumoTabs
@@ -380,7 +394,7 @@ export const SuppliersPage: React.FC = () => {
             )}
 
             {manageTab === 'profile' && (
-              <form onSubmit={handleSaveSupplier} className="space-y-4">
+              <form id="edit-supplier-form" onSubmit={handleSaveSupplier} className="space-y-4">
                 <Input
                   label="Vendor Business Name"
                   value={editForm.name}
@@ -418,10 +432,10 @@ export const SuppliersPage: React.FC = () => {
                   required
                 />
 
-                <div className="p-3 rounded-lg border border-kumo-line bg-kumo-surface flex items-center justify-between">
+                <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-kumo-strong">Vendor Partnership Status</div>
-                    <div className="text-[11px] text-kumo-subtle mt-0.5">
+                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Vendor Partnership Status</div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       {editForm.is_active ? 'Active vendor eligible for purchase orders' : 'Suspended / Inactive'}
                     </div>
                   </div>
@@ -430,50 +444,41 @@ export const SuppliersPage: React.FC = () => {
                     onClick={() => setEditForm(prev => prev ? ({ ...prev, is_active: prev.is_active ? 0 : 1 }) : null)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                       editForm.is_active 
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300' 
-                        : 'bg-kumo-base text-kumo-subtle border-kumo-line'
+                        ? 'bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700' 
+                        : 'bg-zinc-50 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
                     }`}
                   >
                     {editForm.is_active ? 'Active Vendor' : 'Mark Inactive'}
                   </button>
-                </div>
-
-                <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
-                  <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
-                    Close
-                  </Button>
-                  <Button variant="primary" size="md" type="submit" leftIcon={<Save className="w-4 h-4" />}>
-                    Save Changes
-                  </Button>
                 </div>
               </form>
             )}
 
             {manageTab === 'supplies' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-kumo-surface border border-kumo-line text-xs">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 text-xs">
                   <div>
-                    <span className="text-kumo-subtle">Recorded Shipments:</span>{' '}
-                    <span className="font-semibold text-kumo-strong">{supplierDeliveries.length} orders</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">Recorded Shipments:</span>{' '}
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{supplierDeliveries.length} orders</span>
                   </div>
                   <div>
-                    <span className="text-kumo-subtle">Total Procurement Value:</span>{' '}
-                    <span className="font-semibold text-emerald-700">{formatNaira(supplierTotalDeliveriesSpend || selectedSupplier.total_spend)}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">Total Procurement Value:</span>{' '}
+                    <span className="font-semibold font-mono text-zinc-900 dark:text-zinc-100">{formatNaira(supplierTotalDeliveriesSpend || selectedSupplier.total_spend)}</span>
                   </div>
                 </div>
 
                 {supplierDeliveries.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed border-kumo-line rounded-lg">
-                    <Boxes className="w-8 h-8 text-kumo-subtle mx-auto mb-2 opacity-50" />
-                    <p className="text-xs font-medium text-kumo-strong">No Inbound Shipments Logged Yet</p>
-                    <p className="text-[11px] text-kumo-subtle mt-0.5">
+                  <div className="text-center py-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
+                    <Boxes className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">No Inbound Shipments Logged Yet</p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Deliveries received from this vendor in Raw Material Inventory will automatically appear here.
                     </p>
                   </div>
                 ) : (
-                  <div className="border border-kumo-line rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
                     <table className="w-full text-left text-xs font-sans">
-                      <thead className="bg-kumo-surface text-kumo-subtle text-[11px] uppercase border-b border-kumo-line">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 text-[11px] uppercase border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                           <th className="px-3 py-2 font-medium whitespace-nowrap">Delivery Ref</th>
                           <th className="px-3 py-2 font-medium whitespace-nowrap">Date</th>
@@ -483,28 +488,28 @@ export const SuppliersPage: React.FC = () => {
                           <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Invoice Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-kumo-line">
+                      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                         {supplierDeliveries.map((delivery) => (
-                          <tr key={delivery.id} className="hover:bg-kumo-tint/50">
-                            <td className="px-3 py-2.5 font-mono text-[11px] text-kumo-strong whitespace-nowrap">
+                          <tr key={delivery.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                               {delivery.delivery_ref}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-subtle text-[11px] whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-zinc-500 dark:text-zinc-400 text-[11px] whitespace-nowrap">
                               {formatDate(delivery.date_received)}
                             </td>
                             <td className="px-3 py-2.5 whitespace-nowrap">
-                              <div className="font-medium text-kumo-strong">{delivery.product_name}</div>
+                              <div className="font-medium text-zinc-900 dark:text-zinc-100">{delivery.product_name}</div>
                               {delivery.lot_number && (
-                                <div className="text-[10px] text-kumo-subtle font-mono">Lot: {delivery.lot_number}</div>
+                                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">Lot: {delivery.lot_number}</div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-default font-medium whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-zinc-800 dark:text-zinc-200 font-medium whitespace-nowrap">
                               {delivery.quantity} {delivery.unit}
                             </td>
-                            <td className="px-3 py-2.5 text-kumo-subtle whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                               {formatNaira(delivery.unit_cost)}
                             </td>
-                            <td className="px-3 py-2.5 text-right font-semibold text-emerald-700 whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-right font-semibold font-mono text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                               {formatNaira(delivery.value_amount)}
                             </td>
                           </tr>
@@ -513,12 +518,6 @@ export const SuppliersPage: React.FC = () => {
                     </table>
                   </div>
                 )}
-
-                <div className="flex justify-end pt-2 border-t border-kumo-line">
-                  <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
-                    Close
-                  </Button>
-                </div>
               </div>
             )}
           </div>

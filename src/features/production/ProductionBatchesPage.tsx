@@ -880,9 +880,9 @@ export const ProductionBatchesPage: React.FC = () => {
         description="Select the dish to cook, target output portions, and choose raw ingredients to use."
         maxWidth="3xl"
         footer={
-          <div className="flex justify-end items-center gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
-              Cancel
+              Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="start-cooking-batch-form">
               Queue Batch in Prep
@@ -984,7 +984,7 @@ export const ProductionBatchesPage: React.FC = () => {
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-                <label className="text-[13px] font-semibold text-kumo-strong font-sans">
+                <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 font-sans">
                   Cooking Recipe Template
                 </label>
                 <div className="flex items-center gap-2 text-xs">
@@ -997,14 +997,13 @@ export const ProductionBatchesPage: React.FC = () => {
                       }
                     }}
                     className={cn(
-                      "inline-flex items-center gap-1.5 font-medium transition-colors",
+                      "font-medium transition-colors",
                       selectedRecipeTemplateId === 'custom'
                         ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
                         : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                     )}
                   >
-                    <Pencil className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Edit Template</span>
+                    Edit Template
                   </button>
 
                   <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
@@ -1018,14 +1017,13 @@ export const ProductionBatchesPage: React.FC = () => {
                       }
                     }}
                     className={cn(
-                      "inline-flex items-center gap-1.5 font-medium transition-colors",
+                      "font-medium transition-colors",
                       selectedRecipeTemplateId === 'custom'
                         ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
-                        : "text-red-600 hover:text-red-700 cursor-pointer"
+                        : "text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
                     )}
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                    <span>Delete</span>
+                    Delete
                   </button>
 
                   <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
@@ -1033,10 +1031,9 @@ export const ProductionBatchesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsManageTemplatesModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                    className="font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
                   >
-                    <Settings className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Manage Templates ({recipeTemplates.length})</span>
+                    Manage Templates ({recipeTemplates.length})
                   </button>
                 </div>
               </div>
@@ -1080,10 +1077,10 @@ export const ProductionBatchesPage: React.FC = () => {
           <div className="pt-6 mt-6 border-t border-kumo-line space-y-3.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider font-sans block">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider font-sans block">
                   Raw Ingredients to Use (Recipe List)
                 </span>
-                <span className="text-[11px] text-kumo-subtle font-normal">
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
                   Allocate ingredient quantities to deduct from inventory for this batch
                 </span>
               </div>
@@ -1096,7 +1093,6 @@ export const ProductionBatchesPage: React.FC = () => {
                     setTemplateVersionName('')
                     setIsSaveTemplateModalOpen(true)
                   }}
-                  leftIcon={<Save className="w-3.5 h-3.5" />}
                 >
                   Save as Recipe Template
                 </Button>
@@ -1104,7 +1100,6 @@ export const ProductionBatchesPage: React.FC = () => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
                   onClick={handleAddBomRow}
                 >
                   Add Ingredient
@@ -1185,9 +1180,9 @@ export const ProductionBatchesPage: React.FC = () => {
         description="Verify actual cooking yield, log pit shrinkage, and reconcile estimated buffer into Physical Ready Stock in Sales Inventory."
         maxWidth="xl"
         footer={
-          <div className="flex justify-end items-center gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsCompleteModalOpen(false)}>
-              Cancel
+              Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="complete-batch-form">
               Confirm & Deposit Finished Stock
@@ -1284,30 +1279,69 @@ export const ProductionBatchesPage: React.FC = () => {
         maxWidth="2xl"
         footer={
           <div className="flex items-center justify-between w-full">
-            <div>
-              {selectedBatch && selectedBatch.status !== 'completed' && selectedBatch.status !== 'cancelled' && (
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => {
-                    cancelBatch(selectedBatch.id)
-                    setIsPreviewModalOpen(false)
-                  }}
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900"
-                  leftIcon={<Trash2 className="w-4 h-4 text-rose-600" />}
-                >
-                  Cancel Batch
-                </Button>
-              )}
-            </div>
             <Button variant="secondary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
               Close
             </Button>
+            <div className="flex items-center gap-2">
+              {selectedBatch && selectedBatch.status === 'draft' && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      cancelBatch(selectedBatch.id)
+                      setIsPreviewModalOpen(false)
+                    }}
+                  >
+                    Cancel Batch
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      setIsPreviewModalOpen(false)
+                      handleOpenEdit(selectedBatch)
+                    }}
+                  >
+                    Edit Batch
+                  </Button>
+                </>
+              )}
+              {selectedBatch && selectedBatch.status === 'in_production' && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      setIsPreviewModalOpen(false)
+                      handleOpenEdit(selectedBatch)
+                    }}
+                  >
+                    Edit Batch
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      setIsPreviewModalOpen(false)
+                      handleOpenComplete(selectedBatch)
+                    }}
+                  >
+                    Complete Batch & Log Output
+                  </Button>
+                </>
+              )}
+              {selectedBatch && selectedBatch.status === 'completed' && (
+                <Button variant="primary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
+                  Done
+                </Button>
+              )}
+            </div>
           </div>
         }
       >
         <div className="space-y-4 font-sans text-xs">
-          <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
             {/* Section 1: Batch Overview */}
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -1418,11 +1452,11 @@ export const ProductionBatchesPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsSaveTemplateModalOpen(false)}>
-              Cancel
+              Close
             </Button>
-            <Button variant="primary" size="md" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>
+            <Button variant="primary" size="md" type="submit">
               Save Recipe Template
             </Button>
           </div>
@@ -1496,11 +1530,11 @@ export const ProductionBatchesPage: React.FC = () => {
               placeholder="e.g. Quality checks, temperature profile, shift directives"
             />
 
-            <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
+            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
               <Button variant="secondary" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
+                Close
               </Button>
-              <Button variant="primary" size="md" type="submit" leftIcon={<Save className="w-4 h-4" />}>
+              <Button variant="primary" size="md" type="submit">
                 Save Corrections
               </Button>
             </div>
@@ -1515,18 +1549,18 @@ export const ProductionBatchesPage: React.FC = () => {
         description="Standard Bill of Materials (BOM) formulas used for automated cooking allocations, yield tracking, and pit runs."
         maxWidth="3xl"
         footer={
-          <div className="flex justify-between items-center w-full">
-            <span className="text-xs text-kumo-subtle font-sans">
-              {recipeTemplates.length} standard template{recipeTemplates.length === 1 ? '' : 's'} configured
-            </span>
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               size="md"
               type="button"
               onClick={() => setIsManageTemplatesModalOpen(false)}
             >
-              Done
+              Close
             </Button>
+            <span className="text-xs text-kumo-subtle font-sans">
+              {recipeTemplates.length} standard template{recipeTemplates.length === 1 ? '' : 's'} configured
+            </span>
           </div>
         }
       >
@@ -1555,18 +1589,16 @@ export const ProductionBatchesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenEditTemplate(template.id)}
-                      className="px-2.5 py-1 text-xs font-medium text-kumo-strong hover:bg-kumo-tint rounded-md border border-kumo-line transition-colors cursor-pointer flex items-center gap-1.5"
+                      className="px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
                     >
-                      <Pencil className="w-3.5 h-3.5 text-kumo-subtle" />
-                      <span>Edit</span>
+                      Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md border border-red-200 dark:border-red-900/50 transition-colors cursor-pointer flex items-center gap-1.5"
+                      className="px-2.5 py-1 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -1613,14 +1645,14 @@ export const ProductionBatchesPage: React.FC = () => {
         description="Update version naming, standard batch capacity, and formulated raw ingredient ratios."
         maxWidth="2xl"
         footer={
-          <div className="flex justify-end items-center gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               size="md"
               type="button"
               onClick={() => setIsEditTemplateModalOpen(false)}
             >
-              Cancel
+              Close
             </Button>
             <Button
               variant="primary"

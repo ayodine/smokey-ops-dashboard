@@ -21,13 +21,16 @@ import {
   Plus, 
   Play, 
   Check, 
-  User 
+  User,
+  Eye
 } from 'lucide-react'
 
 export const KitchenTasksPage: React.FC = () => {
   const { kitchenTasks, updateTaskStatus, createKitchenTask } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'ongoing' | 'completed'>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<KitchenTask | null>(null)
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -36,6 +39,11 @@ export const KitchenTasksPage: React.FC = () => {
     priority: 'normal' as 'high' | 'normal' | 'low',
     status: 'pending' as const
   })
+
+  const handleOpenDetails = (task: KitchenTask) => {
+    setSelectedTask(task)
+    setIsDetailsModalOpen(true)
+  }
 
   const totalTasks = kitchenTasks.length
   const inProgressCount = kitchenTasks.filter(t => t.status === 'in_progress').length
@@ -129,9 +137,18 @@ export const KitchenTasksPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 160,
+      defaultWidth: 220,
       accessor: (t) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View full task details and instructions">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(t)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
           {t.status === 'pending' && (
             <Tooltip content="Start working on this task">
               <TableActionButton
@@ -232,6 +249,7 @@ export const KitchenTasksPage: React.FC = () => {
         columns={columns}
         searchable={true}
         searchPlaceholder="Search task title or assignee..."
+        onRowClick={(task) => handleOpenDetails(task)}
         title={
           activeTab === 'all' 
             ? 'All Kitchen Tasks' 
@@ -250,8 +268,19 @@ export const KitchenTasksPage: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
         title="Assign New Kitchen Task"
         description="Delegate operational tasks to pitmasters, prep cooks, or QC staff."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="assign-kitchen-task-form">
+              Assign Task
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmCreate} className="space-y-4">
+        <form id="assign-kitchen-task-form" onSubmit={handleConfirmCreate} className="space-y-4">
           <Input
             label="Task Title"
             placeholder="e.g. Clean & re-season Smoker Pit #2 grates"
@@ -300,17 +329,129 @@ export const KitchenTasksPage: React.FC = () => {
             onChange={(date) => setNewTask(prev => ({ ...prev, due_date: date }))}
             required
           />
-
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Assign Task
-            </Button>
-          </div>
         </form>
       </Dialog>
+
+      {/* Task Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
+      {selectedTask && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Kitchen Task: ${selectedTask.title}`}
+          description="Operational shift delegation instructions, priority, and completion workflow."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedTask.status === 'pending' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      updateTaskStatus(selectedTask.id, 'in_progress')
+                      setIsDetailsModalOpen(false)
+                    }}
+                  >
+                    Start Task
+                  </Button>
+                )}
+                {selectedTask.status === 'in_progress' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      updateTaskStatus(selectedTask.id, 'done')
+                      setIsDetailsModalOpen(false)
+                    }}
+                  >
+                    Mark Task Completed
+                  </Button>
+                )}
+                {selectedTask.status === 'done' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsDetailsModalOpen(false)}
+                  >
+                    Done
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              {/* Section 1: Task Specifications */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Task Specification
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Task Title</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedTask.title}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Crew Member</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedTask.assignee_name}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Priority Level</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedTask.priority} priority
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current State</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedTask.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Target Due Date</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatDate(selectedTask.due_date)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Instructions & Operating Guidelines */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Operating Instructions
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Detailed Directives</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-normal leading-relaxed">{selectedTask.description || 'Follow standard operating procedure.'}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Station Scope</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Central Kitchen Prep & Smoker Line</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Quality Sign-Off</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Shift Supervisor Inspection Required</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

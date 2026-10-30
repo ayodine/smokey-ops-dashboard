@@ -12,6 +12,7 @@ import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatDate } from '@/lib/utils'
+import { Dialog } from '@/components/ui/Dialog'
 import { 
   CalendarDays, 
   Clock, 
@@ -21,13 +22,21 @@ import {
   MapPin, 
   Play,
   ArrowUpRight,
-  Truck 
+  Truck,
+  Eye
 } from 'lucide-react'
 
 export const DeliverySchedulePage: React.FC = () => {
   const { scheduledOrders, startScheduledOrder, autoReleaseDuePreOrders } = useSmokeyOps()
   const [releaseFeedback, setReleaseFeedback] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
+  const [selectedScheduledOrder, setSelectedScheduledOrder] = useState<ScheduledOrder | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+
+  const handleOpenDetails = (o: ScheduledOrder) => {
+    setSelectedScheduledOrder(o)
+    setIsDetailsModalOpen(true)
+  }
 
   const activeOrdersForKPI = useMemo(() => {
     if (!dateRange) return scheduledOrders
@@ -116,9 +125,19 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 200,
+      defaultWidth: 260,
       accessor: (o) => (
-        <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center">
+        <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-1.5">
+          <Tooltip content="View scheduled pre-order details and timeline">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(o)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+
           {o.order_status === 'in_queue' ? (
             <Tooltip content="Open Kitchen Packaging Execution & Pack Queue table">
               <Link
@@ -231,7 +250,86 @@ export const DeliverySchedulePage: React.FC = () => {
         title="Scheduled Delivery Order"
         exportFilename="smokey-delivery-schedules"
         onDateRangeChange={setDateRange}
+        onRowClick={(o) => handleOpenDetails(o)}
       />
+
+      {/* Scheduled Order Details Modal */}
+      {selectedScheduledOrder && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Scheduled Order: ${selectedScheduledOrder.order_ref}`}
+          description="Customer pre-order details, delivery schedule, and kitchen dispatch timing."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              {selectedScheduledOrder.order_status === 'payment_confirmed' && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    startScheduledOrder(selectedScheduledOrder.id)
+                    setIsDetailsModalOpen(false)
+                  }}
+                >
+                  Send to Kitchen
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Customer & Delivery Schedule
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedScheduledOrder.customer_name}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Number</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedScheduledOrder.phone}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedScheduledOrder.address}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Scheduled Delivery Slot</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatDate(selectedScheduledOrder.scheduled_delivery_at)}</span>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Order Value & Status
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Total</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">{formatNaira(selectedScheduledOrder.total_amount)}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Fee Paid</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono text-emerald-600">{formatNaira(selectedScheduledOrder.delivery_fee)}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Schedule State</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedScheduledOrder.order_status.replace('_', ' ')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

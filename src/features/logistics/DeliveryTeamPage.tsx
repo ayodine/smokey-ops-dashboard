@@ -37,7 +37,8 @@ import {
   UserPlus,
   Copy,
   ExternalLink,
-  UserCheck
+  UserCheck,
+  Eye
 } from 'lucide-react'
 
 export const DeliveryTeamPage: React.FC = () => {
@@ -394,6 +395,15 @@ export const DeliveryTeamPage: React.FC = () => {
         const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
         return (
           <div className="flex items-center gap-2 w-full justify-center" onClick={e => e.stopPropagation()}>
+            <Tooltip content="View driver account ledger & full profile">
+              <TableActionButton
+                variant="outline"
+                onClick={() => handleOpenAccount(r, 'ledger')}
+                leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+              >
+                Details
+              </TableActionButton>
+            </Tooltip>
             {unremitted > 0 ? (
               <Tooltip content="Record cash collected by driver">
                 <TableActionButton
@@ -404,14 +414,6 @@ export const DeliveryTeamPage: React.FC = () => {
                 </TableActionButton>
               </Tooltip>
             ) : null}
-            <Tooltip content="View driver account ledger & full profile">
-              <TableActionButton
-                variant="outline"
-                onClick={() => handleOpenAccount(r, 'ledger')}
-              >
-                View Account
-              </TableActionButton>
-            </Tooltip>
           </div>
         )
       },
@@ -687,16 +689,29 @@ export const DeliveryTeamPage: React.FC = () => {
           </div>
 
           {/* Modal Footer */}
-          <div className="shrink-0 flex justify-end pt-3 border-t border-kumo-line bg-kumo-base">
+          <div className="shrink-0 flex items-center justify-between pt-3 border-t border-kumo-line bg-kumo-base">
             <Button
-              variant="outline"
+              variant="secondary"
               size="md"
               type="button"
               onClick={() => setIsAccountModalOpen(false)}
-              className="h-9 px-4 text-xs font-medium cursor-pointer rounded-xl"
             >
               Close
             </Button>
+            {selectedRider && (
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => {
+                  setIsAccountModalOpen(false)
+                  const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
+                  navigate(`/accounts/profile/${encodeURIComponent(email)}`)
+                }}
+              >
+                Edit Staff Profile & KYC
+              </Button>
+            )}
           </div>
         </div>
       </Dialog>
@@ -740,9 +755,9 @@ export const DeliveryTeamPage: React.FC = () => {
             required
           />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
-              Cancel
+          <div className="flex items-center justify-between pt-2 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
+              Close
             </Button>
             <Button variant="primary" size="md" type="submit">
               Confirm Cash Received
@@ -877,11 +892,11 @@ export const DeliveryTeamPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
-              Cancel
+          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
+              Close
             </Button>
-            <Button variant="primary" size="md" type="submit" leftIcon={<UserPlus className="w-4 h-4" />}>
+            <Button variant="primary" size="md" type="submit">
               Save & Onboard Driver
             </Button>
           </div>

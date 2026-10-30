@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { KumoTabs } from '@/components/ui/Tabs'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { formatNaira, formatDate } from '@/lib/utils'
 import { 
   ShoppingBag, 
@@ -17,17 +18,25 @@ import {
   Clock, 
   Store, 
   UserCheck, 
-  Phone 
+  Phone,
+  Eye
 } from 'lucide-react'
 
 export const StorePickupPage: React.FC = () => {
   const { storePickups, markPickupCollected } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'collected'>('all')
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedPickup, setSelectedPickup] = useState<StorePickupOrder | null>(null)
+  const [selectedDetailsPickup, setSelectedDetailsPickup] = useState<StorePickupOrder | null>(null)
   const [collectedByName, setCollectedByName] = useState('')
   const [collectorPhone, setCollectorPhone] = useState('')
   const [handoverStaff, setHandoverStaff] = useState('Tunde Bakare (Front Counter)')
+
+  const handleOpenDetails = (p: StorePickupOrder) => {
+    setSelectedDetailsPickup(p)
+    setIsDetailsModalOpen(true)
+  }
 
   const totalPickups = storePickups.length
   const readyCount = storePickups.filter(p => p.order_status === 'ready_for_pickup').length
@@ -112,12 +121,22 @@ export const StorePickupPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 160,
+      defaultWidth: 220,
       accessor: (p) => (
-        <div onClick={e => e.stopPropagation()} className="shrink-0">
+        <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-1.5">
+          <Tooltip content="View pickup details & collection log">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(p)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+
           {p.order_status === 'ready_for_pickup' ? (
             <TableActionButton
-              variant="success"
+              variant="primary"
               icon={<UserCheck />}
               iconStrokeWidth={2}
               onClick={() => handleOpenCollect(p)}
@@ -184,6 +203,7 @@ export const StorePickupPage: React.FC = () => {
         searchPlaceholder="Search pickup customer or order ref..."
         title="Pickup Order"
         exportFilename="smokey-storefront-pickups"
+        onRowClick={(p) => handleOpenDetails(p)}
       />
 
       {/* Collect Modal */}
@@ -229,16 +249,102 @@ export const StorePickupPage: React.FC = () => {
             required
           />
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end items-stretch sm:items-center gap-2.5 pt-3 border-t border-kumo-line font-sans w-full">
-            <Button variant="secondary" size="md" type="button" className="w-full sm:w-auto cursor-pointer" onClick={() => setIsCollectModalOpen(false)}>
-              Cancel
+          <div className="flex items-center justify-between pt-3 border-t border-kumo-line font-sans w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCollectModalOpen(false)}>
+              Close
             </Button>
-            <Button variant="primary" size="md" type="submit" className="w-full sm:w-auto cursor-pointer">
+            <Button variant="primary" size="md" type="submit">
               Confirm Handover
             </Button>
           </div>
         </form>
       </Dialog>
+
+      {/* Store Pickup Details Modal */}
+      {selectedDetailsPickup && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Pickup Order: ${selectedDetailsPickup.order_ref}`}
+          description="Counter takeaway pickup manifest, order meal contents, and customer verification."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              {selectedDetailsPickup.order_status === 'ready_for_pickup' && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false)
+                    handleOpenCollect(selectedDetailsPickup)
+                  }}
+                >
+                  Hand Over Meal
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Customer & Order Manifest
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsPickup.customer_name}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Number</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsPickup.phone}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Meal Items</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsPickup.items_summary}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Total</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">{formatNaira(selectedDetailsPickup.total_amount)}</span>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Pickup Status & Handover Details
+                </span>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Pickup State</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold uppercase">{selectedDetailsPickup.order_status.replace('_', ' ')}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Kitchen Ready Since</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatDate(selectedDetailsPickup.packaged_at)}</span>
+                </div>
+                {selectedDetailsPickup.collected_by && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Collected By</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsPickup.collected_by} ({selectedDetailsPickup.collector_phone})</span>
+                  </div>
+                )}
+                {selectedDetailsPickup.handover_staff && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Handover Counter Staff</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsPickup.handover_staff}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

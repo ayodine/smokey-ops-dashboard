@@ -24,7 +24,8 @@ import {
   Plus, 
   Trash2, 
   Check,
-  Sparkles
+  Sparkles,
+  Eye
 } from 'lucide-react'
 
 export const PackagingExecutionPage: React.FC = () => {
@@ -40,7 +41,14 @@ export const PackagingExecutionPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ready' | 'in_packaging' | 'daily' | 'history'>('ready')
   const [isStartModalOpen, setIsStartModalOpen] = useState(false)
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PackagingQueueOrder | null>(null)
+  const [selectedDetailsOrder, setSelectedDetailsOrder] = useState<PackagingQueueOrder | null>(null)
+
+  const handleOpenDetails = (order: PackagingQueueOrder) => {
+    setSelectedDetailsOrder(order)
+    setIsDetailsModalOpen(true)
+  }
 
   // Manual Order Form State
   const [manualOrderForm, setManualOrderForm] = useState({
@@ -166,17 +174,28 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 160,
+      defaultWidth: 240,
       accessor: (o) => (
-        <Tooltip content="Allocate containers and start packaging this order">
-          <TableActionButton
-            variant="primary"
-            onClick={() => handleOpenStartModal(o)}
-            leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
-          >
-            Start Packaging
-          </TableActionButton>
-        </Tooltip>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View order pack specs & destination">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(o)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+          <Tooltip content="Allocate containers and start packaging this order">
+            <TableActionButton
+              variant="primary"
+              onClick={() => handleOpenStartModal(o)}
+              leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
+            >
+              Start Packaging
+            </TableActionButton>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -222,17 +241,28 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 180,
+      defaultWidth: 240,
       accessor: (o) => (
-        <Tooltip content="Hand over packed meal to dispatch board">
-          <TableActionButton
-            variant="success"
-            onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
-            leftIcon={<Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
-          >
-            Confirm Packaged
-          </TableActionButton>
-        </Tooltip>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View order pack specs & destination">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(o)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
+            >
+              Details
+            </TableActionButton>
+          </Tooltip>
+          <Tooltip content="Hand over packed meal to dispatch board">
+            <TableActionButton
+              variant="success"
+              onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
+              leftIcon={<Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
+            >
+              Confirm Packaged
+            </TableActionButton>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -372,6 +402,7 @@ export const PackagingExecutionPage: React.FC = () => {
             searchPlaceholder="Search order ref or customer..."
             title="Order Ready for Pack"
             exportFilename="smokey-orders-ready-to-pack"
+            onRowClick={(o) => handleOpenDetails(o)}
           />
         )}
 
@@ -383,6 +414,7 @@ export const PackagingExecutionPage: React.FC = () => {
             searchPlaceholder="Search packing orders..."
             title="Order in Packaging"
             exportFilename="smokey-orders-in-packaging"
+            onRowClick={(o) => handleOpenDetails(o)}
           />
         )}
 
@@ -404,6 +436,7 @@ export const PackagingExecutionPage: React.FC = () => {
             searchPlaceholder="Search packaged audit..."
             title="Packaged Order"
             exportFilename="smokey-packaging-history"
+            onRowClick={(o) => handleOpenDetails(o)}
           />
         )}
       </div>
@@ -415,8 +448,18 @@ export const PackagingExecutionPage: React.FC = () => {
         title={`Compulsory Material Pick: Order ${selectedOrder?.order_ref}`}
         description="Select the exact food packaging materials used for this order. Quantities will be deducted from Packaging Inventory."
         maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="start-packaging-form">
+              Deduct Materials & Start Packaging
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmStart} className="space-y-4">
+        <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex items-baseline gap-3">
               <span className="text-kumo-subtle font-medium w-28 shrink-0 text-left text-xs">Customer:</span>
@@ -498,15 +541,6 @@ export const PackagingExecutionPage: React.FC = () => {
               <strong className="font-bold text-amber-950 dark:text-amber-50 mr-1">Constraint:</strong>
               Consumable inventory will be deducted immediately. The order will be moved to the active packing table.
             </span>
-          </div>
-
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Deduct Materials & Start Packaging
-            </Button>
           </div>
         </form>
       </Dialog>
@@ -593,6 +627,133 @@ export const PackagingExecutionPage: React.FC = () => {
           </div>
         </form>
       </Dialog>
+
+      {/* Packaging Order Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
+      {selectedDetailsOrder && (
+        <Dialog
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          title={`Order Pack Details: ${selectedDetailsOrder.order_ref}`}
+          description="Customer delivery destination, ordered food items, and consumable material packaging."
+          maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedDetailsOrder.order_status === 'ready_for_fulfillment' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      const o = selectedDetailsOrder
+                      setIsDetailsModalOpen(false)
+                      handleOpenStartModal(o)
+                    }}
+                    leftIcon={<Package className="w-3.5 h-3.5" />}
+                  >
+                    Start Packaging
+                  </Button>
+                )}
+                {selectedDetailsOrder.order_status === 'in_packaging' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      const o = selectedDetailsOrder
+                      setIsDetailsModalOpen(false)
+                      confirmPackagingOrder(o.id, 'Shift Packing Lead')
+                    }}
+                    leftIcon={<Check className="w-3.5 h-3.5" />}
+                  >
+                    Confirm Packaged
+                  </Button>
+                )}
+                {selectedDetailsOrder.order_status === 'packaged' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsDetailsModalOpen(false)}
+                  >
+                    Done
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              {/* Section 1: Order & Customer Details */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Order Information & Destination
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Reference</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{selectedDetailsOrder.order_ref}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsOrder.customer_name}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Destination</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsOrder.address || 'Lagos Central Delivery'}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Status</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedDetailsOrder.order_status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Items to Box</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsOrder.items_summary}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Consumables & Packaging Pick */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Packaging Materials Allocation
+                  </span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {selectedDetailsOrder.packaging_materials_picked && selectedDetailsOrder.packaging_materials_picked.length > 0 ? (
+                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                      {selectedDetailsOrder.packaging_materials_picked.map((mat, idx) => (
+                        <div key={idx} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{mat.packaging_name}</span>
+                          <span className="font-mono font-semibold text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                            × {mat.quantity}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 italic">
+                      Standard branded bags and foil containers will be selected upon picking.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }
