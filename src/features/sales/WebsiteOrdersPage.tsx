@@ -882,24 +882,11 @@ export const WebsiteOrdersPage: React.FC = () => {
                   )}
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
-                    <div className="flex-1">
-                      <span className="text-zinc-900 dark:text-zinc-100 font-medium block leading-snug">{selectedOrder.address}</span>
-                      <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(selectedOrder.address)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline mt-1 font-medium"
-                      >
-                        <MapPin className="w-3 h-3" />
-                        <span>Open in Google Maps</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    </div>
+                    <span className="flex-1 text-zinc-900 dark:text-zinc-100 font-medium block leading-snug">{selectedOrder.address}</span>
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Courier</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-medium flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
                       {selectedOrder.rider_name}
                     </span>
                   </div>
