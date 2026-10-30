@@ -2316,7 +2316,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // 2. Update scheduled order status
     setScheduledOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: "in_queue", can_start_schedule: true } : o))
-    showToast(`Order #${order.order_ref} sent to kitchen packaging queue`, 'success')
+    showToast(`Order #${order.order_ref} sent to packaging queue`, 'success')
   }
 
   const autoReleaseDuePreOrders = () => {

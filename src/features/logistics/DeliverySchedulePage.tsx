@@ -52,7 +52,7 @@ export const DeliverySchedulePage: React.FC = () => {
   const handleAutoReleaseAll = () => {
     const count = autoReleaseDuePreOrders()
     if (count > 0) {
-      setReleaseFeedback(`Released ${count} due order(s) directly to the Kitchen Packaging Queue.`)
+      setReleaseFeedback(`Released ${count} due order(s) directly to the Packaging Queue.`)
     } else {
       setReleaseFeedback("All orders are currently outside their preparation lead-time window.")
     }
@@ -114,7 +114,7 @@ export const DeliverySchedulePage: React.FC = () => {
       accessor: (o) => {
         const statusMap = {
           payment_confirmed: { status: 'pending' as const, label: 'scheduled pre-order' },
-          in_queue: { status: 'active' as const, label: 'released to kitchen' },
+          in_queue: { status: 'active' as const, label: 'released to packaging' },
           dispatched: { status: 'active' as const, label: 'dispatched' },
         }
         const s = statusMap[o.order_status] || { status: 'pending' as const, label: o.order_status.toLowerCase() }
@@ -139,7 +139,7 @@ export const DeliverySchedulePage: React.FC = () => {
           </Tooltip>
 
           {o.order_status === 'in_queue' ? (
-            <Tooltip content="Open Kitchen Packaging Execution & Pack Queue table">
+            <Tooltip content="Open Packaging Execution & Pack Queue table">
               <Link
                 to="/production/packaging"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 rounded-lg transition-colors group font-sans whitespace-nowrap shrink-0 shadow-2xs"
@@ -161,14 +161,14 @@ export const DeliverySchedulePage: React.FC = () => {
               </Link>
             </Tooltip>
           ) : (
-            <Tooltip content="Send scheduled order to kitchen packaging queue">
+            <Tooltip content="Send scheduled order to packaging queue">
               <TableActionButton
                 variant="primary"
                 icon={<Play className="fill-current" />}
                 iconStrokeWidth={2}
                 onClick={() => startScheduledOrder(o.id)}
               >
-                Send to Kitchen
+                Send to Packaging
               </TableActionButton>
             </Tooltip>
           )}
@@ -190,7 +190,7 @@ export const DeliverySchedulePage: React.FC = () => {
             leftIcon={<Play className="w-4 h-4 fill-current" />}
             className="h-10 px-4 text-sm font-medium shadow-xs"
           >
-            Send Due Orders to Kitchen
+            Send Due Orders to Packaging
           </Button>
         }
       />
@@ -219,7 +219,7 @@ export const DeliverySchedulePage: React.FC = () => {
         <MetricCard
           title="Released to Packaging"
           value={queuedCount}
-          description="Sent to kitchen pack table"
+          description="Sent to packaging table"
           icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
         />
         <MetricCard
@@ -259,7 +259,7 @@ export const DeliverySchedulePage: React.FC = () => {
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           title={`Scheduled Order: ${selectedScheduledOrder.order_ref}`}
-          description="Customer pre-order details, delivery schedule, and kitchen dispatch timing."
+          description="Customer pre-order details, delivery schedule, and packaging dispatch timing."
           maxWidth="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -279,7 +279,7 @@ export const DeliverySchedulePage: React.FC = () => {
                     setIsDetailsModalOpen(false)
                   }}
                 >
-                  Send to Kitchen
+                  Send to Packaging
                 </Button>
               )}
             </div>
