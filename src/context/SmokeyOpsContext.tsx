@@ -133,6 +133,13 @@ interface SmokeyOpsContextType {
   updateRiderTask: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
   startScheduledOrder: (orderId: number) => void
   autoReleaseDuePreOrders: () => number
+  rescheduleOrderDelivery: (
+    orderRef: string,
+    scheduledDate: string,
+    scheduledTime?: string,
+    notes?: string,
+    orderDetails?: Partial<ScheduledOrder>
+  ) => Promise<boolean>
   payAndResetRider: (riderId: number) => void
   remitCodCash: (riderId: number, cashAmount: number, cashierName: string) => void
   markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => void
@@ -886,15 +893,30 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 ? o.items
                 : [{ product_name: itemsList, quantity: 1, unit_price: totalAmount, line_total: totalAmount }])
 
-          // Check if order is scheduled for future delivery
-          const schedDateStr = o.scheduled_delivery_date || o.scheduled_delivery_at
+          // Check if order is scheduled for future delivery or rescheduled from storefront / admin
+          let schedDateStr = o.scheduled_delivery_date || o.scheduled_delivery_at
+          if (!schedDateStr && o.notes && o.notes.includes('[Scheduled Delivery:')) {
+            const match = o.notes.match(/\[Scheduled Delivery:\s*([^\]]+)\]/)
+            if (match && match[1]) {
+              schedDateStr = match[1].trim()
+            }
+          }
+
+          const isExplicitScheduled = Boolean(
+            o.delivery_status === 'Rescheduled' ||
+            o.delivery_status === 'Scheduled' ||
+            (o.notes && (o.notes.includes('[Scheduled Delivery') || o.notes.includes('[Rescheduled]')))
+          )
+          const schedTime = schedDateStr ? new Date(schedDateStr).getTime() : NaN
           const isScheduledFuture = Boolean(
-            schedDateStr && new Date(schedDateStr).getTime() > now
+            (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
+            (isExplicitScheduled && !isDelivered && !isInTransit)
           )
 
           if (isScheduledFuture) {
             // Holds in delivery schedule table until assigned date/time is reached
-            const schedTime = new Date(schedDateStr).getTime()
+            const effectiveSched = schedDateStr || createdAt
+            const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
             newScheduledItems.push({
               id: numericId,
               order_ref: orderRef,
@@ -903,11 +925,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               address,
               total_amount: totalAmount,
               delivery_fee: deliveryFee,
-              scheduled_delivery_at: schedDateStr,
+              scheduled_delivery_at: effectiveSched,
               payment_status: 'paid',
               order_status: 'payment_confirmed',
               notes: notes || 'Scheduled pre-order from website storefront',
-              can_start_schedule: schedTime <= (now + 45 * 60 * 1000)
+              can_start_schedule: effectiveTime <= (now + 45 * 60 * 1000)
             })
           } else {
             // Instant website order or scheduled time reached:
@@ -2330,6 +2352,78 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return released
   }
 
+  const rescheduleOrderDelivery = async (
+    orderRef: string,
+    scheduledDate: string,
+    scheduledTime?: string,
+    notes?: string,
+    orderDetails?: Partial<ScheduledOrder>
+  ): Promise<boolean> => {
+    try {
+      const timePart = scheduledTime ? ` ${scheduledTime}` : ''
+      const fullSchedStr = `${scheduledDate}${timePart}`
+      const auditLog = `[Scheduled Delivery: ${fullSchedStr}] [Rescheduled]`
+
+      // 1. Update Supabase orders table
+      try {
+        await supabase
+          .from('orders')
+          .update({
+            scheduled_delivery_date: scheduledDate.split('T')[0],
+            delivery_status: 'Rescheduled',
+            delivery_rescheduled_at: new Date().toISOString(),
+            delivery_rescheduled_by: 'Ops Team',
+            notes: notes ? `${notes}\n${auditLog}` : auditLog
+          })
+          .eq('id', orderRef)
+      } catch (dbErr) {
+        console.warn('Supabase order reschedule update failed, applying in memory:', dbErr)
+      }
+
+      // 2. Remove from packaging queue if currently queued
+      setPackagingQueue(prev => prev.filter(p => p.order_ref !== orderRef))
+
+      // 3. Add or update in scheduledOrders
+      const numericId = parseInt(orderRef.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 9000 + 1000)
+      const schedTime = new Date(scheduledDate).getTime()
+      const canStart = !isNaN(schedTime) && schedTime <= (Date.now() + 45 * 60 * 1000)
+
+      setScheduledOrders(prev => {
+        const existing = prev.find(s => s.order_ref === orderRef)
+        if (existing) {
+          return prev.map(s => s.order_ref === orderRef ? {
+            ...s,
+            scheduled_delivery_at: fullSchedStr,
+            order_status: 'payment_confirmed',
+            can_start_schedule: canStart,
+            notes: notes ? `${s.notes || ''}\n${auditLog}` : `${s.notes || ''} ${auditLog}`
+          } : s)
+        } else {
+          return [{
+            id: numericId,
+            order_ref: orderRef,
+            customer_name: orderDetails?.customer_name || 'Storefront Customer',
+            phone: orderDetails?.phone || '',
+            address: orderDetails?.address || 'Lagos',
+            total_amount: orderDetails?.total_amount || 0,
+            delivery_fee: orderDetails?.delivery_fee || 0,
+            scheduled_delivery_at: fullSchedStr,
+            payment_status: 'paid',
+            order_status: 'payment_confirmed',
+            notes: notes ? `${auditLog}\n${notes}` : auditLog,
+            can_start_schedule: canStart
+          }, ...prev]
+        }
+      })
+
+      showToast(`Order #${orderRef} scheduled for ${fullSchedStr}`, 'success')
+      return true
+    } catch (err: any) {
+      showToast(err.message || 'Failed to schedule delivery', 'error')
+      return false
+    }
+  }
+
   const remitCodCash = (riderId: number, cashAmount: number, cashierName: string) => {
     const rider = riders.find(r => r.rider_user_id === riderId)
     setRiders(prev => prev.map(r => {
@@ -2475,6 +2569,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateRiderTask,
         startScheduledOrder,
         autoReleaseDuePreOrders,
+        rescheduleOrderDelivery,
         payAndResetRider,
         remitCodCash,
         markPickupCollected,

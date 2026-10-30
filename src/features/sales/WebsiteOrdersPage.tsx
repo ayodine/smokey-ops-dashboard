@@ -142,13 +142,20 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
 
 export const WebsiteOrdersPage: React.FC = () => {
   const navigate = useNavigate()
-  const { logisticsDeliveries, packagingQueue, scheduledOrders } = useSmokeyOps()
+  const { logisticsDeliveries, packagingQueue, scheduledOrders, rescheduleOrderDelivery } = useSmokeyOps()
   const [orders, setOrders] = useState<WebsiteOrder[]>(SEED_WEBSITE_ORDERS)
   const [loading, setLoading] = useState<boolean>(false)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+
+  // Reschedule / Schedule Delivery State
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false)
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('12:00 PM - 02:00 PM')
+  const [rescheduleNotes, setRescheduleNotes] = useState('')
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false)
 
   // Search State with Full Historical Supabase Querying & Autocomplete Suggestions
   const [searchQuery, setSearchQuery] = useState('')
@@ -868,12 +875,17 @@ export const WebsiteOrdersPage: React.FC = () => {
                   variant="outline"
                   size="md"
                   onClick={() => {
-                    setIsDetailsModalOpen(false)
-                    navigate('/production/packaging')
+                    const initialDate = selectedOrder.scheduled_delivery_at
+                      ? selectedOrder.scheduled_delivery_at.split(' ')[0]
+                      : new Date().toISOString().split('T')[0]
+                    setRescheduleDate(initialDate)
+                    setRescheduleTime('12:00 PM - 02:00 PM')
+                    setRescheduleNotes(selectedOrder.notes || '')
+                    setIsRescheduleModalOpen(true)
                   }}
-                  leftIcon={<ExternalLink className="w-3.5 h-3.5 text-zinc-500" />}
+                  leftIcon={<Calendar className="w-3.5 h-3.5 text-zinc-500" />}
                 >
-                  Packaging Execution
+                  {selectedOrder.scheduled_delivery_at ? 'Reschedule Delivery' : 'Schedule for Later'}
                 </Button>
                 <Button
                   variant="primary"
@@ -934,6 +946,20 @@ export const WebsiteOrdersPage: React.FC = () => {
                         selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
                       }
                     </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Timing</span>
+                    {selectedOrder.scheduled_delivery_at ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                        <Calendar className="w-3 h-3 text-blue-500" />
+                        Scheduled: {selectedOrder.scheduled_delivery_at}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                        <Clock className="w-3 h-3 text-zinc-500" />
+                        Immediate ASAP Dispatch
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Sales Channel</span>
@@ -1084,6 +1110,145 @@ export const WebsiteOrdersPage: React.FC = () => {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Schedule / Reschedule Delivery Modal */}
+      {selectedOrder && (
+        <Dialog
+          isOpen={isRescheduleModalOpen}
+          onClose={() => setIsRescheduleModalOpen(false)}
+          title={`Schedule Delivery: ${selectedOrder.order_ref}`}
+          description="Assign or modify the scheduled delivery date and dispatch window for this order."
+          maxWidth="lg"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsRescheduleModalOpen(false)}
+                disabled={isSubmittingSchedule}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                disabled={isSubmittingSchedule || !rescheduleDate}
+                onClick={async () => {
+                  if (!rescheduleDate) return
+                  setIsSubmittingSchedule(true)
+                  const success = await rescheduleOrderDelivery(
+                    selectedOrder.order_ref,
+                    rescheduleDate,
+                    rescheduleTime,
+                    rescheduleNotes,
+                    {
+                      customer_name: selectedOrder.customer_name,
+                      phone: selectedOrder.phone,
+                      address: selectedOrder.address,
+                      total_amount: selectedOrder.total_amount,
+                      delivery_fee: selectedOrder.delivery_fee,
+                      notes: selectedOrder.notes
+                    }
+                  )
+                  setIsSubmittingSchedule(false)
+                  if (success) {
+                    setSelectedOrder(prev => prev ? {
+                      ...prev,
+                      scheduled_delivery_at: `${rescheduleDate} ${rescheduleTime}`,
+                      fulfillment_status: 'in_intake'
+                    } : null)
+                    setIsRescheduleModalOpen(false)
+                  }
+                }}
+                leftIcon={isSubmittingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
+              >
+                {isSubmittingSchedule ? 'Saving...' : 'Save Schedule'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              
+              {/* Order Context Summary */}
+              <div className="p-4 space-y-2">
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-zinc-500 dark:text-zinc-400">Customer</span>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedOrder.customer_name}</span>
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-zinc-500 dark:text-zinc-400">Delivery Address</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100 text-right max-w-[240px] truncate">{selectedOrder.address}</span>
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-zinc-500 dark:text-zinc-400">Current Schedule</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {selectedOrder.scheduled_delivery_at ? `Scheduled: ${selectedOrder.scheduled_delivery_at}` : 'Immediate ASAP Fulfillment'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Schedule Inputs */}
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
+                    Delivery Date
+                  </label>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split('T')[0]}
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
+                    Delivery Window / Time Slot
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      '11:00 AM - 01:00 PM',
+                      '01:00 PM - 03:00 PM',
+                      '03:00 PM - 05:00 PM',
+                      '05:00 PM - 07:00 PM',
+                      '07:00 PM - 09:00 PM',
+                    ].map((slot) => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setRescheduleTime(slot)}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg border text-xs font-semibold text-center transition-all",
+                          rescheduleTime === slot
+                            ? "border-red-600 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 dark:border-red-600"
+                            : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                        )}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-zinc-900 dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
+                    Dispatch & Kitchen Notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={rescheduleNotes}
+                    onChange={(e) => setRescheduleNotes(e.target.value)}
+                    placeholder="e.g. Deliver before 2pm for office party, ring doorbell on arrival."
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 resize-none font-sans"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </Dialog>
