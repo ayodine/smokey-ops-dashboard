@@ -340,14 +340,14 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
   {
-    email: 'Ayodine47@gmail.com',
-    name: 'Ayodine Admin',
+    email: 'fivedigita@gmail.com',
+    name: 'AYOBAMI OLOWOKERE',
     role: 'admin',
     roleLabel: 'Super Admin',
     staff_id: 'SHD-ADM-001',
-    assigned_hub: 'Yaba Head Office',
+    assigned_hub: 'Lagos Mainland HQ',
     department: 'Executive Operations',
-    phone: '+234 803 111 2233',
+    phone: '09110382689',
     status: 'active',
     last_active: 'Active now',
     created_at: '10 Jan 2026',
@@ -361,17 +361,38 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     ]
   },
   {
-    email: 'ops-team@smokeyhut.com',
-    name: 'Smokey Ops Team',
+    email: 'Smokeyhut04@gmail.com',
+    name: 'CEO',
+    role: 'admin',
+    roleLabel: 'Executive Director',
+    staff_id: 'SHD-ADM-002',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Executive Operations',
+    phone: '09024247049',
+    status: 'active',
+    last_active: '1h ago',
+    created_at: '18 Apr 2026',
+    permissions: [
+      'Full Database & Records Access',
+      'User Onboarding & Deletion',
+      'Role & Permission Management',
+      'Finance & Payout Remittances',
+      'Inventory Threshold Overrides',
+      'Logistics Dispatch Controls'
+    ]
+  },
+  {
+    email: 'Opleadsmokeyhut001@gmail.com',
+    name: 'OPERATION MANAGER',
     role: 'manager',
     roleLabel: 'Operations Manager',
-    staff_id: 'SHD-OPS-002',
-    assigned_hub: 'Yaba Head Office',
-    department: 'Kitchen Operations',
-    phone: '+234 802 345 6789',
+    staff_id: 'SHD-OPS-001',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Operations',
+    phone: '08102542059',
     status: 'active',
-    last_active: '14m ago',
-    created_at: '15 Jan 2026',
+    last_active: '15m ago',
+    created_at: '12 May 2026',
     permissions: [
       'Batch Scheduling & Cook Approvals',
       'Variance Reconciliation',
@@ -381,37 +402,17 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     ]
   },
   {
-    email: 'Ridersmokeyyusuf@gmail.com',
-    name: 'Rider Yusuf',
-    role: 'rider',
-    roleLabel: 'Delivery Rider',
-    rider_user_id: 455,
-    staff_id: 'SHD-LOG-455',
-    assigned_hub: 'Yaba Head Office',
-    department: 'Logistics',
-    phone: '+234 814 902 3311',
-    status: 'active',
-    last_active: '35m ago',
-    created_at: '01 Feb 2026',
-    permissions: [
-      'Accept & Transit Delivery',
-      'Customer OTP Drop-off Sign-off',
-      'COD Cash Collection',
-      'Wallet & Payout History'
-    ]
-  },
-  {
-    email: 'chef.amara@smokeyhut.com',
-    name: 'Chef Amara Okon',
+    email: 'Smokeyhutpackagingteam@gmail.com',
+    name: 'PACKAGING TEAM',
     role: 'kitchen',
-    roleLabel: 'Production Cook',
-    staff_id: 'SHD-KTN-108',
-    assigned_hub: 'Yaba Head Office',
-    department: 'Culinary Production',
-    phone: '+234 809 777 8899',
+    roleLabel: 'Packaging & Production',
+    staff_id: 'SHD-PKG-001',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Packaging & Assembly',
+    phone: '09110382689',
     status: 'active',
-    last_active: '2h ago',
-    created_at: '12 Feb 2026',
+    last_active: '30m ago',
+    created_at: '04 Aug 2026',
     permissions: [
       'Start & Complete Batches',
       'Raw Materials Depletion',
@@ -420,42 +421,192 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     ]
   },
   {
-    email: 'kemi.inv@smokeyhut.com',
-    name: 'Kemi Adebayo',
-    role: 'inventory',
-    roleLabel: 'Inventory Specialist',
-    staff_id: 'SHD-INV-042',
-    assigned_hub: 'Yaba Head Office',
-    department: 'Procurement & Storage',
-    phone: '+234 811 555 4422',
-    status: 'active',
-    last_active: 'Yesterday',
-    created_at: '20 Feb 2026',
-    permissions: [
-      'Stock Intake PO Receipts',
-      'Periodic Cycle Counts',
-      'Packaging Unit Transfers',
-      'Lot Expiry Monitoring'
-    ]
-  },
-  {
-    email: 'babajide.dispatch@smokeyhut.com',
-    name: 'Babajide Alao',
+    email: 'Smokeyhutlogisticsteam@gmail.com',
+    name: 'LOGISTICS TEAM',
     role: 'dispatcher',
     roleLabel: 'Logistics Coordinator',
-    staff_id: 'SHD-DSP-019',
-    assigned_hub: 'Yaba Head Office',
-    department: 'Last-Mile Fulfillment',
-    phone: '+234 806 333 9900',
+    staff_id: 'SHD-LOG-001',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics & Dispatch',
+    phone: '09166421740',
     status: 'active',
-    last_active: '1d ago',
-    created_at: '05 Mar 2026',
+    last_active: '10m ago',
+    created_at: '13 Apr 2026',
     permissions: [
       'Dispatch Queue Assignment',
       'Rider Location & Route Tracking',
       'Third-party Courier Bookings',
       'COD Cash Remittance Check-in'
     ]
+  },
+  {
+    email: 'Smokeyhutdelight01@gmail.com',
+    name: 'SALES TEAM',
+    role: 'manager',
+    roleLabel: 'Sales & Customer Lead',
+    staff_id: 'SHD-SLS-001',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Sales & Customer Care',
+    phone: '08141748281',
+    status: 'active',
+    last_active: '25m ago',
+    created_at: '14 Apr 2026',
+    permissions: [
+      'Orders:view',
+      'Orders:manage',
+      'Customers:view',
+      'Customers:manage'
+    ]
+  },
+  {
+    email: 'ridersmokeyfrlgs@gmail.com',
+    name: 'FRESH LOGISTICS',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 513,
+    staff_id: 'SHD-RDR-513',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyabu@gmail.com',
+    name: 'RIDER ABU',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 459,
+    staff_id: 'SHD-RDR-459',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyaminu@gmail.com',
+    name: 'RIDER AMINU',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 458,
+    staff_id: 'SHD-RDR-458',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyidris@gmail.com',
+    name: 'RIDER IDRIS',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 457,
+    staff_id: 'SHD-RDR-457',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyhutjoshua@gmail.com',
+    name: 'RIDER JOSHUA',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 454,
+    staff_id: 'SHD-RDR-454',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyhutprince@gmail.com',
+    name: 'RIDER PRINCE',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 451,
+    staff_id: 'SHD-RDR-451',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyhutsam@gmail.com',
+    name: 'RIDER SAM',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 452,
+    staff_id: 'SHD-RDR-452',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeysunday@gmail.com',
+    name: 'RIDER SUNDAY',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 456,
+    staff_id: 'SHD-RDR-456',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyhutwasiu@gmail.com',
+    name: 'RIDER WASIU',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 453,
+    staff_id: 'SHD-RDR-453',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+  },
+  {
+    email: 'ridersmokeyyusuf@gmail.com',
+    name: 'RIDER YUSUF',
+    role: 'rider',
+    roleLabel: 'Delivery Fleet Rider',
+    rider_user_id: 455,
+    staff_id: 'SHD-RDR-455',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Logistics',
+    phone: '09110382689',
+    status: 'active',
+    last_active: 'Active',
+    created_at: '01 Jun 2026',
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
   }
 ]
 
@@ -500,7 +651,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mockEmails = ['ops-team@smokeyhut.com', 'chef.amara@smokeyhut.com', 'kemi.inv@smokeyhut.com', 'babajide.dispatch@smokeyhut.com', 'ayodine47@gmail.com']
+          const filtered = parsed.filter((a: any) => !mockEmails.includes((a.email || '').toLowerCase()))
+          if (filtered.length > 0) return filtered
+        }
       } catch (e) {
         // fallback
       }
@@ -509,8 +664,105 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   })
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
-    return localStorage.getItem('smokey_active_account') || 'Ayodine47@gmail.com'
+    const saved = localStorage.getItem('smokey_active_account')
+    const mockEmails = ['ops-team@smokeyhut.com', 'chef.amara@smokeyhut.com', 'kemi.inv@smokeyhut.com', 'babajide.dispatch@smokeyhut.com', 'ayodine47@gmail.com']
+    if (saved && !mockEmails.includes(saved.toLowerCase())) {
+      return saved
+    }
+    return 'fivedigita@gmail.com'
   })
+
+  // Synchronize live data from Supabase backend on mount
+  React.useEffect(() => {
+    fetch('/api/raw-inventory')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: RawProduct[] = json.data.map((p: any) => ({
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            product_type: 'raw',
+            unit: p.unit || 'PIECES',
+            reorder_level: parseFloat(p.reorder_level || 10),
+            unit_cost: parseFloat(p.unit_cost || 0),
+            stock_qty: parseFloat(p.stock_qty || 0),
+            qty_allocated: 0,
+            qty_available: parseFloat(p.stock_qty || 0),
+            qty_quarantine: 0,
+            inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
+            is_active: p.is_active ? 1 : 0
+          }))
+          setRawProducts(mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live raw inventory:', err))
+
+    fetch('/api/packaging-inventory')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: PackagingProduct[] = json.data.map((p: any) => ({
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            product_type: 'packaging',
+            unit: p.unit || 'PIECES',
+            reorder_level: parseFloat(p.reorder_level || 50),
+            unit_cost: parseFloat(p.unit_cost || 0),
+            stock_qty: parseFloat(p.stock_qty || 0),
+            qty_allocated: 0,
+            qty_available: parseFloat(p.stock_qty || 0),
+            inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
+            is_active: p.is_active ? 1 : 0
+          }))
+          setPackagingProducts(mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live packaging inventory:', err))
+
+    fetch('/api/suppliers')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: Supplier[] = json.data.map((s: any) => ({
+            id: s.id,
+            supplier_ref: s.supplier_ref,
+            name: s.name,
+            phone: s.phone || '',
+            email: s.email || '',
+            address: s.address || '',
+            category: s.name.includes('FIREWOOD') ? 'Firewood & Smoker Wood' : s.name.includes('NYLON') || s.name.includes('PRINTER') ? 'Packaging & Printing Materials' : s.name.includes('MADAM') ? 'Fresh Poultry & Live Birds' : 'Market Goods & Spices',
+            delivery_count: 0,
+            total_spend: 0,
+            is_active: s.is_active ? 1 : 0
+          }))
+          setSuppliers(mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live suppliers:', err))
+
+    fetch('/api/fleet-riders')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: RiderPayout[] = json.data.filter((r: any) => r.is_delivery_rider === 1).map((r: any) => ({
+            id: r.id,
+            rider_name: r.name,
+            phone: '09110382689',
+            completed_trips: 0,
+            total_fare: 0,
+            delivery_bonus: 0,
+            net_earnings: 0,
+            unremitted_cod: 0,
+            payout_status: 'paid',
+            last_payout_date: 'Today'
+          }))
+          setRiders(mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live fleet riders:', err))
+  }, [])
 
   const currentAccount = useMemo(() => {
     return accounts.find(a => a.email.toLowerCase() === activeAccountEmail.toLowerCase()) || accounts[0]

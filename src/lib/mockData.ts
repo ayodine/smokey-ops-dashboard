@@ -501,14 +501,14 @@ export const INITIAL_WAREHOUSES: Warehouse[] = [
   {
     id: 'yaba-hq',
     code: 'HQ-YABA',
-    name: 'Yaba Head Office',
-    address: '14 Commercial Avenue, Yaba, Lagos',
-    city: 'Yaba, Lagos',
+    name: 'Lagos Mainland HQ',
+    address: '13 McNeil Street, Sabo, Yaba, Lagos',
+    city: 'Lagos',
     type: 'central_kitchen',
-    total_skus: 36,
-    capacity_utilization: 74,
-    manager_name: 'Babajide Ogundipe',
-    contact_phone: '+234 803 123 4567',
+    total_skus: 31,
+    capacity_utilization: 68,
+    manager_name: 'Ayobami Michael Olowookere',
+    contact_phone: '09110382689',
     is_active: true,
   }
 ]

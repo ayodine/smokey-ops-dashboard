@@ -19,15 +19,15 @@ export interface FacilityOption {
 export const INITIAL_FACILITY: FacilityOption = {
   id: 'yaba-hq',
   code: 'HQ-YABA',
-  name: 'Yaba Head Office',
+  name: 'Lagos Mainland HQ',
   city: 'Lagos',
   state: 'Lagos State',
-  address: '14 Commercial Avenue, Yaba, Lagos',
+  address: '13 McNeil Street, Sabo, Yaba, Lagos',
   type: 'central_kitchen',
-  total_skus: 36,
-  capacity_utilization: 74,
-  manager_name: 'Babajide Ogundipe',
-  contact_phone: '+234 803 123 4567',
+  total_skus: 31,
+  capacity_utilization: 68,
+  manager_name: 'Ayobami Michael Olowookere',
+  contact_phone: '09110382689',
   isPrimary: true,
   is_active: true
 }
@@ -68,16 +68,21 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Keep Yaba HQ and only genuine custom user-created branches (filter out mock legacy fake branches)
+          // Filter out mock legacy fake branches and enforce real HQ details
           const filtered = parsed.filter((f: FacilityOption) => {
-            if (f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code || f.name === INITIAL_FACILITY.name) {
+            if (f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code) {
               return true
             }
             const nameLower = (f.name || '').toLowerCase()
             return !FAKE_BRANCH_KEYWORDS.some(keyword => nameLower.includes(keyword))
+          }).map((f: FacilityOption) => {
+            if (f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code) {
+              return INITIAL_FACILITY
+            }
+            return f
           })
 
-          const hasYaba = filtered.some((f: FacilityOption) => f.id === INITIAL_FACILITY.id || f.name === INITIAL_FACILITY.name)
+          const hasYaba = filtered.some((f: FacilityOption) => f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code)
           const result = hasYaba ? filtered : [INITIAL_FACILITY, ...filtered]
 
           return result.map((f: FacilityOption) => ({

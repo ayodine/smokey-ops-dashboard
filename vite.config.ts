@@ -87,6 +87,168 @@ export default defineConfig(({ mode }) => {
               return
             }
 
+            if (req.url?.startsWith('/api/raw-inventory')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'inventory_raw')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/packaging-inventory')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'inventory_packaging')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/suppliers')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'suppliers')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/fleet-riders')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'fleet_riders')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/staff-accounts')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'staff_accounts')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/facilities')) {
+              try {
+                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'facilities')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
             next()
           })
         }
