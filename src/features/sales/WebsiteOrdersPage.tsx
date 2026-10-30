@@ -763,6 +763,28 @@ export const WebsiteOrdersPage: React.FC = () => {
           title={`Order Details: ${selectedOrder.order_ref}`}
           description="Detailed customer information, ordered dish breakdown, and real-time fulfillment timeline."
           maxWidth="2xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  setIsDetailsModalOpen(false)
+                  navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
+                }}
+                leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
+              >
+                View in Flow Diagram
+              </Button>
+            </div>
+          }
         >
           <div className="space-y-4 font-sans text-xs">
             {/* Master Divided Card Container (Adopting Image 2 design) */}
@@ -981,28 +1003,6 @@ export const WebsiteOrdersPage: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
-
-            {/* Modal Action Footer matching references */}
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setIsDetailsModalOpen(false)}
-              >
-                Close
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => {
-                  setIsDetailsModalOpen(false)
-                  navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
-                }}
-                leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-              >
-                View in Flow Diagram
-              </Button>
             </div>
           </div>
         </Dialog>

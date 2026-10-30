@@ -94,13 +94,13 @@ export const Dialog: React.FC<DialogProps> = ({
         </div>
 
         {/* Body Content - standardized 13px body text */}
-        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 text-[13px] text-kumo-default">
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 text-[13px] text-kumo-default [scrollbar-width:thin]">
           {children}
         </div>
 
-        {/* Footer */}
+        {/* Fixed Footer pinned to bottom */}
         {footer && (
-          <div className="px-6 py-4 bg-kumo-canvas/60 border-t border-kumo-line flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 bg-kumo-base border-t border-kumo-line flex items-center justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

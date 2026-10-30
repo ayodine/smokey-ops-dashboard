@@ -670,8 +670,18 @@ export const ProductionBatchesPage: React.FC = () => {
         title="Start Cooking Batch (Recipe & Ingredients)"
         description="Select the dish to cook, target output portions, and choose raw ingredients to use."
         maxWidth="3xl"
+        footer={
+          <div className="flex justify-end items-center gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="start-cooking-batch-form">
+              Queue Batch in Prep
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmCreate} className="space-y-4 font-sans">
+        <form id="start-cooking-batch-form" onSubmit={handleConfirmCreate} className="space-y-4 font-sans">
           {templateSuccessFeedback && (
             <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -802,15 +812,6 @@ export const ProductionBatchesPage: React.FC = () => {
             value={batchRemarks}
             onChange={(e) => setBatchRemarks(e.target.value)}
           />
-
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Queue Batch in Prep
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -820,8 +821,19 @@ export const ProductionBatchesPage: React.FC = () => {
         onClose={() => setIsCompleteModalOpen(false)}
         title={`Complete Batch: ${selectedBatch?.batch_ref} (${selectedBatch?.output_product_name})`}
         description="Verify actual cooking yield, log waste, and automatically deposit finished items into Sales Inventory."
+        maxWidth="xl"
+        footer={
+          <div className="flex justify-end items-center gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCompleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="complete-batch-form">
+              Confirm & Deposit Finished Stock
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmComplete} className="space-y-4">
+        <form id="complete-batch-form" onSubmit={handleConfirmComplete} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Target Output:</span>
@@ -892,15 +904,6 @@ export const ProductionBatchesPage: React.FC = () => {
           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-200 font-sans">
             <strong>Automated Action:</strong> Submitting will mark this run completed and increment <strong>+{actualOutput} units</strong> in Sales Inventory for immediate customer dispatch.
           </div>
-
-          <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-kumo-line font-sans">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsCompleteModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm & Deposit Finished Stock
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -911,6 +914,29 @@ export const ProductionBatchesPage: React.FC = () => {
         title={`Cooking Recipe: ${selectedBatch?.batch_ref}`}
         description={`Recipe specifications and formulated raw ingredients for ${selectedBatch?.output_product_name}`}
         maxWidth="2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <div>
+              {selectedBatch && selectedBatch.status !== 'completed' && selectedBatch.status !== 'cancelled' && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    cancelBatch(selectedBatch.id)
+                    setIsPreviewModalOpen(false)
+                  }}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900"
+                  leftIcon={<Trash2 className="w-4 h-4 text-rose-600" />}
+                >
+                  Cancel Batch
+                </Button>
+              )}
+            </div>
+            <Button variant="secondary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-4 font-sans text-xs">
           <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden divide-y divide-kumo-line shadow-2xs">
@@ -973,28 +999,6 @@ export const ProductionBatchesPage: React.FC = () => {
                 ))}
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-            <div>
-              {selectedBatch && selectedBatch.status !== 'completed' && selectedBatch.status !== 'cancelled' && (
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => {
-                    cancelBatch(selectedBatch.id)
-                    setIsPreviewModalOpen(false)
-                  }}
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900"
-                  leftIcon={<Trash2 className="w-4 h-4 text-rose-600" />}
-                >
-                  Cancel Batch
-                </Button>
-              )}
-            </div>
-            <Button variant="secondary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
-              Close
-            </Button>
           </div>
         </div>
       </Dialog>

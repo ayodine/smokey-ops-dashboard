@@ -829,6 +829,47 @@ export const RiderDashboardPage: React.FC = () => {
         title={`Delivery Order Details — #${previewOrder?.order_ref}`}
         description="Comprehensive customer route, kitchen packaging, and commission ledger details."
         maxWidth="2xl"
+        footer={
+          previewOrder && (
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setPreviewOrder(null)}
+              >
+                Close
+              </Button>
+              {previewOrder.status !== 'delivered' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => {
+                      const target = previewOrder
+                      setPreviewOrder(null)
+                      handleOpenDecline(target)
+                    }}
+                    className="text-rose-600 hover:border-rose-300"
+                  >
+                    Decline Order
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      const target = previewOrder
+                      setPreviewOrder(null)
+                      setConfirmDeliveryTarget(target)
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    Confirm Delivered
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
+        }
       >
         {previewOrder && (
           <div className="space-y-4 font-sans text-xs">
@@ -973,45 +1014,6 @@ export const RiderDashboardPage: React.FC = () => {
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Actions in Modal Footer matching references */}
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setPreviewOrder(null)}
-              >
-                Close
-              </Button>
-              {previewOrder.status !== 'delivered' && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={() => {
-                      const target = previewOrder
-                      setPreviewOrder(null)
-                      handleOpenDecline(target)
-                    }}
-                    className="text-rose-600 hover:border-rose-300"
-                  >
-                    Decline Order
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      const target = previewOrder
-                      setPreviewOrder(null)
-                      setConfirmDeliveryTarget(target)
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                  >
-                    Confirm Delivered
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         )}
