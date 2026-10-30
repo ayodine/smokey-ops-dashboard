@@ -1,39 +1,26 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useSmokeyOps, type UserRole } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn } from '@/lib/utils'
 import {
   Boxes,
   Factory,
-  Flame,
   Truck,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   Home,
-  History,
   Search,
   ChevronsUpDown,
   Check,
   Plus,
   ShieldCheck,
   LogOut,
-  UserPlus,
-  MapPin,
   Settings,
-  Key,
-  Copy,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  UserCheck,
   ShoppingBag,
   Building2,
+  Package,
 } from 'lucide-react'
-import { Select } from '@/components/ui/Select'
-import { Dialog } from '@/components/ui/Dialog'
-import { Button } from '@/components/ui/Button'
-import { useWarehouse } from '@/context/WarehouseContext'
 import { SignInActivityModal } from './SignInActivityModal'
 
 interface NavItem {
@@ -51,18 +38,10 @@ interface NavSection {
   items: NavItem[]
 }
 
-const RECENT_NAV_ITEMS = [
-  { label: 'Raw Inventory', href: '/inventory/raw' },
-  { label: 'Packaging Materials', href: '/inventory/packaging' },
-  { label: 'Stock Movements', href: '/inventory/movements' },
-  { label: 'Production Batches', href: '/production/batches' },
-  { label: 'Delivery Fleet & Riders', href: '/logistics/riders' },
-]
-
 const NAV_SECTIONS: NavSection[] = [
   {
-    id: 'sale',
-    title: 'Sale',
+    id: 'sales',
+    title: 'SALES',
     icon: ShoppingBag,
     defaultHref: '/sales/orders',
     items: [
@@ -72,31 +51,39 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: 'inventory',
-    title: 'Inventory Control',
+    title: 'INVENTORY',
     icon: Boxes,
     defaultHref: '/inventory/raw',
     items: [
       { label: 'Raw Inventory', href: '/inventory/raw', badge: '13' },
-      { label: 'Packaging Materials', href: '/inventory/packaging', badge: '14' },
-      { label: 'Sales Inventory', href: '/inventory/sales', badge: '15' },
       { label: 'Stock Movements', href: '/inventory/movements', badge: '16' },
       { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: '12' },
+      { label: 'Warehouses & Depots', href: '/inventory/warehouses', badge: '2' },
     ],
   },
   {
     id: 'production',
-    title: 'Production Runs',
+    title: 'PRODUCTION',
     icon: Factory,
     defaultHref: '/production/batches',
     items: [
       { label: 'Production Batches', href: '/production/batches', badge: '12' },
-      { label: 'Packaging Execution', href: '/production/packaging', badge: '11' },
       { label: 'Kitchen Shift Tasks', href: '/production/tasks', badge: '12' },
     ],
   },
   {
-    id: 'logistics',
-    title: 'Logistics & Dispatch',
+    id: 'packaging',
+    title: 'PACKAGING',
+    icon: Package,
+    defaultHref: '/production/packaging',
+    items: [
+      { label: 'Packaging Execution', href: '/production/packaging', badge: '11' },
+      { label: 'Packaging Materials', href: '/inventory/packaging', badge: '14' },
+    ],
+  },
+  {
+    id: 'logistic',
+    title: 'LOGISTIC',
     icon: Truck,
     defaultHref: '/logistics/board',
     items: [
@@ -122,38 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     return localStorage.getItem('ops_sidebar_collapsed') === 'true'
   })
 
-  const { activeAccountEmail, currentAccount, switchAccount, availableAccounts, createAccount } = useSmokeyOps()
-  const { facilities, selectedWarehouse } = useWarehouse()
+  const { activeAccountEmail, currentAccount, switchAccount, availableAccounts } = useSmokeyOps()
 
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)
 
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [accountSearchQuery, setAccountSearchQuery] = useState('')
-  const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false)
-  const [newEmail, setNewEmail] = useState('')
-  const [newName, setNewName] = useState('')
-  const [newRole, setNewRole] = useState<UserRole>('admin')
-  const [newUsername, setNewUsername] = useState('')
-  const [newTempPassword, setNewTempPassword] = useState(() => `Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
-  const [showPassword, setShowPassword] = useState(false)
-  const [mustChangePassword, setMustChangePassword] = useState(true)
-  const [copiedTempCreds, setCopiedTempCreds] = useState(false)
-  const [createdAccountSummary, setCreatedAccountSummary] = useState<{
-    name: string
-    email: string
-    username: string
-    tempPass: string
-    role: string
-  } | null>(null)
-  const [newPhone, setNewPhone] = useState('')
-  const [newStaffId, setNewStaffId] = useState('')
-  const [newAssignedHub, setNewAssignedHub] = useState(selectedWarehouse?.name || 'Yaba Head Office')
-  const [newNationalId, setNewNationalId] = useState('')
-  const [newVehicleType, setNewVehicleType] = useState('Bajaj Boxer 150 Motorcycle')
-  const [newPlateNumber, setNewPlateNumber] = useState('')
-  const [newLicenseNumber, setNewLicenseNumber] = useState('')
-  const [newCodLimit, setNewCodLimit] = useState(50000)
 
   const filteredAccounts = useMemo(() => {
     if (!accountSearchQuery.trim()) return availableAccounts
@@ -164,76 +126,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     )
   }, [availableAccounts, accountSearchQuery])
 
-  const handleCreateAccount = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newEmail.trim()) return
-    const roleLabels: Record<UserRole, string> = {
-      admin: 'Administrator',
-      manager: 'Operations Manager',
-      kitchen: 'Kitchen Chef / Lead',
-      inventory: 'Inventory & Stock Officer',
-      dispatcher: 'Logistics Dispatcher',
-      rider: 'Delivery Fleet Rider',
-    }
-    const derivedUsername = newUsername.trim() || newEmail.split('@')[0].toLowerCase()
-    const finalPassword = newTempPassword.trim() || `Smk@${Math.floor(1000 + Math.random() * 9000)}!`
-    const accName = newName.trim() || newEmail.split('@')[0]
-
-    createAccount({
-      email: newEmail.trim(),
-      name: accName,
-      role: newRole,
-      roleLabel: roleLabels[newRole],
-      phone: newPhone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
-      staff_id: newStaffId.trim() || `SHD-${newRole.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
-      assigned_hub: newAssignedHub,
-      national_id_nin: newNationalId.trim() || '7829-4821-9921',
-      vehicle_type: newRole === 'rider' ? newVehicleType : undefined,
-      plate_number: newRole === 'rider' ? (newPlateNumber.trim() || 'LND-482-XA') : undefined,
-      license_number: newRole === 'rider' ? (newLicenseNumber.trim() || 'DL-98234-LAG') : undefined,
-      cod_limit: newRole === 'rider' ? Number(newCodLimit) : undefined,
-    })
-
-    setCreatedAccountSummary({
-      name: accName,
-      email: newEmail.trim(),
-      username: derivedUsername,
-      tempPass: finalPassword,
-      role: roleLabels[newRole],
-    })
-
-    setNewEmail('')
-    setNewName('')
-    setNewUsername('')
-    setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
-    setNewPhone('')
-    setNewStaffId('')
-    setNewNationalId('')
-    setNewPlateNumber('')
-    setNewLicenseNumber('')
-    setIsCreateAccountOpen(false)
-  }
-
-  // Recents collapsible state with persistence
-  const [isRecentsOpen, setIsRecentsOpen] = useState(() => {
-    return localStorage.getItem('ops_sidebar_recents_open') !== 'false'
-  })
-
-  const toggleRecents = () => {
-    setIsRecentsOpen(prev => {
-      const next = !prev
-      localStorage.setItem('ops_sidebar_recents_open', String(next))
-      return next
-    })
-  }
-
   // Filter sections based on account role (RBAC)
   const navSections = useMemo(() => {
     if (currentAccount.role === 'rider') {
       return [
         {
-          id: 'logistics',
-          title: 'Logistics & Dispatch',
+          id: 'logistic',
+          title: 'LOGISTIC',
           icon: Truck,
           defaultHref: '/logistics/rider-portal',
           items: [
@@ -245,21 +144,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     return NAV_SECTIONS
   }, [currentAccount.role])
 
-  const recentNavItems = useMemo(() => {
-    if (currentAccount.role === 'rider') {
-      return []
-    }
-    return RECENT_NAV_ITEMS
-  }, [currentAccount.role])
-
   // Track expanded collapsible sections with persistence
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('ops_sidebar_open_sections')
     const defaults = {
-      sale: true,
+      sales: true,
       inventory: true,
       production: true,
-      logistics: true,
+      packaging: true,
+      logistic: true,
     }
     if (saved) {
       try {
@@ -497,7 +390,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                   type="button"
                   onClick={() => {
                     setIsAccountMenuOpen(false)
-                    setIsCreateAccountOpen(true)
+                    navigate('/accounts/create')
+                    onCloseMobile()
                   }}
                   className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
                 >
@@ -534,7 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         )}
       </div>
 
-      {/* 2. Quick Search & Recents Navigation (as shown in Screenshot 1) */}
+      {/* 2. Quick Search & Navigation (Recents removed per design update) */}
       {!isCollapsed && (
         <div className="px-2 pt-2.5 pb-2 space-y-1.5 border-b border-kumo-line/60">
           {/* Quick Search Input */}
@@ -570,55 +464,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               <span className="truncate">Home overview</span>
             </Link>
           )}
-
-          {/* Recents Collapsible Sub-menu (Hidden on Rider Portal) */}
-          {currentAccount.role !== 'rider' && location.pathname !== '/logistics/rider-portal' && (
-            <div>
-              <button
-                type="button"
-                onClick={toggleRecents}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <History className="w-4 h-4 text-kumo-subtle shrink-0" />
-                  <span>Recents</span>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    'w-3.5 h-3.5 text-kumo-subtle transition-transform duration-200 shrink-0',
-                    !isRecentsOpen && '-rotate-90'
-                  )}
-                />
-              </button>
-
-              {isRecentsOpen && (
-                <div className="relative pl-6 pr-1 py-0.5 space-y-0.5">
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-1 left-[18px] z-10 block w-px bg-kumo-line"
-                  />
-                  {recentNavItems.map(rec => {
-                    const isActive = location.pathname === rec.href
-                    return (
-                      <Link
-                        key={rec.href}
-                        to={rec.href}
-                        onClick={onCloseMobile}
-                        className={cn(
-                          'block px-2.5 py-1.5 text-[13px] rounded-md transition-colors truncate',
-                          isActive
-                            ? 'text-primary font-semibold bg-primary/5'
-                            : 'text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint font-normal'
-                        )}
-                      >
-                        {rec.label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -640,7 +485,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 type="button"
                 onClick={() => toggleSection(section.id)}
                 className={cn(
-                  'w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-[13px] font-semibold cursor-pointer transition-colors text-left',
+                  'w-full flex items-center gap-2 px-2.5 py-2 rounded-md cursor-pointer transition-colors text-left',
                   isSectionActive
                     ? 'text-primary bg-primary/5'
                     : 'text-kumo-strong hover:bg-kumo-tint'
@@ -651,7 +496,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 
                 {!isCollapsed && (
                   <>
-                    <span className="truncate flex-1 tracking-wider uppercase text-[11px] font-semibold">
+                    <span
+                      className="truncate flex-1 tracking-wider uppercase text-[13px] font-[550]"
+                      style={{ fontSize: '13px', fontWeight: 550 }}
+                    >
                       {section.title}
                     </span>
                     <ChevronDown
@@ -690,7 +538,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                                 : 'text-kumo-default font-normal hover:bg-kumo-tint hover:text-kumo-strong'
                             )}
                           >
-                            <span className="truncate flex-1 text-[13px] font-normal">{subItem.label}</span>
+                            <span
+                              className="truncate flex-1 text-[13px] font-normal"
+                              style={{ fontSize: '13px', fontWeight: 400 }}
+                            >
+                              {subItem.label}
+                            </span>
                             {subItem.badge && (
                               <span
                                 className={cn(
@@ -798,328 +651,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         isOpen={isActivityModalOpen}
         onClose={() => setIsActivityModalOpen(false)}
       />
-
-      {/* Create Account Modal with Role-Based KYC */}
-      <Dialog
-        isOpen={isCreateAccountOpen}
-        onClose={() => setIsCreateAccountOpen(false)}
-        title="Create Staff / Driver Account"
-        description="Configure role permissions and operational KYC details."
-        maxWidth="lg"
-      >
-        <form onSubmit={handleCreateAccount} className="space-y-4 font-sans text-xs">
-          <Select
-            label="Role & Permissions"
-            value={newRole}
-            onValueChange={(val) => setNewRole(val as UserRole)}
-            options={[
-              { value: 'admin', label: 'Administrator (Full Access)' },
-              { value: 'manager', label: 'Operations Manager (Kitchen & Logistics)' },
-              { value: 'kitchen', label: 'Kitchen Chef / Prep Lead' },
-              { value: 'inventory', label: 'Inventory & Stock Officer' },
-              { value: 'dispatcher', label: 'Logistics Dispatcher' },
-              { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
-            ]}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Full Name</label>
-              <input
-                type="text"
-                required
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g. Yusuf Alabi"
-                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Account Email</label>
-              <input
-                type="email"
-                required
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="staff@smokeyhut.com"
-                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Phone Number</label>
-              <input
-                type="text"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="08012345678"
-                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Staff / Employee ID</label>
-              <input
-                type="text"
-                value={newStaffId}
-                onChange={(e) => setNewStaffId(e.target.value)}
-                placeholder="e.g. SHD-FLT-18"
-                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Operating Hub / Office
-              </label>
-              <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="font-medium truncate">
-                    {selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}
-                  </span>
-                </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
-                  Active HQ
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">National ID / NIN</label>
-              <input
-                type="text"
-                value={newNationalId}
-                onChange={(e) => setNewNationalId(e.target.value)}
-                placeholder="7829-4821-9921"
-                className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-              />
-            </div>
-          </div>
-
-          {/* Rider Specific KYC Details */}
-          {newRole === 'rider' && (
-            <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3 animate-in fade-in">
-              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                <span>Driver Fleet KYC Details</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Vehicle Model</label>
-                  <input
-                    type="text"
-                    value={newVehicleType}
-                    onChange={(e) => setNewVehicleType(e.target.value)}
-                    placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Plate Number</label>
-                  <input
-                    type="text"
-                    value={newPlateNumber}
-                    onChange={(e) => setNewPlateNumber(e.target.value)}
-                    placeholder="LND-482-XA"
-                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Driver's License No</label>
-                  <input
-                    type="text"
-                    value={newLicenseNumber}
-                    onChange={(e) => setNewLicenseNumber(e.target.value)}
-                    placeholder="DL-98234-LAG"
-                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Max COD Cash Limit (₦)</label>
-                  <input
-                    type="number"
-                    min="5000"
-                    step="5000"
-                    value={newCodLimit}
-                    onChange={(e) => setNewCodLimit(Number(e.target.value))}
-                    className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Temporary Sign-in Credentials Flow */}
-          <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl border border-zinc-200 dark:border-zinc-700 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-4 h-4 text-amber-500" />
-                <span>Temporary Sign-in Credentials</span>
-              </div>
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
-                Auto-Provisioned
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                  Sign-in Username / Handle
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newUsername || (newEmail ? newEmail.split('@')[0].toLowerCase() : '')}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. yusuf.ops"
-                  className="w-full h-9 px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                    Temporary Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setNewTempPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Regenerate</span>
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={newTempPassword}
-                    onChange={(e) => setNewTempPassword(e.target.value)}
-                    className="w-full h-9 pl-3 pr-10 py-2 text-xs sm:text-sm font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={mustChangePassword}
-                onChange={(e) => setMustChangePassword(e.target.checked)}
-                className="rounded border-zinc-300 text-primary focus:ring-primary w-4 h-4"
-              />
-              <span>Force password change on first sign-in (Recommended)</span>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setIsCreateAccountOpen(false)}
-              className="px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="h-10 px-4 py-2 text-sm font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] active:bg-[#8a1413] rounded-lg cursor-pointer shadow-xs transition-colors flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Create Account</span>
-            </button>
-          </div>
-        </form>
-      </Dialog>
-
-      {/* Temporary Credentials Provisioned Confirmation */}
-      <Dialog
-        isOpen={Boolean(createdAccountSummary)}
-        onClose={() => setCreatedAccountSummary(null)}
-        title="Temporary Credentials Created"
-        description="Provide these temporary access credentials to the newly created operator."
-        maxWidth="md"
-      >
-        {createdAccountSummary && (
-          <div className="space-y-4 font-sans text-xs">
-            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2 text-amber-900 dark:text-amber-200">
-              <div className="font-semibold text-xs flex items-center gap-1.5">
-                <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span>Onboarding Credentials for {createdAccountSummary.name}</span>
-              </div>
-              <p className="text-[11px] opacity-90 leading-relaxed">
-                A temporary password has been set. The operator will be prompted to choose a permanent password on first login.
-              </p>
-            </div>
-
-            <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Username:</span>
-                <span className="font-mono font-bold text-kumo-strong text-xs px-2.5 py-1 bg-kumo-base border border-kumo-line rounded">
-                  {createdAccountSummary.username}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Account Email:</span>
-                <span className="font-mono font-medium text-kumo-strong text-xs">
-                  {createdAccountSummary.email}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Temporary Password:</span>
-                <span className="font-mono font-bold text-emerald-600 text-xs px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
-                  {createdAccountSummary.tempPass}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Role:</span>
-                <span className="font-semibold text-kumo-strong capitalize text-xs">
-                  {createdAccountSummary.role}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const text = `Smokey Hut Ops Login\nUsername: ${createdAccountSummary.username}\nEmail: ${createdAccountSummary.email}\nTemp Password: ${createdAccountSummary.tempPass}\nRole: ${createdAccountSummary.role}`
-                  navigator.clipboard.writeText(text)
-                  setCopiedTempCreds(true)
-                  setTimeout(() => setCopiedTempCreds(false), 2000)
-                }}
-                className="h-10 px-4 py-2 text-sm font-semibold rounded-lg bg-kumo-tint hover:bg-kumo-line border border-kumo-line text-kumo-strong transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                {copiedTempCreds ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedTempCreds ? 'Copied to Clipboard' : 'Copy Credentials'}</span>
-              </button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setCreatedAccountSummary(null)}
-              >
-                Done
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
     </>
   )
 }

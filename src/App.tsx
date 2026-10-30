@@ -34,6 +34,7 @@ import { WebsiteOrdersPage } from '@/features/sales/WebsiteOrdersPage'
 
 // Admin Domain
 import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
+import { CreateAccountPage } from '@/features/admin/CreateAccountPage'
 import { ManageOfficesPage } from '@/features/admin/ManageOfficesPage'
 
 // Auth Screen Domain (shadcn /components/ui)
@@ -90,6 +91,8 @@ export function App() {
                 {/* 4. SUPER ADMIN & ACCOUNT MANAGEMENT */}
                 <Route path="accounts" element={<ManageAccountsPage />} />
                 <Route path="accounts/invite" element={<ManageAccountsPage />} />
+                <Route path="accounts/create" element={<CreateAccountPage />} />
+                <Route path="accounts/new" element={<CreateAccountPage />} />
                 <Route path="accounts/profile/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/route/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/matrix" element={<ManageAccountsPage />} />

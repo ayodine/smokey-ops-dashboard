@@ -3729,6 +3729,15 @@ export const ManageAccountsPage: React.FC = () => {
               Role & Permission
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/accounts/create')}
+              leftIcon={<Plus className="w-4 h-4 text-kumo-subtle" />}
+              className="h-10 px-4 text-[13px] font-medium shadow-xs"
+            >
+              Create Account
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               onClick={() => navigate('/accounts/invite')}
