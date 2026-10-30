@@ -987,14 +987,58 @@ export const ProductionBatchesPage: React.FC = () => {
                 <label className="text-[13px] font-semibold text-kumo-strong font-sans">
                   Cooking Recipe Template
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsManageTemplatesModalOpen(true)}
-                  className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong flex items-center gap-1.5 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-kumo-tint border border-transparent hover:border-kumo-line"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Manage Templates ({recipeTemplates.length})</span>
-                </button>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    disabled={selectedRecipeTemplateId === 'custom'}
+                    onClick={() => {
+                      if (selectedRecipeTemplateId !== 'custom') {
+                        handleOpenEditTemplate(Number(selectedRecipeTemplateId))
+                      }
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 font-medium transition-colors",
+                      selectedRecipeTemplateId === 'custom'
+                        ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
+                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
+                    )}
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>Edit Template</span>
+                  </button>
+
+                  <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
+
+                  <button
+                    type="button"
+                    disabled={selectedRecipeTemplateId === 'custom'}
+                    onClick={() => {
+                      if (selectedRecipeTemplateId !== 'custom') {
+                        handleDeleteTemplate(Number(selectedRecipeTemplateId))
+                      }
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 font-medium transition-colors",
+                      selectedRecipeTemplateId === 'custom'
+                        ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
+                        : "text-red-600 hover:text-red-700 cursor-pointer"
+                    )}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    <span>Delete</span>
+                  </button>
+
+                  <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsManageTemplatesModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>Manage Templates ({recipeTemplates.length})</span>
+                  </button>
+                </div>
               </div>
 
               <Select
@@ -1009,37 +1053,6 @@ export const ProductionBatchesPage: React.FC = () => {
                 ]}
                 size="md"
               />
-
-              {/* Contextual Template Status & Actions */}
-              {selectedRecipeTemplateId !== 'custom' && (
-                <div className="mt-2.5 px-3.5 py-2 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 rounded-lg flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      Formula: {recipeTemplates.find(t => t.id === Number(selectedRecipeTemplateId))?.version_name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditTemplate(Number(selectedRecipeTemplateId))}
-                      className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1 transition-colors cursor-pointer hover:underline"
-                    >
-                      <Pencil className="w-3 h-3 text-zinc-500" />
-                      <span>Edit Template</span>
-                    </button>
-                    <span className="text-zinc-300 dark:text-zinc-600">•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTemplate(Number(selectedRecipeTemplateId))}
-                      className="text-xs font-medium text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors cursor-pointer hover:underline"
-                    >
-                      <Trash2 className="w-3 h-3 text-red-500" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             <Select
