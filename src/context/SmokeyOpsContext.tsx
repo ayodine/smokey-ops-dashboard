@@ -2150,7 +2150,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return [newRecord, ...prev]
     })
 
-    showToast(totVariance === 0 ? `Reconciliation Balanced (0 variance)` : `Reconciliation Saved with ${totVariance} variance`, totVariance === 0 ? 'success' : 'warning')
+    showToast(totVariance === 0 ? `Reconciliation Balanced (0 variance)` : `Reconciliation Saved with ${totVariance} variance`, totVariance === 0 ? 'success' : 'info')
   }
 
   const createIntermediatePrep = (
@@ -2312,14 +2312,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       product_id: prep.id,
       product_name: `[Hub Cold Storage] ${prep.recipe_name}`,
       sku: `HUB-PREP-${prep.prep_ref}`,
+      supplier_name: 'Internal Production Floor',
       unit: prep.unit,
-      initial_quantity: returnQty,
-      remaining_quantity: returnQty,
+      unit_cost: 0,
+      initial_qty: returnQty,
+      remaining_qty: returnQty,
       received_date: new Date().toISOString().split('T')[0],
       expiry_date: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0],
-      status: 'in_stock',
-      notes: `Returned surplus from ${prep.prep_ref}: ${notes}`,
-      storage_location: 'Central Cold Room Chiller #2'
+      days_to_expiry: 7,
+      status: 'active',
+      location: 'Central Cold Room Chiller #2'
     }
     setInventoryLots(prev => [newLot, ...prev])
 
@@ -2342,7 +2344,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         { label: 'Prep Ref', value: prep.prep_ref },
         { label: 'Quantity Preserved', value: `${returnQty} ${prep.unit}` },
         { label: 'Hub Cold Storage Lot', value: newLot.lot_number },
-        { label: 'Storage Location', value: newLot.storage_location },
+        { label: 'Storage Location', value: newLot.location || 'Central Cold Room Chiller #2' },
         { label: 'Returned By', value: returnedBy },
       ],
     })
@@ -2416,6 +2418,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } : p))
       showToast(`Updated packaging material: ${product.name}`, 'success')
     } else {
+      const centralQty = product.central_stock_qty ?? 0
+      const benchQty = product.bench_stock_qty ?? 0
+      const totalQty = centralQty + benchQty
       const newProd: PackagingProduct = {
         id: Date.now(),
         sku: product.sku,
@@ -2423,11 +2428,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         product_type: 'packaging',
         unit: product.unit,
         unit_cost: product.unit_cost,
-        stock_qty: 0,
-        qty_available: 0,
+        central_stock_qty: centralQty,
+        bench_stock_qty: benchQty,
+        stock_qty: totalQty,
+        qty_available: totalQty,
         qty_allocated: 0,
         reorder_level: product.reorder_level,
-        inventory_value: 0,
+        inventory_value: totalQty * product.unit_cost,
         is_active: 1
       }
       setPackagingProducts(prev => [...prev, newProd])

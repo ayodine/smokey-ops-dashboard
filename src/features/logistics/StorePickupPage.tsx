@@ -121,19 +121,9 @@ export const StorePickupPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 220,
+      defaultWidth: 160,
       accessor: (p) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-1.5">
-          <Tooltip content="View pickup details & collection log">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(p)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
-
           {p.order_status === 'ready_for_pickup' ? (
             <TableActionButton
               variant="primary"

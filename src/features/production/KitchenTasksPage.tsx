@@ -137,18 +137,9 @@ export const KitchenTasksPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 220,
+      defaultWidth: 150,
       accessor: (t) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View full task details and instructions">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(t)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
           {t.status === 'pending' && (
             <Tooltip content="Start working on this task">
               <TableActionButton

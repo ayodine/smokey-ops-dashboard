@@ -415,26 +415,25 @@ export const StockMovementsPage: React.FC = () => {
           <div className="space-y-4 font-sans text-xs">
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               <div className="p-4 space-y-3">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Transfer Dispatch Route
-                </span>
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                    <span className="text-zinc-500 text-[11px] uppercase font-semibold">Origin Location</span>
-                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-1 capitalize">
-                      {selectedTransfer.from_station.replace(/_/g, ' ')}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                    <span className="text-zinc-500 text-[11px] uppercase font-semibold">Destination Station</span>
-                    <div className="text-sm font-bold text-emerald-700 mt-1 capitalize">
-                      {selectedTransfer.to_station.replace(/_/g, ' ')}
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Transfer Dispatch Route
+                  </span>
                 </div>
 
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Origin Location</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
+                      {selectedTransfer.from_station.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Destination Station</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
+                      {selectedTransfer.to_station.replace(/_/g, ' ')}
+                    </span>
+                  </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Timestamp</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatDate(selectedTransfer.created_at)}</span>
@@ -451,15 +450,17 @@ export const StockMovementsPage: React.FC = () => {
               </div>
 
               <div className="p-4 space-y-3">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Transferred Inventory Items
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Transferred Inventory Items
+                  </span>
+                </div>
 
                 <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
                   {selectedTransfer.items.map((it, idx) => (
-                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">{it.product_name}</span>
-                      <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700">
+                    <div key={idx} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{it.product_name}</span>
+                      <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
                         {it.quantity} {it.unit}
                       </span>
                     </div>

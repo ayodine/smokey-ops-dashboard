@@ -178,9 +178,8 @@ const NIGERIAN_STATES = [
 
 const FACILITY_TYPE_OPTIONS = [
   { value: 'central_kitchen', label: 'Central Production Kitchen' },
-  { value: 'warehouse', label: 'Distribution Hub & Warehouse' },
   { value: 'retail_hub', label: 'Retail Store & Pickup Counter' },
-  { value: 'cold_storage', label: 'Cold-Chain Storage Depot' },
+  { value: 'cold_storage', label: 'Cold-Chain Storage Unit' },
 ]
 
 export const ManageOfficesPage: React.FC = () => {
@@ -204,7 +203,7 @@ export const ManageOfficesPage: React.FC = () => {
   const isEditPage = location.pathname.includes('/offices/edit') && Boolean(urlId)
 
   // Tabs & Filters for DataTable
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'kitchen' | 'warehouse'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'kitchen'>('all')
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all')
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('all')
 
@@ -222,7 +221,7 @@ export const ManageOfficesPage: React.FC = () => {
 
   const [formName, setFormName] = useState('')
   const [formCode, setFormCode] = useState('')
-  const [formType, setFormType] = useState<FacilityOption['type']>('warehouse')
+  const [formType, setFormType] = useState<FacilityOption['type']>('central_kitchen')
   const [formState, setFormState] = useState('Lagos State')
   const [formCity, setFormCity] = useState('Lagos')
   const [formAddress, setFormAddress] = useState('')
@@ -238,7 +237,7 @@ export const ManageOfficesPage: React.FC = () => {
     if (isEditPage && targetOffice) {
       setFormName(targetOffice.name || '')
       setFormCode(targetOffice.code || '')
-      setFormType(targetOffice.type || 'warehouse')
+      setFormType(targetOffice.type || 'central_kitchen')
       setFormState(targetOffice.state || 'Lagos State')
       setFormCity(targetOffice.city || 'Lagos')
       setFormAddress(targetOffice.address || '')
@@ -250,8 +249,8 @@ export const ManageOfficesPage: React.FC = () => {
       setFormIsActive(targetOffice.is_active === false ? 'suspended' : 'active')
     } else if (isRegisterPage) {
       setFormName('')
-      setFormCode(`DEPOT-${String(facilities.length + 1).padStart(2, '0')}`)
-      setFormType('warehouse')
+      setFormCode(`OFFICE-${String(facilities.length + 1).padStart(2, '0')}`)
+      setFormType('central_kitchen')
       setFormState('Lagos State')
       setFormCity('Lagos')
       setFormAddress('')
@@ -372,9 +371,8 @@ export const ManageOfficesPage: React.FC = () => {
     return facilities.filter((fac) => {
       if (activeTab === 'active' && fac.is_active === false) return false
       if (activeTab === 'kitchen' && fac.type !== 'central_kitchen') return false
-      if (activeTab === 'warehouse' && fac.type !== 'warehouse') return false
 
-      if (selectedTypeFilter !== 'all' && (fac.type || 'warehouse') !== selectedTypeFilter) {
+      if (selectedTypeFilter !== 'all' && (fac.type || 'central_kitchen') !== selectedTypeFilter) {
         return false
       }
 
@@ -402,11 +400,10 @@ export const ManageOfficesPage: React.FC = () => {
   const totalOffices = facilities.length
   const activeOfficesCount = facilities.filter(f => f.is_active !== false).length
   const kitchenCount = facilities.filter(f => f.type === 'central_kitchen').length
-  const warehouseCount = facilities.filter(f => f.type === 'warehouse').length
 
   // Render Type Badge
   const renderTypeBadge = (type?: string) => {
-    const t = type || 'warehouse'
+    const t = type || 'central_kitchen'
     if (t === 'central_kitchen') {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 whitespace-nowrap">
@@ -433,8 +430,8 @@ export const ManageOfficesPage: React.FC = () => {
     }
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 whitespace-nowrap">
-        <Boxes className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-        <span>Distribution Warehouse</span>
+        <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <span>Operating Office</span>
       </span>
     )
   }
@@ -949,7 +946,7 @@ export const ManageOfficesPage: React.FC = () => {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Manage Offices & Facilities"
-        subtitle="Register regional operating branches, configure dispatch depots, and manage multi-hub kitchen facilities across the network."
+        subtitle="Register regional operating branches and manage multi-hub kitchen facilities across the network."
         actions={
           <>
             <Button
@@ -975,7 +972,7 @@ export const ManageOfficesPage: React.FC = () => {
       />
 
       {/* 2. KPI STRIP */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <MetricCard
           title="Total Registered Offices"
           value={totalOffices}
@@ -994,12 +991,6 @@ export const ManageOfficesPage: React.FC = () => {
           description="Smoke pit & cook stations"
           icon={<ChefHat className="w-4 h-4 text-amber-500" />}
         />
-        <MetricCard
-          title="Warehouses & Depots"
-          value={warehouseCount}
-          description="Storage & staging centers"
-          icon={<Boxes className="w-4 h-4 text-blue-500" />}
-        />
       </div>
 
       {/* 3. KUMO TABS */}
@@ -1011,7 +1002,6 @@ export const ManageOfficesPage: React.FC = () => {
             { id: 'all', label: 'All Offices', badge: totalOffices },
             { id: 'active', label: 'Active Facilities', badge: activeOfficesCount },
             { id: 'kitchen', label: 'Kitchen Hubs', badge: kitchenCount },
-            { id: 'warehouse', label: 'Warehouses', badge: warehouseCount },
           ]}
         />
       </div>

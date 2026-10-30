@@ -151,7 +151,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           { label: 'Raw Inventory', href: '/inventory/raw', badge: rawProducts.length },
           { label: 'Stock Movements', href: '/inventory/movements', badge: rawMovements.length > 0 ? rawMovements.length : undefined },
           { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: suppliers.length },
-          { label: 'Warehouses & Depots', href: '/inventory/warehouses', badge: facilities.length },
         ],
       },
       {

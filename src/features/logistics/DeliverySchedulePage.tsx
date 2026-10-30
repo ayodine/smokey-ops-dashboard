@@ -125,19 +125,9 @@ export const DeliverySchedulePage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 260,
+      defaultWidth: 200,
       accessor: (o) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-1.5">
-          <Tooltip content="View scheduled pre-order details and timeline">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(o)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
-
           {o.order_status === 'in_queue' ? (
             <Tooltip content="Open Packaging Execution & Pack Queue table">
               <Link

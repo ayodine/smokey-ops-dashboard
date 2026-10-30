@@ -180,18 +180,9 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 240,
+      defaultWidth: 170,
       accessor: (o) => (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View order pack specs & destination">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(o)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
           <Tooltip content="Allocate containers and start packaging this order">
             <TableActionButton
               variant="primary"
@@ -247,18 +238,9 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 240,
+      defaultWidth: 170,
       accessor: (o) => (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View order pack specs & destination">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(o)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
           <Tooltip content="Hand over packed meal to dispatch board">
             <TableActionButton
               variant="primary"
@@ -478,33 +460,30 @@ export const PackagingExecutionPage: React.FC = () => {
       >
         <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex items-baseline gap-3">
-              <span className="text-kumo-subtle font-medium w-28 shrink-0 text-left text-xs">Customer:</span>
-              <span className="font-semibold text-kumo-strong text-left text-sm">{selectedOrder?.customer_name}</span>
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle font-medium">Customer:</span>
+              <span className="font-semibold text-kumo-strong">{selectedOrder?.customer_name}</span>
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-kumo-subtle font-medium w-28 shrink-0 text-left text-xs">Ordered Items:</span>
-              <span className="font-normal text-kumo-strong text-left text-xs">{selectedOrder?.items_summary}</span>
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle font-medium">Ordered Items:</span>
+              <span className="font-normal text-kumo-strong">{selectedOrder?.items_summary}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-2.5 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-xs text-blue-900 dark:text-blue-300 font-sans">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span><strong>Zero-Touch Mapping Active:</strong> Consumable packaging items auto-populated based on menu items. Ready for 1-click confirmation.</span>
-          </div>
-
-          <div className="space-y-2">
+          <div className="space-y-2.5 pt-2 border-t border-kumo-line">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider font-sans">
                 Packaging Materials Consumed
               </span>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
                 onClick={handleAddPackagingItem}
-                className="text-xs text-primary hover:underline flex items-center gap-1.5 cursor-pointer font-medium font-sans"
               >
-                <Plus className="w-3.5 h-3.5" /> Add Material Item
-              </button>
+                Add Material
+              </Button>
             </div>
 
             {/* Column Header labels for alignment */}
@@ -523,18 +502,17 @@ export const PackagingExecutionPage: React.FC = () => {
                       onChange={(e) => handleUpdatePackagingItem(idx, 'packaging_name', e.target.value)}
                       options={packagingProducts.map(p => ({
                         value: p.name,
-                        label: `${p.name} (Bench: ${p.bench_stock_qty ?? 0} ${p.unit} | Central Hub: ${p.central_stock_qty ?? p.stock_qty} ${p.unit})`
+                        label: `${p.name} (Bench: ${p.bench_stock_qty ?? 0} ${p.unit} | Central: ${p.central_stock_qty ?? p.stock_qty} ${p.unit})`
                       }))}
                       buttonClassName="h-9 text-xs sm:text-[13px] font-normal font-sans rounded-lg"
                     />
                   </div>
                   <div className="w-24 shrink-0">
-                    <input
+                    <Input
                       type="number"
                       min="1"
                       value={item.quantity}
                       onChange={(e) => handleUpdatePackagingItem(idx, 'quantity', Number(e.target.value))}
-                      className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs sm:text-[13px] font-sans text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-2xs"
                     />
                   </div>
                   <div className="w-8 flex justify-center shrink-0">
@@ -555,25 +533,17 @@ export const PackagingExecutionPage: React.FC = () => {
               const p = packagingProducts.find(x => x.name.toLowerCase() === it.packaging_name.toLowerCase())
               return p && (p.bench_stock_qty ?? 0) < it.quantity
             }) && (
-              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-xs flex items-center justify-between text-amber-800 dark:text-amber-200">
+              <div className="p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex items-center justify-between text-kumo-strong">
                 <span>Selected quantity exceeds active Packaging Bench stock.</span>
                 <button
                   type="button"
                   onClick={() => setIsRequisitionModalOpen(true)}
-                  className="underline font-semibold cursor-pointer text-amber-900 dark:text-amber-100 hover:text-primary"
+                  className="underline font-semibold cursor-pointer text-primary"
                 >
-                  Quick Requisition from Central
+                  Requisition from Central
                 </button>
               </div>
             )}
-          </div>
-
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-amber-950 dark:text-amber-100 flex items-start gap-2 font-sans shadow-2xs">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
-            <span className="leading-relaxed">
-              <strong className="font-bold text-amber-950 dark:text-amber-50 mr-1">Constraint:</strong>
-              Consumable inventory will be deducted immediately. The order will be moved to the active packing table.
-            </span>
           </div>
         </form>
       </Dialog>
@@ -582,13 +552,13 @@ export const PackagingExecutionPage: React.FC = () => {
       <Dialog
         isOpen={isRequisitionModalOpen}
         onClose={() => setIsRequisitionModalOpen(false)}
-        title="Requisition Packaging from Central Warehouse"
-        description="Request stock replenishment from Central Warehouse storage directly to the Packaging Bench."
-        maxWidth="md"
+        title="Requisition Packaging from Central Hub"
+        description="Request stock replenishment from Central Hub reserve directly to the Packaging Bench."
+        maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsRequisitionModalOpen(false)}>
-              Cancel
+              Close
             </Button>
             <Button
               variant="primary"
@@ -620,34 +590,23 @@ export const PackagingExecutionPage: React.FC = () => {
             }}
             options={packagingProducts.map(p => ({
               value: p.id,
-              label: `${p.name} [${p.sku}] — Central Hub Stock: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench currently: ${p.bench_stock_qty ?? 0})`
+              label: `${p.name} [${p.sku}] — Central Hub: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
             }))}
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
-                Quantity Needed
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={requisitionQty}
-                onChange={(e) => setRequisitionQty(Number(e.target.value))}
-                className="w-full h-9 bg-kumo-base border border-kumo-line rounded-lg px-2.5 text-xs text-kumo-strong focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-kumo-strong uppercase tracking-wider block mb-1">
-                Requester
-              </label>
-              <input
-                type="text"
-                value="Packaging Shift Crew"
-                readOnly
-                className="w-full h-9 bg-zinc-100 dark:bg-zinc-800 border border-kumo-line rounded-lg px-2.5 text-xs text-zinc-600 dark:text-zinc-400"
-              />
-            </div>
+            <Input
+              label="Quantity Needed"
+              type="number"
+              min="1"
+              value={requisitionQty}
+              onChange={(e) => setRequisitionQty(Number(e.target.value))}
+            />
+            <Input
+              label="Requester"
+              value="Packaging Shift Crew"
+              readOnly
+            />
           </div>
 
           <Input
@@ -656,15 +615,15 @@ export const PackagingExecutionPage: React.FC = () => {
             onChange={(e) => setRequisitionNotes(e.target.value)}
           />
 
-          <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs space-y-1">
-            <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
-              <span>Central Hub Stock Available:</span>
-              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle">Central Hub Stock Available:</span>
+              <span className="font-mono font-semibold text-kumo-strong">
                 {packagingProducts.find(p => p.id === requisitionProductId)?.central_stock_qty ?? 0} units
               </span>
             </div>
-            <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
-              <span>Bench Stock After Requisition:</span>
+            <div className="flex justify-between">
+              <span className="text-kumo-subtle">Bench Stock After Requisition:</span>
               <span className="font-mono font-semibold text-emerald-700">
                 {(packagingProducts.find(p => p.id === requisitionProductId)?.bench_stock_qty ?? 0) + requisitionQty} units
               </span>
@@ -679,8 +638,19 @@ export const PackagingExecutionPage: React.FC = () => {
         onClose={() => setIsManualOrderModalOpen(false)}
         title="Assign Order for Kitchen Packaging"
         description="Queue a phone, WhatsApp, or website order for packaging material allocation and pack-out."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsManualOrderModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="assign-manual-order-form">
+              Queue for Packing
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmManualOrder} className="space-y-4 font-sans">
+        <form id="assign-manual-order-form" onSubmit={handleConfirmManualOrder} className="space-y-4 font-sans">
           <Input
             label="Customer Full Name"
             placeholder="e.g. Chief Adeyemi Ogunlesi"
@@ -715,7 +685,7 @@ export const PackagingExecutionPage: React.FC = () => {
             value={manualOrderForm.address}
             onChange={(e) => setManualOrderForm(prev => ({ ...prev, address: e.target.value }))}
             required
-            helperText="Tip: Include 'Pickup' in the address to automatically route to Store Pickup Counter upon completion."
+            helperText="Include 'Pickup' in the address to automatically route to Store Pickup Counter upon completion."
           />
 
           <Input
@@ -743,15 +713,6 @@ export const PackagingExecutionPage: React.FC = () => {
               onChange={(e) => setManualOrderForm(prev => ({ ...prev, delivery_fee: Number(e.target.value) }))}
               required
             />
-          </div>
-
-          <div className="flex justify-end items-center gap-2 pt-3 border-t border-kumo-line">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsManualOrderModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit" leftIcon={<Package className="w-4 h-4" />}>
-              Queue for Packing
-            </Button>
           </div>
         </form>
       </Dialog>

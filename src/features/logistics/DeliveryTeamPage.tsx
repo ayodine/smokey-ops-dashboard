@@ -389,21 +389,12 @@ export const DeliveryTeamPage: React.FC = () => {
     },
     {
       key: 'actions',
-      header: 'Actions',
-      defaultWidth: 260,
+      header: 'Action',
+      defaultWidth: 160,
       accessor: (r) => {
         const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
         return (
-          <div className="flex items-center gap-2 w-full justify-center" onClick={e => e.stopPropagation()}>
-            <Tooltip content="View driver account ledger & full profile">
-              <TableActionButton
-                variant="outline"
-                onClick={() => handleOpenAccount(r, 'ledger')}
-                leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-              >
-                Details
-              </TableActionButton>
-            </Tooltip>
+          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
             {unremitted > 0 ? (
               <Tooltip content="Record cash collected by driver">
                 <TableActionButton
@@ -413,7 +404,9 @@ export const DeliveryTeamPage: React.FC = () => {
                   Remit Cash
                 </TableActionButton>
               </Tooltip>
-            ) : null}
+            ) : (
+              <span className="text-xs text-kumo-subtle font-sans px-1">Up to date</span>
+            )}
           </div>
         )
       },
@@ -502,194 +495,15 @@ export const DeliveryTeamPage: React.FC = () => {
         onDateRangeChange={setDateRange}
       />
 
-      {/* DRIVER ACCOUNT & PROFILE DETAIL MODAL */}
+      {/* DRIVER ACCOUNT & PROFILE DETAIL MODAL — Desaturated Grey Layout with Clean Aligned Rows */}
       <Dialog
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
         title={`Driver Account: ${selectedRider?.rider_name || 'Driver'}`}
-        description="Comprehensive earnings analysis, two-way cash reconciliation, and verified driver profile."
-        maxWidth="4xl"
-      >
-        <div className="flex flex-col h-[540px] max-h-[calc(88vh-120px)] font-sans">
-          {/* Driver Sub-Tabs */}
-          <div className="shrink-0 pb-3 border-b border-kumo-line flex items-center justify-between gap-3 max-w-full overflow-x-auto [scrollbar-width:none]">
-            <KumoTabs
-              activeTab={modalTab}
-              onChange={(val: string) => setModalTab(val as 'ledger' | 'trips')}
-              size="sm"
-              className="w-auto inline-flex"
-              tabs={[
-                { id: 'ledger', label: 'Earnings & Cash Settlement' },
-                { id: 'trips', label: 'Trip History', badge: riderTrips.length },
-              ]}
-            />
-            {selectedRider && (
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={() => {
-                  setIsAccountModalOpen(false)
-                  const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
-                  navigate(`/accounts/profile/${encodeURIComponent(email)}`)
-                }}
-                leftIcon={<UserCheck className="w-3.5 h-3.5 text-kumo-subtle" />}
-                className="h-8 px-3 text-xs font-semibold shrink-0 cursor-pointer"
-                title="Edit complete KYC profile, vehicle specs, and personal dossier"
-              >
-                Edit Staff Profile & KYC
-              </Button>
-            )}
-          </div>
-
-          {/* Fixed-Height Tab Content (Scrollable) */}
-          <div className="flex-1 min-h-0 overflow-y-auto py-3 pr-1 [scrollbar-width:thin]">
-            {/* TAB 1: EARNINGS & CASH LEDGER */}
-            {modalTab === 'ledger' && (
-            <div className="space-y-4">
-              {/* Earnings Breakdown Cards (Spacious with room for large amounts) */}
-              <div>
-                <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2">
-                  Trip Earnings Breakdown
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">Today's Earnings</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      {formatNaira(selectedRider?.earnings_today || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">
-                      {selectedRider?.today_trips || 0} trips completed today
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">This Week</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      {formatNaira(selectedRider?.earnings_week || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Rolling 7-day earnings</span>
-                  </div>
-
-                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">This Month</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      {formatNaira(selectedRider?.earnings_month || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Current calendar month</span>
-                  </div>
-
-                  <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-[11px] text-kumo-subtle font-medium block">Lifetime Total</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      {formatNaira(selectedRider?.lifetime_earnings || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle mt-0.5 block">Cumulative historical fees</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Closed-Loop Cash on Delivery Balance Section (Uniform Clean Styling) */}
-              <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-3.5 font-sans shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
-                    Cash on Delivery & Settlement
-                  </div>
-                  <span className="text-[11px] text-kumo-subtle">Closed-loop balance equation</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Driver Balance Owed</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      +{formatNaira(selectedRider?.pending_payout || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Delivery fee commissions</span>
-                  </div>
-
-                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Cash Held by Driver</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      -{formatNaira(currentUnremitted)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Customer cash pending remittance</span>
-                  </div>
-
-                  <div className="p-3.5 bg-kumo-base dark:bg-zinc-900 border border-kumo-line rounded-xl shadow-2xs">
-                    <span className="text-kumo-subtle block text-[11px] font-medium">Net Settlement Balance</span>
-                    <div className="text-lg font-bold text-kumo-strong mt-0.5 font-display tracking-normal truncate">
-                      {(selectedRider?.net_balance || 0) < 0 
-                        ? `Driver owes ${formatNaira(Math.abs(selectedRider?.net_balance || 0))}` 
-                        : formatNaira(selectedRider?.net_balance || 0)}
-                    </div>
-                    <span className="text-[10px] text-kumo-subtle block mt-0.5">Commissions minus cash held</span>
-                  </div>
-                </div>
-
-                {currentUnremitted > 0 && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Driver holds {formatNaira(currentUnremitted)} customer meal cash. Remit cash to cashier before balance payout.</span>
-                    </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => selectedRider && handleOpenRemitModal(selectedRider)}
-                      className="shrink-0 text-xs py-1.5 px-3 h-8 rounded-lg cursor-pointer"
-                    >
-                      Remit Cash Now
-                    </Button>
-                  </div>
-                )}
-
-                {/* Primary Settle CTA Button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-kumo-line">
-                  <div className="flex items-center gap-2 text-xs text-kumo-subtle">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      (selectedRider?.pending_payout || 0) > 0 ? 'bg-amber-500' : 'bg-emerald-500'
-                    }`} />
-                    {(selectedRider?.pending_payout || 0) > 0 ? (
-                      <span className="font-medium text-kumo-default">Unpaid balance ready for payout settlement</span>
-                    ) : (
-                      <span>Driver payout balance is fully settled (₦0.00)</span>
-                    )}
-                  </div>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    disabled={(selectedRider?.pending_payout || 0) <= 0}
-                    onClick={handlePayAndReset}
-                    leftIcon={<Wallet className="w-4 h-4 shrink-0" />}
-                    className="px-6 py-2.5 h-auto min-h-[42px] text-xs font-semibold shrink-0 cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl shadow-xs self-stretch sm:self-auto"
-                  >
-                    Pay Driver Balance ({formatNaira(selectedRider?.pending_payout || 0)})
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: TRIPS HISTORY (Using Design System DataTable) */}
-          {modalTab === 'trips' && (
-            <div className="space-y-3 font-sans">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
-                  Dispatch & Delivery History ({riderTrips.length})
-                </span>
-                <span className="text-[11px] text-kumo-subtle">Recent order runs assigned to this rider</span>
-              </div>
-
-              <DataTable
-                data={riderTrips}
-                columns={riderTripColumns}
-              />
-            </div>
-          )}
-          </div>
-
-          {/* Modal Footer */}
-          <div className="shrink-0 flex items-center justify-between pt-3 border-t border-kumo-line bg-kumo-base">
+        description="Comprehensive earnings analysis, cash-on-delivery settlement, and verified driver profile."
+        maxWidth="2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               size="md"
@@ -699,41 +513,216 @@ export const DeliveryTeamPage: React.FC = () => {
               Close
             </Button>
             {selectedRider && (
-              <Button
-                variant="primary"
-                size="md"
-                type="button"
-                onClick={() => {
-                  setIsAccountModalOpen(false)
-                  const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
-                  navigate(`/accounts/profile/${encodeURIComponent(email)}`)
-                }}
-              >
-                Edit Staff Profile & KYC
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="md"
+                  type="button"
+                  onClick={() => {
+                    setIsAccountModalOpen(false)
+                    const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
+                    navigate(`/accounts/profile/${encodeURIComponent(email)}`)
+                  }}
+                >
+                  Edit Profile & KYC
+                </Button>
+                {currentUnremitted > 0 ? (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    type="button"
+                    onClick={() => handleOpenRemitModal(selectedRider)}
+                  >
+                    Remit Cash ({formatNaira(currentUnremitted)})
+                  </Button>
+                ) : (selectedRider.pending_payout || 0) > 0 ? (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    type="button"
+                    onClick={handlePayAndReset}
+                  >
+                    Pay Driver Balance ({formatNaira(selectedRider.pending_payout)})
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    type="button"
+                    onClick={() => setIsAccountModalOpen(false)}
+                  >
+                    Done
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+        }
+      >
+        <div className="space-y-4 font-sans text-xs">
+          {/* Driver Sub-Tabs */}
+          <div>
+            <KumoTabs
+              activeTab={modalTab}
+              onChange={(val: string) => setModalTab(val as 'ledger' | 'trips')}
+              size="sm"
+              tabs={[
+                { id: 'ledger', label: 'Earnings & Cash Settlement' },
+                { id: 'trips', label: 'Trip History', badge: riderTrips.length },
+              ]}
+            />
+          </div>
+
+          {/* TAB 1: EARNINGS & CASH LEDGER */}
+          {modalTab === 'ledger' && selectedRider && (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              {/* Section 1: Driver Profile & Fleet Assignment */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Driver Profile & Vehicle
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Driver Name</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold">
+                      {selectedRider.rider_name} {selectedRider.staff_id ? `(${selectedRider.staff_id})` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Number</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedRider.phone}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Vehicle</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedRider.vehicle_type || 'Motorcycle'} &bull; <span className="font-mono">{selectedRider.plate_number || 'REG-PENDING'}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current Duty Status</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
+                      {selectedRider.status.replace('_', ' ')} ({selectedRider.active_assignments} active trips)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Trip Earnings Breakdown */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Trip Earnings Breakdown
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Today's Earnings</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                      {formatNaira(selectedRider.earnings_today || 0)} ({selectedRider.today_trips || 0} trips)
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">This Week (7 Days)</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                      {formatNaira(selectedRider.earnings_week || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">This Month</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                      {formatNaira(selectedRider.earnings_month || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Lifetime Cumulative</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-bold">
+                      {formatNaira(selectedRider.lifetime_earnings || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Cash on Delivery & Settlement */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Cash on Delivery & Settlement
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Driver Payout Owed</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                      +{formatNaira(selectedRider.pending_payout || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Cash Held by Driver</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                      -{formatNaira(currentUnremitted)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Net Settlement Balance</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-bold">
+                      {(selectedRider.net_balance || 0) < 0
+                        ? `Driver Remits ${formatNaira(Math.abs(selectedRider.net_balance || 0))}`
+                        : (selectedRider.net_balance || 0) > 0
+                        ? `Pay Driver ${formatNaira(selectedRider.net_balance || 0)}`
+                        : 'Settled (₦0.00)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: TRIPS HISTORY */}
+          {modalTab === 'trips' && (
+            <div className="space-y-3 font-sans">
+              <DataTable
+                data={riderTrips}
+                columns={riderTripColumns}
+              />
+            </div>
+          )}
         </div>
       </Dialog>
 
-      {/* RECEIVE CASH FROM DRIVER MODAL (Zero Jargon) */}
+      {/* RECEIVE CASH FROM DRIVER MODAL */}
       <Dialog
         isOpen={isRemitModalOpen}
         onClose={() => setIsRemitModalOpen(false)}
         title={`Receive Cash: ${selectedRider?.rider_name || 'Driver'}`}
         description="Record physical meal cash collected by driver from customers on delivery."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="remit-driver-cash-form">
+              Confirm Cash Received
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmRemit} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl text-xs space-y-1.5">
+        <form id="remit-driver-cash-form" onSubmit={handleConfirmRemit} className="space-y-4">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Unremitted Cash Balance:</span>
-              <span className="font-bold text-rose-600 dark:text-rose-400 font-display text-sm">
+              <span className="font-bold text-rose-600 dark:text-rose-400 font-mono text-sm">
                 {formatNaira(currentUnremitted)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Driver Delivery Earnings:</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-display text-sm">
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono text-sm">
                 {formatNaira(selectedRider?.pending_payout || 0)}
               </span>
             </div>
@@ -754,35 +743,37 @@ export const DeliveryTeamPage: React.FC = () => {
             onChange={(e) => setCashierName(e.target.value)}
             required
           />
-
-          <div className="flex items-center justify-between pt-2 border-t border-kumo-line">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm Cash Received
-            </Button>
-          </div>
         </form>
       </Dialog>
 
-      {/* ONBOARD NEW FLEET DRIVER (FULL KYC PROFILE MODAL) */}
+      {/* ONBOARD NEW FLEET DRIVER MODAL */}
       <Dialog
         isOpen={isOnboardModalOpen}
         onClose={() => setIsOnboardModalOpen(false)}
-        title="Onboard Fleet Driver (KYC Profile)"
-        description="Provision internal fleet driver credentials, vehicle details, safety checks, and national identity records."
-        maxWidth="2xl"
+        title="Onboard Fleet Driver"
+        description="Provision internal fleet driver credentials, vehicle details, and emergency contact records."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="onboard-driver-form">
+              Save & Onboard Driver
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleOnboardDriver} className="space-y-4 font-sans">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <Input
-              label="Driver Full Name"
-              placeholder="e.g. Yusuf Alabi"
-              value={newDriverForm.rider_name}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, rider_name: e.target.value })}
-              required
-            />
+        <form id="onboard-driver-form" onSubmit={handleOnboardDriver} className="space-y-4 font-sans">
+          <Input
+            label="Driver Full Name"
+            placeholder="e.g. Yusuf Alabi"
+            value={newDriverForm.rider_name}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, rider_name: e.target.value })}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
               label="Phone Number"
               placeholder="08012345678"
@@ -797,6 +788,33 @@ export const DeliveryTeamPage: React.FC = () => {
               value={newDriverForm.email}
               onChange={(e) => setNewDriverForm({ ...newDriverForm, email: e.target.value })}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Vehicle Model"
+              placeholder="e.g. Bajaj Boxer 150 Motorcycle"
+              value={newDriverForm.vehicle_type}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
+              required
+            />
+            <Input
+              label="Vehicle Plate Number"
+              placeholder="e.g. LND-482-XA"
+              value={newDriverForm.plate_number}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Driver's License Number"
+              placeholder="e.g. DL-98234-LAG"
+              value={newDriverForm.license_number}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
+              required
+            />
             <Input
               label="National ID / NIN"
               placeholder="e.g. 7829-4821-9921"
@@ -806,99 +824,21 @@ export const DeliveryTeamPage: React.FC = () => {
             />
           </div>
 
-          <div className="border-t border-kumo-line pt-3.5">
-            <h4 className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Bike className="w-3.5 h-3.5 text-primary" />
-              <span>Vehicle & Hub Operations</span>
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-xs font-medium text-kumo-default mb-1.5">
-                  Operating Hub / Office
-                </label>
-                <div className="flex items-center justify-between h-9 px-3 rounded-xl border border-kumo-line bg-kumo-surface text-xs text-kumo-strong">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="font-medium truncate">{selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
-                    Active HQ
-                  </span>
-                </div>
-              </div>
-
-              <Input
-                label="Vehicle Model"
-                placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-                value={newDriverForm.vehicle_type}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
-                required
-              />
-
-              <Input
-                label="Vehicle Plate Number"
-                placeholder="e.g. LND-482-XA"
-                value={newDriverForm.plate_number}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
-                required
-              />
-
-              <Input
-                label="Max COD Cash Limit (₦)"
-                type="number"
-                min="5000"
-                step="5000"
-                value={newDriverForm.cod_limit}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, cod_limit: Number(e.target.value) })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-kumo-line pt-3.5">
-            <h4 className="text-xs font-semibold text-kumo-strong uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>License & Emergency Contact</span>
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <Input
-                label="Driver's License Number"
-                placeholder="e.g. DL-98234-LAG"
-                value={newDriverForm.license_number}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
-                required
-              />
-              <Input
-                label="License Expiry"
-                placeholder="e.g. Dec 2027"
-                value={newDriverForm.license_expiry}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, license_expiry: e.target.value })}
-                required
-              />
-              <Input
-                label="Emergency Contact Relation / Name"
-                placeholder="e.g. Next of Kin / Brother"
-                value={newDriverForm.emergency_contact}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
-                required
-              />
-              <Input
-                label="Emergency Phone"
-                placeholder="08098765432"
-                value={newDriverForm.emergency_phone}
-                onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Save & Onboard Driver
-            </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Emergency Contact Name"
+              placeholder="e.g. Next of Kin / Brother"
+              value={newDriverForm.emergency_contact}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
+              required
+            />
+            <Input
+              label="Emergency Phone"
+              placeholder="08098765432"
+              value={newDriverForm.emergency_phone}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
+              required
+            />
           </div>
         </form>
       </Dialog>

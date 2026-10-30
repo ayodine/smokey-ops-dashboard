@@ -190,18 +190,9 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 240,
+      defaultWidth: 160,
       accessor: (d) => (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View delivery details and route">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(d)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
           <Tooltip content="Assign order to an in-house driver or courier">
             <TableActionButton
               variant="primary"
@@ -283,19 +274,9 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 260,
+      defaultWidth: 180,
       accessor: (d) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View delivery details and trip log">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(d)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
-
           {d.status === 'assigned' && (
             <Tooltip content="Confirm driver collected food from kitchen">
               <TableActionButton

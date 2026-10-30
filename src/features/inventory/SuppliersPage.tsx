@@ -155,10 +155,10 @@ export const SuppliersPage: React.FC = () => {
     },
     {
       key: 'address',
-      header: 'Location / Facility',
+      header: 'Location / Address',
       accessor: (s) => (
         <span className="text-xs text-kumo-default max-w-xs truncate font-sans">
-          {s.address || 'Lagos Depot'}
+          {s.address || 'Lagos'}
         </span>
       ),
     },
@@ -177,22 +177,6 @@ export const SuppliersPage: React.FC = () => {
       header: 'Total Spend (YTD)',
       accessor: (s) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(s.total_spend)}</span>,
       sortValue: (s) => s.total_spend,
-    },
-    {
-      key: 'actions',
-      header: 'Action',
-      defaultWidth: 160,
-      accessor: (s) => (
-        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <TableActionButton
-            variant="outline"
-            icon={<Pencil className="text-kumo-subtle" />}
-            onClick={() => handleOpenManage(s)}
-          >
-            Manage
-          </TableActionButton>
-        </div>
-      ),
     },
   ]
 
@@ -325,25 +309,24 @@ export const SuppliersPage: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Phone Number"
-              placeholder="080..."
-              value={newSupplier.phone}
-              onChange={(e) => setNewSupplier(prev => ({ ...prev, phone: e.target.value }))}
-              required
-            />
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="orders@vendor.ng"
-              value={newSupplier.email}
-              onChange={(e) => setNewSupplier(prev => ({ ...prev, email: e.target.value }))}
-            />
-          </div>
+          <Input
+            label="Phone Number"
+            placeholder="080..."
+            value={newSupplier.phone}
+            onChange={(e) => setNewSupplier(prev => ({ ...prev, phone: e.target.value }))}
+            required
+          />
 
           <Input
-            label="Depot / Farm Address"
+            label="Email Address"
+            type="email"
+            placeholder="orders@vendor.ng"
+            value={newSupplier.email}
+            onChange={(e) => setNewSupplier(prev => ({ ...prev, email: e.target.value }))}
+          />
+
+          <Input
+            label="Business / Farm Address"
             placeholder="Street, Town, State"
             value={newSupplier.address}
             onChange={(e) => setNewSupplier(prev => ({ ...prev, address: e.target.value }))}
@@ -359,7 +342,7 @@ export const SuppliersPage: React.FC = () => {
           onClose={() => setIsManageModalOpen(false)}
           title={`Vendor Details: ${selectedSupplier.name}`}
           description={`Supplier Code: ${selectedSupplier.supplier_ref} • ${selectedSupplier.category}`}
-          maxWidth="2xl"
+          maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">
               <Button variant="secondary" size="md" type="button" onClick={() => setIsManageModalOpen(false)}>
@@ -410,23 +393,22 @@ export const SuppliersPage: React.FC = () => {
                   required
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input
-                    label="Phone Number"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm(prev => prev ? ({ ...prev, phone: e.target.value }) : null)}
-                    required
-                  />
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    value={editForm.email || ''}
-                    onChange={(e) => setEditForm(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
-                  />
-                </div>
+                <Input
+                  label="Phone Number"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => prev ? ({ ...prev, phone: e.target.value }) : null)}
+                  required
+                />
 
                 <Input
-                  label="Facility / Depot Address"
+                  label="Email Address"
+                  type="email"
+                  value={editForm.email || ''}
+                  onChange={(e) => setEditForm(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
+                />
+
+                <Input
+                  label="Business / Farm Address"
                   value={editForm.address}
                   onChange={(e) => setEditForm(prev => prev ? ({ ...prev, address: e.target.value }) : null)}
                   required

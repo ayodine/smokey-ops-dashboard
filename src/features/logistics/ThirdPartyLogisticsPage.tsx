@@ -178,16 +178,9 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 220,
+      defaultWidth: 160,
       accessor: (d) => (
         <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 shrink-0">
-          <TableActionButton
-            variant="outline"
-            leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            onClick={() => handleOpenEvidence(d)}
-          >
-            Details
-          </TableActionButton>
           <TableActionButton
             variant="primary"
             icon={<Receipt />}

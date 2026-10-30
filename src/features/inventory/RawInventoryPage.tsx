@@ -476,19 +476,10 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'actions',
-      header: 'Actions',
-      defaultWidth: 260,
+      header: 'Action',
+      defaultWidth: 190,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
-          <Tooltip content="View full material specification and stock profile">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(p)}
-              leftIcon={<Eye className="w-3.5 h-3.5 text-zinc-500" />}
-            >
-              Details
-            </TableActionButton>
-          </Tooltip>
           <Tooltip content="Record incoming stock from supplier">
             <TableActionButton
               variant="success"

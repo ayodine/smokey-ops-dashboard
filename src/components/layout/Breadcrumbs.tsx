@@ -36,7 +36,6 @@ export const Breadcrumbs: React.FC = () => {
     pickup: 'Store pickup counter',
     'third-party': '3PL logistics & fees',
     products: 'Products & SKUs',
-    warehouses: 'Facilities & bins',
     procurement: 'Procurement (POs)',
     orders: 'Production orders',
     quality: 'Quality control',
