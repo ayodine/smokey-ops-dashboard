@@ -1158,38 +1158,22 @@ export const ProductionBatchesPage: React.FC = () => {
               <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                 Batch Schedule
               </span>
-              <div className="grid grid-cols-2 rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-100 dark:bg-zinc-850 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBatchSchedule('today')
+              <KumoTabs
+                activeTab={batchSchedule}
+                onChange={(val) => {
+                  setBatchSchedule(val as 'today' | 'tomorrow_morning')
+                  if (val === 'today') {
                     setEstimatedReadyTime('Today 1:30 PM')
-                  }}
-                  className={cn(
-                    "py-1.5 px-3 text-xs font-medium rounded-md transition-all cursor-pointer",
-                    batchSchedule === 'today'
-                      ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
-                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  )}
-                >
-                  Today's Smoke Run
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBatchSchedule('tomorrow_morning')
+                  } else {
                     setEstimatedReadyTime('Tomorrow 9:30 AM')
-                  }}
-                  className={cn(
-                    "py-1.5 px-3 text-xs font-medium rounded-md transition-all cursor-pointer",
-                    batchSchedule === 'tomorrow_morning'
-                      ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
-                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  )}
-                >
-                  Tomorrow Morning Run (Pre-Orders)
-                </button>
-              </div>
+                  }
+                }}
+                className="w-full flex"
+                tabs={[
+                  { id: 'today', label: "Today's Smoke Run" },
+                  { id: 'tomorrow_morning', label: "Tomorrow Morning Run (Pre-Orders)" }
+                ]}
+              />
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 {batchSchedule === 'today'
                   ? 'Active daytime smoking. Buffers online store availability while batch is cooking on smoking grills.'
