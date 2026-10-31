@@ -164,7 +164,7 @@ export const CreateAccountPage: React.FC = () => {
   const [guarantorStatus, setGuarantorStatus] = useState<'verified' | 'signed' | 'pending'>('verified')
 
   // 6. Bank Account for Payroll
-  const [bankName, setBankName] = useState('Guaranty Trust Bank (GTBank)')
+  const [bankName, setBankName] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [bankAccountName, setBankAccountName] = useState('')
 
@@ -846,10 +846,10 @@ export const CreateAccountPage: React.FC = () => {
                 label="Bank Name"
                 description="Commercial bank name"
               >
-                <Select
+                <Input
                   value={bankName}
-                  onValueChange={(val) => setBankName(String(val))}
-                  options={NIGERIAN_BANKS}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="e.g. GTBank, Zenith Bank, Access Bank"
                   aria-label="Bank Name"
                 />
               </ProfileFieldRow>

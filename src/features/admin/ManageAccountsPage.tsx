@@ -1731,10 +1731,10 @@ export const ManageAccountsPage: React.FC = () => {
                 label="Bank Name"
                 description="Commercial bank name"
               >
-                <Select
+                <Input
                   value={profileBankName}
-                  onValueChange={(val) => setProfileBankName(String(val))}
-                  options={NIGERIAN_BANKS}
+                  onChange={(e) => setProfileBankName(e.target.value)}
+                  placeholder="e.g. GTBank, Zenith Bank, Access Bank"
                   aria-label="Bank Name"
                 />
               </ProfileFieldRow>
