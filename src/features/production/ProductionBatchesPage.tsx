@@ -959,11 +959,11 @@ export const ProductionBatchesPage: React.FC = () => {
                       }}
                       className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
                         <Flame className="w-4 h-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-primary transition-colors">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
                           Start Cooking Batch (Today)
                         </div>
                         <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
@@ -980,11 +980,11 @@ export const ProductionBatchesPage: React.FC = () => {
                       }}
                       className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
                         <Clock className="w-4 h-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
                           Plan Tomorrow's Smoke
                         </div>
                         <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
