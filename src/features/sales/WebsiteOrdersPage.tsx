@@ -1139,7 +1139,7 @@ export const WebsiteOrdersPage: React.FC = () => {
           description="Assign or modify the scheduled delivery date for this order."
           maxWidth="lg"
           footer={
-            <div className="flex items-center justify-end gap-2.5 w-full">
+            <div className="flex items-center justify-between w-full">
               <Button
                 variant="secondary"
                 size="md"
