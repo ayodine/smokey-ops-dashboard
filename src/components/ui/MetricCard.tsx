@@ -271,7 +271,6 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           >
             {title}
           </span>
-          {icon && <div className="text-kumo-subtle shrink-0 opacity-60 scale-90">{icon}</div>}
         </div>
 
         {/* Value and inline delta row */}
