@@ -20,7 +20,13 @@ export function formatQuantity(num: number, uom?: string): string {
 
 export function formatDate(dateString: string | Date): string {
   if (!dateString) return '-'
+  if (typeof dateString === 'string' && (dateString.toLowerCase().startsWith('today') || dateString.toLowerCase().startsWith('tomorrow') || dateString.toLowerCase().startsWith('yesterday'))) {
+    return dateString
+  }
   const d = new Date(dateString)
+  if (isNaN(d.getTime())) {
+    return String(dateString)
+  }
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -32,7 +38,13 @@ export function formatDate(dateString: string | Date): string {
 
 export function formatShortDate(dateString: string | Date): string {
   if (!dateString) return '-'
+  if (typeof dateString === 'string' && (dateString.toLowerCase().startsWith('today') || dateString.toLowerCase().startsWith('tomorrow') || dateString.toLowerCase().startsWith('yesterday'))) {
+    return dateString
+  }
   const d = new Date(dateString)
+  if (isNaN(d.getTime())) {
+    return String(dateString)
+  }
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
