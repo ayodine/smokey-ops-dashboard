@@ -1197,7 +1197,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     balance_after: 45,
     notes: "Allocated to Production Batch BATCH-2026-001 (Signature Smoked Guineafowl).",
     created_at: "2026-10-30 07:15:00",
-    user_name: "Babajide (Lead Pitmaster)"
+    user_name: "Babajide (Lead Oven Supervisor)"
   },
   {
     id: 2,
@@ -1213,7 +1213,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     balance_after: 0,
     notes: "Allocated to Production Batch BATCH-2026-003 (Charcoal Roasted Whole Catfish).",
     created_at: "2026-10-30 06:30:00",
-    user_name: "Babajide (Lead Pitmaster)"
+    user_name: "Babajide (Lead Oven Supervisor)"
   },
   {
     id: 3,
@@ -1229,7 +1229,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     balance_after: 25,
     notes: "Fuel consumption for daytime pit roasting and pre-heating smoker bays.",
     created_at: "2026-10-30 06:00:00",
-    user_name: "Babajide (Lead Pitmaster)"
+    user_name: "Babajide (Lead Oven Supervisor)"
   }
 ]
 
@@ -1803,7 +1803,7 @@ export const SEED_SALES_MOVEMENTS: SalesMovement[] = [
     balance_after: 64,
     notes: "Production batch completed: Batch #BATCH-2026-001 (Signature Smoked Guineafowl).",
     created_at: "2026-10-30 09:30:00",
-    user_name: "Babajide (Lead Pitmaster)"
+    user_name: "Babajide (Lead Oven Supervisor)"
   },
   {
     id: 4,
@@ -1819,7 +1819,7 @@ export const SEED_SALES_MOVEMENTS: SalesMovement[] = [
     balance_after: 24,
     notes: "Production batch completed: Batch #BATCH-2026-003 (Charcoal Roasted Whole Catfish).",
     created_at: "2026-10-30 09:45:00",
-    user_name: "Babajide (Lead Pitmaster)"
+    user_name: "Babajide (Lead Oven Supervisor)"
   },
   {
     id: 5,
@@ -1918,7 +1918,7 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     started_at: "2026-10-30 09:15:00",
     completed_at: null,
     remarks: "Standard morning smoke run in Pit #1. Feeds active web storefront buffer.",
-    created_by_name: "Babajide (Lead Pitmaster)",
+    created_by_name: "Babajide (Lead Oven Supervisor)",
     raw_materials: [
       { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 50, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2.5, unit: "kg" },
@@ -1941,7 +1941,7 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     started_at: null,
     completed_at: null,
     remarks: "Overnight pre-order buffer. Pit fires up at 6:00 AM tomorrow.",
-    created_by_name: "Babajide (Lead Pitmaster)",
+    created_by_name: "Babajide (Lead Oven Supervisor)",
     raw_materials: [
       { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 40, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2, unit: "kg" },
@@ -1963,7 +1963,7 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     started_at: "2026-10-30 06:30:00",
     completed_at: "2026-10-30 09:45:00",
     remarks: "Early morning smoke cycle. Deposited +24 fish into Sales Inventory.",
-    created_by_name: "Babajide (Lead Pitmaster)",
+    created_by_name: "Babajide (Lead Oven Supervisor)",
     raw_materials: [
       { product_id: 8, sku: "RAW-CATFISH", name: "FRESH CATFISH", quantity: 25, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 1.5, unit: "kg" },
@@ -2131,7 +2131,7 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
     task_ref: "TASK-001",
     title: "Season & Marinate 50x Fresh Guineafowls (Batch 2026-004)",
     description: "Apply garlic, dry habanero pepper, ginger, and signature dry rub. Store in chiller for 4-hour cold cure.",
-    assignee_name: "Babajide (Lead Pitmaster)",
+    assignee_name: "Babajide (Lead Oven Supervisor)",
     due_date: "Today 3:00 PM",
     priority: "high",
     status: "in_progress"

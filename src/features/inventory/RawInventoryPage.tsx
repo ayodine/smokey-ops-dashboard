@@ -100,12 +100,12 @@ export const RawInventoryPage: React.FC = () => {
   // Prioritize in Kitchen Form State
   const [prioritizeQty, setPrioritizeQty] = useState<number>(1)
   const [prioritizeDish, setPrioritizeDish] = useState<string>('')
-  const [prioritizePitmaster, setPrioritizePitmaster] = useState('Babajide (Pitmaster)')
+  const [prioritizePitmaster, setPrioritizePitmaster] = useState('Babajide (Oven Supervisor)')
   const [prioritizeRemarks, setPrioritizeRemarks] = useState('')
 
   // Spoilage / Waste Form State
   const [wasteQty, setWasteQty] = useState<number>(1)
-  const [wasteApprover, setWasteApprover] = useState('Babajide (Pitmaster)')
+  const [wasteApprover, setWasteApprover] = useState('Babajide (Oven Supervisor)')
   const [wasteNotes, setWasteNotes] = useState('')
 
   // Modals state
@@ -153,7 +153,7 @@ export const RawInventoryPage: React.FC = () => {
 
   // Blind Stocktake Form State (5 Random SKUs)
   const [stocktakeCounts, setStocktakeCounts] = useState<{ [key: number]: number }>({})
-  const [stocktakeCountedBy, setStocktakeCountedBy] = useState('Shift Pitmaster')
+  const [stocktakeCountedBy, setStocktakeCountedBy] = useState('Shift Oven Supervisor')
   const [stocktakeFeedback, setStocktakeFeedback] = useState<string | null>(null)
 
   // Resolve Variance Form State
@@ -352,7 +352,7 @@ export const RawInventoryPage: React.FC = () => {
     setSelectedLot(lot)
     setPrioritizeQty(lot.remaining_qty)
     setPrioritizeDish(getMatchingDishForProtein(lot.product_name))
-    setPrioritizePitmaster('Babajide (Pitmaster)')
+    setPrioritizePitmaster('Babajide (Oven Supervisor)')
     setPrioritizeRemarks(`[URGENT EXPIRING BATCH] Lot ${lot.lot_number} allocated to smoker pit. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
     setIsPrioritizeModalOpen(true)
   }
@@ -373,7 +373,7 @@ export const RawInventoryPage: React.FC = () => {
   const handleOpenWaste = (lot: InventoryLot) => {
     setSelectedLot(lot)
     setWasteQty(lot.remaining_qty)
-    setWasteApprover('Babajide (Pitmaster)')
+    setWasteApprover('Babajide (Oven Supervisor)')
     setWasteNotes('Expired / past optimal cold-storage freshness date. Written off according to food safety protocol.')
     setIsWasteModalOpen(true)
   }
@@ -737,8 +737,8 @@ export const RawInventoryPage: React.FC = () => {
       key: 'transfer_type',
       header: 'Station Route',
       accessor: (t) => {
-        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
-        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
+        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')
+        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')
         return (
           <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
             <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>
@@ -1487,10 +1487,10 @@ export const RawInventoryPage: React.FC = () => {
           </div>
 
           <Input
-            label="Assigned Lead Pitmaster"
+            label="Assigned Lead Oven Supervisor"
             value={prioritizePitmaster}
             onChange={(e) => setPrioritizePitmaster(e.target.value)}
-            placeholder="e.g. Babajide (Pitmaster)"
+            placeholder="e.g. Babajide (Oven Supervisor)"
             required
           />
 
@@ -1586,7 +1586,7 @@ export const RawInventoryPage: React.FC = () => {
             label="Authorized By (Supervisor / Digital Signature)"
             value={wasteApprover}
             onChange={(e) => setWasteApprover(e.target.value)}
-            placeholder="e.g. Babajide (Pitmaster)"
+            placeholder="e.g. Babajide (Oven Supervisor)"
             required
           />
 

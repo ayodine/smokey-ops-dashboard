@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/ui/PageHeader'
 const SMOKEY_OPERATIONS_STAFF: Employee[] = [
   {
     id: "emp-01",
-    name: "Babajide 'Pitmaster' Ogundipe",
+    name: "Babajide 'Oven Supervisor' Ogundipe",
     email: "babajide.o@smokeyhut.com",
     department: "Pit Production",
-    position: "Lead Smoker & Pitmaster",
+    position: "Lead Smoker & Oven Supervisor",
     salary: 450000,
     hireDate: "2021-04-12",
     status: "active"

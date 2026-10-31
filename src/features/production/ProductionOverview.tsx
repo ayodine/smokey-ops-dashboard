@@ -145,7 +145,7 @@ export const ProductionOverview: React.FC = () => {
         data={orders}
         columns={columns}
         keyExtractor={o => o.id}
-        searchablePlaceholder="Search by batch ID, product, or pitmaster..."
+        searchablePlaceholder="Search by batch ID, product, or oven supervisor..."
         secondaryAction={{
           label: 'Export Batches',
           onClick: () => {},

@@ -148,8 +148,8 @@ export const StockMovementsPage: React.FC = () => {
       key: 'transfer_type',
       header: 'Station Route',
       accessor: (t) => {
-        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
-        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')
+        const fromLabel = t.from_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')
+        const toLabel = t.to_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')
         return (
           <div className="flex items-center gap-1.5 text-xs font-medium capitalize">
             <span className="text-zinc-600 dark:text-zinc-400">{fromLabel}</span>
@@ -231,7 +231,7 @@ export const StockMovementsPage: React.FC = () => {
           tabs={[
             { id: 'all', label: 'All Changes', badge: totalMovements },
             { id: 'transfers', label: 'Store Transfers', badge: interStationTransfers.length },
-            { id: 'production_output', label: 'Kitchen Cooked' },
+            { id: 'production_output', label: 'Oven Cooked' },
             { id: 'sale', label: 'Customer Orders' },
           ]}
         />
@@ -425,13 +425,13 @@ export const StockMovementsPage: React.FC = () => {
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Origin Location</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
-                      {selectedTransfer.from_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')}
+                      {selectedTransfer.from_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Destination Station</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-semibold capitalize">
-                      {selectedTransfer.to_station.replace('central_warehouse', 'central_store').replace(/_/g, ' ')}
+                      {selectedTransfer.to_station.replace('central_warehouse', 'central_store').replace('production_floor', 'production_bench').replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">

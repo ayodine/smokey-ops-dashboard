@@ -682,7 +682,7 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'created_by_name',
-      header: 'Pitmaster',
+      header: 'Oven Supervisor',
       accessor: (b) => <span className="text-xs text-kumo-default font-sans">{b.created_by_name}</span>,
     },
     {
@@ -1717,7 +1717,7 @@ export const ProductionBatchesPage: React.FC = () => {
             />
 
             <Input
-              label="Shift Operator / Pitmaster"
+              label="Shift Operator / Oven Supervisor"
               value={editBatchForm.created_by_name}
               onChange={(e) => setEditBatchForm(prev => ({ ...prev, created_by_name: e.target.value }))}
               required

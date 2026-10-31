@@ -1686,7 +1686,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       completed_at: null,
       remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Smoke immediately on current shift to prevent food waste.'}`,
-      created_by_name: pitmasterName || "Shift Pitmaster",
+      created_by_name: pitmasterName || "Shift Oven Supervisor",
       raw_materials: [
         {
           product_id: lot.product_id,
@@ -1707,7 +1707,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         { label: 'Source Lot', value: `${lot.lot_number} (Exp: ${lot.expiry_date})` },
         { label: 'Target Finished Dish', value: targetDishName },
         { label: 'Quantity Prepped', value: `${actualQty} ${lot.unit}` },
-        { label: 'Assigned Pitmaster', value: pitmasterName || 'Shift Pitmaster' },
+        { label: 'Assigned Oven Supervisor', value: pitmasterName || 'Shift Oven Supervisor' },
         { label: 'Kitchen Status', value: 'In Production (Cooking Started)' }
       ]
     })
@@ -2165,7 +2165,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Store for recipe prep: ${recipeName}`, "consumption")
     })
 
-    // 2. Transfer from Central Store to Production Floor
+    // 2. Transfer from Central Store to Production Bench
     const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
     const transferItems = rawIngredients.map(ing => {
       const raw = rawProducts.find(r => r.id === ing.productId)
@@ -2217,7 +2217,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         { label: 'Recipe Mix', value: recipeName },
         { label: 'Initial Yield', value: `${yieldQty} ${unit}` },
         { label: 'Prepared By', value: preparedBy },
-        { label: 'Status', value: 'Active on Production Floor' },
+        { label: 'Status', value: 'Active on Production Bench' },
       ],
     })
     showToast(`Created prep mix ${prepRef}: ${yieldQty} ${unit} ready for use`, 'success')
@@ -2312,7 +2312,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       product_id: prep.id,
       product_name: `[Central Store Cold Storage] ${prep.recipe_name}`,
       sku: `HUB-PREP-${prep.prep_ref}`,
-      supplier_name: 'Internal Production Floor',
+      supplier_name: 'Internal Production Bench',
       unit: prep.unit,
       unit_cost: 0,
       initial_qty: returnQty,
@@ -2508,7 +2508,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       started_at: null,
       completed_at: null,
       remarks,
-      created_by_name: "Shift Pitmaster",
+      created_by_name: "Shift Oven Supervisor",
       raw_materials: rawMaterials
     }
     setProductionBatches(prev => [newBatch, ...prev])

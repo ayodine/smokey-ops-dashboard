@@ -1900,7 +1900,7 @@ export const ManageAccountsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="text-[16px] font-semibold text-kumo-strong">Kitchen Station & Culinary Certifications</h3>
-                        <p className="text-[13px] text-kumo-subtle">HACCP compliance credentials, pitmaster specialties, and station allocation</p>
+                        <p className="text-[13px] text-kumo-subtle">HACCP compliance credentials, oven supervisor specialties, and station allocation</p>
                       </div>
                     </div>
                   </div>
@@ -1923,14 +1923,14 @@ export const ManageAccountsPage: React.FC = () => {
                       />
                     </ProfileFieldRow>
                     <ProfileFieldRow
-                      label="Pitmaster Culinary Specialty"
+                      label="Oven Supervisor Culinary Specialty"
                       description="Primary operational recipe or prep focus"
                     >
                       <Input
                         value={kycPitmasterSpecialty}
                         onChange={(e) => setKycPitmasterSpecialty(e.target.value)}
                         placeholder="e.g. Texas Brisket, Smoked Ribs"
-                        aria-label="Pitmaster Culinary Specialty"
+                        aria-label="Oven Supervisor Culinary Specialty"
                       />
                     </ProfileFieldRow>
                     <ProfileFieldRow

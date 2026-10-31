@@ -34,7 +34,7 @@ export const KitchenTasksPage: React.FC = () => {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    assignee_name: "Babajide 'Pitmaster'",
+    assignee_name: "Babajide 'Oven Supervisor'",
     due_date: '2026-09-26',
     priority: 'normal' as 'high' | 'normal' | 'low',
     status: 'pending' as const
@@ -258,7 +258,7 @@ export const KitchenTasksPage: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         title="Assign New Kitchen Task"
-        description="Delegate operational tasks to pitmasters, prep cooks, or QC staff."
+        description="Delegate operational tasks to oven supervisors, prep cooks, or QC staff."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -294,7 +294,7 @@ export const KitchenTasksPage: React.FC = () => {
               value={newTask.assignee_name}
               onChange={(e) => setNewTask(prev => ({ ...prev, assignee_name: e.target.value }))}
               options={[
-                { value: "Babajide 'Pitmaster'", label: "Babajide 'Pitmaster' (Lead Smoker)" },
+                { value: "Babajide 'Oven Supervisor'", label: "Babajide 'Oven Supervisor' (Lead Smoker)" },
                 { value: "Folake Adebayo", label: "Folake Adebayo (HACCP / QC Lead)" },
                 { value: "Chioma Okonkwo", label: "Chioma Okonkwo (Cold-chain Store)" },
                 { value: "Emeka Nwosu", label: "Emeka Nwosu (Prep Cook)" },
