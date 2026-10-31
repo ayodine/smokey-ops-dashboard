@@ -518,7 +518,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
   // Orders in pipeline state
   const [orders, setOrders] = useState<PipelineOrder[]>(SMOKEY_OPERATIONAL_ORDERS)
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('SHD-06247')
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [orderSearchInput, setOrderSearchInput] = useState<string>('')
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(0)
@@ -775,6 +775,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   // Clear search handler
   const handleClearSearch = () => {
     setOrderSearchInput('')
+    setSelectedOrderId(null)
     setActiveSuggestionIndex(0)
     searchInputRef.current?.focus()
   }
@@ -853,9 +854,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     setExpandedNodes((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }))
   }
 
-  // Active Order
+  // Active Order - only present when user has explicitly selected/queried an order
   const activeOrder = useMemo(() => {
-    return orders.find((o) => o.id === selectedOrderId) || orders[0]
+    if (!selectedOrderId) return null
+    return orders.find((o) => o.id === selectedOrderId) || null
   }, [orders, selectedOrderId])
 
   // Sub-group status and count metrics for all main categories
@@ -1594,28 +1596,28 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* ACTIVE ORDER & ITEM FLOW SUMMARY BANNER */}
+        {/* ACTIVE ORDER & ITEM FLOW SUMMARY BANNER (VISIBLE ONLY WHEN AN ORDER HAS BEEN SEARCHED / SELECTED) */}
         {activeOrder && (
-          <div className="mb-6 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-850/50 flex flex-col md:flex-row md:items-center justify-between gap-3.5 text-xs shadow-2xs font-sans">
+          <div className="mb-6 p-4 rounded-xl border border-kumo-line bg-kumo-canvas/40 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-sans">
             <div className="space-y-2 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
+                <span className="font-semibold text-xs text-kumo-strong px-2 py-0.5 rounded-md bg-kumo-base border border-kumo-line">
                   {activeOrder.id}
                 </span>
-                <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[13px]">
+                <span className="font-semibold text-[13px] text-kumo-strong">
                   {activeOrder.customerName}
                 </span>
-                <span className="text-zinc-300 dark:text-zinc-600">•</span>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-700 dark:text-zinc-300">
+                <span className="text-kumo-subtle">•</span>
+                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-kumo-tint text-kumo-subtle border border-kumo-line">
                   {activeOrder.channel}
                 </span>
                 {pipelineMetrics.isFulfilled ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     Fulfilled & Delivered
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     <Zap className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                     In Progress • {getStageLabel(activeOrder.currentStage)}
                   </span>
@@ -1624,17 +1626,17 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
               {/* Individual Item Flow Badges */}
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium mr-1 shrink-0">
+                <span className="text-[11px] text-kumo-subtle font-medium mr-1 shrink-0">
                   Items Flowing:
                 </span>
                 {orderItems.map((item, idx) => (
                   <span
                     key={idx}
                     className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border",
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border border-kumo-line",
                       pipelineMetrics.isFulfilled
                         ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300"
-                        : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200"
+                        : "bg-kumo-base text-kumo-strong"
                     )}
                   >
                     <Package className="w-3 h-3 opacity-60 shrink-0" />
@@ -1647,12 +1649,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-right shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 pt-2.5 md:pt-0 border-zinc-200 dark:border-zinc-700/60 pl-0 md:pl-4">
-              <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+            <div className="text-right shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 pt-2.5 md:pt-0 border-kumo-line pl-0 md:pl-4">
+              <div className="font-semibold text-sm text-kumo-strong">
                 {formatNaira(activeOrder.totalAmount)}
               </div>
-              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
-                <Bike className="w-3 h-3 text-zinc-400" />
+              <div className="text-[11px] text-kumo-subtle flex items-center gap-1 mt-0.5">
+                <Bike className="w-3 h-3" />
                 <span>{activeOrder.riderName || 'Rider Internal Fleet'}</span>
               </div>
             </div>
