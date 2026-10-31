@@ -167,159 +167,153 @@ export default function AuthSectionThree() {
   const currentSlide = slides[activeSlide];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#801211] via-[#aa1c1b] to-[#550b0b] p-3 sm:p-6 md:p-10 lg:p-12 flex items-center justify-center font-sans antialiased selection:bg-[#c0201f] selection:text-white relative overflow-hidden">
-      {/* Background Soft Glows matching reference atmospheric depth */}
-      <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-red-400/20 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-black/35 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Outer Floating White Container with Large Rounded Radius (Direct Reference Match) */}
-      <div className="relative z-10 w-full max-w-[1100px] bg-white rounded-[32px] sm:rounded-[44px] overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.4)] grid grid-cols-1 lg:grid-cols-[1.18fr_1fr] p-3.5 sm:p-4 md:p-5">
+    <div className="min-h-screen w-full bg-white p-4 sm:p-6 lg:p-5 flex flex-col lg:grid lg:grid-cols-[1.1fr_1fr] xl:grid-cols-[1.15fr_1fr] font-sans antialiased selection:bg-[#c0201f] selection:text-white">
+      {/* =========================================================================
+          LEFT PANEL: BRAND RED HERO CARD WITH HEXAGONS, MOCKUP SCREEN & CAROUSEL
+          (Desktop & Tablet Landscape: Full Screen Hero Showcase)
+         ========================================================================= */}
+      <div className="hidden lg:flex relative rounded-[26px] sm:rounded-[34px] bg-gradient-to-br from-[#c42120] via-[#b81d1c] to-[#861211] p-7 sm:p-9 lg:p-12 text-white flex-col justify-between overflow-hidden lg:h-[calc(100vh-2.5rem)] shadow-sm">
         
-        {/* =========================================================================
-            LEFT PANEL: BRAND RED HERO CARD WITH HEXAGONS, MOCKUP SCREEN & CAROUSEL
-           ========================================================================= */}
-        <div className="relative rounded-[26px] sm:rounded-[36px] bg-gradient-to-br from-[#c42120] via-[#b81d1c] to-[#861211] p-7 sm:p-9 lg:p-11 text-white flex flex-col justify-between overflow-hidden min-h-[580px] lg:min-h-[660px]">
-          
-          {/* Subtle Decorative Hexagonal Polygons in Background (Matching Reference) */}
-          <div className="absolute top-7 right-7 opacity-20 pointer-events-none">
-            <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
-              <polygon points="70,12 118,39 118,93 70,120 22,93 22,39" stroke="white" strokeWidth="2" fill="white" fillOpacity="0.12" />
-              <polygon points="108,70 136,86 136,118 108,134 80,118 80,86" stroke="white" strokeWidth="1.5" fill="none" opacity="0.6" />
-            </svg>
-          </div>
-          <div className="absolute bottom-8 left-6 opacity-20 pointer-events-none">
-            <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-              <polygon points="60,10 102,34 102,82 60,106 18,82 18,34" stroke="white" strokeWidth="1.8" fill="white" fillOpacity="0.14" />
-              <polygon points="25,75 48,88 48,114 25,127 2,114 2,88" stroke="white" strokeWidth="1.2" fill="none" opacity="0.5" />
-            </svg>
-          </div>
+        {/* Subtle Decorative Hexagonal Polygons in Background (Matching Reference) */}
+        <div className="absolute top-7 right-7 opacity-20 pointer-events-none">
+          <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
+            <polygon points="70,12 118,39 118,93 70,120 22,93 22,39" stroke="white" strokeWidth="2" fill="white" fillOpacity="0.12" />
+            <polygon points="108,70 136,86 136,118 108,134 80,118 80,86" stroke="white" strokeWidth="1.5" fill="none" opacity="0.6" />
+          </svg>
+        </div>
+        <div className="absolute bottom-8 left-6 opacity-20 pointer-events-none">
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+            <polygon points="60,10 102,34 102,82 60,106 18,82 18,34" stroke="white" strokeWidth="1.8" fill="white" fillOpacity="0.14" />
+            <polygon points="25,75 48,88 48,114 25,127 2,114 2,88" stroke="white" strokeWidth="1.2" fill="none" opacity="0.5" />
+          </svg>
+        </div>
 
-          {/* Top Brand Hexagon Badge (Clean, prominent hexagon badge matching reference style) */}
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="relative">
-              <div className="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2.5 transition-transform hover:scale-105">
-                <img
-                  src="/logo.svg"
-                  alt="Smokey Hut Delight"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+        {/* Top Brand Hexagon Badge (Clean, prominent hexagon badge matching reference style) */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2.5 transition-transform hover:scale-105">
+              <img
+                src="/logo.svg"
+                alt="Smokey Hut Delight"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <span className="text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white/90 border border-white/20">
-              {currentSlide.badge}
-            </span>
           </div>
+          <span className="text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white/90 border border-white/20">
+            {currentSlide.badge}
+          </span>
+        </div>
 
-          {/* Center Graphic: Overlapping Dashboard Preview Cards (Direct Reference Layout) */}
-          <div className="relative z-10 my-auto py-5 flex items-center justify-center">
-            <div className="relative w-full max-w-[410px]">
-              {/* Primary Dark Dashboard Mockup Card */}
-              <div className="w-full bg-[#111217]/95 rounded-2xl border border-white/20 p-4 shadow-2xl backdrop-blur-xl">
-                {/* Header bar with controls */}
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 text-[11px]">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
-                    <span className="font-semibold text-white ml-1.5 font-mono text-[10.5px]">
-                      {currentSlide.title}
+        {/* Center Graphic: Overlapping Dashboard Preview Cards (Direct Reference Layout) */}
+        <div className="relative z-10 my-auto py-6 flex items-center justify-center">
+          <div className="relative w-full max-w-[420px]">
+            {/* Primary Dark Dashboard Mockup Card */}
+            <div className="w-full bg-[#111217]/95 rounded-2xl border border-white/20 p-4 shadow-2xl backdrop-blur-xl">
+              {/* Header bar with controls */}
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                  <span className="font-semibold text-white ml-1.5 font-mono text-[10.5px]">
+                    {currentSlide.title}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-sans font-semibold text-[10px] flex items-center gap-1 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                </span>
+              </div>
+
+              {/* Micro Table Rows */}
+              <div className="space-y-1.5 text-[10px]">
+                {currentSlide.rows.map((row, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${row.dot} shrink-0`} />
+                      <div>
+                        <span className="font-medium text-white/90 block leading-tight">{row.name}</span>
+                        <span className="text-[9px] text-white/40 block">{row.meta}</span>
+                      </div>
+                    </div>
+                    <span className="font-mono text-white/90 font-semibold px-2 py-0.5 rounded bg-white/10 text-[9.5px]">
+                      {row.metric}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-sans font-semibold text-[10px] flex items-center gap-1 border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
-                  </span>
-                </div>
-
-                {/* Micro Table Rows */}
-                <div className="space-y-1.5 text-[10px]">
-                  {currentSlide.rows.map((row, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${row.dot} shrink-0`} />
-                        <div>
-                          <span className="font-medium text-white/90 block leading-tight">{row.name}</span>
-                          <span className="text-[9px] text-white/40 block">{row.meta}</span>
-                        </div>
-                      </div>
-                      <span className="font-mono text-white/90 font-semibold px-2 py-0.5 rounded bg-white/10 text-[9.5px]">
-                        {row.metric}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Overlapping Floating White Stat Card at Bottom-Right (Direct Reference Match) */}
-              <div className="absolute -bottom-6 -right-2 sm:-right-4 w-[220px] bg-white rounded-2xl p-3.5 shadow-[0_20px_45px_rgba(0,0,0,0.35)] border border-zinc-100 text-zinc-900 animate-in fade-in slide-in-from-bottom-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9.5px] font-bold text-zinc-500 uppercase tracking-wider">
-                    {currentSlide.metricTitle}
-                  </span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
-                    <span className="block text-[8.5px] text-zinc-400 font-medium">Batches</span>
-                    <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat1}</span>
-                  </div>
-                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
-                    <span className="block text-[8.5px] text-zinc-400 font-medium">Inventory</span>
-                    <span className="block text-[10px] font-bold text-emerald-600">{currentSlide.stat2}</span>
-                  </div>
-                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
-                    <span className="block text-[8.5px] text-zinc-400 font-medium">Speed</span>
-                    <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat3}</span>
-                  </div>
-                </div>
-                <div className="mt-2 pt-1.5 border-t border-zinc-100 flex items-center justify-between text-[9px] text-zinc-400 font-medium">
-                  <span>Auto-updated live</span>
-                  <span className="text-emerald-600 font-bold flex items-center gap-0.5">
-                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Active
-                  </span>
-                </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Bottom Content: Headline, Subtitle & Interactive Left/Right Arrow Carousel */}
-          <div className="relative z-10 pt-4 text-center">
-            <p className="text-sm sm:text-[15px] text-white/90 leading-relaxed font-normal max-w-[380px] mx-auto">
-              {currentSlide.quote}
-            </p>
-            <p className="text-sm sm:text-[15px] font-bold text-white mt-1">
-              {currentSlide.highlight}
-            </p>
-
-            {/* Carousel Arrow Controls (Matching Reference Circular Buttons) */}
-            <div className="flex items-center justify-center gap-3 mt-5">
-              <button
-                type="button"
-                onClick={() => setActiveSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1))}
-                className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
-                aria-label="Previous slide"
-              >
-                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1))}
-                className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
-                aria-label="Next slide"
-              >
-                <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-              </button>
+            {/* Overlapping Floating White Stat Card at Bottom-Right (Direct Reference Match) */}
+            <div className="absolute -bottom-6 -right-2 sm:-right-4 w-[220px] bg-white rounded-2xl p-3.5 shadow-[0_20px_45px_rgba(0,0,0,0.35)] border border-zinc-100 text-zinc-900 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[9.5px] font-bold text-zinc-500 uppercase tracking-wider">
+                  {currentSlide.metricTitle}
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                  <span className="block text-[8.5px] text-zinc-400 font-medium">Batches</span>
+                  <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat1}</span>
+                </div>
+                <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                  <span className="block text-[8.5px] text-zinc-400 font-medium">Inventory</span>
+                  <span className="block text-[10px] font-bold text-emerald-600">{currentSlide.stat2}</span>
+                </div>
+                <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                  <span className="block text-[8.5px] text-zinc-400 font-medium">Speed</span>
+                  <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat3}</span>
+                </div>
+              </div>
+              <div className="mt-2 pt-1.5 border-t border-zinc-100 flex items-center justify-between text-[9px] text-zinc-400 font-medium">
+                <span>Auto-updated live</span>
+                <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                  <Check className="w-2.5 h-2.5 stroke-[3]" /> Active
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* =========================================================================
-            RIGHT PANEL: CLEAN FORM (MATCHING REFERENCE STRUCTURE, TEXTBOXES & CTAs)
-           ========================================================================= */}
-        <div className="flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-12 xl:px-14 bg-white">
-          <div className="w-full max-w-[370px] mx-auto">
+        {/* Bottom Content: Headline, Subtitle & Interactive Left/Right Arrow Carousel */}
+        <div className="relative z-10 pt-4 text-center">
+          <p className="text-sm sm:text-[15px] text-white/90 leading-relaxed font-normal max-w-[380px] mx-auto">
+            {currentSlide.quote}
+          </p>
+          <p className="text-sm sm:text-[15px] font-bold text-white mt-1">
+            {currentSlide.highlight}
+          </p>
+
+          {/* Carousel Arrow Controls (Matching Reference Circular Buttons) */}
+          <div className="flex items-center justify-center gap-3 mt-5">
+            <button
+              type="button"
+              onClick={() => setActiveSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1))}
+              className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
+              aria-label="Previous slide"
+            >
+              <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1))}
+              className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
+              aria-label="Next slide"
+            >
+              <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          RIGHT PANEL: CLEAN FORM (MATCHING REFERENCE STRUCTURE, TEXTBOXES & CTAs)
+         ========================================================================= */}
+      <div className="flex flex-col justify-center items-center px-4 py-8 sm:px-10 lg:px-14 xl:px-16 bg-white min-h-[calc(100vh-2rem)] lg:min-h-full">
+        <div className="w-full max-w-[390px] mx-auto">
             {/* Top Brand Wordmark (Matching Reference with Brand Color) */}
             <div className="flex items-center gap-2.5 mb-7">
               <div className="w-8 h-8 rounded-xl bg-[#c0201f] flex items-center justify-center p-1.5 shadow-sm">
@@ -511,6 +505,5 @@ export default function AuthSectionThree() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
