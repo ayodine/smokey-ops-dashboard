@@ -250,7 +250,7 @@ const AccountRowActionCell: React.FC<{
             }}
             className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
           >
-            View Policy Matrix
+            View Policy & Access
           </button>
           <button
             type="button"
@@ -2302,7 +2302,7 @@ export const ManageAccountsPage: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission Matrix</h1>
+              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission</h1>
               <p className="text-[13px] text-kumo-subtle mt-0.5">
                 Review and configure baseline permissions across standard operational roles.
               </p>
@@ -2549,7 +2549,7 @@ export const ManageAccountsPage: React.FC = () => {
               leftIcon={<Shield className="w-4 h-4" />}
               className="h-10 px-4 text-[13px] font-medium"
             >
-              Policy Matrix
+              Policy & Access
             </Button>
             <Button
               variant="outline"

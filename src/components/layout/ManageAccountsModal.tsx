@@ -747,7 +747,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                                       className="w-full text-left px-3 py-2 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
                                     >
                                       <SlidersHorizontal className="w-4 h-4 text-kumo-subtle shrink-0" />
-                                      <span>View Policy Matrix</span>
+                                      <span>View Policy & Access</span>
                                     </button>
 
                                     <button
@@ -834,7 +834,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               <div className="p-3.5 bg-kumo-canvas/60 border border-kumo-line rounded-xl flex items-center justify-between text-[13px]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-semibold text-kumo-strong">Role-Based Access Control (RBAC) System Matrix</span>
+                  <span className="font-semibold text-kumo-strong">Role-Based Access Control (RBAC) Policy & Access</span>
                 </div>
                 <span className="text-kumo-subtle text-[13px]">
                   All permissions are dynamically enforced across API and navigation routes
