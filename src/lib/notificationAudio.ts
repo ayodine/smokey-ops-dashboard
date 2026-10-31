@@ -121,3 +121,4 @@ export function sendDesktopNotification(title: string, options?: NotificationOpt
     // Ignore environments where Notification constructor fails
   }
 }
+

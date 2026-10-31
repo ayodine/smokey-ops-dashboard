@@ -17,253 +17,22 @@ import {
   X,
   FileText,
   Package,
+  PlusCircle,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { formatNaira } from '@/lib/utils'
 
 export interface CommandItem {
   id: string
   title: string
   subtitle?: string
-  category: 'Pages' | 'Inventory & SKUs' | 'Deliveries & Orders' | 'Quick Actions'
+  category: 'Quick Actions' | 'Pages' | 'Inventory & SKUs' | 'Deliveries & Orders'
   href: string
   icon: React.ComponentType<{ className?: string }>
   badge?: string
 }
-
-const COMMAND_INDEX: CommandItem[] = [
-  // Pages
-  {
-    id: 'page-raw',
-    title: 'Raw Ingredients',
-    subtitle: 'Meats, spices, charcoal, stock levels and expiry tracking',
-    category: 'Pages',
-    href: '/inventory/raw',
-    icon: Boxes,
-    badge: '18 SKUs',
-  },
-  {
-    id: 'page-packaging',
-    title: 'Packaging Materials',
-    subtitle: 'Food bowls, branded polybags, aluminum foil, thermal labels',
-    category: 'Pages',
-    href: '/inventory/packaging',
-    icon: ShoppingBag,
-    badge: '7 Items',
-  },
-  {
-    id: 'page-sales',
-    title: 'Sales Inventory',
-    subtitle: 'Smoked catfish, guinea fowl, turkey ready for delivery',
-    category: 'Pages',
-    href: '/inventory/sales',
-    icon: Layers,
-    badge: 'Ready to Dispatch',
-  },
-  {
-    id: 'page-movements',
-    title: 'Stock Movements',
-    subtitle: 'Audit log of all stock consumed, received, or adjusted',
-    category: 'Pages',
-    href: '/inventory/movements',
-    icon: FileText,
-  },
-  {
-    id: 'page-suppliers',
-    title: 'Suppliers & Vendors',
-    subtitle: 'Verified poultry farms, packaging suppliers, spice distributors',
-    category: 'Pages',
-    href: '/inventory/suppliers',
-    icon: Building2,
-    badge: '4 Vendors',
-  },
-  {
-    id: 'page-batches',
-    title: 'Production Batches',
-    subtitle: 'Live smoking grill runs, cooking logs, yields, and QC logs',
-    category: 'Pages',
-    href: '/production/batches',
-    icon: Flame,
-    badge: '3 Active',
-  },
-  {
-    id: 'page-packaging-exec',
-    title: 'Packaging Execution',
-    subtitle: 'Order packing queue, bowl allocation, and sealing station',
-    category: 'Pages',
-    href: '/production/packaging',
-    icon: Package,
-    badge: '3 Due',
-  },
-  {
-    id: 'page-tasks',
-    title: 'Kitchen Tasks',
-    subtitle: 'Hygiene checks, temperature logs, grill seasoning and safety',
-    category: 'Pages',
-    href: '/production/tasks',
-    icon: ClipboardList,
-    badge: '4 Tasks',
-  },
-  {
-    id: 'page-board',
-    title: 'Dispatch Board',
-    subtitle: 'Real-time order dispatch, driver assignment, waybill tracking',
-    category: 'Pages',
-    href: '/logistics/board',
-    icon: Truck,
-    badge: '5 Active',
-  },
-  {
-    id: 'page-schedule',
-    title: 'Delivery Schedule',
-    subtitle: 'Advance pre-orders, corporate event catering slots, time windows',
-    category: 'Pages',
-    href: '/logistics/schedule',
-    icon: Calendar,
-    badge: '3 Scheduled',
-  },
-  {
-    id: 'page-riders',
-    title: 'Delivery Fleet & Drivers',
-    subtitle: 'Dispatch riders, cash on delivery reconciliation, anti-drift audit',
-    category: 'Pages',
-    href: '/logistics/riders',
-    icon: Users,
-    badge: '4 Drivers',
-  },
-  {
-    id: 'page-pickup',
-    title: 'Store Pickup Counter',
-    subtitle: 'Customer storefront order collections at Yaba kitchen hub',
-    category: 'Pages',
-    href: '/logistics/pickup',
-    icon: Building2,
-    badge: '2 Ready',
-  },
-  {
-    id: 'page-3pl',
-    title: 'Third Party Delivery',
-    subtitle: 'Third-party dispatch logistics, customer fees vs courier costs',
-    category: 'Pages',
-    href: '/logistics/third-party',
-    icon: Truck,
-  },
-  {
-    id: 'page-exec',
-    title: 'Executive Overview',
-    subtitle: 'High-level operational metrics, daily revenue, and kitchen health',
-    category: 'Pages',
-    href: '/dashboard/executive',
-    icon: Sparkles,
-  },
-
-  // Inventory & SKUs
-  {
-    id: 'sku-catfish',
-    title: 'Fresh Catfish (Large)',
-    subtitle: 'SKU-00001 • Raw Protein • 240 kg on hand',
-    category: 'Inventory & SKUs',
-    href: '/inventory/raw',
-    icon: Boxes,
-    badge: '₦3,800/kg',
-  },
-  {
-    id: 'sku-charcoal',
-    title: 'Hardwood Charcoal Sacks',
-    subtitle: 'SKU-00002 • Kitchen Fuel • 14 Sacks remaining',
-    category: 'Inventory & SKUs',
-    href: '/inventory/raw',
-    icon: Flame,
-    badge: 'Low Stock',
-  },
-  {
-    id: 'sku-guineafowl',
-    title: 'Guineafowl (Dressed)',
-    subtitle: 'SKU-00003 • Raw Poultry • 85 birds on hand',
-    category: 'Inventory & SKUs',
-    href: '/inventory/raw',
-    icon: Boxes,
-    badge: '₦6,500/bird',
-  },
-  {
-    id: 'sku-turkey',
-    title: 'Smoked Turkey Wings',
-    subtitle: 'SKU-00004 • Frozen Protein • 120 kg on hand',
-    category: 'Inventory & SKUs',
-    href: '/inventory/raw',
-    icon: Boxes,
-  },
-  {
-    id: 'sku-bowl-750',
-    title: '750ml Heavy-duty Food Bowl',
-    subtitle: 'PKG-001 • Packaging • 850 pcs on hand',
-    category: 'Inventory & SKUs',
-    href: '/inventory/packaging',
-    icon: ShoppingBag,
-    badge: 'Safe Grade',
-  },
-  {
-    id: 'sku-polybag',
-    title: 'Smokey Hut Branded Kraft Polybags',
-    subtitle: 'PKG-002 • Packaging • 1,200 pcs on hand',
-    category: 'Inventory & SKUs',
-    href: '/inventory/packaging',
-    icon: ShoppingBag,
-  },
-
-  // Deliveries & Orders
-  {
-    id: 'order-7621',
-    title: 'Order SHD-07621: Folake Adeleke',
-    subtitle: '₦48,500 • Victoria Island, Lagos • Dispatched via Ibrahim S.',
-    category: 'Deliveries & Orders',
-    href: '/logistics/board',
-    icon: Truck,
-    badge: 'In Transit',
-  },
-  {
-    id: 'order-7619',
-    title: 'Order SHD-07619: Olubunmi Cole',
-    subtitle: '₦75,200 • Yaba Counter Pickup • 6x Whole Catfish',
-    category: 'Deliveries & Orders',
-    href: '/logistics/pickup',
-    icon: Building2,
-    badge: 'Ready for Pickup',
-  },
-  {
-    id: 'order-7614',
-    title: 'Order SHD-07614: Tunde Balogun',
-    subtitle: '₦125,000 • Lekki Phase 1 • Bulk Weekend Pre-Order',
-    category: 'Deliveries & Orders',
-    href: '/logistics/schedule',
-    icon: Calendar,
-    badge: 'Scheduled',
-  },
-
-  // Quick Actions
-  {
-    id: 'action-receive',
-    title: 'Add Received Stock',
-    subtitle: 'Log a new supplier delivery of meats, charcoal, or packaging',
-    category: 'Quick Actions',
-    href: '/inventory/raw',
-    icon: Boxes,
-  },
-  {
-    id: 'action-stocktake',
-    title: 'Daily Stock Check',
-    subtitle: 'Perform physical count check and log discrepancy variances',
-    category: 'Quick Actions',
-    href: '/inventory/raw',
-    icon: ClipboardList,
-  },
-  {
-    id: 'action-batch',
-    title: 'Start Cooking Batch',
-    subtitle: 'Launch a new smoking grill run with recipe ingredient deductions',
-    category: 'Quick Actions',
-    href: '/production/batches',
-    icon: Flame,
-  },
-]
 
 interface CommandMenuProps {
   isOpen: boolean
@@ -272,6 +41,19 @@ interface CommandMenuProps {
 
 export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate()
+  const {
+    rawProducts,
+    packagingProducts,
+    salesProducts,
+    productionBatches,
+    kitchenTasks,
+    packagingQueue,
+    logisticsDeliveries,
+    scheduledOrders,
+    riders,
+    websiteOrders,
+  } = useSmokeyOps()
+
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -286,17 +68,261 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
     }
   }, [isOpen])
 
+  // Build tailored command items list reflecting authentic live operational state
+  const commandItems = useMemo<CommandItem[]>(() => {
+    // 1. Core Pages strictly matching operational navigation
+    const pages: CommandItem[] = [
+      {
+        id: 'page-overview',
+        title: 'Operations Overview',
+        subtitle: 'Live kitchen canvas, multi-stage order tracking, and sales analytics',
+        category: 'Pages',
+        href: '/overview',
+        icon: Sparkles,
+      },
+      {
+        id: 'page-website-orders',
+        title: 'Website Orders',
+        subtitle: 'Customer storefront orders, Paystack payment verification, and dispatch intake',
+        category: 'Pages',
+        href: '/sales/orders',
+        icon: ShoppingBag,
+        badge: `${websiteOrders.length} Orders`,
+      },
+      {
+        id: 'page-sales-inventory',
+        title: 'Sales Inventory',
+        subtitle: 'Finished smoked guineafowl, chicken, gizzard & palmwine ready for sale',
+        category: 'Pages',
+        href: '/inventory/sales',
+        icon: Layers,
+        badge: `${salesProducts.length} Items`,
+      },
+      {
+        id: 'page-raw-inventory',
+        title: 'Raw Inventory',
+        subtitle: 'Fresh poultry, rabbit, spices, firewood, and safety reorder tracking',
+        category: 'Pages',
+        href: '/inventory/raw',
+        icon: Boxes,
+        badge: `${rawProducts.length} SKUs`,
+      },
+      {
+        id: 'page-packaging-materials',
+        title: 'Packaging Materials',
+        subtitle: 'Branded polybags, brown bags, size 8/12 nylon, and central store stock',
+        category: 'Pages',
+        href: '/inventory/packaging',
+        icon: Package,
+        badge: `${packagingProducts.length} Items`,
+      },
+      {
+        id: 'page-stock-movements',
+        title: 'Stock Movements',
+        subtitle: 'Audit log of kitchen consumption, stock intake, and balance adjustments',
+        category: 'Pages',
+        href: '/inventory/movements',
+        icon: FileText,
+      },
+      {
+        id: 'page-suppliers',
+        title: 'Suppliers & Vendors',
+        subtitle: 'Verified poultry farms, spice vendors, and packaging suppliers',
+        category: 'Pages',
+        href: '/inventory/suppliers',
+        icon: Building2,
+      },
+      {
+        id: 'page-batches',
+        title: 'Production Batches',
+        subtitle: 'Active smoking batches, cooking yields, core temperature QC sign-offs',
+        category: 'Pages',
+        href: '/production/batches',
+        icon: Flame,
+        badge: `${productionBatches.filter(b => b.status === 'in_production').length} Active`,
+      },
+      {
+        id: 'page-packaging-exec',
+        title: 'Packaging Execution',
+        subtitle: 'Order packaging queue, bag allocation, and dispatch bay staging',
+        category: 'Pages',
+        href: '/production/packaging',
+        icon: Package,
+        badge: `${packagingQueue.filter(q => q.order_status !== 'packaged').length} Due`,
+      },
+      {
+        id: 'page-tasks',
+        title: 'Kitchen Tasks',
+        subtitle: 'Daily food hygiene checklists, temperature logs, and prep tasks',
+        category: 'Pages',
+        href: '/production/tasks',
+        icon: ClipboardList,
+        badge: `${kitchenTasks.filter(t => t.status !== 'done').length} Tasks`,
+      },
+      {
+        id: 'page-board',
+        title: 'Dispatch Board',
+        subtitle: 'Real-time order dispatch, in-house rider assignment, waybill slips',
+        category: 'Pages',
+        href: '/logistics/board',
+        icon: Truck,
+        badge: `${logisticsDeliveries.filter(d => ['pending', 'assigned', 'in_transit'].includes(d.status)).length} Active`,
+      },
+      {
+        id: 'page-schedule',
+        title: 'Delivery Schedule',
+        subtitle: 'Scheduled pre-orders, corporate event slots, and advance delivery dates',
+        category: 'Pages',
+        href: '/logistics/schedule',
+        icon: Calendar,
+        badge: `${scheduledOrders.length} Scheduled`,
+      },
+      {
+        id: 'page-riders',
+        title: 'In-House Riders & Delivery Team',
+        subtitle: 'In-house riders, daily delivery payouts, and cash remittance check-in',
+        category: 'Pages',
+        href: '/logistics/riders',
+        icon: Users,
+        badge: `${riders.length} Riders`,
+      },
+      {
+        id: 'page-pickup',
+        title: 'Store Pickup Counter',
+        subtitle: 'Walk-in and takeaway customer order handovers at kitchen hub',
+        category: 'Pages',
+        href: '/logistics/pickup',
+        icon: Building2,
+      },
+      {
+        id: 'page-3pl',
+        title: 'Third-Party Delivery',
+        subtitle: 'Third-party riders (Uber, Bolt, GIG) tracking and fee verification',
+        category: 'Pages',
+        href: '/logistics/third-party',
+        icon: Truck,
+      },
+      {
+        id: 'page-accounts',
+        title: 'Staff Accounts & Access Controls',
+        subtitle: 'Administrator management of roles, shift permissions, and KYC profiles',
+        category: 'Pages',
+        href: '/accounts',
+        icon: ShieldCheck,
+      },
+      {
+        id: 'page-offices',
+        title: 'Operating Offices & Hubs',
+        subtitle: 'Kitchen depots, dispatch hubs, and workspace branch locations',
+        category: 'Pages',
+        href: '/offices',
+        icon: Building2,
+      },
+    ]
+
+    // 2. Focused Quick Actions tailored to daily food operations
+    const quickActions: CommandItem[] = [
+      {
+        id: 'action-receive',
+        title: 'Log Received Raw Delivery',
+        subtitle: 'Record supplier intake of fresh poultry, firewood, or seasonings',
+        category: 'Quick Actions',
+        href: '/inventory/raw',
+        icon: PlusCircle,
+      },
+      {
+        id: 'action-stockcheck',
+        title: 'Physical Stock Count',
+        subtitle: 'Perform daily inventory audit and log actual vs recorded counts',
+        category: 'Quick Actions',
+        href: '/inventory/raw',
+        icon: ClipboardList,
+      },
+      {
+        id: 'action-start-batch',
+        title: 'Start Production Batch',
+        subtitle: 'Launch a new smoking run with recipe ingredient deductions',
+        category: 'Quick Actions',
+        href: '/production/batches',
+        icon: Flame,
+      },
+      {
+        id: 'action-assign-rider',
+        title: 'Assign Rider to Delivery',
+        subtitle: 'Hand over packaged orders to in-house or third-party riders',
+        category: 'Quick Actions',
+        href: '/logistics/board',
+        icon: Truck,
+      },
+    ]
+
+    // 3. Real Inventory SKUs from live stock
+    const skuItems: CommandItem[] = [
+      ...rawProducts.slice(0, 5).map(r => ({
+        id: `sku-raw-${r.id}`,
+        title: r.name,
+        subtitle: `${r.sku} • Raw Material • ${r.stock_qty} ${r.unit} on hand`,
+        category: 'Inventory & SKUs' as const,
+        href: '/inventory/raw',
+        icon: Boxes,
+        badge: r.stock_qty <= (r.reorder_level || 10) ? 'Low Stock' : `${formatNaira(r.unit_cost)}/${r.unit}`,
+      })),
+      ...packagingProducts.slice(0, 3).map(p => ({
+        id: `sku-pkg-${p.id}`,
+        title: p.name,
+        subtitle: `${p.sku} • Packaging Material • ${p.stock_qty} ${p.unit} in store`,
+        category: 'Inventory & SKUs' as const,
+        href: '/inventory/packaging',
+        icon: Package,
+        badge: `${formatNaira(p.unit_cost)}`,
+      })),
+      ...salesProducts.slice(0, 4).map(sp => ({
+        id: `sku-sales-${sp.id}`,
+        title: sp.name,
+        subtitle: `${sp.sku} • Finished Product • ${sp.stock_qty} units ready`,
+        category: 'Inventory & SKUs' as const,
+        href: '/inventory/sales',
+        icon: Layers,
+        badge: formatNaira(sp.selling_price),
+      })),
+    ]
+
+    // 4. Real Recent Orders from operational queue
+    const orderItems: CommandItem[] = websiteOrders.slice(0, 4).map(ord => ({
+      id: `order-live-${ord.id}`,
+      title: `Order #${ord.order_ref || ord.id}: ${ord.customer_name}`,
+      subtitle: `${formatNaira(ord.total_amount)} • ${ord.address || 'Lagos'} • ${ord.channel || 'Storefront'}`,
+      category: 'Deliveries & Orders' as const,
+      href: '/sales/orders',
+      icon: Truck,
+      badge: ord.fulfillment_status?.replace(/_/g, ' ').toUpperCase() || 'CONFIRMED',
+    }))
+
+    return [...quickActions, ...pages, ...skuItems, ...orderItems]
+  }, [
+    rawProducts,
+    packagingProducts,
+    salesProducts,
+    productionBatches,
+    kitchenTasks,
+    packagingQueue,
+    logisticsDeliveries,
+    scheduledOrders,
+    riders,
+    websiteOrders,
+  ])
+
   // Filter items matching query
   const filteredItems = useMemo(() => {
-    if (!query.trim()) return COMMAND_INDEX
+    if (!query.trim()) return commandItems
     const q = query.toLowerCase().trim()
-    return COMMAND_INDEX.filter(
+    return commandItems.filter(
       item =>
         item.title.toLowerCase().includes(q) ||
         (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
         item.category.toLowerCase().includes(q)
     )
-  }, [query])
+  }, [query, commandItems])
 
   // Reset selectedIndex when filter changes
   useEffect(() => {
