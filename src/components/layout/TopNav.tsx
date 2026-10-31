@@ -165,13 +165,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                           key={item.id}
                           className="p-3 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 text-zinc-900 dark:text-zinc-100 shadow-2xs hover:bg-zinc-100/60 dark:hover:bg-zinc-800/70 transition-colors flex items-start gap-3"
                         >
-                          <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 shadow-2xs mt-0.5 ${
-                            item.variant === 'error'
-                              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-900 text-rose-600 dark:text-rose-400'
-                              : item.variant === 'warning'
-                              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-900 text-amber-600 dark:text-amber-400'
-                              : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/80 dark:border-blue-900 text-blue-600 dark:text-blue-400'
-                          }`}>
+                          <div className="w-7 h-7 rounded-lg border border-zinc-200/90 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                             <IconComponent className="w-3.5 h-3.5 stroke-[1.75]" />
                           </div>
                           <div className="min-w-0 flex-1">
