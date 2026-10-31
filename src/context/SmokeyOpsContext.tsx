@@ -1161,16 +1161,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshLiveSalesProducts = React.useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsSalesProductsRefreshing(true)
     try {
-      const url = showIndicator ? '/api/products?refresh=1' : '/api/products'
-      const res = await fetch(url)
-      if (res.ok) {
-        const json = await res.json()
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = json.data.map(mapSupabaseProductToSalesProduct)
-          setLiveSalesProducts(mapped)
-          writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
-          return
+      try {
+        const url = showIndicator ? '/api/products?refresh=1' : '/api/products'
+        const res = await fetch(url)
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const json = await res.json()
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = json.data.map(mapSupabaseProductToSalesProduct)
+            setLiveSalesProducts(mapped)
+            writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
+            return
+          }
         }
+      } catch {
+        // Fallback to direct Supabase query when /api/products is unavailable
       }
 
       const { data, error } = await supabase
@@ -1197,13 +1201,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       let rawOrders: any[] = []
 
       // 1. Fast local API proxy (uses service role key and warm cache)
-      const url = showIndicator ? '/api/live-orders?refresh=1' : '/api/live-orders'
-      const res = await fetch(url)
-      if (res.ok) {
-        const json = await res.json()
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          rawOrders = json.data
+      try {
+        const url = showIndicator ? '/api/live-orders?refresh=1' : '/api/live-orders'
+        const res = await fetch(url)
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const json = await res.json()
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            rawOrders = json.data
+          }
         }
+      } catch {
+        // Fallback to direct Supabase query when /api/live-orders is unavailable
       }
 
       // 2. Direct Supabase query fallback

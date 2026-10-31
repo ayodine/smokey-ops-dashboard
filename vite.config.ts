@@ -106,8 +106,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       {
         name: 'supabase-api-dev-middleware',
-        async transformIndexHtml(html, ctx) {
-          if (!ctx.server) return html
+        async transformIndexHtml(html) {
           await ensureCacheWarm()
           const payload = JSON.stringify({
             liveOrders: serverCache.liveOrders || [],
@@ -121,7 +120,7 @@ export default defineConfig(({ mode }) => {
           }).replace(/</g, '\\u003c')
           return html.replace(
             '</head>',
-            `<script>window.__SMOKEY_LIVE_BOOTSTRAP__ = ${payload};</script></head>`
+            () => `<script>window.__SMOKEY_LIVE_BOOTSTRAP__ = ${payload};</script></head>`
           )
         },
         configureServer(server) {
