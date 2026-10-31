@@ -445,7 +445,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                             : 'text-kumo-subtle/30',
                           (isStart || isEnd)
                             ? cn(
-                                'bg-black text-white dark:bg-white dark:text-black font-semibold shadow-xs',
+                                'bg-[#c0201f] text-white font-semibold shadow-xs',
                                 isSingleDay 
                                   ? 'rounded-lg' 
                                   : isStart 
@@ -453,7 +453,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                     : 'rounded-r-lg'
                               )
                             : isBetween
-                              ? 'bg-black/10 text-black dark:bg-white/15 dark:text-white font-medium rounded-none'
+                              ? 'bg-[#c0201f]/10 text-[#c0201f] font-medium rounded-none'
                               : 'hover:bg-kumo-tint rounded-lg'
                         )}
                       >
@@ -518,7 +518,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <button
                 type="button"
                 onClick={handleApply}
-                className="px-6 py-2 text-xs font-semibold text-white bg-black hover:bg-zinc-800 active:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
+                className="px-6 py-2 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] rounded-lg shadow-xs cursor-pointer transition-colors"
               >
                 Apply
               </button>

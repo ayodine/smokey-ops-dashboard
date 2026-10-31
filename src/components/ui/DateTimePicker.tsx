@@ -317,7 +317,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         className={cn(
                           'py-1.5 px-1 text-xs rounded-lg transition-colors cursor-pointer font-medium',
                           y === year
-                            ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold'
+                            ? 'bg-[#c0201f] text-white font-bold shadow-xs'
                             : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                         )}
                       >
@@ -358,7 +358,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                               ? 'text-zinc-900 dark:text-zinc-100 font-normal'
                               : 'text-zinc-300 dark:text-zinc-700',
                             isSelected
-                              ? 'bg-[#18181b] text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
+                              ? 'bg-[#c0201f] text-white font-semibold shadow-xs'
                               : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                           )}
                         >
@@ -387,7 +387,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                     className={cn(
                       'w-full py-2 px-3 text-xs font-semibold rounded-xl border text-center transition-all cursor-pointer',
                       isTimeActive
-                        ? 'bg-[#18181b] text-white dark:bg-zinc-100 dark:text-zinc-900 border-[#18181b] dark:border-zinc-100 shadow-xs'
+                        ? 'bg-[#c0201f] text-white border-[#c0201f] font-semibold shadow-xs'
                         : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850'
                     )}
                   >

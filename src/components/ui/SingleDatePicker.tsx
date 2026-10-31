@@ -260,7 +260,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
                     className={cn(
                       'py-1.5 px-1 text-xs rounded-lg transition-colors cursor-pointer font-medium',
                       y === year
-                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold'
+                        ? 'bg-[#c0201f] text-white font-bold shadow-xs'
                         : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                     )}
                   >
@@ -301,7 +301,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
                           ? 'text-zinc-900 dark:text-zinc-100 font-normal'
                           : 'text-zinc-300 dark:text-zinc-700',
                         isSelected
-                          ? 'bg-[#18181b] text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
+                          ? 'bg-[#c0201f] text-white font-semibold shadow-xs'
                           : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                       )}
                     >
@@ -325,7 +325,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-[#18181b] hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] rounded-lg shadow-xs cursor-pointer transition-colors"
             >
               Apply
             </button>
