@@ -201,17 +201,28 @@ export const StorePickupPage: React.FC = () => {
         isOpen={isCollectModalOpen}
         onClose={() => setIsCollectModalOpen(false)}
         title={`Confirm Handover: ${selectedPickup?.order_ref}`}
-        description="Verify identity of customer collecting meal package at the hub."
+        description="Verify identity of customer collecting meal package at the central store."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsCollectModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="confirm-handover-form">
+              Confirm Handover
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmCollect} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded text-xs space-y-1.5">
-            <div className="flex justify-between items-center font-sans">
-              <span className="text-kumo-subtle font-medium">Order Meals:</span>
-              <span className="font-semibold text-kumo-strong text-sm">{selectedPickup?.items_summary}</span>
+        <form id="confirm-handover-form" onSubmit={handleConfirmCollect} className="space-y-4">
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+            <div className="flex justify-between items-start gap-3">
+              <span className="text-kumo-subtle shrink-0">Order Meals:</span>
+              <span className="font-semibold text-kumo-strong text-right text-xs sm:text-[13px]">{selectedPickup?.items_summary}</span>
             </div>
-            <div className="flex justify-between items-center font-sans">
-              <span className="text-kumo-subtle font-medium">Amount Paid:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-sm">{formatNaira(selectedPickup?.total_amount || 0)}</span>
+            <div className="flex justify-between items-center pt-1 border-t border-kumo-line/60">
+              <span className="text-kumo-subtle">Amount Paid:</span>
+              <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-[13px]">{formatNaira(selectedPickup?.total_amount || 0)}</span>
             </div>
           </div>
 
@@ -221,6 +232,7 @@ export const StorePickupPage: React.FC = () => {
             value={collectedByName}
             onChange={(e) => setCollectedByName(e.target.value)}
             required
+            autoFocus
           />
 
           <Input
@@ -238,15 +250,6 @@ export const StorePickupPage: React.FC = () => {
             onChange={(e) => setHandoverStaff(e.target.value)}
             required
           />
-
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line font-sans w-full">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsCollectModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm Handover
-            </Button>
-          </div>
         </form>
       </Dialog>
 
