@@ -7,6 +7,9 @@ import {
   Download,
   Trash2,
   Key,
+  Eye,
+  EyeOff,
+  RefreshCw,
   ShieldCheck,
   Shield,
   UserPlus,
@@ -757,6 +760,7 @@ export const ManageAccountsPage: React.FC = () => {
   // Change Password Form State
   const [newPasswordVal, setNewPasswordVal] = useState('')
   const [requirePassReset, setRequirePassReset] = useState(true)
+  const [showResetPassword, setShowResetPassword] = useState(false)
 
   // Real SmokeyOps Operational Policy Categories matching core modules
   const policyCategoryGroups = useMemo<PolicyCategoryGroup[]>(() => {
@@ -3895,59 +3899,83 @@ export const ManageAccountsPage: React.FC = () => {
         title="Reset Operator Password"
         description={`Set a new secure access credential for ${accountToChangePassword?.name}.`}
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setAccountToChangePassword(null)}
+              className="h-9 px-4 text-[13px] font-medium"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form="reset-password-form"
+              className="h-9 px-4 text-[13px] font-semibold"
+            >
+              Update Password
+            </Button>
+          </div>
+        }
       >
         {accountToChangePassword && (
-          <form onSubmit={handleSavePassword} className="space-y-4 font-sans text-left">
-            <div className="space-y-1.5">
-              <label className="block text-[12px] font-semibold text-kumo-strong leading-4">New Password</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={newPasswordVal}
-                  onChange={(e) => setNewPasswordVal(e.target.value)}
-                  className="w-full h-10 pl-3 pr-20 rounded-lg border border-kumo-line bg-kumo-base text-[14px] font-sans text-kumo-strong focus:outline-none focus:border-kumo-brand"
-                />
+          <form id="reset-password-form" onSubmit={handleSavePassword} className="space-y-4 font-sans text-left">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 leading-4">
+                  New Password <span className="text-primary">*</span>
+                </label>
                 <button
                   type="button"
                   onClick={() => setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary hover:underline font-medium cursor-pointer"
+                  className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  Generate
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Generate</span>
                 </button>
               </div>
+              <div className="relative">
+                <input
+                  type={showResetPassword ? 'text' : 'password'}
+                  required
+                  value={newPasswordVal}
+                  onChange={(e) => setNewPasswordVal(e.target.value)}
+                  placeholder="Enter or generate new password"
+                  className="w-full h-10 pl-3.5 pr-10 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 text-[13px] font-mono text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 cursor-pointer transition-colors"
+                  aria-label={showResetPassword ? "Hide password" : "Show password"}
+                >
+                  {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                Minimum 8 characters. Recommended to include letters, numbers, and symbols.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <label htmlFor="requireReset" className="flex items-start gap-2.5 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-700/60 cursor-pointer select-none">
               <input
                 type="checkbox"
                 id="requireReset"
                 checked={requirePassReset}
                 onChange={(e) => setRequirePassReset(e.target.checked)}
-                className="rounded border-kumo-line text-primary focus:ring-primary size-3.5"
+                className="mt-0.5 rounded border-zinc-300 dark:border-zinc-600 text-[#c0201f] focus:ring-[#c0201f] size-4 cursor-pointer"
               />
-              <label htmlFor="requireReset" className="text-[13px] text-kumo-default cursor-pointer select-none">
-                Require password change upon next login
-              </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-kumo-line">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setAccountToChangePassword(null)}
-                className="h-10 px-4 text-[13px]"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                type="submit"
-                className="h-10 px-4 text-[13px] font-semibold"
-              >
-                Update Password
-              </Button>
-            </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 block">
+                  Require password change upon next login
+                </span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-0.5">
+                  Forces the operator to set their own custom private password when they authenticate.
+                </span>
+              </div>
+            </label>
           </form>
         )}
       </Dialog>
@@ -3961,37 +3989,38 @@ export const ManageAccountsPage: React.FC = () => {
         title="Remove Team Member"
         description="Are you sure you want to permanently remove this operator account? Access privileges will be revoked immediately."
         maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setAccountToDelete(null)}
+              className="h-9 px-4 text-[13px] font-medium"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={handleConfirmDelete}
+              className="h-9 px-4 text-[13px] font-semibold"
+            >
+              Confirm Delete
+            </Button>
+          </div>
+        }
       >
         {accountToDelete && (
           <div className="space-y-4 font-sans text-left">
             <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div className="text-red-900 dark:text-red-200">
-                <p className="font-semibold text-[16px]">{accountToDelete.name}</p>
+                <p className="font-semibold text-[15px]">{accountToDelete.name}</p>
                 <p className="text-[13px] opacity-80">{accountToDelete.email}</p>
                 <p className="text-[13px] opacity-80 mt-1">
                   Assigned role: <strong>{accountToDelete.roleLabel}</strong>
                 </p>
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-kumo-line">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setAccountToDelete(null)}
-                className="h-10 px-4 text-[13px]"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                type="button"
-                onClick={handleConfirmDelete}
-                className="h-10 px-4 text-[13px] font-semibold"
-              >
-                Confirm Delete
-              </Button>
             </div>
           </div>
         )}
