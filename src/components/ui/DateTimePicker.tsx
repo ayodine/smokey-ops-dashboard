@@ -266,7 +266,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
         <div
           ref={popoverRef}
           style={{ top: popoverCoords.top, left: popoverCoords.left, width: popoverCoords.width }}
-          className="fixed rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl p-0 font-sans z-[100] animate-in fade-in zoom-in-95 select-none overflow-hidden"
+          className="fixed rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-0 font-sans z-[100] animate-in fade-in zoom-in-95 select-none overflow-hidden"
         >
           {/* Main 2-column layout: Left Calendar + Right Time List */}
           <div className="flex divide-x divide-zinc-200 dark:divide-zinc-800">
@@ -353,7 +353,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                           type="button"
                           onClick={() => setSelectedDate(cell.date)}
                           className={cn(
-                            'h-8 w-full flex items-center justify-center text-xs rounded-xl transition-colors cursor-pointer',
+                            'h-8 w-full flex items-center justify-center text-xs rounded-lg transition-colors cursor-pointer',
                             cell.isCurrentMonth
                               ? 'text-zinc-900 dark:text-zinc-100 font-normal'
                               : 'text-zinc-300 dark:text-zinc-700',
@@ -385,7 +385,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                     data-active={isTimeActive}
                     onClick={() => setSelectedTime(time)}
                     className={cn(
-                      'w-full py-2 px-3 text-xs font-semibold rounded-xl border text-center transition-all cursor-pointer',
+                      'w-full py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all cursor-pointer font-sans',
                       isTimeActive
                         ? 'bg-[#c0201f] text-white border-[#c0201f] font-semibold shadow-xs'
                         : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850'
@@ -412,7 +412,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
             <button
               type="button"
               onClick={handleApply}
-              className="px-4 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl shadow-2xs transition-colors cursor-pointer shrink-0"
+              className="px-4 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
             >
               {confirmLabel}
             </button>

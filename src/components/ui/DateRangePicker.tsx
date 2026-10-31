@@ -343,7 +343,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           />
           <div
             style={{ top: popoverCoords.top, left: popoverCoords.left }}
-            className="fixed w-[540px] max-w-[95vw] rounded-2xl border border-kumo-line bg-kumo-base shadow-2xl p-4 font-sans space-y-4 z-[100] animate-in fade-in zoom-in-95"
+            className="fixed w-[540px] max-w-[95vw] rounded-xl border border-kumo-line bg-kumo-base shadow-xl p-4 font-sans space-y-4 z-[100] animate-in fade-in zoom-in-95"
           >
             {/* Popover caret pointing up */}
             <div className="absolute -top-2 left-24 w-3.5 h-3.5 bg-kumo-base border-t border-l border-kumo-line rotate-45" />
