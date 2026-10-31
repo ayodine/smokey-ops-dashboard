@@ -192,7 +192,7 @@ export const StockMovementsPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Stock Movements & Store Transfer Ledger"
-        subtitle="Complete ledger of what was dished out from the Central Store to packaging and production, what was used, and what was returned at EOD."
+        subtitle="Complete ledger of what was dispatched from the Central Store to packaging and production, what was used, and what was returned at EOD."
       />
 
       {/* KPI Strip */}

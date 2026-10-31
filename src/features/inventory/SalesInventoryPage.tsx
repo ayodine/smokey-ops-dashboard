@@ -61,7 +61,7 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
     inventory_value: stock * price,
     is_active: p.is_active !== false ? 1 : 0,
     image: p.image || null,
-    category_name: p.category_id || 'Dish'
+    category_name: p.category_id || 'Product'
   }
 }
 
@@ -395,7 +395,7 @@ export const SalesInventoryPage: React.FC = () => {
     },
     {
       key: 'name',
-      header: 'Sales Item / Dish',
+      header: 'Sales Item / Product',
       defaultWidth: 220,
       accessor: (p) => (
         <div className="font-sans">
@@ -491,7 +491,7 @@ export const SalesInventoryPage: React.FC = () => {
               Adjust
             </TableActionButton>
           </Tooltip>
-          <Tooltip content="Edit dish pricing and reorder levels">
+          <Tooltip content="Edit product pricing and reorder levels">
             <TableActionButton
               variant="primary"
               onClick={() => handleOpenEdit(p)}
@@ -575,7 +575,7 @@ export const SalesInventoryPage: React.FC = () => {
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <MetricCard
-          title="Total Finished Dishes"
+          title="Total Finished Products"
           value={totalSKUs}
           description="Finished menu items"
           icon={<Package className="w-4 h-4 text-primary" />}
@@ -695,7 +695,7 @@ export const SalesInventoryPage: React.FC = () => {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         title={selectedProduct ? `Edit Product: ${selectedProduct.name}` : 'Register New Sales Product'}
-        description="Configure dish image, holding inventory, commercial pricing, and storefront availability."
+        description="Configure product image, holding inventory, commercial pricing, and storefront availability."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-end gap-2.5 w-full">
@@ -851,7 +851,7 @@ export const SalesInventoryPage: React.FC = () => {
                   Publish to Web Storefront
                 </span>
                 <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                  Dish will be visible and available for online orders when in-stock or baking
+                  Product will be visible and available for online orders when in-stock or baking
                 </span>
               </div>
               <Toggle
@@ -879,7 +879,7 @@ export const SalesInventoryPage: React.FC = () => {
           <Dialog
             isOpen={isDetailsModalOpen}
             onClose={() => setIsDetailsModalOpen(false)}
-            title={`Dish Details: ${p.name}`}
+            title={`Product Details: ${p.name}`}
             description="Physical holding inventory, active oven batches, and storefront availability."
             maxWidth="2xl"
             footer={
@@ -912,7 +912,7 @@ export const SalesInventoryPage: React.FC = () => {
                     }}
                     leftIcon={<Plus className="w-3.5 h-3.5" />}
                   >
-                    Edit Dish & Pricing
+                    Edit Product & Pricing
                   </Button>
                 </div>
               </div>
@@ -1052,7 +1052,7 @@ export const SalesInventoryPage: React.FC = () => {
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                      In-Flight Oven Batches Feeding This Dish
+                      In-Flight Oven Batches Feeding This Product
                     </span>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">
                       {activeBatches.length} active run{activeBatches.length === 1 ? '' : 's'}

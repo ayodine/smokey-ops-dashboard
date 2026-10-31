@@ -869,12 +869,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const isInTransit = o.delivery_status === 'in_transit' || o.delivery_status === 'assigned'
 
           const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-            ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join('; ')
+            ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
             : (o.items_summary || 'Assorted Smokey Delicacies')
 
           const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
             ? o.order_items.map((i: any) => ({
-                product_name: i.name || 'Smokey Dish',
+                product_name: i.name || 'Smokey Product',
                 quantity: Number(i.qty) || 1,
                 unit_price: Number(i.price) || 0,
                 line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
@@ -1654,7 +1654,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       details: [
         { label: 'Batch Reference', value: batchRef },
         { label: 'Source Lot', value: `${lot.lot_number} (Exp: ${lot.expiry_date})` },
-        { label: 'Target Finished Dish', value: targetDishName },
+        { label: 'Target Finished Product', value: targetDishName },
         { label: 'Quantity Prepped', value: `${actualQty} ${lot.unit}` },
         { label: 'Assigned Supervisor', value: finalSupervisor },
         { label: 'Kitchen Status', value: 'In Production (Cooking Started)' }
@@ -2471,7 +2471,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         : `Batch formulated for ${outputProductName}. Raw ingredients allocated from inventory.`,
       details: [
         { label: 'Batch Ref', value: batchRef },
-        { label: 'Target Dish', value: outputProductName },
+        { label: 'Target Product', value: outputProductName },
         { label: 'Planned Output', value: `${expectedOutput} portions` },
         { label: 'Target Completion', value: estimated_ready_time || defaultReadyTime },
         { label: 'Website Buffer Feed', value: feed_sales_inventory ? `+${expectedOutput} Units Bookable Online` : 'Internal Prep Only' },
@@ -2510,7 +2510,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       message: `Verified actual yield deposited into Physical Sales Inventory. Estimated incoming buffer has been converted to ready stock.`,
       details: [
         { label: 'Batch Ref', value: batch.batch_ref },
-        { label: 'Finished Dish', value: batch.output_product_name },
+        { label: 'Finished Product', value: batch.output_product_name },
         { label: 'Estimated Batch Buffer', value: `${batch.expected_output} portions (Reconciled)` },
         { label: 'Actual Physical Deposited', value: `+${actualOutput} portions` },
         { label: 'Cooking Shrinkage / Loss', value: `${wastage} portions` },

@@ -1476,7 +1476,7 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
             <Select
-              label="Target Finished Dish"
+              label="Target Finished Product"
               value={prioritizeDish}
               onChange={(e) => setPrioritizeDish(e.target.value)}
               options={salesProducts.map(p => ({

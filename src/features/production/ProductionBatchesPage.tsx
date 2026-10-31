@@ -463,7 +463,7 @@ export const ProductionBatchesPage: React.FC = () => {
     saveCustomRecipeTemplate({
       version_name: templateVersionName.trim(),
       output_product_id: selectedOutputProduct,
-      output_product_name: targetProduct?.name || 'Dish',
+      output_product_name: targetProduct?.name || 'Product',
       standard_batch_size: expectedOutput,
       standard_yield_percent: 100,
       unit: targetProduct?.unit || 'PIECES',
@@ -524,7 +524,7 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'output_product_name',
-      header: 'Target Finished Dish',
+      header: 'Target Finished Product',
       accessor: (b) => (
         <div>
           <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
@@ -1131,7 +1131,7 @@ export const ProductionBatchesPage: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         title="Start Cooking Batch (Recipe & Ingredients)"
-        description="Select the dish to cook, target output portions, and choose raw ingredients to use."
+        description="Select the product to cook, target output portions, and choose raw ingredients to use."
         maxWidth="3xl"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1567,7 +1567,7 @@ export const ProductionBatchesPage: React.FC = () => {
 
               <div className="space-y-2.5 pt-1">
                 <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Target Dish</span>
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Target Product</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedBatch?.output_product_name}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
@@ -1646,7 +1646,7 @@ export const ProductionBatchesPage: React.FC = () => {
 
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
             <div className="flex justify-between">
-              <span className="text-kumo-subtle">Target Finished Dish:</span>
+              <span className="text-kumo-subtle">Target Finished Product:</span>
               <span className="font-semibold text-kumo-strong">
                 {salesProducts.find(p => p.id === selectedOutputProduct)?.name}
               </span>
@@ -1705,7 +1705,7 @@ export const ProductionBatchesPage: React.FC = () => {
             )}
 
             <Select
-              label="Target Finished Dish"
+              label="Target Finished Product"
               value={editBatchForm.output_product_id}
               onChange={(e) => setEditBatchForm(prev => ({ ...prev, output_product_id: Number(e.target.value) }))}
               options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
@@ -1884,7 +1884,7 @@ export const ProductionBatchesPage: React.FC = () => {
           className="space-y-4 font-sans max-h-[60vh] overflow-y-auto pr-1"
         >
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1">
-            <span className="text-kumo-subtle font-medium">Target Dish:</span>
+            <span className="text-kumo-subtle font-medium">Target Product:</span>
             <div className="font-semibold text-kumo-strong text-sm">
               {templateToEdit?.output_product_name}
             </div>
@@ -2176,7 +2176,7 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
 
             <Select
-              label="Target Product / Dish"
+              label="Target Product"
               value={allocTargetProduct}
               onChange={(e) => setAllocTargetProduct(e.target.value)}
               options={[

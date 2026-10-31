@@ -643,7 +643,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
     const matches: Array<{
       order: PipelineOrder
-      matchType: 'customer' | 'id' | 'dish' | 'address' | 'payment'
+      matchType: 'customer' | 'id' | 'product' | 'address' | 'payment'
       score: number
     }> = []
 
@@ -656,7 +656,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       const payLower = order.paymentRef.toLowerCase()
 
       let score = 0
-      let matchType: 'customer' | 'id' | 'dish' | 'address' | 'payment' = 'customer'
+      let matchType: 'customer' | 'id' | 'product' | 'address' | 'payment' = 'customer'
 
       // Exact Order ID match (Highest priority for technical index searches)
       if (idLower === q || idNum === q) {
@@ -683,10 +683,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         score += 60
         matchType = 'customer'
       }
-      // Dish name match
+      // Product name match
       else if (dishLower.includes(q)) {
         score += 45
-        matchType = 'dish'
+        matchType = 'product'
       }
       // Address match
       else if (addrLower.includes(q)) {

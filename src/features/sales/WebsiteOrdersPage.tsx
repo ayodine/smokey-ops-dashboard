@@ -104,7 +104,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   }
 
   const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
-    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Dish'}`).join(' + ')
+    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join(' + ')
     : 'Assorted Smokey Delicacies'
 
   let channel = 'Website Storefront'
@@ -292,7 +292,7 @@ export const WebsiteOrdersPage: React.FC = () => {
       } else if (o.phone.toLowerCase().includes(q)) {
         map.set(o.id, { order: o, matchType: 'Phone', matchedValue: o.phone })
       } else if (o.items_summary.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Dish', matchedValue: o.items_summary })
+        map.set(o.id, { order: o, matchType: 'Product', matchedValue: o.items_summary })
       } else if (o.address.toLowerCase().includes(q)) {
         map.set(o.id, { order: o, matchType: 'Address', matchedValue: o.address })
       } else if (o.notes.toLowerCase().includes(q)) {
@@ -738,7 +738,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               if (searchQuery.trim().length > 0) setIsSearchOpen(true)
             }}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search orders as far back as database inception (Order ID, Customer, Phone, Dish, Address)..."
+            placeholder="Search orders as far back as database inception (Order ID, Customer, Phone, Product, Address)..."
             className="w-full h-11 pl-10 pr-24 rounded-xl border border-kumo-line bg-kumo-card text-xs sm:text-sm text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-zinc-400/20 focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs font-sans"
           />
 
@@ -872,7 +872,7 @@ export const WebsiteOrdersPage: React.FC = () => {
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           title={`Order Details: ${selectedOrder.order_ref}`}
-          description="Detailed customer information, ordered dish breakdown, and real-time fulfillment timeline."
+          description="Detailed customer information, ordered product breakdown, and real-time fulfillment timeline."
           maxWidth="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -1037,11 +1037,11 @@ export const WebsiteOrdersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section 3: Ordered Dishes */}
+              {/* Section 3: Ordered Products */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                    Ordered Dishes
+                    Ordered Products
                   </span>
                   <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                     {selectedOrder.raw_items && selectedOrder.raw_items.length > 0
@@ -1059,7 +1059,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                             <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                               {item.qty || 1}x
                             </span>
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{item.name || 'Smokey Dish'}</span>
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{item.name || 'Smokey Product'}</span>
                           </div>
                           {item.price && (
                             <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1071,10 +1071,10 @@ export const WebsiteOrdersPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {selectedOrder.items_summary.split(' + ').map((dish, idx) => (
+                      {selectedOrder.items_summary.split(' + ').map((product, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-[13px] text-zinc-900 dark:text-zinc-100 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
-                          <span>{dish.trim()}</span>
+                          <span>{product.trim()}</span>
                         </div>
                       ))}
                     </div>
