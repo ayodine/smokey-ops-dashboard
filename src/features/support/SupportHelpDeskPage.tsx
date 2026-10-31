@@ -1491,7 +1491,7 @@ export const SupportHelpDeskPage: React.FC = () => {
       </Dialog>
 
       {/* =========================================================================
-          MODAL 6: VIEW TICKET DETAILS
+          MODAL 6: VIEW TICKET DETAILS (Matching Order Details Master Card Container from Image 2)
          ========================================================================= */}
       <Dialog
         isOpen={activeModal === 'view-ticket' && !!selectedTicket}
@@ -1499,11 +1499,11 @@ export const SupportHelpDeskPage: React.FC = () => {
           setActiveModal('none')
           setSelectedTicket(null)
         }}
-        title={`Ticket ${selectedTicket?.id}`}
-        description={`${selectedTicket?.category} • ${selectedTicket?.facility}`}
-        maxWidth="lg"
+        title={`Ticket Details: ${selectedTicket?.id}`}
+        description="Detailed operational case record, severity indicators, and resolution progress."
+        maxWidth="2xl"
         footer={
-          <div className="flex justify-end w-full">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               size="md"
@@ -1514,52 +1514,106 @@ export const SupportHelpDeskPage: React.FC = () => {
             >
               Close
             </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                setActiveModal('none')
+                setSelectedTicket(null)
+              }}
+            >
+              Acknowledge & Close
+            </Button>
           </div>
         }
       >
         {selectedTicket && (
-          <div className="space-y-4 text-xs font-sans">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
-              <div>
-                <span className="text-[10px] uppercase font-semibold text-zinc-400 block">Status</span>
-                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">
-                  {selectedTicket.status}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-semibold text-zinc-400 block">Priority</span>
-                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">
-                  {selectedTicket.priority}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-semibold text-zinc-400 block">Date Logged</span>
-                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">
-                  {selectedTicket.createdAt}
-                </span>
-              </div>
-            </div>
+          <div className="space-y-4 font-sans text-xs">
+            {/* Master Divided Card Container (Desaturated Grey matching Image 2 Reference) */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              
+              {/* Section 1: Ticket Information */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Ticket Information
+                  </span>
+                </div>
 
-            <div className="space-y-1">
-              <h4 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Subject</h4>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {selectedTicket.subject}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Statement / Details</h4>
-              <div className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
-                {selectedTicket.description}
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Ticket Reference</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{selectedTicket.id}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Date & Time Logged</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedTicket.createdAt}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Status</span>
+                    <div className="flex items-center">
+                      {selectedTicket.status === 'Resolved' && <StatusBadge status="RESOLVED" label="resolved" size="sm" />}
+                      {selectedTicket.status === 'In Progress' && <StatusBadge status="IN_PROGRESS" label="in-progress" size="sm" />}
+                      {selectedTicket.status === 'Under Review' && <StatusBadge status="UNDER_REVIEW" label="under-review" size="sm" />}
+                    </div>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Priority</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                      {selectedTicket.priority}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Facility / Station</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedTicket.facility}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Type & Category</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedTicket.type} • {selectedTicket.category}
+                    </span>
+                  </div>
+                  {selectedTicket.reporter && (
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Reported By</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedTicket.reporter}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {selectedTicket.filesCount !== undefined && selectedTicket.filesCount > 0 && (
-              <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                <FileText className="w-4 h-4 text-zinc-500" />
-                <span>{selectedTicket.filesCount} file attachment(s) uploaded with this case</span>
+              {/* Section 2: Subject */}
+              <div className="p-4 space-y-2">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Subject
+                </span>
+                <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {selectedTicket.subject}
+                </p>
               </div>
-            )}
+
+              {/* Section 3: Statement & Details */}
+              <div className="p-4 space-y-2">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                  Statement / Details
+                </span>
+                <div className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/40 text-xs text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                  {selectedTicket.description}
+                </div>
+              </div>
+
+              {/* Section 4: File Attachments if present */}
+              {selectedTicket.filesCount !== undefined && selectedTicket.filesCount > 0 && (
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <FileText className="w-4 h-4 text-zinc-500 shrink-0" />
+                    <span>{selectedTicket.filesCount} file attachment(s) uploaded with this case</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Dialog>
