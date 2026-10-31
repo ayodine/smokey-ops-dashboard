@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { formatNaira, formatQuantity, formatDate } from '@/lib/utils'
+import { formatNaira, formatQuantity, formatDate, cn } from '@/lib/utils'
 import { 
   Package, 
   ShoppingBag, 
@@ -82,8 +82,10 @@ export const PackagingInventoryPage: React.FC = () => {
   const [adjustNote, setAdjustNote] = useState<string>('Damaged / torn during packing')
 
   // Requisition / Issue from Central Form
+  const [issueMode, setIssueMode] = useState<'single' | 'multiple'>('multiple')
   const [issueProductId, setIssueProductId] = useState<number>(packagingProducts[0]?.id || 93)
   const [issueQty, setIssueQty] = useState<number>(50)
+  const [issueMultipleEntries, setIssueMultipleEntries] = useState<Array<{ productId: number; quantity: number }>>([])
   const [issuedTo, setIssuedTo] = useState<string>('Packaging Bench Shift Crew')
   const [issueNotes, setIssueNotes] = useState<string>('Stock drawn from Central Store for daily order packing')
 
@@ -131,9 +133,20 @@ export const PackagingInventoryPage: React.FC = () => {
 
   const handleOpenIssueModal = (prod?: PackagingProduct) => {
     if (prod) {
+      setIssueMode('single')
       setIssueProductId(prod.id)
       const maxAvailable = prod.central_stock_qty ?? prod.stock_qty
       setIssueQty(Math.min(50, maxAvailable))
+    } else {
+      setIssueMode('multiple')
+      // Preload available items with central stock
+      const entries = packagingProducts
+        .filter(p => (p.central_stock_qty ?? p.stock_qty) > 0)
+        .map(p => ({
+          productId: p.id,
+          quantity: 0
+        }))
+      setIssueMultipleEntries(entries)
     }
     setIsIssueModalOpen(true)
   }
@@ -169,8 +182,18 @@ export const PackagingInventoryPage: React.FC = () => {
 
   const handleConfirmIssue = (e: React.FormEvent) => {
     e.preventDefault()
+    let itemsToIssue: Array<{ productId: number; quantity: number }> = []
+
+    if (issueMode === 'single') {
+      if (Number(issueQty) <= 0) return
+      itemsToIssue = [{ productId: Number(issueProductId), quantity: Number(issueQty) }]
+    } else {
+      itemsToIssue = issueMultipleEntries.filter(entry => entry.quantity > 0)
+      if (itemsToIssue.length === 0) return
+    }
+
     const success = issuePackagingFromCentral(
-      [{ productId: Number(issueProductId), quantity: Number(issueQty) }],
+      itemsToIssue,
       issuedTo,
       issueNotes
     )
@@ -677,7 +700,7 @@ export const PackagingInventoryPage: React.FC = () => {
         onClose={() => setIsIssueModalOpen(false)}
         title="Issue Packaging Stock to Packaging Bench"
         description="Withdraw packaging materials from the Central Store and transfer them to the Packaging Execution Bench."
-        maxWidth="lg"
+        maxWidth={issueMode === 'multiple' ? '2xl' : 'lg'}
         footer={
           <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsIssueModalOpen(false)}>
@@ -690,29 +713,142 @@ export const PackagingInventoryPage: React.FC = () => {
         }
       >
         <form id="issue-packaging-form" onSubmit={handleConfirmIssue} className="space-y-4 font-sans text-xs">
-          <Select
-            label="Select Packaging Material"
-            value={issueProductId}
-            onChange={(e) => {
-              const pid = Number(e.target.value)
-              setIssueProductId(pid)
-              const p = packagingProducts.find(x => x.id === pid)
-              if (p) setIssueQty(Math.min(50, p.central_stock_qty ?? p.stock_qty))
-            }}
-            options={packagingProducts.map(p => ({
-              value: p.id,
-              label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
-            }))}
-          />
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center justify-between pb-1 border-b border-kumo-line/60">
+            <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+              Issue Selection Mode
+            </span>
+            <div className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-100 dark:bg-zinc-850">
+              <button
+                type="button"
+                onClick={() => setIssueMode('multiple')}
+                className={cn(
+                  "px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                  issueMode === 'multiple'
+                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                )}
+              >
+                Multiple Materials
+              </button>
+              <button
+                type="button"
+                onClick={() => setIssueMode('single')}
+                className={cn(
+                  "px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                  issueMode === 'single'
+                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                )}
+              >
+                Single Material
+              </button>
+            </div>
+          </div>
 
-          <UnitInput
-            label="Quantity to Issue"
-            value={issueQty}
-            onChangeValue={setIssueQty}
-            unit={packagingProducts.find(p => p.id === issueProductId)?.unit || 'units'}
-            min={1}
-            required
-          />
+          {issueMode === 'single' ? (
+            /* Single Material Selection */
+            <div className="space-y-4">
+              <Select
+                label="Select Packaging Material"
+                value={issueProductId}
+                onChange={(e) => {
+                  const pid = Number(e.target.value)
+                  setIssueProductId(pid)
+                  const p = packagingProducts.find(x => x.id === pid)
+                  if (p) setIssueQty(Math.min(50, p.central_stock_qty ?? p.stock_qty))
+                }}
+                options={packagingProducts.map(p => ({
+                  value: p.id,
+                  label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
+                }))}
+              />
+
+              <UnitInput
+                label="Quantity to Issue"
+                value={issueQty}
+                onChangeValue={setIssueQty}
+                unit={packagingProducts.find(p => p.id === issueProductId)?.unit || 'units'}
+                min={1}
+                required
+              />
+
+              <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
+                <div className="flex justify-between">
+                  <span className="text-kumo-subtle">Central Store Stock After Issue:</span>
+                  <span className="font-mono font-semibold text-kumo-strong">
+                    {Math.max(0, (packagingProducts.find(p => p.id === issueProductId)?.central_stock_qty ?? 0) - issueQty)} units
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-kumo-subtle">Packaging Bench Stock After Issue:</span>
+                  <span className="font-mono font-semibold text-emerald-700">
+                    {(packagingProducts.find(p => p.id === issueProductId)?.bench_stock_qty ?? 0) + Number(issueQty)} units
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Multiple Material Selection - Master Divided Card Table */
+            <div className="space-y-2">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                  <div className="col-span-7">Central Store Material</div>
+                  <div className="col-span-5 text-right">Issue Qty to Bench</div>
+                </div>
+
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[300px] overflow-y-auto pr-0.5">
+                  {packagingProducts.map((p) => {
+                    const centralQty = p.central_stock_qty ?? p.stock_qty
+                    const benchQty = p.bench_stock_qty ?? 0
+                    const entry = issueMultipleEntries.find(e => e.productId === p.id)
+                    const currentQty = entry?.quantity || 0
+
+                    return (
+                      <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-4 py-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                        <div className="col-span-7 min-w-0">
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-[13px]">{p.name}</div>
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Central Reserve: <strong className="text-zinc-900 dark:text-zinc-100 font-medium">{centralQty} {p.unit}</strong> &bull; Bench: {benchQty}
+                          </div>
+                        </div>
+
+                        <div className="col-span-5 flex justify-end">
+                          <div className="w-32">
+                            <Input
+                              type="number"
+                              min="0"
+                              max={centralQty}
+                              placeholder="0"
+                              value={currentQty === 0 ? '' : currentQty}
+                              onChange={(e) => {
+                                const val = Number(e.target.value) || 0
+                                setIssueMultipleEntries((prev) => {
+                                  const exists = prev.find(x => x.productId === p.id)
+                                  if (exists) {
+                                    return prev.map(x => x.productId === p.id ? { ...x, quantity: Math.min(centralQty, Math.max(0, val)) } : x)
+                                  }
+                                  return [...prev, { productId: p.id, quantity: Math.min(centralQty, Math.max(0, val)) }]
+                                })
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Total items count indicator */}
+              <div className="flex justify-between items-center px-1 text-xs text-zinc-500 font-sans">
+                <span>Total Materials with Issue Quantities:</span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
+                  {issueMultipleEntries.filter(e => e.quantity > 0).length} items selected
+                </span>
+              </div>
+            </div>
+          )}
 
           <Input
             label="Recipient / Shift Crew"
@@ -728,21 +864,6 @@ export const PackagingInventoryPage: React.FC = () => {
             onChange={(e) => setIssueNotes(e.target.value)}
             placeholder="e.g. Daily shift replenishment for takeout orders"
           />
-
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle">Central Store Stock After Issue:</span>
-              <span className="font-mono font-semibold text-kumo-strong">
-                {Math.max(0, (packagingProducts.find(p => p.id === issueProductId)?.central_stock_qty ?? 0) - issueQty)} units
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle">Packaging Bench Stock After Issue:</span>
-              <span className="font-mono font-semibold text-emerald-700">
-                {(packagingProducts.find(p => p.id === issueProductId)?.bench_stock_qty ?? 0) + Number(issueQty)} units
-              </span>
-            </div>
-          </div>
         </form>
       </Dialog>
 
