@@ -20,6 +20,8 @@ import {
   PlusCircle,
   ShieldCheck,
   CheckCircle2,
+  HelpCircle,
+  LifeBuoy,
 } from 'lucide-react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { formatNaira } from '@/lib/utils'
@@ -218,6 +220,14 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
         href: '/offices',
         icon: Building2,
       },
+      {
+        id: 'page-support',
+        title: 'Support & Help Desk',
+        subtitle: 'Submit operational cases, request equipment support, report fraud or view FAQ',
+        category: 'Pages',
+        href: '/support',
+        icon: HelpCircle,
+      },
     ]
 
     // 2. Focused Quick Actions tailored to daily food operations
@@ -253,6 +263,14 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
         category: 'Quick Actions',
         href: '/logistics/board',
         icon: Truck,
+      },
+      {
+        id: 'action-support',
+        title: 'Open Support & Help Desk',
+        subtitle: 'Submit a case, report an operational bug, or request equipment help',
+        category: 'Quick Actions',
+        href: '/support',
+        icon: LifeBuoy,
       },
     ]
 

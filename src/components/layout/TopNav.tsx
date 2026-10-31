@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { useTheme } from '@/context/ThemeContext'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   Package,
   Truck,
-  RotateCw
+  RotateCw,
+  HelpCircle
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -32,6 +33,7 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenCommandMenu }) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { selectedWarehouse, setSelectedWarehouse, facilities, addFacility } = useWarehouse()
   const { theme, toggleTheme } = useTheme()
   const [isWarehouseDropdownOpen, setIsWarehouseDropdownOpen] = useState(false)
@@ -229,6 +231,23 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
           ) : (
             <Moon className="w-4 h-4 text-kumo-subtle" />
           )}
+        </button>
+
+        {/* Support & Help Desk Navigation Button */}
+        <button
+          type="button"
+          data-kumo-component="Button"
+          onClick={() => navigate('/support')}
+          aria-label="Support & Help Desk"
+          title="Support & Help Desk"
+          className={cn(
+            "size-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer",
+            location.pathname === '/support'
+              ? "bg-zinc-200/80 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+              : "text-kumo-subtle hover:text-kumo-default hover:bg-kumo-tint"
+          )}
+        >
+          <HelpCircle className="w-4 h-4" />
         </button>
 
         {/* Office / Facility Selector Moved to Far Right (Inheriting Select Account Dropdown UI Style) */}

@@ -36,6 +36,9 @@ import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
 import { CreateAccountPage } from '@/features/admin/CreateAccountPage'
 import { ManageOfficesPage } from '@/features/admin/ManageOfficesPage'
 
+// Support & Incident Domain
+import { SupportHelpDeskPage } from '@/features/support/SupportHelpDeskPage'
+
 // Auth Screen Domain (shadcn /components/ui)
 import AuthSectionThree from '@/components/ui/auth-section-3'
 import Demo from '@/components/ui/demo'
@@ -101,6 +104,9 @@ export function App() {
                 <Route path="offices/create" element={<ManageOfficesPage />} />
                 <Route path="offices/edit/:id" element={<ManageOfficesPage />} />
                 <Route path="admin/offices" element={<ManageOfficesPage />} />
+
+                {/* 6. SUPPORT & HELP DESK */}
+                <Route path="support" element={<SupportHelpDeskPage />} />
 
                 {/* Catch-all Fallback */}
                 <Route path="*" element={<Navigate to="/inventory/raw" replace />} />

@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   Building2,
   Package,
+  HelpCircle,
 } from 'lucide-react'
 import { SignInActivityModal } from './SignInActivityModal'
 
@@ -625,10 +626,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         })}
       </div>
 
-      {/* 4. Footer: Sign-in Activity & Sign Out */}
+      {/* 4. Footer: Support, Sign-in Activity & Sign Out */}
       <div className="border-t border-kumo-line p-2 shrink-0 bg-kumo-canvas">
         {!isCollapsed ? (
           <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                onCloseMobile()
+                navigate('/support')
+              }}
+              className={cn(
+                "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
+                location.pathname === '/support'
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold"
+                  : "text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <HelpCircle className="w-4 h-4 text-black dark:text-white shrink-0" />
+                <span className="truncate">Support & Help Desk</span>
+              </div>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsActivityModalOpen(true)}
@@ -658,6 +678,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => {
+                onCloseMobile()
+                navigate('/support')
+              }}
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer",
+                location.pathname === '/support'
+                  ? "bg-zinc-200 dark:bg-zinc-700 text-black dark:text-white"
+                  : "text-black dark:text-white hover:bg-kumo-tint"
+              )}
+              title="Support & Help Desk"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+
             <button
               type="button"
               onClick={() => setIsActivityModalOpen(true)}
