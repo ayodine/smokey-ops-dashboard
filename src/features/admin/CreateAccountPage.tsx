@@ -467,7 +467,7 @@ export const CreateAccountPage: React.FC = () => {
             </div>
           </div>
 
-          {/* STANDARDIZED ACTION BUTTONS (DESATURATED GREY) */}
+          {/* STANDARDIZED ACTION BUTTONS (PRIMARY RED) */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
             <button
               type="button"
@@ -478,7 +478,7 @@ export const CreateAccountPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="h-10 px-5 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
+              className="h-10 px-5 rounded-lg bg-[#c0201f] hover:bg-[#a01817] active:opacity-90 text-white text-[13px] font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
             >
               <UserPlus className="w-4 h-4" />
               <span>Create Account</span>
