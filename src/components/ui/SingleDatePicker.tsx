@@ -171,14 +171,14 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
         disabled={disabled}
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
-          'w-full h-9 px-3 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs text-kumo-strong flex items-center justify-between gap-2 cursor-pointer transition-colors shadow-2xs',
-          isOpen && 'ring-2 ring-black/20 border-black dark:ring-white/20 dark:border-white',
-          disabled && 'opacity-50 cursor-not-allowed bg-kumo-surface'
+          'w-full h-10 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-xs sm:text-[13px] text-zinc-900 dark:text-zinc-100 flex items-center justify-between gap-2 cursor-pointer transition-colors shadow-2xs font-sans',
+          isOpen && 'ring-2 ring-zinc-400/20 border-zinc-400 dark:border-zinc-600',
+          disabled && 'opacity-50 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800'
         )}
       >
         <div className="flex items-center gap-2 truncate">
-          <CalendarIcon className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-          <span className={cn('truncate', !selectedDate && 'text-kumo-subtle/70 font-normal')}>
+          <CalendarIcon className="w-4 h-4 text-zinc-400 shrink-0" />
+          <span className={cn('truncate', !selectedDate && 'text-zinc-400 font-normal')}>
             {selectedDate ? formatDisplay(selectedDate) : placeholder}
           </span>
         </div>
@@ -186,7 +186,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
         {selectedDate && !required && !disabled && (
           <span
             onClick={handleClear}
-            className="p-0.5 rounded hover:bg-kumo-control text-kumo-subtle hover:text-kumo-strong transition-colors"
+            className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
             title="Clear date"
           >
             <X className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
       </button>
 
       {helperText && (
-        <p className="text-[11px] text-kumo-subtle mt-1">{helperText}</p>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">{helperText}</p>
       )}
 
       {/* Popover Calendar */}
@@ -203,25 +203,25 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
         <div
           ref={popoverRef}
           style={{ top: popoverCoords.top, left: popoverCoords.left, width: popoverCoords.width }}
-          className="fixed rounded-xl border border-kumo-line bg-kumo-base shadow-2xl p-3.5 font-sans z-[100] animate-in fade-in zoom-in-95 select-none"
+          className="fixed rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-3.5 font-sans z-[100] animate-in fade-in zoom-in-95 select-none"
         >
           {/* Month Header */}
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-kumo-line">
-            <span className="text-xs font-bold text-kumo-strong">
+          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-zinc-200 dark:border-zinc-800">
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
               {monthName}
             </span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -229,7 +229,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
           </div>
 
           {/* Days of Week */}
-          <div className="grid grid-cols-7 text-center text-[11px] font-medium text-kumo-subtle pb-1.5">
+          <div className="grid grid-cols-7 text-center text-[11px] font-medium text-zinc-400 dark:text-zinc-500 pb-1.5">
             <span>Su</span>
             <span>Mo</span>
             <span>Tu</span>
@@ -255,11 +255,11 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
                   className={cn(
                     'h-8 w-full flex items-center justify-center text-xs rounded-lg transition-colors cursor-pointer',
                     cell.isCurrentMonth
-                      ? 'text-kumo-strong font-normal'
-                      : 'text-kumo-subtle/30',
+                      ? 'text-zinc-900 dark:text-zinc-100 font-normal'
+                      : 'text-zinc-300 dark:text-zinc-700',
                     isSelected
-                      ? 'bg-black text-white dark:bg-white dark:text-black font-semibold shadow-xs'
-                      : 'hover:bg-kumo-tint'
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
+                      : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                   )}
                 >
                   {cell.day}
@@ -269,18 +269,18 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
           </div>
 
           {/* Footer Quick Action */}
-          <div className="pt-2.5 mt-2.5 border-t border-kumo-line flex items-center justify-between">
+          <div className="pt-2.5 mt-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <button
               type="button"
               onClick={handleSelectToday}
-              className="text-xs font-medium text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-black hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
+              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
             >
               Apply
             </button>

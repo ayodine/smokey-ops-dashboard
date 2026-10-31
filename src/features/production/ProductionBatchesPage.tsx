@@ -1984,7 +1984,7 @@ export const ProductionBatchesPage: React.FC = () => {
                 setIsCreatePrepModalOpen(false)
               }}
             >
-              Withdraw from Hub & Formulate Prep
+              Withdraw from Central Store & Formulate Prep
             </Button>
           </div>
         }

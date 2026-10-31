@@ -215,14 +215,17 @@ export const StorePickupPage: React.FC = () => {
         }
       >
         <form id="confirm-handover-form" onSubmit={handleConfirmCollect} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-start gap-3">
-              <span className="text-kumo-subtle shrink-0">Order Meals:</span>
-              <span className="font-semibold text-kumo-strong text-right text-xs sm:text-[13px]">{selectedPickup?.items_summary}</span>
-            </div>
-            <div className="flex justify-between items-center pt-1 border-t border-kumo-line/60">
-              <span className="text-kumo-subtle">Amount Paid:</span>
-              <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-[13px]">{formatNaira(selectedPickup?.total_amount || 0)}</span>
+          {/* Master Divided Card Container (matching design guardrails) */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            <div className="p-3.5 space-y-2.5">
+              <div className="flex items-start text-[13px]">
+                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Meals</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedPickup?.items_summary}</span>
+              </div>
+              <div className="flex items-start text-[13px]">
+                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Amount Paid</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">{formatNaira(selectedPickup?.total_amount || 0)}</span>
+              </div>
             </div>
           </div>
 

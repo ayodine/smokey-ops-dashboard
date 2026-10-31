@@ -459,14 +459,17 @@ export const PackagingExecutionPage: React.FC = () => {
         }
       >
         <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle font-medium">Customer:</span>
-              <span className="font-semibold text-kumo-strong">{selectedOrder?.customer_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle font-medium">Ordered Items:</span>
-              <span className="font-normal text-kumo-strong">{selectedOrder?.items_summary}</span>
+          {/* Master Divided Card Container (matching design guardrails) */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            <div className="p-3.5 space-y-2.5">
+              <div className="flex items-start text-[13px]">
+                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedOrder?.customer_name}</span>
+              </div>
+              <div className="flex items-start text-[13px]">
+                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Ordered Items</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedOrder?.items_summary}</span>
+              </div>
             </div>
           </div>
 

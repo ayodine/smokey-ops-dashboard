@@ -773,18 +773,20 @@ export const PackagingInventoryPage: React.FC = () => {
                 required
               />
 
-              <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
-                <div className="flex justify-between">
-                  <span className="text-kumo-subtle">Central Store Stock After Issue:</span>
-                  <span className="font-mono font-semibold text-kumo-strong">
-                    {Math.max(0, (packagingProducts.find(p => p.id === issueProductId)?.central_stock_qty ?? 0) - issueQty)} units
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-kumo-subtle">Packaging Bench Stock After Issue:</span>
-                  <span className="font-mono font-semibold text-emerald-700">
-                    {(packagingProducts.find(p => p.id === issueProductId)?.bench_stock_qty ?? 0) + Number(issueQty)} units
-                  </span>
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+                <div className="p-3.5 space-y-2.5">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-48 sm:w-56 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Central Store After Issue</span>
+                    <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                      {Math.max(0, (packagingProducts.find(p => p.id === issueProductId)?.central_stock_qty ?? 0) - issueQty)} units
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-48 sm:w-56 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Packaging Bench After Issue</span>
+                    <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                      {(packagingProducts.find(p => p.id === issueProductId)?.bench_stock_qty ?? 0) + Number(issueQty)} units
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

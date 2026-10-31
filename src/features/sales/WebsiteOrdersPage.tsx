@@ -1135,6 +1135,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="md"
+                type="button"
                 onClick={() => setIsRescheduleModalOpen(false)}
                 disabled={isSubmittingSchedule}
               >
@@ -1143,35 +1144,9 @@ export const WebsiteOrdersPage: React.FC = () => {
               <Button
                 variant="primary"
                 size="md"
+                type="submit"
+                form="schedule-delivery-form"
                 disabled={isSubmittingSchedule || !rescheduleDate}
-                onClick={async () => {
-                  if (!rescheduleDate) return
-                  setIsSubmittingSchedule(true)
-                  const opening = getOfficeOpeningHourForDate(rescheduleDate)
-                  const success = await rescheduleOrderDelivery(
-                    selectedOrder.order_ref,
-                    rescheduleDate,
-                    undefined,
-                    rescheduleNotes,
-                    {
-                      customer_name: selectedOrder.customer_name,
-                      phone: selectedOrder.phone,
-                      address: selectedOrder.address,
-                      total_amount: selectedOrder.total_amount,
-                      delivery_fee: selectedOrder.delivery_fee,
-                      notes: selectedOrder.notes
-                    }
-                  )
-                  setIsSubmittingSchedule(false)
-                  if (success) {
-                    setSelectedOrder(prev => prev ? {
-                      ...prev,
-                      scheduled_delivery_at: `${rescheduleDate} ${opening.timeStr}`,
-                      fulfillment_status: 'in_intake'
-                    } : null)
-                    setIsRescheduleModalOpen(false)
-                  }
-                }}
                 leftIcon={isSubmittingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
               >
                 {isSubmittingSchedule ? 'Saving...' : 'Save Schedule'}
@@ -1179,21 +1154,56 @@ export const WebsiteOrdersPage: React.FC = () => {
             </div>
           }
         >
-          <div className="space-y-4 font-sans text-xs">
-            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Customer:</span>
-                <span className="font-semibold text-kumo-strong">{selectedOrder.customer_name}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Delivery Address:</span>
-                <span className="text-kumo-default text-right max-w-[260px] truncate">{selectedOrder.address}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-kumo-subtle">Current Schedule:</span>
-                <span className="font-medium text-kumo-strong">
-                  {selectedOrder.scheduled_delivery_at ? formatDate(selectedOrder.scheduled_delivery_at) : 'Immediate ASAP Fulfillment'}
-                </span>
+          <form
+            id="schedule-delivery-form"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!rescheduleDate) return
+              setIsSubmittingSchedule(true)
+              const opening = getOfficeOpeningHourForDate(rescheduleDate)
+              const success = await rescheduleOrderDelivery(
+                selectedOrder.order_ref,
+                rescheduleDate,
+                undefined,
+                rescheduleNotes,
+                {
+                  customer_name: selectedOrder.customer_name,
+                  phone: selectedOrder.phone,
+                  address: selectedOrder.address,
+                  total_amount: selectedOrder.total_amount,
+                  delivery_fee: selectedOrder.delivery_fee,
+                  notes: selectedOrder.notes
+                }
+              )
+              setIsSubmittingSchedule(false)
+              if (success) {
+                setSelectedOrder(prev => prev ? {
+                  ...prev,
+                  scheduled_delivery_at: `${rescheduleDate} ${opening.timeStr}`,
+                  fulfillment_status: 'in_intake'
+                } : null)
+                setIsRescheduleModalOpen(false)
+              }
+            }}
+            className="space-y-4 font-sans text-xs"
+          >
+            {/* Master Divided Card Container (matching design guardrails) */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="p-3.5 space-y-2.5">
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedOrder.customer_name}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedOrder.address}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current Schedule</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                    {selectedOrder.scheduled_delivery_at ? formatDate(selectedOrder.scheduled_delivery_at) : 'Immediate ASAP Fulfillment'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1211,7 +1221,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               onChange={(e) => setRescheduleNotes(e.target.value)}
               placeholder="e.g. Deliver before 2pm for office party, ring doorbell on arrival."
             />
-          </div>
+          </form>
         </Dialog>
       )}
     </div>
