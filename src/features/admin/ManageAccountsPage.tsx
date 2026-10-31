@@ -2499,35 +2499,6 @@ export const ManageAccountsPage: React.FC = () => {
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="md"
-              type="button"
-              onClick={() => navigate(`/accounts/profile/${encodeURIComponent(targetStaff.email)}`)}
-              leftIcon={<UserCheck className="w-4 h-4 text-kumo-subtle" />}
-              title="Edit complete staff KYC profile, qualifications, and personal dossier"
-            >
-              Edit Profile & KYC
-            </Button>
-            <Button
-              variant="outline"
-              size="md"
-              type="button"
-              onClick={() => navigate('/accounts')}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              type="button"
-              onClick={() => handleSaveRouteAndPolicies()}
-            >
-              Save Changes
-            </Button>
-          </div>
         </div>
 
         {/* Tab Switcher matching Screenshot 1 & 3: [ Permission policies | Groups | Settings ] */}
