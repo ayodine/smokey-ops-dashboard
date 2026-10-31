@@ -1221,117 +1221,117 @@ export const RawInventoryPage: React.FC = () => {
         title={selectedProduct ? `Edit Item: ${selectedProduct.name}` : 'Add New Inventory Item'}
         description="Configure unit of measure, unit cost, and reorder alert level."
         maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="raw-sku-product-form">
+              {selectedProduct ? 'Update SKU' : 'Save Raw SKU'}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitProduct} className="space-y-4">
+        <form id="raw-sku-product-form" onSubmit={handleSubmitProduct} className="space-y-4">
           <Input
             label="Material Name"
             placeholder="e.g. FRESH SPRING CHICKEN"
             value={productForm.name}
             onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
             required
+            autoFocus
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-            <Input
-              label="SKU Code"
-              value={productForm.sku}
-              onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
-              required
-            />
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between leading-5">
-                <label className="block text-xs font-semibold text-kumo-strong leading-5">
-                  Unit of Measure <span className="text-kumo-danger">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isCustomUnitMode) {
-                      setIsCustomUnitMode(false)
-                      setProductForm(prev => ({ ...prev, unit: 'PIECES' }))
-                    } else {
-                      setIsCustomUnitMode(true)
-                      setCustomUnitText(productForm.unit || '')
-                    }
-                  }}
-                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1 leading-5"
-                >
-                  {isCustomUnitMode ? (
-                    '← Standard list'
-                  ) : (
-                    <>
-                      <Pencil className="w-3.5 h-3.5" />
-                      <span>Custom label</span>
-                    </>
-                  )}
-                </button>
-              </div>
+          <Input
+            label="SKU Code"
+            value={productForm.sku}
+            onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
+            required
+          />
 
-              {isCustomUnitMode ? (
-                <div className="space-y-1.5">
-                  <Input
-                    placeholder="e.g. Derica, Stick, Kongo, Bale, Sachet..."
-                    value={customUnitText}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setCustomUnitText(val)
-                      setProductForm(prev => ({ ...prev, unit: val }))
-                    }}
-                    autoFocus
-                    required
-                  />
-                  <p className="text-[11px] text-kumo-subtle">
-                    Type any custom measure label (Derica, Kongo, Bale, Sticks, etc.)
-                  </p>
-                </div>
-              ) : (
-                <Select
-                  value={
-                    ALL_INVENTORY_UNITS.some(u => u.value === productForm.unit)
-                      ? productForm.unit
-                      : 'CUSTOM'
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-[12px] font-semibold text-kumo-strong leading-4">
+                Unit of Measure <span className="text-kumo-danger">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isCustomUnitMode) {
+                    setIsCustomUnitMode(false)
+                    setProductForm(prev => ({ ...prev, unit: 'PIECES' }))
+                  } else {
+                    setIsCustomUnitMode(true)
+                    setCustomUnitText(productForm.unit || '')
                   }
-                  onChange={(e) => {
-                    if (e.target.value === 'CUSTOM') {
-                      setIsCustomUnitMode(true)
-                      setCustomUnitText('')
-                    } else {
-                      setProductForm(prev => ({ ...prev, unit: e.target.value }))
-                    }
-                  }}
-                  options={ALL_INVENTORY_UNITS}
-                />
-              )}
+                }}
+                className="text-[12px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:underline cursor-pointer inline-flex items-center gap-1"
+              >
+                {isCustomUnitMode ? (
+                  '← Select standard unit'
+                ) : (
+                  <>
+                    <Pencil className="w-3 h-3 text-zinc-400" />
+                    <span>Custom label</span>
+                  </>
+                )}
+              </button>
             </div>
+
+            {isCustomUnitMode ? (
+              <div className="space-y-1.5">
+                <Input
+                  placeholder="e.g. Derica, Stick, Kongo, Bale, Sachet..."
+                  value={customUnitText}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setCustomUnitText(val)
+                    setProductForm(prev => ({ ...prev, unit: val }))
+                  }}
+                  autoFocus
+                  required
+                />
+                <p className="text-[12px] text-kumo-subtle">
+                  Type any custom measure label (Derica, Kongo, Bale, Sticks, etc.)
+                </p>
+              </div>
+            ) : (
+              <Select
+                value={
+                  ALL_INVENTORY_UNITS.some(u => u.value === productForm.unit)
+                    ? productForm.unit
+                    : 'CUSTOM'
+                }
+                onChange={(e) => {
+                  if (e.target.value === 'CUSTOM') {
+                    setIsCustomUnitMode(true)
+                    setCustomUnitText('')
+                  } else {
+                    setProductForm(prev => ({ ...prev, unit: e.target.value }))
+                  }
+                }}
+                options={ALL_INVENTORY_UNITS}
+              />
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-            <Input
-              label="Standard Unit Cost (₦)"
-              type="number"
-              min="0"
-              value={productForm.unit_cost}
-              onChange={(e) => setProductForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
-              required
-            />
-            <UnitInput
-              label="Low-Stock Reorder Threshold"
-              value={productForm.reorder_level}
-              onChangeValue={(val) => setProductForm(prev => ({ ...prev, reorder_level: val }))}
-              unit={productForm.unit || 'units'}
-              min={0}
-              required
-            />
-          </div>
+          <Input
+            label="Standard Unit Cost (₦)"
+            type="number"
+            min="0"
+            value={productForm.unit_cost}
+            onChange={(e) => setProductForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
+            required
+          />
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              {selectedProduct ? 'Update SKU' : 'Save Raw SKU'}
-            </Button>
-          </div>
+          <UnitInput
+            label="Low-Stock Reorder Threshold"
+            value={productForm.reorder_level}
+            onChangeValue={(val) => setProductForm(prev => ({ ...prev, reorder_level: val }))}
+            unit={productForm.unit || 'units'}
+            min={0}
+            required
+          />
         </form>
       </Dialog>
 
