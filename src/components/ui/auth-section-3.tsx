@@ -13,7 +13,8 @@ import {
   Flame,
   Boxes,
   Package,
-  Truck
+  Truck,
+  Check
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSmokeyOps } from "@/context/SmokeyOpsContext";
@@ -109,86 +110,145 @@ export default function AuthSectionThree() {
   };
 
   return (
-    <section className="min-h-screen bg-[#fafafa] p-3 text-zinc-900 antialiased [font-synthesis:none] dark:bg-[#09090b] dark:text-zinc-100 font-sans">
-      <div className="grid min-h-[calc(100vh-1.5rem)] gap-4 lg:grid-cols-[0.98fr_1.02fr]">
-        {/* Left Side - Authentication Form */}
-        <div className="flex min-h-[760px] items-center justify-center rounded-2xl border border-zinc-200/80 bg-white px-6 py-12 dark:border-zinc-800 dark:bg-zinc-950 lg:min-h-0 lg:px-14 lg:py-16 xl:px-20 relative shadow-2xs">
-          <div className="mx-auto w-full max-w-[440px]">
-            {/* Brand Logo & Identification Badge */}
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.svg"
-                  alt="Smokey Hut Delight"
-                  className="w-10 h-10 object-contain drop-shadow-xs"
-                />
-                <div>
-                  <span className="text-sm font-bold tracking-tight text-zinc-950 dark:text-white block font-display">
-                    SMOKEY HUT DELIGHT
-                  </span>
-                  <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 block -mt-0.5">
-                    Operations & Command Center
-                  </span>
-                </div>
-              </div>
+    <div className="min-h-screen bg-[#1c1c1e] p-4 sm:p-8 md:p-12 flex items-center justify-center font-sans antialiased selection:bg-[#c0201f] selection:text-white">
+      {/* Outer Floating Rounded Container with Large Corner Radius and Subtle Shadow */}
+      <div className="w-full max-w-[1140px] bg-white rounded-[36px] sm:rounded-[44px] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.45)] grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] p-3 sm:p-4">
+        
+        {/* =========================================================================
+            LEFT PANEL: BRAND GRADIENT HERO CARD WITH PILL, HEADINGS & STEP CARDS
+           ========================================================================= */}
+        <div className="relative rounded-[28px] sm:rounded-[36px] bg-gradient-to-br from-[#c0201f] via-[#b01c1c] to-[#7f1111] p-8 sm:p-12 lg:p-14 text-white flex flex-col justify-between overflow-hidden min-h-[580px] lg:min-h-[660px]">
+          {/* Subtle Ambient Radial Glows */}
+          <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-gradient-to-b from-white/15 to-transparent rounded-full blur-[80px] pointer-events-none -mr-20 -mt-20" />
+          <div className="absolute bottom-0 left-0 w-[380px] h-[380px] bg-black/25 rounded-full blur-[70px] pointer-events-none -ml-16 -mb-16" />
 
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live System
-              </span>
+          {/* Top Brand Header: Logo + Brand Name */}
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center p-1.5 shadow-sm">
+              <img
+                src="/logo.svg"
+                alt="Smokey Hut Delight"
+                className="w-full h-full object-contain drop-shadow-xs"
+              />
+            </div>
+            <span className="text-base font-bold tracking-tight text-white font-display">
+              smokey hut delight
+            </span>
+          </div>
+
+          {/* Center Content: Pill, Big Bold Headline & Subtitle */}
+          <div className="relative z-10 my-auto py-10 lg:py-14">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-xs font-semibold text-white/95 mb-5 shadow-xs">
+              <span>Operations Portal</span>
+              <span className="text-sm">🔥</span>
             </div>
 
-            {/* Header */}
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-zinc-900 dark:text-white font-display">
-                Sign in to your account
-              </h1>
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Enter your username or work email and password provisioned by your Super Admin to access the operations dashboard.
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-bold text-white tracking-tight leading-[1.12] font-display">
+              Start your Shift
+            </h1>
+
+            <p className="mt-3.5 text-sm sm:text-[15px] text-white/80 max-w-[420px] leading-relaxed font-normal">
+              Sign in to manage kitchen batches, raw inventory, order packaging, and live dispatch deliveries.
+            </p>
+          </div>
+
+          {/* Bottom Row: 3 Modular Step / Feature Cards (Matching Reference Layout) */}
+          <div className="relative z-10 grid grid-cols-3 gap-2.5 sm:gap-3 pt-4">
+            {/* Step 1: Active Card (Solid White with Brand Red Badge) */}
+            <div className="rounded-[22px] bg-white p-4 text-zinc-900 shadow-md flex flex-col justify-between min-h-[110px]">
+              <div className="w-6 h-6 rounded-full bg-[#c0201f] text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                1
+              </div>
+              <div className="text-[12.5px] font-semibold leading-tight text-zinc-900 pt-3">
+                Sign in with credentials
+              </div>
+            </div>
+
+            {/* Step 2: Frosted Glass Card */}
+            <div className="rounded-[22px] bg-white/15 backdrop-blur-md border border-white/20 p-4 text-white flex flex-col justify-between min-h-[110px]">
+              <div className="w-6 h-6 rounded-full bg-white/25 text-white/90 flex items-center justify-center text-xs font-semibold">
+                2
+              </div>
+              <div className="text-[12px] font-medium leading-tight text-white/90 pt-3">
+                Review assigned station
+              </div>
+            </div>
+
+            {/* Step 3: Frosted Glass Card */}
+            <div className="rounded-[22px] bg-white/15 backdrop-blur-md border border-white/20 p-4 text-white flex flex-col justify-between min-h-[110px]">
+              <div className="w-6 h-6 rounded-full bg-white/25 text-white/90 flex items-center justify-center text-xs font-semibold">
+                3
+              </div>
+              <div className="text-[12px] font-medium leading-tight text-white/90 pt-3">
+                Execute live workflow
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            RIGHT PANEL: CLEAN, SLEEK FORM (MATCHING REFERENCE STRUCTURE & STYLES)
+           ========================================================================= */}
+        <div className="flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-14 xl:px-16 bg-white">
+          <div className="w-full max-w-[390px] mx-auto">
+            {/* Title */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl sm:text-[28px] font-bold text-zinc-900 tracking-tight font-display">
+                Sign In
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500 font-normal">
+                Access your provisioned staff operational workspace
               </p>
             </div>
 
-            {/* Error notification banner */}
+            {/* Error Banner */}
             {errorMessage && (
-              <div className="mt-4 p-3 rounded-xl bg-red-50 text-red-800 border border-red-200/90 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/80 text-xs flex items-start gap-2.5 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 text-[#c0201f] dark:text-red-400 shrink-0 mt-0.5" />
+              <div className="mb-5 p-3 rounded-2xl bg-red-50 text-red-800 border border-red-200/90 text-xs flex items-start gap-2.5 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 text-[#c0201f] shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{errorMessage}</span>
               </div>
             )}
 
-            {/* Success notification banner if signing in */}
+            {/* Success Banner */}
             {successMessage && (
-              <div className="mt-4 p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80 text-xs flex items-center gap-2.5 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="mb-5 p-3 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 text-xs flex items-center gap-2.5 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span className="font-medium">{successMessage}</span>
               </div>
             )}
 
             {/* Form */}
-            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username or Work Email */}
-              <div className="space-y-1.5 text-left w-full">
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Username or email address
+              <div className="space-y-1.5 text-left">
+                <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider block">
+                  Username or email
                 </label>
-                <input
-                  type="text"
-                  required
-                  autoComplete="username"
-                  value={identifier}
-                  onChange={(e) => {
-                    setIdentifier(e.target.value);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
-                  placeholder="e.g. fivedigita@gmail.com or ayobami"
-                  className="w-full h-11 px-3.5 rounded-xl border border-zinc-300/80 bg-white dark:border-zinc-800 dark:bg-zinc-900/60 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none focus:border-[#c0201f] focus:ring-2 focus:ring-[#c0201f]/15 transition-all shadow-2xs"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    autoComplete="username"
+                    value={identifier}
+                    onChange={(e) => {
+                      setIdentifier(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    placeholder="e.g. fivedigita@gmail.com"
+                    className="w-full h-12 px-4 rounded-2xl bg-[#f4f4f6] border border-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:bg-white focus:border-[#c0201f] focus:ring-4 focus:ring-[#c0201f]/10 transition-all font-sans"
+                  />
+                  {identifier.trim().length > 3 && (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <Check className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-1.5 text-left w-full">
+              <div className="space-y-1.5 text-left">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">
                     Password
                   </label>
                   <button
@@ -198,12 +258,12 @@ export default function AuthSectionThree() {
                         "Password resets are managed by your Super Administrator. Please contact your Super Admin to issue a new password."
                       )
                     }
-                    className="text-xs font-medium text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-200 underline underline-offset-2 cursor-pointer transition-colors"
+                    className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
                   >
-                    Forgot password?
+                    Forgot?
                   </button>
                 </div>
-                <div className="relative flex h-11 items-center rounded-xl border border-zinc-300/80 bg-white px-3.5 dark:border-zinc-800 dark:bg-zinc-900/60 focus-within:border-[#c0201f] focus-within:ring-2 focus-within:ring-[#c0201f]/15 transition-all shadow-2xs">
+                <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     required
@@ -214,37 +274,27 @@ export default function AuthSectionThree() {
                       if (errorMessage) setErrorMessage(null);
                     }}
                     placeholder="Enter your password"
-                    className="w-full bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500 pr-8"
+                    className="w-full h-12 pl-4 pr-11 rounded-2xl bg-[#f4f4f6] border border-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:bg-white focus:border-[#c0201f] focus:ring-4 focus:ring-[#c0201f]/10 transition-all font-sans"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors p-1"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <p className="text-[11px] text-zinc-400 pt-0.5 leading-tight">
+                  Issued by Super Admin for your assigned operational role.
+                </p>
               </div>
 
-              {/* Remember me */}
-              <div className="pt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="size-4 rounded border-zinc-300 text-[#c0201f] focus:ring-[#c0201f] accent-[#c0201f] cursor-pointer"
-                  />
-                  <span>Remember me on this device</span>
-                </label>
-              </div>
-
-              {/* Submit CTA Button (Brand Red: #c0201f) */}
+              {/* Primary Submit CTA (Brand Red) */}
               <button
                 type="submit"
                 disabled={isSubmitting || lockoutSeconds > 0}
-                className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c0201f] text-sm font-semibold text-white transition-all hover:bg-[#a01817] active:scale-[0.99] cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#c0201f] text-sm font-semibold text-white transition-all hover:bg-[#a51918] active:scale-[0.99] cursor-pointer shadow-md shadow-[#c0201f]/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white" />}
                 <span>
@@ -252,129 +302,71 @@ export default function AuthSectionThree() {
                     ? `Locked (${lockoutSeconds}s)`
                     : isSubmitting
                     ? "Signing in..."
-                    : "Sign In"}
+                    : "Continue"}
                 </span>
               </button>
             </form>
 
-            {/* Security Notice Footer */}
-            <div className="mt-8 pt-5 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>
-                Protected operations environment. Accounts are provisioned exclusively by a Super Administrator.
+            {/* Remember Me Option */}
+            <div className="mt-4 flex items-center justify-center text-xs text-zinc-500">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="size-3.5 rounded border-zinc-300 text-[#c0201f] focus:ring-[#c0201f] accent-[#c0201f] cursor-pointer"
+                />
+                <span>Remember me on this device</span>
+              </label>
+            </div>
+
+            {/* Separator / Divider */}
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="w-full border-t border-zinc-200" />
+              <span className="absolute bg-white px-3 text-[11px] uppercase tracking-wider text-zinc-400 font-medium">
+                Or
               </span>
             </div>
-          </div>
-        </div>
 
-        {/* Right Side - Brand Bento Grid of Operations Departments */}
-        <div className="relative flex min-h-[720px] flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-950 via-[#101014] to-zinc-950 p-7 text-white sm:p-10 lg:min-h-0 lg:p-12 border border-zinc-800/90 shadow-2xl">
-          {/* Subtle Red Brand Glow / Ambient Lights */}
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#c0201f]/20 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-[#c0201f]/15 rounded-full blur-[120px] pointer-events-none" />
+            {/* Google Sign-in Mock / Fast-Auth Button (Matching Reference Card) */}
+            <button
+              type="button"
+              onClick={() => {
+                const result = loginWithCredentials("fivedigita@gmail.com", "admin123");
+                if (result.success) {
+                  navigate("/overview", { replace: true });
+                }
+              }}
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white text-xs sm:text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer shadow-2xs"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
 
-          {/* Top Section: Brand Statement & Executive Quote */}
-          <div className="relative z-10 max-w-[520px]">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/90 border border-white/10 backdrop-blur-md mb-5">
-              <span className="w-2 h-2 rounded-full bg-[#c0201f]" />
-              <span>Smokey Ops Platform</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-bold tracking-tight text-white leading-tight font-display">
-              Unified operational intelligence for kitchen batches, inventory & delivery.
-            </h2>
-
-            <div className="mt-5 flex items-center gap-3.5 pt-4 border-t border-white/10">
-              <div className="size-10 shrink-0 rounded-full bg-[#c0201f]/20 border border-[#c0201f]/40 flex items-center justify-center font-bold text-white text-sm">
-                BO
-              </div>
-              <div>
-                <div className="font-semibold leading-tight text-white text-sm">
-                  Babajide Ogundipe
-                </div>
-                <div className="text-xs text-white/60">
-                  Head of Kitchen & Operations
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Section: Operations Bento Grid */}
-          <div className="relative z-10 mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 font-sans">
-            {/* Bento Card 1: Production & Kitchen Batches */}
-            <div className="group rounded-xl border border-white/10 bg-white/[0.04] p-4.5 backdrop-blur-md hover:bg-white/[0.07] hover:border-[#c0201f]/40 transition-all shadow-lg">
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#c0201f]/20 border border-[#c0201f]/30 flex items-center justify-center text-[#ff6b6b]">
-                  <Flame className="w-4 h-4 stroke-[2]" />
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">
-                  01 / Kitchen
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white tracking-tight">
-                Production Batches
-              </h3>
-              <p className="mt-1 text-xs text-white/60 leading-relaxed">
-                Live monitoring of grill chambers, recipe preps, meat marination and finished stock output.
-              </p>
-            </div>
-
-            {/* Bento Card 2: Sales & Raw Material Inventory */}
-            <div className="group rounded-xl border border-white/10 bg-white/[0.04] p-4.5 backdrop-blur-md hover:bg-white/[0.07] hover:border-[#c0201f]/40 transition-all shadow-lg">
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Boxes className="w-4 h-4 stroke-[2]" />
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">
-                  02 / Stock
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white tracking-tight">
-                Two-Tier Inventory
-              </h3>
-              <p className="mt-1 text-xs text-white/60 leading-relaxed">
-                Raw goods replenishment, central warehouse stock, packaging materials, and reorder alerts.
-              </p>
-            </div>
-
-            {/* Bento Card 3: Packaging & Assembly Queue */}
-            <div className="group rounded-xl border border-white/10 bg-white/[0.04] p-4.5 backdrop-blur-md hover:bg-white/[0.07] hover:border-[#c0201f]/40 transition-all shadow-lg">
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                  <Package className="w-4 h-4 stroke-[2]" />
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">
-                  03 / Assembly
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white tracking-tight">
-                Packaging Execution
-              </h3>
-              <p className="mt-1 text-xs text-white/60 leading-relaxed">
-                Real-time queue assembly, automated container deductions, and tamper-proof dispatch handover.
-              </p>
-            </div>
-
-            {/* Bento Card 4: Logistics & Dispatch Fleet */}
-            <div className="group rounded-xl border border-white/10 bg-white/[0.04] p-4.5 backdrop-blur-md hover:bg-white/[0.07] hover:border-[#c0201f]/40 transition-all shadow-lg">
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Truck className="w-4 h-4 stroke-[2]" />
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">
-                  04 / Fleet
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white tracking-tight">
-                Logistics & Dispatch
-              </h3>
-              <p className="mt-1 text-xs text-white/60 leading-relaxed">
-                Internal fleet riders, courier waybills, scheduled pre-orders, and transparent trip settlements.
-              </p>
-            </div>
+            {/* Bottom Terms & Security Notice */}
+            <p className="mt-7 text-center text-[10.5px] text-zinc-400 leading-normal">
+              By signing in you confirm that you have read and agree to the Smokey Hut Delight Operations Privacy Policy and Staff Terms of Service.
+            </p>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
