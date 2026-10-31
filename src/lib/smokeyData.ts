@@ -2830,7 +2830,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:43:55.936906+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:43:55.936906+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:44:49.435+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu] Please I don\u2019t want it too dry at all.. let it juicy"
@@ -2850,7 +2850,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:38:34.737181+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:38:34.737181+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:41:29.847+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: WhatsApp | Medium: referral]"
@@ -2870,7 +2870,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:29:30.03592+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:29:30.03592+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:31:24.935+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: Instagram Link | Medium: referral]"
@@ -2890,7 +2890,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:29:20.857911+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:29:20.857911+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:34:53.809+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu] For wale"
@@ -2910,7 +2910,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:24:26.183942+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:24:26.183942+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:25:31.849+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: Instagram Link | Medium: referral] Please I want it cold\u2026."
@@ -2930,7 +2930,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:24:23.993159+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:24:23.993159+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:24:52.495+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: Facebook | Medium: referral]"
@@ -2950,7 +2950,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:22:34.589257+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:22:34.589257+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:37:25.609+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu]"
@@ -2970,7 +2970,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:14:20.557482+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:14:20.557482+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:16:31.443+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: Instagram Link | Medium: referral] Use first gate  Estate gate access ends  6pm "
@@ -2990,7 +2990,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:08:06.256321+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:08:06.256321+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:10:07.475+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: Instagram Link | Medium: referral]"
@@ -3010,7 +3010,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T13:07:13.55776+00:00",
-    "scheduled_delivery_at": "2026-10-30T13:07:13.55776+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T13:08:35.239+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu] Very dry"
@@ -3030,7 +3030,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T12:54:27.014153+00:00",
-    "scheduled_delivery_at": "2026-10-30T12:54:27.014153+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T12:56:18.167+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu]"
@@ -3050,7 +3050,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T12:40:00.944404+00:00",
-    "scheduled_delivery_at": "2026-10-30T12:40:00.944404+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T12:40:27.939+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu]"
@@ -3070,7 +3070,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T12:35:50.395431+00:00",
-    "scheduled_delivery_at": "2026-10-30T12:35:50.395431+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T12:36:44.942+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via WhatsApp Menu]"
@@ -3090,7 +3090,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T12:15:56.745752+00:00",
-    "scheduled_delivery_at": "2026-10-30T12:15:56.745752+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T12:17:40.204+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website]"
@@ -3110,7 +3110,7 @@ export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = [
     "payment_method": "paystack",
     "fulfillment_status": "packaging",
     "created_at": "2026-10-30T12:08:17.308111+00:00",
-    "scheduled_delivery_at": "2026-10-30T12:08:17.308111+00:00",
+    "scheduled_delivery_at": "",
     "paid_at": "2026-10-30T12:09:37.297+00:00",
     "rider_name": "Pending Rider",
     "notes": "[via Website] [Source: WhatsApp | Medium: referral] Seside estate baodre "

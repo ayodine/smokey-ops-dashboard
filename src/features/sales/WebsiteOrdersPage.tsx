@@ -119,6 +119,14 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
 
   const isPaid = Boolean(raw.paid_at) || raw.status === 'processing' || raw.status === 'delivered' || raw.status === 'paid'
 
+  let scheduledAt = raw.scheduled_delivery_date ? String(raw.scheduled_delivery_date) : ''
+  if (!scheduledAt && raw.notes && raw.notes.includes('[Scheduled Delivery:')) {
+    const match = raw.notes.match(/\[Scheduled Delivery:\s*([^\]]+)\]/)
+    if (match && match[1]) {
+      scheduledAt = match[1].trim()
+    }
+  }
+
   return {
     id: raw.id,
     order_ref: String(raw.id || ''),
@@ -135,7 +143,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     payment_method: raw.payment_method || raw.payment_channel || 'Paystack',
     fulfillment_status,
     created_at: raw.created_at || raw.scheduled_delivery_date || new Date().toISOString(),
-    scheduled_delivery_at: raw.scheduled_delivery_date || raw.created_at || new Date().toISOString(),
+    scheduled_delivery_at: scheduledAt,
     paid_at: raw.paid_at || '',
     rider_name: raw.delivery_status ? 'Assigned Rider' : 'Pending Rider',
     notes: raw.notes || ''
@@ -389,7 +397,8 @@ export const WebsiteOrdersPage: React.FC = () => {
       return {
         ...ord,
         fulfillment_status,
-        rider_name
+        rider_name,
+        scheduled_delivery_at: activeSched?.scheduled_delivery_at || ord.scheduled_delivery_at
       }
     })
 
@@ -801,7 +810,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                         {formatNaira(order.total_amount)}
                       </div>
                       <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                        {formatDate(order.scheduled_delivery_at)}
+                        {formatDate(order.scheduled_delivery_at || order.created_at)}
                       </div>
                     </div>
                   </div>
@@ -947,20 +956,15 @@ export const WebsiteOrdersPage: React.FC = () => {
                       }
                     </span>
                   </div>
-                  <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Timing</span>
-                    {selectedOrder.scheduled_delivery_at ? (
+                  {selectedOrder.scheduled_delivery_at && (
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Timing</span>
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
                         <Calendar className="w-3 h-3 text-blue-500" />
                         Scheduled: {selectedOrder.scheduled_delivery_at}
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
-                        <Clock className="w-3 h-3 text-zinc-500" />
-                        Immediate ASAP Dispatch
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Sales Channel</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedOrder.channel}</span>
