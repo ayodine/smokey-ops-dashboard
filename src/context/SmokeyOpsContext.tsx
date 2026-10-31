@@ -241,35 +241,6 @@ export interface AppUserAccount {
   assigned_zone?: string
   inspection_status?: string
   vehicle_ownership?: string
-
-  // Kitchen Staff KYC
-  food_safety_cert_id?: string
-  food_safety_cert_expiry?: string
-  kitchen_station?: string
-  health_clearance_status?: string
-  health_clearance_expiry?: string
-  apron_uniform_size?: string
-  pitmaster_specialty?: string
-  first_aid_certified?: string
-
-  // Inventory Specialist KYC
-  store_clearance_level?: string
-  primary_storage_depot?: string
-  stock_audit_pin?: string
-  equipment_certification?: string
-  refrigeration_safety_cert?: string
-
-  // Dispatcher KYC
-  dispatch_console_id?: string
-  territory_oversight?: string
-  incident_escalation_tier?: string
-  telematics_channel?: string
-
-  // Executive / Admin / Manager KYC
-  corporate_id_badge?: string
-  security_clearance?: string
-  department_scope?: string
-  two_factor_auth_status?: string
 }
 
 export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
@@ -309,31 +280,6 @@ export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
     assigned_zone: acc.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)',
     inspection_status: acc.inspection_status || 'Passed & Certified',
     vehicle_ownership: acc.vehicle_ownership || 'Smokey Fleet Unit #04',
-    // Kitchen specific
-    food_safety_cert_id: acc.food_safety_cert_id || 'HACCP-NG-2025-084',
-    food_safety_cert_expiry: acc.food_safety_cert_expiry || '2027-05-15',
-    kitchen_station: acc.kitchen_station || 'Primary Smoker Pit 1 & 2',
-    health_clearance_status: acc.health_clearance_status || 'Certified Medically Fit',
-    health_clearance_expiry: acc.health_clearance_expiry || '2026-12-31',
-    apron_uniform_size: acc.apron_uniform_size || 'L (Heat-Resistant)',
-    pitmaster_specialty: acc.pitmaster_specialty || 'Texas Brisket, Smoked Ribs & Pulled Pork',
-    first_aid_certified: acc.first_aid_certified || 'Yes - Level 2 Kitchen Burn & Fire Safety',
-    // Inventory specific
-    store_clearance_level: acc.store_clearance_level || 'Level 3 - Cold-Chain Meat Locker (-18°C)',
-    primary_storage_depot: acc.primary_storage_depot || 'Central Cold-Room Depot A',
-    stock_audit_pin: acc.stock_audit_pin || 'AUTH-INV-4829',
-    equipment_certification: acc.equipment_certification || 'Electric Walkie Stacker & Pallet Jack Certified',
-    refrigeration_safety_cert: acc.refrigeration_safety_cert || 'Certified Cold-Chain Temperature Auditor',
-    // Dispatcher specific
-    dispatch_console_id: acc.dispatch_console_id || 'CONSOLE-DESK-01',
-    territory_oversight: acc.territory_oversight || 'Mainland Central & Island Corridor Trunkline',
-    incident_escalation_tier: acc.incident_escalation_tier || 'Tier 2 - Field Incident & Breakdown Coordinator',
-    telematics_channel: acc.telematics_channel || 'Channel 1 - Mainland Dispatch Hotline',
-    // Admin / Manager specific
-    corporate_id_badge: acc.corporate_id_badge || (acc.staff_id || 'SHD-EXEC-001'),
-    security_clearance: acc.security_clearance || 'Level 5 - Root Organization Administrator',
-    department_scope: acc.department_scope || 'Multi-Facility Operations & Governance',
-    two_factor_auth_status: acc.two_factor_auth_status || 'Hardware Token (TOTP) Enforced',
   }
 }
 

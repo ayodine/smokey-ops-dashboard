@@ -351,11 +351,9 @@ export const ManageAccountsPage: React.FC = () => {
   const isProfilePage = location.pathname.includes('/accounts/profile')
   const isRoutePage = location.pathname.includes('/accounts/route')
   const isMatrixPage = location.pathname.includes('/accounts/matrix')
-  const isInvitePage = location.pathname.includes('/accounts/invite')
-
+  
   // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive'
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all')
-  const [isHeaderActionMenuOpen, setIsHeaderActionMenuOpen] = useState(false)
 
   // Filter state for DataTable
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all')
@@ -375,22 +373,6 @@ export const ManageAccountsPage: React.FC = () => {
     }))
   ], [])
 
-  // -------------------------------------------------------------
-  // INVITE MEMBERS PAGE STATE (Matching Reference Screenshot)
-  // -------------------------------------------------------------
-  const [inviteEmails, setInviteEmails] = useState<string>('')
-  const [inviteScope, setInviteScope] = useState<string>("Ayodine47@gmail.com's Account")
-  const [inviteResourceScope, setInviteResourceScope] = useState<string>('Entire account')
-  const [inviteSearchQuery, setInviteSearchQuery] = useState<string>('')
-  const [invitePermissions, setInvitePermissions] = useState<string[]>([])
-  const [inviteExpandedCats, setInviteExpandedCats] = useState<Record<string, boolean>>({
-    'overall': true,
-    'Kitchen & Production Operations': true,
-    'Inventory & Warehouse Control': false,
-    'Logistics & Fleet Dispatch': false,
-    'Finance & Cash Remittance': false,
-    'Administration & Security Controls': false,
-  })
 
   // -------------------------------------------------------------
   // EDIT ROUTE & PERMISSION POLICIES PAGE STATE (Screenshots 1, 2, 3)
@@ -405,7 +387,9 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Sub-tabs on the staff page matching Screenshot 1 & 3:
   // [ Permission policies | Groups & Zone | Settings ]
-  const [staffSubTab, setStaffSubTab] = useState<'policies' | 'groups' | 'settings'>('policies')
+  const [staffSubTab, setStaffSubTab] = useState<'policies' | 'groups'>('policies')
+  const [editDepartment, setEditDepartment] = useState('')
+  const [editShiftSchedule, setEditShiftSchedule] = useState('Morning Cook & Prep (06:00 - 15:00)')
 
   // Inside "Permission policies", whether editing/creating a policy or viewing overview table
   const [isEditingPolicy, setIsEditingPolicy] = useState<boolean>(true)
@@ -444,7 +428,9 @@ export const ManageAccountsPage: React.FC = () => {
       )
       const officeName = matchingFac?.name || targetStaff.assigned_hub || facilities[0]?.name || 'Yaba Head Office'
       setEditOffice(officeName)
-      setEditZone('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
+      setEditZone(targetStaff.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
+      setEditDepartment(targetStaff.department || 'Operations')
+      setEditShiftSchedule(targetStaff.shift_schedule || 'Morning Cook & Prep (06:00 - 15:00)')
       setPolicyScope('Operating Office')
       setPolicyAppliesTo(officeName)
       setEditPermissions(targetStaff.permissions || ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || [])
@@ -555,34 +541,6 @@ export const ManageAccountsPage: React.FC = () => {
   const [kycAssignedZone, setKycAssignedZone] = useState('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
   const [kycInspectionStatus, setKycInspectionStatus] = useState('Passed & Certified')
 
-  // Kitchen
-  const [kycFoodSafetyCertId, setKycFoodSafetyCertId] = useState('')
-  const [kycFoodSafetyCertExpiry, setKycFoodSafetyCertExpiry] = useState('')
-  const [kycKitchenStation, setKycKitchenStation] = useState('Primary Smoker Pit 1 & 2')
-  const [kycHealthClearanceStatus, setKycHealthClearanceStatus] = useState('Certified Medically Fit')
-  const [kycHealthClearanceExpiry, setKycHealthClearanceExpiry] = useState('')
-  const [kycApronUniformSize, setKycApronUniformSize] = useState('Large (L - Heat-Resistant)')
-  const [kycPitmasterSpecialty, setKycPitmasterSpecialty] = useState('Texas Brisket, Smoked Ribs & Pulled Pork')
-  const [kycFirstAidCertified, setKycFirstAidCertified] = useState('Yes - Level 2 Kitchen Burn & Fire Safety')
-
-  // Inventory
-  const [kycStoreClearanceLevel, setKycStoreClearanceLevel] = useState('Level 3 - Cold-Chain Meat Locker (-18°C)')
-  const [kycPrimaryStorageDepot, setKycPrimaryStorageDepot] = useState('Central Cold-Room Depot A')
-  const [kycStockAuditPin, setKycStockAuditPin] = useState('')
-  const [kycEquipmentCertification, setKycEquipmentCertification] = useState('Electric Walkie Stacker & Pallet Jack Certified')
-  const [kycRefrigerationSafetyCert, setKycRefrigerationSafetyCert] = useState('Certified Cold-Chain Temperature Auditor')
-
-  // Dispatcher
-  const [kycDispatchConsoleId, setKycDispatchConsoleId] = useState('CONSOLE-DESK-01')
-  const [kycTerritoryOversight, setKycTerritoryOversight] = useState('Mainland Central & Island Corridor Trunkline')
-  const [kycIncidentEscalationTier, setKycIncidentEscalationTier] = useState('Tier 2 - Field Incident & Breakdown Coordinator')
-  const [kycTelematicsChannel, setKycTelematicsChannel] = useState('Channel 1 - Mainland Dispatch Hotline')
-
-  // Admin / Manager
-  const [kycCorporateIdBadge, setKycCorporateIdBadge] = useState('')
-  const [kycSecurityClearance, setKycSecurityClearance] = useState('Level 5 - Root Organization Administrator')
-  const [kycDepartmentScope, setKycDepartmentScope] = useState('Multi-Facility Operations & Governance')
-  const [kycTwoFactorAuthStatus, setKycTwoFactorAuthStatus] = useState('Hardware Token (TOTP) Enforced')
 
   useEffect(() => {
     if (targetStaff) {
@@ -624,30 +582,6 @@ export const ManageAccountsPage: React.FC = () => {
       setKycAssignedZone(data.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
       setKycInspectionStatus(data.inspection_status || 'Passed & Certified')
 
-      setKycFoodSafetyCertId(data.food_safety_cert_id || '')
-      setKycFoodSafetyCertExpiry(data.food_safety_cert_expiry || '')
-      setKycKitchenStation(data.kitchen_station || 'Primary Smoker Pit 1 & 2')
-      setKycHealthClearanceStatus(data.health_clearance_status || 'Certified Medically Fit')
-      setKycHealthClearanceExpiry(data.health_clearance_expiry || '')
-      setKycApronUniformSize(data.apron_uniform_size || 'Large (L - Heat-Resistant)')
-      setKycPitmasterSpecialty(data.pitmaster_specialty || 'Texas Brisket, Smoked Ribs & Pulled Pork')
-      setKycFirstAidCertified(data.first_aid_certified || 'Yes - Level 2 Kitchen Burn & Fire Safety')
-
-      setKycStoreClearanceLevel(data.store_clearance_level || 'Level 3 - Cold-Chain Meat Locker (-18°C)')
-      setKycPrimaryStorageDepot(data.primary_storage_depot || 'Central Cold-Room Depot A')
-      setKycStockAuditPin(data.stock_audit_pin || '')
-      setKycEquipmentCertification(data.equipment_certification || 'Electric Walkie Stacker & Pallet Jack Certified')
-      setKycRefrigerationSafetyCert(data.refrigeration_safety_cert || 'Certified Cold-Chain Temperature Auditor')
-
-      setKycDispatchConsoleId(data.dispatch_console_id || 'CONSOLE-DESK-01')
-      setKycTerritoryOversight(data.territory_oversight || 'Mainland Central & Island Corridor Trunkline')
-      setKycIncidentEscalationTier(data.incident_escalation_tier || 'Tier 2 - Field Incident & Breakdown Coordinator')
-      setKycTelematicsChannel(data.telematics_channel || 'Channel 1 - Mainland Dispatch Hotline')
-
-      setKycCorporateIdBadge(data.corporate_id_badge || data.staff_id || 'SHD-ADM-001')
-      setKycSecurityClearance(data.security_clearance || 'Level 5 - Root Organization Administrator')
-      setKycDepartmentScope(data.department_scope || 'Multi-Facility Operations & Governance')
-      setKycTwoFactorAuthStatus(data.two_factor_auth_status || 'Hardware Token (TOTP) Enforced')
     }
   }, [targetStaff, facilities])
 
@@ -694,34 +628,6 @@ export const ManageAccountsPage: React.FC = () => {
       assigned_zone: kycAssignedZone,
       inspection_status: kycInspectionStatus,
 
-      // Kitchen fields
-      food_safety_cert_id: kycFoodSafetyCertId.trim(),
-      food_safety_cert_expiry: kycFoodSafetyCertExpiry,
-      kitchen_station: kycKitchenStation,
-      health_clearance_status: kycHealthClearanceStatus,
-      health_clearance_expiry: kycHealthClearanceExpiry,
-      apron_uniform_size: kycApronUniformSize,
-      pitmaster_specialty: kycPitmasterSpecialty,
-      first_aid_certified: kycFirstAidCertified,
-
-      // Inventory fields
-      store_clearance_level: kycStoreClearanceLevel,
-      primary_storage_depot: kycPrimaryStorageDepot,
-      stock_audit_pin: kycStockAuditPin.trim(),
-      equipment_certification: kycEquipmentCertification,
-      refrigeration_safety_cert: kycRefrigerationSafetyCert,
-
-      // Dispatcher fields
-      dispatch_console_id: kycDispatchConsoleId.trim(),
-      territory_oversight: kycTerritoryOversight,
-      incident_escalation_tier: kycIncidentEscalationTier,
-      telematics_channel: kycTelematicsChannel,
-
-      // Admin fields
-      corporate_id_badge: kycCorporateIdBadge.trim(),
-      security_clearance: kycSecurityClearance,
-      department_scope: kycDepartmentScope,
-      two_factor_auth_status: kycTwoFactorAuthStatus,
     }
 
     updateAccount(targetStaff.email, updates)
@@ -1034,6 +940,9 @@ export const ManageAccountsPage: React.FC = () => {
       role: editRole,
       roleLabel,
       assigned_hub: editOffice,
+      assigned_zone: editZone,
+      department: editDepartment.trim(),
+      shift_schedule: editShiftSchedule,
       permissions: editPermissions,
     })
 
@@ -1080,142 +989,6 @@ export const ManageAccountsPage: React.FC = () => {
     navigate('/accounts')
   }
 
-  // Overall roles list for Invite Members page matching Screenshot
-  const overallRolesList = useMemo<Array<{ id: string; label: string; description: string; permissions: string[] }>>(() => [
-    {
-      id: 'super_admin',
-      label: 'Super Administrator - All Privileges',
-      description: 'Can edit any SmokeyOps platform setting, make purchases, update billing, and manage staff memberships. Super Administrators can revoke access of other Super Administrators.',
-      permissions: ALL_SYSTEM_PERMISSIONS.map(p => p.label)
-    },
-    {
-      id: 'minimal_access',
-      label: 'Minimal Account Access',
-      description: 'Can view account, and nothing else',
-      permissions: ['Full Database & Records Access']
-    },
-    {
-      id: 'ops_manager',
-      label: 'Operations General Manager',
-      description: 'Can access full operational hubs, supervise multi-hub kitchens, modify menus, and oversee dispatch shifts.',
-      permissions: ROLE_DEFAULT_PERMISSIONS['manager'] || []
-    },
-    {
-      id: 'kitchen_lead',
-      label: 'Central Kitchen Production Lead',
-      description: 'Can manage kitchen queue, log cooking batches, deplete raw materials, and override station alerts.',
-      permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
-    },
-    {
-      id: 'warehouse_lead',
-      label: 'Inventory & Warehouse Custodian',
-      description: 'Can manage purchase order receipts, inventory intake, transfer manifests, and cycle counts.',
-      permissions: ROLE_DEFAULT_PERMISSIONS['inventory'] || []
-    },
-    {
-      id: 'fleet_lead',
-      label: 'Logistics & Fleet Dispatcher',
-      description: 'Can manage rider assignments, dispatch queue, live transit monitoring, and third-party courier integrations.',
-      permissions: ROLE_DEFAULT_PERMISSIONS['dispatcher'] || []
-    },
-    {
-      id: 'delivery_courier',
-      label: 'Delivery Courier / Rider',
-      description: 'Can view assigned delivery drops, update waypoint progress, and sign off customer OTP handovers.',
-      permissions: ROLE_DEFAULT_PERMISSIONS['rider'] || []
-    },
-    {
-      id: 'read_only',
-      label: 'Operations Read Only Auditor',
-      description: 'Can access the full account in read only mode without modification privileges.',
-      permissions: ['Full Database & Records Access']
-    }
-  ], [])
-
-  // Parse comma / space / newline separated emails
-  const parsedInviteEmails = useMemo(() => {
-    if (!inviteEmails.trim()) return []
-    return inviteEmails
-      .split(/[\s,;]+/)
-      .map(e => e.trim())
-      .filter(e => e.length > 0)
-  }, [inviteEmails])
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-  const validEmails = useMemo(() => {
-    return parsedInviteEmails.filter(e => emailRegex.test(e))
-  }, [parsedInviteEmails])
-
-  // Handle Invite Members Submit
-  const handleInviteSubmit = () => {
-    if (validEmails.length === 0) {
-      showToast('Please enter at least one valid email address', 'error')
-      return
-    }
-
-    const finalPermissions = invitePermissions.length > 0
-      ? invitePermissions
-      : ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
-
-    const cleanedOffice = inviteScope.includes('Office')
-      ? inviteScope.replace(/\s+Office$/i, '').trim()
-      : 'Central Kitchen'
-
-    validEmails.forEach((emailStr) => {
-      const email = emailStr.trim()
-      const username = email.split('@')[0]
-      const derivedName = username
-        .split(/[._-]/)
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') || 'Team Member'
-
-      let derivedRole: UserRole = 'kitchen'
-      if (invitePermissions.some(p => p.includes('Super Administrator') || p.includes('Role & Permission') || p.includes('User Onboarding'))) {
-        derivedRole = 'admin'
-      } else if (invitePermissions.some(p => p.includes('Supervise') || p.includes('Variance') || p.includes('Operations General Manager'))) {
-        derivedRole = 'manager'
-      } else if (invitePermissions.some(p => p.includes('Logistics') || p.includes('Dispatch'))) {
-        derivedRole = 'dispatcher'
-      } else if (invitePermissions.some(p => p.includes('Transit') || p.includes('Delivery Courier') || p.includes('OTP'))) {
-        derivedRole = 'rider'
-      } else if (invitePermissions.some(p => p.includes('Stock Intake') || p.includes('Warehouse'))) {
-        derivedRole = 'inventory'
-      } else if (invitePermissions.some(p => p.includes('Read Only') || p.includes('Auditor'))) {
-        derivedRole = 'admin'
-      }
-
-      const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === derivedRole)
-      const roleLabel = roleConfig ? roleConfig.label : derivedRole
-
-      const newAccount: AppUserAccount = {
-        email,
-        name: derivedName,
-        role: derivedRole,
-        roleLabel,
-        assigned_hub: cleanedOffice,
-        permissions: finalPermissions,
-        department:
-          derivedRole === 'kitchen'
-            ? 'Culinary Operations'
-            : derivedRole === 'rider' || derivedRole === 'dispatcher'
-            ? 'Logistics'
-            : derivedRole === 'inventory'
-            ? 'Warehouse'
-            : 'Administration',
-        staff_id: `SHD-${derivedRole.toUpperCase().slice(0, 3)}-${Math.floor(100 + Math.random() * 900)}`,
-        status: 'active',
-        last_active: 'Invited just now',
-        temporary_password: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
-        created_at: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      }
-
-      createAccount(newAccount)
-    })
-
-    showToast(`Successfully invited ${validEmails.length} member${validEmails.length === 1 ? '' : 's'} to ${inviteScope}`, 'success')
-    navigate('/accounts')
-  }
 
   // Handle Change Password Submit
   const handleSavePassword = (e: React.FormEvent) => {
@@ -1449,7 +1222,7 @@ export const ManageAccountsPage: React.FC = () => {
 
     return (
       <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
-        {/* Navigation Breadcrumb & Header - Decluttered */}
+        {/* Navigation Breadcrumb & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <div className="flex items-center gap-3">
             <button
@@ -1467,7 +1240,7 @@ export const ManageAccountsPage: React.FC = () => {
                 <span className="text-[16px] font-semibold text-kumo-default">{targetStaff.name}</span>
               </div>
               <p className="text-[13px] text-kumo-subtle mt-0.5">
-                Centralized KYC compliance dossier, statutory identification, operational credentials, and verified settlement for <strong className="text-kumo-strong">{targetStaff.name}</strong> ({targetStaff.email}).
+                Manage personal details, branch assignment, emergency contacts, and payroll information for <strong className="text-kumo-strong">{targetStaff.name}</strong> ({targetStaff.email}).
               </p>
             </div>
           </div>
@@ -1481,9 +1254,9 @@ export const ManageAccountsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Unified Staff Profile & KYC Form Sections */}
+        {/* Clean Staff Profile & KYC Form Sections */}
         <div className="space-y-6">
-          {/* Card 1: Statutory Legal Identity */}
+          {/* Card 1: Personal Details & Identity */}
           <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
             <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1491,956 +1264,515 @@ export const ManageAccountsPage: React.FC = () => {
                   <UserCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-semibold text-kumo-strong">Legal Identity & Statutory Verification</h3>
-                  <p className="text-[13px] text-kumo-subtle">National identity register, BVN banking link, and personal contact dossier</p>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Personal Details & Identity</h3>
+                  <p className="text-[13px] text-kumo-subtle">Full legal name, contact information, date of birth, and identity numbers</p>
                 </div>
               </div>
             </div>
 
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Full Legal Name"
+                description="As registered on official identification documents"
+                required
+              >
+                <Input
+                  value={profileFullName}
+                  onChange={(e) => setProfileFullName(e.target.value)}
+                  placeholder="e.g. Yusuf Babatunde Balogun"
+                  required
+                  aria-label="Full Legal Name"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Official Work Email"
+                description="Primary login and communication address"
+                required
+              >
+                <Input
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  placeholder="e.g. ridersmokeyyusuf@gmail.com"
+                  required
+                  aria-label="Official Work Email"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Direct Phone Number"
+                description="Mobile phone number with SMS and voice availability"
+              >
+                <Input
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                  placeholder="+234 802 345 6789"
+                  aria-label="Direct Phone Number"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Date of Birth"
+                description="Staff member's birth date for employment verification"
+              >
+                <Input
+                  type="date"
+                  value={profileDob}
+                  onChange={(e) => setProfileDob(e.target.value)}
+                  aria-label="Date of Birth"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="National Identity Number (NIN)"
+                description="11-digit National Identity Number"
+              >
+                <Input
+                  value={profileNin}
+                  onChange={(e) => setProfileNin(e.target.value)}
+                  placeholder="11-digit NIN"
+                  aria-label="National Identity Number (NIN)"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Bank Verification Number (BVN)"
+                description="11-digit Bank Verification Number (optional)"
+              >
+                <Input
+                  value={profileBvn}
+                  onChange={(e) => setProfileBvn(e.target.value)}
+                  placeholder="11-digit BVN"
+                  aria-label="Bank Verification Number (BVN)"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Card 2: Contact & Residential Address */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Contact & Residential Address</h3>
+                  <p className="text-[13px] text-kumo-subtle">Physical street address and state of residence</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Residential Street Address"
+                description="Primary residential street and dwelling number"
+                required
+              >
+                <Input
+                  value={profileAddress}
+                  onChange={(e) => setProfileAddress(e.target.value)}
+                  placeholder="e.g. 14 Herbert Macaulay Way, Alagomeji"
+                  required
+                  aria-label="Residential Street Address"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="City / Local Government (LGA)"
+                description="City or local government authority area"
+              >
+                <Input
+                  value={profileCity}
+                  onChange={(e) => setProfileCity(e.target.value)}
+                  placeholder="e.g. Lagos Mainland"
+                  aria-label="City / Local Government (LGA)"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="State / Region"
+                description="State of residence"
+              >
+                <Select
+                  value={profileState}
+                  onValueChange={(val) => setProfileState(String(val))}
+                  options={NIGERIAN_STATES}
+                  aria-label="State / Region"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Card 3: Branch & Employment Details */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Branch & Employment Details</h3>
+                  <p className="text-[13px] text-kumo-subtle">Primary facility, department, role authority, and shift schedule</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Assigned Operating Facility / Hub"
+                description="Primary physical branch, kitchen, or depot"
+              >
+                <Select
+                  value={profileHub}
+                  onValueChange={(val) => setProfileHub(String(val))}
+                  options={facilities.map(f => ({ value: f.name, label: f.name }))}
+                  aria-label="Assigned Operating Facility / Hub"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Staff Role Assignment"
+                description="Operational role defining system access and baseline permissions"
+              >
+                <Select
+                  value={profileRole}
+                  onValueChange={(val) => {
+                    const newR = val as UserRole
+                    setProfileRole(newR)
+                    const rCfg = SYSTEM_ROLE_CONFIGS.find(r => r.id === newR)
+                    showToast(`Updated role to ${rCfg?.label || newR}`, 'info')
+                  }}
+                  options={SYSTEM_ROLE_CONFIGS.map(r => ({ value: r.id, label: r.label }))}
+                  aria-label="Staff Role Assignment"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Employment Status"
+                description="Staff engagement and contract classification"
+              >
+                <Select
+                  value={profileEmploymentStatus}
+                  onValueChange={(val) => setProfileEmploymentStatus(val as any)}
+                  options={EMPLOYMENT_STATUS_OPTIONS}
+                  aria-label="Employment Status"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Primary Operational Shift"
+                description="Assigned rostered shift schedule"
+              >
+                <Select
+                  value={profileShiftSchedule}
+                  onValueChange={(val) => setProfileShiftSchedule(String(val))}
+                  options={SHIFT_SCHEDULE_OPTIONS}
+                  aria-label="Primary Operational Shift"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Operational Department"
+                description="Operational work group"
+              >
+                <Input
+                  value={profileDepartment}
+                  onChange={(e) => setProfileDepartment(e.target.value)}
+                  placeholder="e.g. Culinary Production"
+                  aria-label="Operational Department"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Account Status"
+                description="Access status across system logins"
+              >
+                <Select
+                  value={profileStatus}
+                  onValueChange={(val) => setProfileStatus(val as any)}
+                  options={[
+                    { value: 'active', label: 'Active - Normal Access' },
+                    { value: 'suspended', label: 'Suspended - Login Disabled' }
+                  ]}
+                  aria-label="Account Status"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Card 4: Delivery Fleet & Driver Details (Rider Only) */}
+          {profileRole === 'rider' && (
+            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs animate-in fade-in">
+              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                    <Bike className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-semibold text-kumo-strong">Delivery Fleet & Driver Details</h3>
+                    <p className="text-[13px] text-kumo-subtle">Assigned vehicle specifications, driver's license, and cash float limit</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="divide-y divide-kumo-line/60">
                 <ProfileFieldRow
-                  label="Full Legal Name"
-                  description="As registered on official identification documents"
-                  required
+                  label="Delivery Vehicle Type"
+                  description="Vehicle model used for dispatch and orders"
                 >
-                  <Input
-                    value={profileFullName}
-                    onChange={(e) => setProfileFullName(e.target.value)}
-                    placeholder="e.g. Yusuf Babatunde Balogun"
-                    required
-                    aria-label="Full Legal Name"
+                  <Select
+                    value={kycVehicleType}
+                    onValueChange={(val) => setKycVehicleType(String(val))}
+                    options={[
+                      { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
+                      { value: 'TVS King Deluxe Tricycle', label: 'TVS King Deluxe Tricycle' },
+                      { value: 'Suzuki Super Carry Mini-Van', label: 'Suzuki Super Carry Mini-Van' },
+                      { value: 'Haojue 125 Motorcycle', label: 'Haojue 125 Motorcycle' },
+                      { value: 'Honda Ace 110 Delivery Edition', label: 'Honda Ace 110 Delivery Edition' },
+                      { value: 'Electric EV Delivery Bike', label: 'Electric EV Delivery Bike' }
+                    ]}
+                    aria-label="Delivery Vehicle Type"
                   />
                 </ProfileFieldRow>
                 <ProfileFieldRow
-                  label="Official Work Email"
-                  description="Primary login and communication address"
-                  required
+                  label="Vehicle Plate Number"
+                  description="Official state vehicle licensing plate"
                 >
                   <Input
-                    type="email"
-                    value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    placeholder="e.g. ridersmokeyyusuf@gmail.com"
-                    required
-                    aria-label="Official Work Email"
+                    value={kycPlateNumber}
+                    onChange={(e) => setKycPlateNumber(e.target.value.toUpperCase())}
+                    placeholder="e.g. LND-482-XA"
+                    aria-label="Vehicle Plate Number"
                   />
                 </ProfileFieldRow>
                 <ProfileFieldRow
-                  label="Direct Phone Number"
-                  description="Mobile phone number with SMS and voice availability"
+                  label="Vehicle Ownership Model"
+                  description="Company owned, privately owned, or partner leased"
                 >
-                  <Input
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                    placeholder="+234 802 345 6789"
-                    aria-label="Direct Phone Number"
+                  <Select
+                    value={kycVehicleOwnership}
+                    onValueChange={(val) => setKycVehicleOwnership(String(val))}
+                    options={[
+                      { value: 'Smokey Fleet Unit #04', label: 'Company Owned Fleet Unit' },
+                      { value: 'Privately Owned Rider Bike', label: 'Privately Owned (Mileage/Allowance)' },
+                      { value: 'Third-Party Partner Leased', label: 'Third-Party Partner Leased' }
+                    ]}
+                    aria-label="Vehicle Ownership Model"
                   />
                 </ProfileFieldRow>
                 <ProfileFieldRow
-                  label="Date of Birth"
-                  description="Statutory birth verification date for employment compliance"
+                  label="Primary Delivery Zone"
+                  description="Core dispatch operating territory"
+                >
+                  <Select
+                    value={kycAssignedZone}
+                    onValueChange={(val) => setKycAssignedZone(String(val))}
+                    options={[
+                      { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
+                      { value: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)', label: 'Zone 2: Island Express (Victoria Island / Lekki / Ikoyi)' },
+                      { value: 'Zone 3: Greater Lagos & Inter-hub Trunk', label: 'Zone 3: Greater Lagos & Inter-hub Trunk' },
+                      { value: 'Zone 4: Central Production Hub', label: 'Zone 4: Central Production Hub' },
+                    ]}
+                    aria-label="Primary Delivery Zone"
+                  />
+                </ProfileFieldRow>
+                <ProfileFieldRow
+                  label="Driver's License Number"
+                  description="Valid Federal driver's license number"
+                >
+                  <Input
+                    value={kycLicenseNumber}
+                    onChange={(e) => setKycLicenseNumber(e.target.value)}
+                    placeholder="e.g. DL-98234-LAG"
+                    aria-label="Driver's License Number"
+                  />
+                </ProfileFieldRow>
+                <ProfileFieldRow
+                  label="License Expiry Date"
+                  description="Expiration date of driver's license"
                 >
                   <Input
                     type="date"
-                    value={profileDob}
-                    onChange={(e) => setProfileDob(e.target.value)}
-                    aria-label="Date of Birth"
+                    value={kycLicenseExpiry}
+                    onChange={(e) => setKycLicenseExpiry(e.target.value)}
+                    aria-label="License Expiry Date"
                   />
                 </ProfileFieldRow>
                 <ProfileFieldRow
-                  label="National Identity Number (NIN)"
-                  description="11-digit identity number verified against NIMC database"
-                >
-                  <Input
-                    value={profileNin}
-                    onChange={(e) => setProfileNin(e.target.value)}
-                    placeholder="11-digit National NIN"
-                    aria-label="National Identity Number (NIN)"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Bank Verification Number (BVN)"
-                  description="11-digit Central Bank of Nigeria biometric banking record"
-                >
-                  <Input
-                    value={profileBvn}
-                    onChange={(e) => setProfileBvn(e.target.value)}
-                    placeholder="11-digit BVN"
-                    aria-label="Bank Verification Number (BVN)"
-                  />
-                </ProfileFieldRow>
-              </div>
-            </div>
-
-            {/* Card 2: Residential Address & Verification */}
-            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-kumo-strong">Residential Proof & Municipal Verification</h3>
-                    <p className="text-[13px] text-kumo-subtle">Physical dwelling address confirmed via utility bills and physical premises audit</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-kumo-line/60">
-                <ProfileFieldRow
-                  label="Residential Street Address"
-                  description="Primary residential street and dwelling number"
-                  required
-                >
-                  <Input
-                    value={profileAddress}
-                    onChange={(e) => setProfileAddress(e.target.value)}
-                    placeholder="e.g. 14 Herbert Macaulay Way, Alagomeji"
-                    required
-                    aria-label="Residential Street Address"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="City / Local Government (LGA)"
-                  description="Municipal local government authority area"
-                >
-                  <Input
-                    value={profileCity}
-                    onChange={(e) => setProfileCity(e.target.value)}
-                    placeholder="e.g. Lagos Mainland"
-                    aria-label="City / Local Government (LGA)"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="State / Region"
-                  description="Federal administrative state of residence"
+                  label="Daily Cash-on-Delivery (COD) Limit"
+                  description="Maximum cash float held before mandatory drop-off"
                 >
                   <Select
-                    value={profileState}
-                    onValueChange={(val) => setProfileState(String(val))}
-                    options={NIGERIAN_STATES}
-                    aria-label="State / Region"
-                  />
-                </ProfileFieldRow>
-              </div>
-            </div>
-
-            {/* Card 3: Workplace Facility & Employment Contract */}
-            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                    <Briefcase className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-kumo-strong">Workplace Assignment & Contract Governance</h3>
-                    <p className="text-[13px] text-kumo-subtle">Primary facility allocation, department scheduling, and operational authority</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-kumo-line/60">
-                <ProfileFieldRow
-                  label="Assigned Operating Facility / Hub"
-                  description="Primary physical kitchen or fulfillment depot"
-                >
-                  <Select
-                    value={profileHub}
-                    onValueChange={(val) => setProfileHub(String(val))}
-                    options={facilities.map(f => ({ value: f.name, label: f.name }))}
-                    aria-label="Assigned Operating Facility / Hub"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Staff Role Assignment"
-                  description="Operational role defining base authority and duties"
-                >
-                  <Select
-                    value={profileRole}
-                    onValueChange={(val) => {
-                      const newR = val as UserRole
-                      setProfileRole(newR)
-                      const rCfg = SYSTEM_ROLE_CONFIGS.find(r => r.id === newR)
-                      showToast(`Updated role profile to ${rCfg?.label || newR}. Operational fields adjusted.`, 'info')
-                    }}
-                    options={SYSTEM_ROLE_CONFIGS.map(r => ({ value: r.id, label: r.label }))}
-                    aria-label="Staff Role Assignment"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Employment Contract Status"
-                  description="Labor engagement agreement classification"
-                >
-                  <Select
-                    value={profileEmploymentStatus}
-                    onValueChange={(val) => setProfileEmploymentStatus(val as any)}
-                    options={EMPLOYMENT_STATUS_OPTIONS}
-                    aria-label="Employment Contract Status"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Primary Operational Shift"
-                  description="Assigned rostered operating shift"
-                >
-                  <Select
-                    value={profileShiftSchedule}
-                    onValueChange={(val) => setProfileShiftSchedule(String(val))}
-                    options={SHIFT_SCHEDULE_OPTIONS}
-                    aria-label="Primary Operational Shift"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Operational Department"
-                  description="Functional operational group"
-                >
-                  <Input
-                    value={profileDepartment}
-                    onChange={(e) => setProfileDepartment(e.target.value)}
-                    placeholder="e.g. Culinary Production"
-                    aria-label="Operational Department"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="System Account Status"
-                  description="Account state across application logins"
-                >
-                  <Select
-                    value={profileStatus}
-                    onValueChange={(val) => setProfileStatus(val as any)}
+                    value={String(kycCodLimit)}
+                    onValueChange={(val) => setKycCodLimit(Number(val))}
                     options={[
-                      { value: 'active', label: 'Active - Full Operational Access' },
-                      { value: 'suspended', label: 'Suspended - Login & Permissions Revoked' }
+                      { value: '30000', label: '₦30,000 - Entry Level Float' },
+                      { value: '50000', label: '₦50,000 - Standard Fleet Float' },
+                      { value: '75000', label: '₦75,000 - Senior Trusted Rider' },
+                      { value: '100000', label: '₦100,000 - High-Volume Dispatch' }
                     ]}
-                    aria-label="System Account Status"
+                    aria-label="Daily Cash-on-Delivery (COD) Limit"
                   />
                 </ProfileFieldRow>
               </div>
             </div>
+          )}
 
-            {/* Role Operational Dossier Cards */}
-            {profileRole === 'rider' && (
-              <>
-                {/* Rider Card 1: Fleet Vehicle Specs */}
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Bike className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Fleet Vehicle Specification & Ownership</h3>
-                        <p className="text-[13px] text-kumo-subtle">Assigned delivery vehicle, motor vehicle registration, and fleet asset tracking</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Delivery Vehicle Type"
-                      description="Assigned make and model of the dispatch unit"
-                    >
-                      <Select
-                        value={kycVehicleType}
-                        onValueChange={(val) => setKycVehicleType(String(val))}
-                        options={[
-                          { value: 'Bajaj Boxer 150 Motorcycle', label: 'Bajaj Boxer 150 Motorcycle' },
-                          { value: 'TVS King Deluxe Tricycle', label: 'TVS King Deluxe Tricycle' },
-                          { value: 'Suzuki Super Carry Mini-Van', label: 'Suzuki Super Carry Mini-Van' },
-                          { value: 'Haojue 125 Motorcycle', label: 'Haojue 125 Motorcycle' },
-                          { value: 'Honda Ace 110 Delivery Edition', label: 'Honda Ace 110 Delivery Edition' },
-                          { value: 'Electric EV Delivery Bike', label: 'Electric EV Delivery Bike' }
-                        ]}
-                        aria-label="Delivery Vehicle Type"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Registration / Plate Number"
-                      description="Official state vehicle licensing plate"
-                    >
-                      <Input
-                        value={kycPlateNumber}
-                        onChange={(e) => setKycPlateNumber(e.target.value.toUpperCase())}
-                        placeholder="e.g. LND-482-XA"
-                        aria-label="Registration / Plate Number"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Fleet Ownership Model"
-                      description="Company-owned asset, leased, or privately underwritten"
-                    >
-                      <Select
-                        value={kycVehicleOwnership}
-                        onValueChange={(val) => setKycVehicleOwnership(String(val))}
-                        options={[
-                          { value: 'Smokey Fleet Unit #04', label: 'Smokey Fleet Unit (Company Owned)' },
-                          { value: 'Privately Owned Rider Bike', label: 'Privately Owned Rider Bike (Lease/Mileage)' },
-                          { value: 'Third-Party Partner Leased', label: 'Third-Party Partner Leased Unit' }
-                        ]}
-                        aria-label="Fleet Ownership Model"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Fleet Roadworthiness Audit"
-                      description="Mechanical safety certification status"
-                    >
-                      <Select
-                        value={kycInspectionStatus}
-                        onValueChange={(val) => setKycInspectionStatus(String(val))}
-                        options={[
-                          { value: 'Passed & Certified', label: 'Passed & Certified (Roadworthy)' },
-                          { value: 'Scheduled For Inspection', label: 'Scheduled For Fleet Inspection' },
-                          { value: 'Overdue / Re-inspect', label: 'Inspection Overdue / Recertify' }
-                        ]}
-                        aria-label="Fleet Roadworthiness Audit"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Primary Dispatch Delivery Zone"
-                      description="Designated core route dispatch territory"
-                    >
-                      <Select
-                        value={kycAssignedZone}
-                        onValueChange={(val) => setKycAssignedZone(String(val))}
-                        options={[
-                          { value: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)', label: 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)' },
-                          { value: 'Zone 2: Island Expressway (Lekki / Ikoyi / VI)', label: 'Zone 2: Island Expressway (Lekki / Ikoyi / VI)' },
-                          { value: 'Zone 3: Outer Mainland (Agege / Ikorodu)', label: 'Zone 3: Outer Mainland (Agege / Ikorodu)' },
-                          { value: 'Zone 4: Cross-Bridge Trunkline', label: 'Zone 4: Cross-Bridge Trunkline' }
-                        ]}
-                        aria-label="Primary Dispatch Delivery Zone"
-                      />
-                    </ProfileFieldRow>
-                  </div>
+          {/* Card 5: Emergency Contact & Guarantor */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
                 </div>
-
-                {/* Rider Card 2: Driver's License */}
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Driver's License & Road Safety Accreditation</h3>
-                        <p className="text-[13px] text-kumo-subtle">Federal Road Safety Corps (FRSC) statutory license and validation dates</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Driver's License Number"
-                      description="Federal Road Safety Corps license serial number"
-                    >
-                      <Input
-                        value={kycLicenseNumber}
-                        onChange={(e) => setKycLicenseNumber(e.target.value)}
-                        placeholder="e.g. DL-98234-LAG"
-                        aria-label="Driver's License Number"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="License Expiry Date"
-                      description="Statutory license validity expiration threshold"
-                    >
-                      <Input
-                        type="date"
-                        value={kycLicenseExpiry}
-                        onChange={(e) => setKycLicenseExpiry(e.target.value)}
-                        aria-label="License Expiry Date"
-                      />
-                    </ProfileFieldRow>
-                  </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Emergency Contact & Guarantor</h3>
+                  <p className="text-[13px] text-kumo-subtle">Next of kin emergency contact and verified guarantor details</p>
                 </div>
-
-                {/* Rider Card 3: COD Float Limit */}
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Wallet className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Cash On Delivery (COD) Float Limit</h3>
-                        <p className="text-[13px] text-kumo-subtle">Hard cash holding threshold ceiling before mandatory cashier remittance</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Max COD Cash Holding Ceiling"
-                      description="Hard cash float ceiling before mandatory cashier remittance"
-                    >
-                      <Select
-                        value={String(kycCodLimit)}
-                        onValueChange={(val) => setKycCodLimit(Number(val))}
-                        options={[
-                          { value: '30000', label: '₦30,000 - Entry Level Float' },
-                          { value: '50000', label: '₦50,000 - Standard Fleet Ceiling' },
-                          { value: '75000', label: '₦75,000 - Senior Trusted Courier' },
-                          { value: '100000', label: '₦100,000 - Island Lead Dispatcher' }
-                        ]}
-                        aria-label="Max COD Cash Holding Ceiling"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {profileRole === 'kitchen' && (
-              <>
-                {/* Kitchen Card 1: Culinary Station & Food Safety */}
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Flame className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Kitchen Station & Culinary Certifications</h3>
-                        <p className="text-[13px] text-kumo-subtle">HACCP compliance credentials, oven supervisor specialties, and station allocation</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Primary Kitchen Station"
-                      description="Designated food prep, smoking, or plating station"
-                    >
-                      <Select
-                        value={kycKitchenStation}
-                        onValueChange={(val) => setKycKitchenStation(String(val))}
-                        options={[
-                          { value: 'Primary Smoker Pit 1 & 2', label: 'Primary Smoker Pit 1 & 2' },
-                          { value: 'Central Prep & Meat Fabrication', label: 'Central Prep & Meat Fabrication' },
-                          { value: 'Sauce Lab & Batch Finishing', label: 'Sauce Lab & Batch Finishing' },
-                          { value: 'Expeditor & Plating QA Station', label: 'Expeditor & Plating QA Station' }
-                        ]}
-                        aria-label="Primary Kitchen Station"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Oven Supervisor Culinary Specialty"
-                      description="Primary operational recipe or prep focus"
-                    >
-                      <Input
-                        value={kycPitmasterSpecialty}
-                        onChange={(e) => setKycPitmasterSpecialty(e.target.value)}
-                        placeholder="e.g. Texas Brisket, Smoked Ribs"
-                        aria-label="Oven Supervisor Culinary Specialty"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="HACCP Food Safety Cert ID"
-                      description="Hazard analysis and critical control points certificate"
-                    >
-                      <Input
-                        value={kycFoodSafetyCertId}
-                        onChange={(e) => setKycFoodSafetyCertId(e.target.value)}
-                        placeholder="e.g. HACCP-NG-2025-084"
-                        aria-label="HACCP Food Safety Cert ID"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Food Safety Cert Expiry"
-                      description="Statutory food safety renewal date"
-                    >
-                      <Input
-                        type="date"
-                        value={kycFoodSafetyCertExpiry}
-                        onChange={(e) => setKycFoodSafetyCertExpiry(e.target.value)}
-                        aria-label="Food Safety Cert Expiry"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Heat-Resistant Apron / Uniform"
-                      description="Assigned uniform and thermal protection size"
-                    >
-                      <Select
-                        value={kycApronUniformSize}
-                        onValueChange={(val) => setKycApronUniformSize(String(val))}
-                        options={[
-                          { value: 'Small (S - Heat-Resistant)', label: 'Small (S)' },
-                          { value: 'Medium (M - Heat-Resistant)', label: 'Medium (M)' },
-                          { value: 'Large (L - Heat-Resistant)', label: 'Large (L)' },
-                          { value: 'Extra Large (XL - Heat-Resistant)', label: 'Extra Large (XL)' },
-                          { value: 'XXL (Heat-Resistant)', label: 'XXL' }
-                        ]}
-                        aria-label="Heat-Resistant Apron / Uniform"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="First Aid & Fire Safety Certified"
-                      description="Kitchen burn treatment and suppression training"
-                    >
-                      <Select
-                        value={kycFirstAidCertified}
-                        onValueChange={(val) => setKycFirstAidCertified(String(val))}
-                        options={[
-                          { value: 'Yes - Level 2 Kitchen Burn & Fire Safety', label: 'Level 2 Kitchen Burn & Fire Safety' },
-                          { value: 'Level 1 General First Aid', label: 'Level 1 General First Aid' },
-                          { value: 'In Training', label: 'In Training' }
-                        ]}
-                        aria-label="First Aid & Fire Safety Certified"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-
-                {/* Kitchen Card 2: Health Clearance */}
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <ChefHat className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Food Handler Health Clearance & Sanitary Record</h3>
-                        <p className="text-[13px] text-kumo-subtle">Annual medical testing for pathogens, hepatitis, and culinary hygiene compliance</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Food Handler Medical Fitness"
-                      description="Certified medical fitness status for commercial food handling"
-                    >
-                      <Select
-                        value={kycHealthClearanceStatus}
-                        onValueChange={(val) => setKycHealthClearanceStatus(String(val))}
-                        options={[
-                          { value: 'Certified Medically Fit', label: 'Certified Medically Fit (Class A)' },
-                          { value: 'Under Annual Review', label: 'Under Annual Review' },
-                          { value: 'Temporary Medical Leave', label: 'Temporary Medical Leave' }
-                        ]}
-                        aria-label="Food Handler Medical Fitness"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Medical Clearance Expiry Date"
-                      description="Annual statutory medical recertification threshold"
-                    >
-                      <Input
-                        type="date"
-                        value={kycHealthClearanceExpiry}
-                        onChange={(e) => setKycHealthClearanceExpiry(e.target.value)}
-                        aria-label="Medical Clearance Expiry Date"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {profileRole === 'inventory' && (
-              <>
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Package className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Storage Depot Clearance & Cold-Chain Auditing</h3>
-                        <p className="text-[13px] text-kumo-subtle">Clearance levels for meat lockers (-18°C), digital authorization PIN, and pallet stacker cert</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Store Clearance Level"
-                      description="Authorized warehouse section and refrigeration access"
-                    >
-                      <Select
-                        value={kycStoreClearanceLevel}
-                        onValueChange={(val) => setKycStoreClearanceLevel(String(val))}
-                        options={[
-                          { value: 'Level 3 - Cold-Chain Meat Locker (-18°C)', label: 'Level 3 - Cold-Chain Meat Locker (-18°C)' },
-                          { value: 'Level 2 - Ambient Dry Goods', label: 'Level 2 - Ambient Dry Goods' },
-                          { value: 'Level 1 - Receiving & Staging', label: 'Level 1 - Receiving & Staging' }
-                        ]}
-                        aria-label="Store Clearance Level"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Primary Storage Depot"
-                      description="Designated facility storage zone or room"
-                    >
-                      <Select
-                        value={kycPrimaryStorageDepot}
-                        onValueChange={(val) => setKycPrimaryStorageDepot(String(val))}
-                        options={[
-                          { value: 'Central Cold-Room Depot A', label: 'Central Cold-Room Depot A' },
-                          { value: 'Deep-Freeze Locker B (-18°C)', label: 'Deep-Freeze Locker B (-18°C)' },
-                          { value: 'Dry Seasoning & Wood Bunker C', label: 'Dry Seasoning & Wood Bunker C' },
-                          { value: 'Packaging Materials Store', label: 'Packaging Materials Store' }
-                        ]}
-                        aria-label="Primary Storage Depot"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Digital Stock Audit Authorization PIN"
-                      description="Cryptographic code for stock adjustments and receiving"
-                    >
-                      <Input
-                        value={kycStockAuditPin}
-                        onChange={(e) => setKycStockAuditPin(e.target.value)}
-                        placeholder="e.g. AUTH-INV-4829"
-                        aria-label="Digital Stock Audit Authorization PIN"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Heavy Equipment Operation"
-                      description="License for mechanical lifting and pallet movement"
-                    >
-                      <Select
-                        value={kycEquipmentCertification}
-                        onValueChange={(val) => setKycEquipmentCertification(String(val))}
-                        options={[
-                          { value: 'Electric Walkie Stacker & Pallet Jack Certified', label: 'Electric Walkie Stacker & Pallet Jack' },
-                          { value: 'Forklift Heavy Operator Certified', label: 'Forklift Heavy Operator Certified' },
-                          { value: 'Manual Handling Only', label: 'Manual Handling Only' }
-                        ]}
-                        aria-label="Heavy Equipment Operation"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Cold-Chain Temperature Qualification"
-                      description="Certified protocol for sub-zero temperature logs"
-                    >
-                      <Select
-                        value={kycRefrigerationSafetyCert}
-                        onValueChange={(val) => setKycRefrigerationSafetyCert(String(val))}
-                        options={[
-                          { value: 'Certified Cold-Chain Temperature Auditor', label: 'Certified Cold-Chain Temperature Auditor (HACCP)' },
-                          { value: 'Trained Temperature Logger', label: 'Trained Temperature Logger' }
-                        ]}
-                        aria-label="Cold-Chain Temperature Qualification"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {profileRole === 'dispatcher' && (
-              <>
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Truck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Fulfillment Console & Telematics Control</h3>
-                        <p className="text-[13px] text-kumo-subtle">Live dispatch desk allocation, radio telemetry channels, and incident escalation tier</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Dispatch Console Terminal ID"
-                      description="Designated dispatch control desk identifier"
-                    >
-                      <Input
-                        value={kycDispatchConsoleId}
-                        onChange={(e) => setKycDispatchConsoleId(e.target.value)}
-                        placeholder="e.g. CONSOLE-DESK-01"
-                        aria-label="Dispatch Console Terminal ID"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Territory Oversight Corridor"
-                      description="Geographic region under monitoring"
-                    >
-                      <Select
-                        value={kycTerritoryOversight}
-                        onValueChange={(val) => setKycTerritoryOversight(String(val))}
-                        options={[
-                          { value: 'Mainland Central & Island Corridor Trunkline', label: 'Mainland Central & Island Corridor Trunkline' },
-                          { value: 'Core Mainland Network (Ikeja/Yaba)', label: 'Core Mainland Network (Ikeja/Yaba)' },
-                          { value: 'Island Arterial Network (Lekki/VI)', label: 'Island Arterial Network (Lekki/VI)' },
-                          { value: 'Nationwide Express Cargo', label: 'Nationwide Express Cargo' }
-                        ]}
-                        aria-label="Territory Oversight Corridor"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Field Incident Escalation Tier"
-                      description="Escalation authority for road accidents and breakdowns"
-                    >
-                      <Select
-                        value={kycIncidentEscalationTier}
-                        onValueChange={(val) => setKycIncidentEscalationTier(String(val))}
-                        options={[
-                          { value: 'Tier 2 - Field Incident & Breakdown Coordinator', label: 'Tier 2 - Field Incident & Breakdown Coordinator' },
-                          { value: 'Tier 1 - Standard Dispatch Operator', label: 'Tier 1 - Standard Dispatch Operator' },
-                          { value: 'Tier 3 - Senior Operations Controller', label: 'Tier 3 - Senior Operations Controller' }
-                        ]}
-                        aria-label="Field Incident Escalation Tier"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="VHF Radio & Telematics Channel"
-                      description="Emergency two-way communications channel"
-                    >
-                      <Select
-                        value={kycTelematicsChannel}
-                        onValueChange={(val) => setKycTelematicsChannel(String(val))}
-                        options={[
-                          { value: 'Channel 1 - Mainland Dispatch Hotline', label: 'Channel 1 - Mainland Dispatch Hotline' },
-                          { value: 'Channel 2 - Island Logistics Frequency', label: 'Channel 2 - Island Logistics Frequency' },
-                          { value: 'Channel 3 - Emergency Response', label: 'Channel 3 - Emergency Response' }
-                        ]}
-                        aria-label="VHF Radio & Telematics Channel"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {(profileRole === 'admin' || profileRole === 'manager') && (
-              <>
-                <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-                  <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[16px] font-semibold text-kumo-strong">Enterprise Governance & Security Scope</h3>
-                        <p className="text-[13px] text-kumo-subtle">Security clearance levels and multi-facility oversight</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-kumo-line/60">
-                    <ProfileFieldRow
-                      label="Security Clearance Level"
-                      description="Administrative security boundary"
-                    >
-                      <Select
-                        value={kycSecurityClearance}
-                        onValueChange={(val) => setKycSecurityClearance(String(val))}
-                        options={[
-                          { value: 'Level 5 - Root Organization Administrator', label: 'Level 5 - Root Organization Administrator' },
-                          { value: 'Level 4 - Operations General Manager', label: 'Level 4 - Operations General Manager' },
-                          { value: 'Level 3 - Department Lead', label: 'Level 3 - Department Lead' }
-                        ]}
-                        aria-label="Security Clearance Level"
-                      />
-                    </ProfileFieldRow>
-                    <ProfileFieldRow
-                      label="Departmental Oversight Scope"
-                      description="Multi-facility governance scope"
-                    >
-                      <Select
-                        value={kycDepartmentScope}
-                        onValueChange={(val) => setKycDepartmentScope(String(val))}
-                        options={[
-                          { value: 'Multi-Facility Operations & Governance', label: 'Multi-Facility Operations & Governance' },
-                          { value: 'Culinary Production Only', label: 'Culinary Production Only' },
-                          { value: 'Fleet Logistics Only', label: 'Fleet Logistics Only' },
-                          { value: 'Financial Audit Only', label: 'Financial Audit Only' }
-                        ]}
-                        aria-label="Departmental Oversight Scope"
-                      />
-                    </ProfileFieldRow>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Next of Kin Card */}
-            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-kumo-strong">Primary Next-of-Kin (Emergency Contact)</h3>
-                    <p className="text-[13px] text-kumo-subtle">Verified primary family contact in case of workplace emergency or logistics incidents</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-kumo-line/60">
-                <ProfileFieldRow
-                  label="Next-of-Kin Full Legal Name"
-                  description="Primary emergency contact full legal name"
-                  required
-                >
-                  <Input
-                    value={profileEmergencyName}
-                    onChange={(e) => setProfileEmergencyName(e.target.value)}
-                    placeholder="e.g. Mrs. Funke Balogun"
-                    required
-                    aria-label="Next-of-Kin Full Legal Name"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Next-of-Kin Phone Number"
-                  description="Direct mobile contact phone number"
-                  required
-                >
-                  <Input
-                    value={profileEmergencyPhone}
-                    onChange={(e) => setProfileEmergencyPhone(e.target.value)}
-                    placeholder="+234 802 345 6789"
-                    required
-                    aria-label="Next-of-Kin Phone Number"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Relationship to Staff"
-                  description="Biological or marital relationship"
-                >
-                  <Select
-                    value={profileEmergencyRelationship}
-                    onValueChange={(val) => setProfileEmergencyRelationship(String(val))}
-                    options={KIN_RELATIONSHIP_OPTIONS}
-                    aria-label="Relationship to Staff"
-                  />
-                </ProfileFieldRow>
               </div>
             </div>
 
-            {/* Corporate Guarantor Card */}
-            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-kumo-strong">Corporate / Vetted Merchant Guarantor</h3>
-                    <p className="text-[13px] text-kumo-subtle">Vetted business merchant or landlord underwriting the staff member's operational liability</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-kumo-line/60">
-                <ProfileFieldRow
-                  label="Guarantor Full Legal Name"
-                  description="Business merchant or landlord underwriting staff member"
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Next-of-Kin Full Name"
+                description="Primary contact in case of workplace emergency"
+                required
+              >
+                <Input
+                  value={profileEmergencyName}
+                  onChange={(e) => setProfileEmergencyName(e.target.value)}
+                  placeholder="e.g. Mrs. Funke Balogun"
                   required
-                >
-                  <Input
-                    value={profileGuarantorName}
-                    onChange={(e) => setProfileGuarantorName(e.target.value)}
-                    placeholder="e.g. Alhaji M. Adeleke"
-                    required
-                    aria-label="Guarantor Full Legal Name"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Guarantor Phone Number"
-                  description="Active verified phone number of guarantor"
+                  aria-label="Next-of-Kin Full Name"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Next-of-Kin Phone Number"
+                description="Direct phone number for emergency contact"
+                required
+              >
+                <Input
+                  value={profileEmergencyPhone}
+                  onChange={(e) => setProfileEmergencyPhone(e.target.value)}
+                  placeholder="+234 802 345 6789"
                   required
-                >
-                  <Input
-                    value={profileGuarantorPhone}
-                    onChange={(e) => setProfileGuarantorPhone(e.target.value)}
-                    placeholder="+234 803 311 2233"
-                    required
-                    aria-label="Guarantor Phone Number"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Guarantor Vocation / Standing"
-                  description="Enterprise, property, or trade credentials"
-                >
-                  <Input
-                    value={profileGuarantorRelationship}
-                    onChange={(e) => setProfileGuarantorRelationship(e.target.value)}
-                    placeholder="e.g. Corporate Merchant / Landlord"
-                    aria-label="Guarantor Vocation / Standing"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Guarantor Statutory Vetting Status"
-                  description="Compliance vetting and signed affidavit status"
-                >
-                  <Select
-                    value={profileGuarantorStatus}
-                    onValueChange={(val) => setProfileGuarantorStatus(val as any)}
-                    options={GUARANTOR_STATUS_OPTIONS}
-                    aria-label="Guarantor Statutory Vetting Status"
-                  />
-                </ProfileFieldRow>
-              </div>
-            </div>
-
-            {/* Bank Account Details */}
-            <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
-              <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-kumo-strong">Bank Account for Payroll & Disbursement</h3>
-                    <p className="text-[13px] text-kumo-subtle">NIP-enabled Nigerian commercial bank account for salary disbursement and trip commissions</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="divide-y divide-kumo-line/60">
-                <ProfileFieldRow
-                  label="Financial Institution / Bank"
-                  description="Central Bank of Nigeria licensed commercial bank"
-                >
-                  <Select
-                    value={profileBankName}
-                    onValueChange={(val) => setProfileBankName(String(val))}
-                    options={NIGERIAN_BANKS}
-                    aria-label="Financial Institution / Bank"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="10-Digit NUBAN Account Number"
-                  description="Standard 10-digit Nigerian Uniform Bank Account Number"
+                  aria-label="Next-of-Kin Phone Number"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Relationship to Staff"
+                description="Family or personal relationship"
+              >
+                <Select
+                  value={profileEmergencyRelationship}
+                  onValueChange={(val) => setProfileEmergencyRelationship(String(val))}
+                  options={KIN_RELATIONSHIP_OPTIONS}
+                  aria-label="Relationship to Staff"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Guarantor Full Name"
+                description="Verified guarantor full name"
+                required
+              >
+                <Input
+                  value={profileGuarantorName}
+                  onChange={(e) => setProfileGuarantorName(e.target.value)}
+                  placeholder="e.g. Alhaji M. Adeleke"
                   required
-                >
-                  <Input
-                    value={profileBankAccountNumber}
-                    onChange={(e) => setProfileBankAccountNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                    placeholder="e.g. 0148920194"
-                    maxLength={10}
-                    required
-                    aria-label="10-Digit NUBAN Account Number"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Account Beneficiary Name"
-                  description="Must match staff member's legal identity exactly"
+                  aria-label="Guarantor Full Name"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Guarantor Phone Number"
+                description="Active phone number of guarantor"
+                required
+              >
+                <Input
+                  value={profileGuarantorPhone}
+                  onChange={(e) => setProfileGuarantorPhone(e.target.value)}
+                  placeholder="+234 803 311 2233"
                   required
-                >
-                  <Input
-                    value={profileBankAccountName}
-                    onChange={(e) => setProfileBankAccountName(e.target.value)}
-                    placeholder="e.g. Yusuf Balogun"
-                    required
-                    aria-label="Account Beneficiary Name"
-                  />
-                </ProfileFieldRow>
-              </div>
+                  aria-label="Guarantor Phone Number"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Guarantor Relationship / Occupation"
+                description="Vocation, standing, or relationship to staff"
+              >
+                <Input
+                  value={profileGuarantorRelationship}
+                  onChange={(e) => setProfileGuarantorRelationship(e.target.value)}
+                  placeholder="e.g. Merchant / Landlord"
+                  aria-label="Guarantor Relationship / Occupation"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Guarantor Verification Status"
+                description="Status of guarantor vetting and signed documentation"
+              >
+                <Select
+                  value={profileGuarantorStatus}
+                  onValueChange={(val) => setProfileGuarantorStatus(val as any)}
+                  options={GUARANTOR_STATUS_OPTIONS}
+                  aria-label="Guarantor Verification Status"
+                />
+              </ProfileFieldRow>
             </div>
           </div>
+
+          {/* Card 6: Bank Account for Payroll */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Bank Account for Payroll</h3>
+                  <p className="text-[13px] text-kumo-subtle">Bank account details for salary and operational reimbursements</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Bank Name"
+                description="Commercial bank name"
+              >
+                <Select
+                  value={profileBankName}
+                  onValueChange={(val) => setProfileBankName(String(val))}
+                  options={NIGERIAN_BANKS}
+                  aria-label="Bank Name"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="10-Digit Account Number (NUBAN)"
+                description="Nigerian Uniform Bank Account Number"
+                required
+              >
+                <Input
+                  value={profileBankAccountNumber}
+                  onChange={(e) => setProfileBankAccountNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                  placeholder="e.g. 0148920194"
+                  maxLength={10}
+                  required
+                  aria-label="10-Digit Account Number (NUBAN)"
+                />
+              </ProfileFieldRow>
+              <ProfileFieldRow
+                label="Account Beneficiary Name"
+                description="Must match staff member's bank account name"
+                required
+              >
+                <Input
+                  value={profileBankAccountName}
+                  onChange={(e) => setProfileBankAccountName(e.target.value)}
+                  placeholder="e.g. Yusuf Balogun"
+                  required
+                  aria-label="Account Beneficiary Name"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+        </div>
 
         {/* Bottom Save Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-kumo-base border border-kumo-line rounded-xl shadow-2xs gap-3 mt-8">
           <div className="flex items-center gap-2 text-[13px] text-kumo-subtle">
             <ShieldCheck className="w-4 h-4 text-kumo-subtle shrink-0" />
-            <span>Staff compliance records and statutory KYC documents are cryptographically audited.</span>
+            <span>Staff profile and KYC changes update across operational records immediately.</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
@@ -2458,7 +1790,7 @@ export const ManageAccountsPage: React.FC = () => {
               onClick={handleSaveProfile}
               leftIcon={<Check className="w-4 h-4" />}
             >
-              Save
+              Save Changes
             </Button>
           </div>
         </div>
@@ -2505,11 +1837,10 @@ export const ManageAccountsPage: React.FC = () => {
         <div className="flex items-center justify-between gap-4">
           <KumoTabs
             activeTab={staffSubTab}
-            onChange={(val) => setStaffSubTab(val as 'policies' | 'groups' | 'settings')}
+            onChange={(val) => setStaffSubTab(val as 'policies' | 'groups')}
             tabs={[
               { id: 'policies', label: 'Permission policies' },
-              { id: 'groups', label: 'Groups & Zone' },
-              { id: 'settings', label: 'Settings' },
+              { id: 'groups', label: 'Branch & Operating Zone' },
             ]}
           />
 
@@ -2683,7 +2014,7 @@ export const ManageAccountsPage: React.FC = () => {
                   {!editRole ? (
                     <div className="border-2 border-dashed border-kumo-line rounded-2xl p-16 text-center my-6">
                       <p className="text-[13px] text-kumo-subtle select-none font-medium">
-                        Roles will appear after you select a scope.
+                        Select a role from the dropdown above to view and configure its baseline permissions.
                       </p>
                     </div>
                   ) : (
@@ -2866,20 +2197,34 @@ export const ManageAccountsPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 2: GROUPS & ZONE CONFIGURATION */}
+        {/* TAB 2: BRANCH & OPERATING ZONE */}
         {staffSubTab === 'groups' && (
           <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
             <div className="pb-3 border-b border-kumo-line">
-              <h2 className="text-[16px] font-semibold text-kumo-strong">Zone & Operating Office Assignment</h2>
+              <h2 className="text-[16px] font-semibold text-kumo-strong">Branch & Operating Zone</h2>
               <p className="text-[13px] text-kumo-subtle mt-0.5">
-                Configure physical office presence, dynamic routing patterns, and logistics delivery zone.
+                Configure assigned operating facility, delivery zone, department, and shift schedule.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Zone */}
+              {/* Branch / Facility */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-kumo-strong">Operating Zone</label>
+                <label className="text-[12px] font-semibold text-kumo-strong">Operating Facility / Branch</label>
+                <Select
+                  value={editOffice}
+                  onValueChange={(val) => setEditOffice(String(val))}
+                  options={(facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
+                    value: f.name,
+                    label: f.name
+                  }))}
+                  placeholder="Select assigned branch..."
+                />
+              </div>
+
+              {/* Operating Zone */}
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-semibold text-kumo-strong">Operating Delivery Zone</label>
                 <Select
                   value={editZone}
                   onValueChange={(val) => setEditZone(String(val))}
@@ -2893,57 +2238,27 @@ export const ManageAccountsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Office */}
+              {/* Department */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-kumo-strong">Office</label>
-                <Select
-                  value={editOffice}
-                  onValueChange={(val) => setEditOffice(String(val))}
-                  options={(facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
-                    value: f.name,
-                    label: f.name
-                  }))}
-                  placeholder="Select assigned office..."
+                <label className="text-[12px] font-semibold text-kumo-strong">Operational Department</label>
+                <input
+                  type="text"
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  placeholder="e.g. Operations & Logistics"
+                  className="w-full h-10 px-3.5 rounded-lg border border-kumo-line bg-kumo-base text-[14px] text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
                 />
               </div>
 
-              {/* Route Input with Green Validation Checkmark */}
+              {/* Shift Schedule */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-kumo-strong">Route Pattern</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="e.g. ops.smokeyhut.com/kitchen/*"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-[14px] text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
-                  </div>
-                </div>
-                <p className="text-[13px] text-kumo-subtle leading-relaxed">
-                  Use wildcard patterns (*) to define operator terminal bindings and station routing.
-                </p>
-              </div>
-
-              {/* Email Address with Green Checkmark */}
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-kumo-strong">Email Address</label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    required
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    placeholder="operator@smokeyhut.com"
-                    className="w-full h-10 pl-3.5 pr-10 rounded-lg border border-kumo-line bg-kumo-base text-[14px] text-kumo-strong focus:outline-none focus:border-kumo-brand transition-colors font-sans"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-emerald-500/20" />
-                  </div>
-                </div>
+                <label className="text-[12px] font-semibold text-kumo-strong">Operational Shift Schedule</label>
+                <Select
+                  value={editShiftSchedule}
+                  onValueChange={(val) => setEditShiftSchedule(String(val))}
+                  options={SHIFT_SCHEDULE_OPTIONS}
+                  placeholder="Select assigned shift..."
+                />
               </div>
             </div>
 
@@ -2954,65 +2269,8 @@ export const ManageAccountsPage: React.FC = () => {
                 onClick={() => handleSaveRouteAndPolicies()}
                 className="h-10 px-5 text-[14px] font-semibold shadow-xs"
               >
-                Save Group Changes
+                Save Branch & Zone
               </Button>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: ACCOUNT SETTINGS */}
-        {staffSubTab === 'settings' && (
-          <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 space-y-6 shadow-xs animate-in fade-in">
-            <div className="pb-3 border-b border-kumo-line">
-              <h2 className="text-[16px] font-semibold text-kumo-strong">Account Security & Credentials</h2>
-              <p className="text-[13px] text-kumo-subtle mt-0.5">
-                Reset passwords, inspect audit logs, and toggle account access state.
-              </p>
-            </div>
-
-            <div className="space-y-4 max-w-xl">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
-                <div>
-                  <h3 className="text-[16px] font-semibold text-kumo-strong">Change Staff Password</h3>
-                  <p className="text-[13px] text-kumo-subtle mt-0.5">
-                    Issue a temporary password or generate a random high-entropy token.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAccountToChangePassword(targetStaff)
-                    setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
-                  }}
-                  leftIcon={<Key className="w-3.5 h-3.5" />}
-                  className="text-[13px]"
-                >
-                  Reset
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl border border-kumo-line bg-kumo-canvas/50">
-                <div>
-                  <h3 className="text-[16px] font-semibold text-kumo-strong">Account Status</h3>
-                  <p className="text-[13px] text-kumo-subtle mt-0.5">
-                    Currently <strong>{targetStaff.status === 'suspended' ? 'Suspended' : 'Active'}</strong>.
-                  </p>
-                </div>
-                <Button
-                  variant={targetStaff.status === 'suspended' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    updateAccount(targetStaff.email, {
-                      status: targetStaff.status === 'suspended' ? 'active' : 'suspended'
-                    })
-                    showToast(`Updated account status to ${targetStaff.status === 'suspended' ? 'active' : 'suspended'}`, 'info')
-                  }}
-                  className="text-[13px]"
-                >
-                  {targetStaff.status === 'suspended' ? 'Activate Account' : 'Suspend Account'}
-                </Button>
-              </div>
             </div>
           </div>
         )}
@@ -3042,9 +2300,9 @@ export const ManageAccountsPage: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission</h1>
+              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Role & Permission Matrix</h1>
               <p className="text-[13px] text-kumo-subtle mt-0.5">
-                Define and manage system-wide role policies, authority scopes, and functional operational access across all offices.
+                Review and configure baseline permissions across standard operational roles.
               </p>
             </div>
           </div>
@@ -3067,7 +2325,7 @@ export const ManageAccountsPage: React.FC = () => {
               onClick={handleSaveMatrixPolicy}
               className="h-10 px-4 text-[13px] font-semibold shadow-xs"
             >
-              Create policy
+              Save Baseline Policy
             </Button>
           </div>
         </div>
@@ -3076,7 +2334,7 @@ export const ManageAccountsPage: React.FC = () => {
         <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
           {/* Card Header: 16px (text-[16px] font-semibold) */}
           <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40">
-            <h2 className="text-[16px] font-semibold text-kumo-strong">Create policy</h2>
+            <h2 className="text-[16px] font-semibold text-kumo-strong">Configure Role Baseline Policy</h2>
           </div>
 
           <div className="p-6 space-y-5">
@@ -3087,7 +2345,7 @@ export const ManageAccountsPage: React.FC = () => {
                   value={matrixScope}
                   onValueChange={(val) => handleMatrixScopeChange(String(val))}
                   options={roleScopeOptions}
-                  placeholder="Select a scope..."
+                  placeholder="Select a role..."
                   buttonClassName="h-10 text-[13px]"
                 />
               </div>
@@ -3121,7 +2379,7 @@ export const ManageAccountsPage: React.FC = () => {
             {!isScopeSelected ? (
               <div className="border-2 border-dashed border-kumo-line rounded-2xl p-16 text-center my-6">
                 <p className="text-[13px] text-kumo-subtle select-none font-medium">
-                  Roles will appear after you select a scope.
+                  Select a role from the dropdown above to view and configure its baseline permissions.
                 </p>
               </div>
             ) : (
@@ -3258,7 +2516,7 @@ export const ManageAccountsPage: React.FC = () => {
               onClick={handleSaveMatrixPolicy}
               className="h-10 px-6 text-[13px] font-semibold shadow-xs"
             >
-              Create policy
+              Save Baseline Policy
             </Button>
           </div>
         </div>
@@ -3269,406 +2527,7 @@ export const ManageAccountsPage: React.FC = () => {
   // =========================================================================
   // VIEW: DEDICATED INVITE MEMBERS PAGE (Matching Reference Screenshot)
   // =========================================================================
-  if (isInvitePage) {
-    const activeOverallRolesCount = overallRolesList.filter(
-      (r) => r.permissions.length > 0 && r.permissions.every((p: string) => invitePermissions.includes(p))
-    ).length
-    const isOverallMasterActive =
-      overallRolesList.length > 0 && activeOverallRolesCount === overallRolesList.length
 
-    const handleToggleOverallMaster = (checked: boolean) => {
-      if (checked) {
-        const allRolesPerms = overallRolesList.flatMap((r) => r.permissions)
-        setInvitePermissions((prev) => Array.from(new Set([...prev, ...allRolesPerms])))
-      } else {
-        const allRolesPerms = new Set(overallRolesList.flatMap((r) => r.permissions))
-        setInvitePermissions((prev) => prev.filter((p) => !allRolesPerms.has(p)))
-      }
-    }
-
-    const filteredOverallRoles = overallRolesList.filter((r) => {
-      if (!inviteSearchQuery.trim()) return true
-      const q = inviteSearchQuery.toLowerCase()
-      return r.label.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
-    })
-
-    const filteredCategories = policyCategoryGroups.filter((cat) => {
-      if (!inviteSearchQuery.trim()) return true
-      const q = inviteSearchQuery.toLowerCase()
-      return (
-        cat.name.toLowerCase().includes(q) ||
-        cat.permissions.some(
-          (p) => p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-        )
-      )
-    })
-
-    return (
-      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
-        {/* Navigation Breadcrumb & Header */}
-        <div className="flex items-center justify-between gap-4 pt-1">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/accounts')}
-              className="w-9 h-9 rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs shrink-0"
-              aria-label="Back to team accounts"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <h1 className="text-2xl font-bold tracking-tight text-kumo-strong">
-              Invite members
-            </h1>
-          </div>
-        </div>
-
-        {/* 1. CARD: Add email addresses */}
-        <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-xs space-y-3">
-          <div className="flex items-center gap-1.5 text-[16px] font-semibold text-kumo-strong">
-            <span>Add email addresses</span>
-            <Tooltip content="Enter one or multiple email addresses separated by commas, spaces, or lines.">
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-kumo-line text-[11px] font-medium text-kumo-subtle hover:text-kumo-strong cursor-help transition-colors">
-                i
-              </span>
-            </Tooltip>
-          </div>
-          <div>
-            <textarea
-              rows={2}
-              value={inviteEmails}
-              onChange={(e) => setInviteEmails(e.target.value)}
-              placeholder="first@example.com, second@example.com"
-              className="w-full px-4 py-3 text-[14px] font-sans rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none shadow-2xs"
-            />
-            {parsedInviteEmails.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                <span className="text-[13px] font-medium text-kumo-subtle mr-1">
-                  {validEmails.length} valid {validEmails.length === 1 ? 'recipient' : 'recipients'}:
-                </span>
-                {parsedInviteEmails.map((email, idx) => {
-                  const isValid = emailRegex.test(email)
-                  return (
-                    <span
-                      key={idx}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[13px] font-medium border",
-                        isValid
-                          ? "bg-kumo-tint border-kumo-line text-kumo-strong"
-                          : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
-                      )}
-                    >
-                      <span>{email}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = parsedInviteEmails.filter((_, i) => i !== idx).join(', ')
-                          setInviteEmails(updated)
-                        }}
-                        className="hover:text-red-500 ml-0.5 cursor-pointer"
-                        aria-label={`Remove ${email}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2. CARD: Add permission policies */}
-        <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-xs space-y-4">
-          <div className="flex items-center gap-1.5 text-[16px] font-semibold text-kumo-strong">
-            <span>Add permission policies</span>
-            <Tooltip content="Define access boundaries and operational permissions granted to the invited members.">
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-kumo-line text-[11px] font-medium text-kumo-subtle hover:text-kumo-strong cursor-help transition-colors">
-                i
-              </span>
-            </Tooltip>
-          </div>
-
-          {/* Top Scope Dropdowns */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Select
-              value={inviteScope}
-              onValueChange={(val) => setInviteScope(String(val))}
-              groups={[
-                {
-                  label: 'ACCOUNT-LEVEL',
-                  options: [
-                    { label: "Ayodine47@gmail.com's Account", value: "Ayodine47@gmail.com's Account" },
-                    { label: 'SmokeyOps Core Enterprise', value: 'SmokeyOps Core Enterprise' },
-                  ]
-                },
-                {
-                  label: 'RESOURCE-SPECIFIC',
-                  options: (facilities && facilities.length > 0 ? facilities : [INITIAL_FACILITY]).map(f => ({
-                    label: f.name,
-                    value: f.name
-                  }))
-                }
-              ]}
-              className="w-full"
-            />
-            <Select
-              value={inviteResourceScope}
-              onValueChange={(val) => setInviteResourceScope(String(val))}
-              options={[
-                { label: 'Entire account', value: 'Entire account' },
-                { label: 'Central Kitchen Production Unit', value: 'Central Kitchen Production Unit' },
-                { label: 'Logistics & Fleet Dispatch Staging', value: 'Logistics & Fleet Dispatch Staging' },
-                { label: 'Main Storage Warehouse & Cold Depots', value: 'Main Storage Warehouse & Cold Depots' },
-                { label: 'Retail & Counter Ordering', value: 'Retail & Counter Ordering' }
-              ]}
-              className="w-full"
-            />
-          </div>
-
-          {/* Dynamic description matching screenshot */}
-          <p className="text-[13px] text-kumo-subtle font-normal">
-            Define what permissions <strong className="text-kumo-strong font-semibold">{validEmails.length} {validEmails.length === 1 ? 'member' : 'members'}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{inviteScope}</strong>.
-          </p>
-
-          {/* Search by role name */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={inviteSearchQuery}
-              onChange={(e) => setInviteSearchQuery(e.target.value)}
-              placeholder="Search by role name..."
-              className="w-full pl-9 pr-4 py-2.5 text-[13px] rounded-xl border border-kumo-line bg-kumo-base text-kumo-strong placeholder:text-kumo-subtle/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary shadow-2xs"
-            />
-            {inviteSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setInviteSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Accordion Categories */}
-          <div className="border border-kumo-line rounded-xl overflow-hidden divide-y divide-kumo-line bg-kumo-base">
-            {/* 1. OVERALL ROLES ACCORDION */}
-            {filteredOverallRoles.length > 0 && (
-              <div className="transition-colors">
-                <div className="flex items-center justify-between px-4 py-3 bg-kumo-tint/20 hover:bg-kumo-tint/30 transition-colors">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setInviteExpandedCats((prev) => ({ ...prev, overall: !prev['overall'] }))
-                    }
-                    className="flex items-center gap-2 text-left cursor-pointer grow select-none"
-                  >
-                    <ChevronDown
-                      className={cn(
-                        "w-4 h-4 text-kumo-subtle transition-transform duration-200",
-                        !inviteExpandedCats['overall'] && "-rotate-90"
-                      )}
-                    />
-                    <span className="text-[14px] font-semibold text-kumo-strong">Overall roles</span>
-                  </button>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[13px] font-mono text-kumo-subtle font-medium">
-                      {activeOverallRolesCount}/{overallRolesList.length}
-                    </span>
-                    <Toggle
-                      checked={isOverallMasterActive}
-                      onChange={handleToggleOverallMaster}
-                      size="md"
-                    />
-                  </div>
-                </div>
-
-                {inviteExpandedCats['overall'] && (
-                  <div className="px-4 py-1 divide-y divide-dashed divide-kumo-line/60">
-                    {filteredOverallRoles.map((role) => {
-                      const isRoleActive =
-                        role.permissions.length > 0 &&
-                        role.permissions.every((p: string) => invitePermissions.includes(p))
-
-                      const handleRoleToggle = (checked: boolean) => {
-                        if (checked) {
-                          setInvitePermissions((prev) => Array.from(new Set([...prev, ...role.permissions])))
-                        } else {
-                          const removeSet = new Set(role.permissions)
-                          setInvitePermissions((prev) => prev.filter((p) => !removeSet.has(p)))
-                        }
-                      }
-
-                      return (
-                        <div
-                          key={role.id}
-                          className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center py-3.5 hover:bg-kumo-tint/10 transition-colors"
-                        >
-                          <div className="md:col-span-4">
-                            <span className="text-[14px] font-semibold text-kumo-strong block">
-                              {role.label}
-                            </span>
-                          </div>
-                          <div className="md:col-span-7">
-                            <span className="text-[13px] text-kumo-subtle leading-relaxed block">
-                              {role.description}
-                            </span>
-                          </div>
-                          <div className="md:col-span-1 flex justify-end">
-                            <Toggle
-                              checked={isRoleActive}
-                              onChange={handleRoleToggle}
-                              size="md"
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 2. OPERATIONAL POLICY CATEGORIES */}
-            {filteredCategories.map((category) => {
-              const totalInCat = category.permissions.length
-              const activeInCat = category.permissions.filter((p) =>
-                invitePermissions.includes(p.label)
-              ).length
-              const isCategoryMasterActive = totalInCat > 0 && activeInCat === totalInCat
-              const isCatExpanded = Boolean(inviteExpandedCats[category.name])
-
-              const handleCategoryMasterToggle = (checked: boolean) => {
-                const labels = category.permissions.map((p) => p.label)
-                if (checked) {
-                  setInvitePermissions((prev) => Array.from(new Set([...prev, ...labels])))
-                } else {
-                  const set = new Set(labels)
-                  setInvitePermissions((prev) => prev.filter((p) => !set.has(p)))
-                }
-              }
-
-              const visiblePermissions = category.permissions.filter((p) => {
-                if (!inviteSearchQuery.trim()) return true
-                const q = inviteSearchQuery.toLowerCase()
-                return p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-              })
-
-              if (visiblePermissions.length === 0) return null
-
-              return (
-                <div key={category.id} className="transition-colors">
-                  <div className="flex items-center justify-between px-4 py-3 bg-kumo-tint/20 hover:bg-kumo-tint/30 transition-colors">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setInviteExpandedCats((prev) => ({
-                          ...prev,
-                          [category.name]: !prev[category.name],
-                        }))
-                      }
-                      className="flex items-center gap-2 text-left cursor-pointer grow select-none"
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "w-4 h-4 text-kumo-subtle transition-transform duration-200",
-                          !isCatExpanded && "-rotate-90"
-                        )}
-                      />
-                      <span className="text-[14px] font-semibold text-kumo-strong">{category.name}</span>
-                    </button>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-[13px] font-mono text-kumo-subtle font-medium">
-                        {activeInCat}/{totalInCat}
-                      </span>
-                      <Toggle
-                        checked={isCategoryMasterActive}
-                        onChange={handleCategoryMasterToggle}
-                        size="md"
-                      />
-                    </div>
-                  </div>
-
-                  {isCatExpanded && (
-                    <div className="px-4 py-1 divide-y divide-dashed divide-kumo-line/60">
-                      {visiblePermissions.map((perm) => {
-                        const isPermActive = invitePermissions.includes(perm.label)
-
-                        const handlePermToggle = (checked: boolean) => {
-                          if (checked) {
-                            setInvitePermissions((prev) => Array.from(new Set([...prev, perm.label])))
-                          } else {
-                            setInvitePermissions((prev) => prev.filter((p) => p !== perm.label))
-                          }
-                        }
-
-                        return (
-                          <div
-                            key={perm.id}
-                            className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center py-3.5 hover:bg-kumo-tint/10 transition-colors"
-                          >
-                            <div className="md:col-span-4">
-                              <span className="text-[14px] font-semibold text-kumo-strong block">
-                                {perm.label}
-                              </span>
-                            </div>
-                            <div className="md:col-span-7">
-                              <span className="text-[13px] text-kumo-subtle leading-relaxed block">
-                                {perm.description}
-                              </span>
-                            </div>
-                            <div className="md:col-span-1 flex justify-end">
-                              <Toggle
-                                checked={isPermActive}
-                                onChange={handlePermToggle}
-                                size="md"
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Action buttons footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-kumo-line">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/accounts')}
-              className="h-10 px-5 text-[13px] font-medium"
-            >
-              Cancel
-            </Button>
-            <div className="flex items-center gap-3">
-              <span className="text-[13px] text-kumo-subtle hidden sm:inline">
-                {validEmails.length > 0
-                  ? `Ready to invite ${validEmails.length} member${validEmails.length === 1 ? '' : 's'}`
-                  : 'Enter email address to continue'}
-              </span>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={validEmails.length === 0}
-                onClick={handleInviteSubmit}
-                leftIcon={<UserPlus className="w-4 h-4" />}
-                className="h-10 px-6 text-[13px] font-semibold shadow-xs"
-              >
-                Invite members
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // =========================================================================
   // VIEW 3: MAIN TEAM ACCOUNTS TABLE PAGE
@@ -3680,115 +2539,34 @@ export const ManageAccountsPage: React.FC = () => {
         title="Manage Accounts"
         subtitle="Display team members, configure system permissions, and manage access credentials across all offices."
         actions={
-          <div className="relative">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/accounts/matrix')}
+              leftIcon={<Shield className="w-4 h-4" />}
+              className="h-10 px-4 text-[13px] font-medium"
+            >
+              Policy Matrix
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              leftIcon={<Download className="w-4 h-4" />}
+              className="h-10 px-4 text-[13px] font-medium"
+            >
+              Export CSV
+            </Button>
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsHeaderActionMenuOpen(!isHeaderActionMenuOpen)}
+              onClick={() => navigate('/accounts/create')}
               leftIcon={<UserPlus className="w-4 h-4" />}
-              rightIcon={<ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isHeaderActionMenuOpen && "rotate-180")} />}
               className="h-10 px-4 text-[13px] font-semibold shadow-xs"
             >
-              Invite Members
+              Create Account
             </Button>
-
-            {isHeaderActionMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-30"
-                  onClick={() => setIsHeaderActionMenuOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-40 p-1.5 animate-in fade-in zoom-in-95 font-sans divide-y divide-zinc-100 dark:divide-zinc-800">
-                  <div className="p-1 space-y-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsHeaderActionMenuOpen(false)
-                        navigate('/accounts/invite')
-                      }}
-                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
-                        <UserPlus className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
-                          Invite Members
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                          Send email invitations to onboard new team members
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsHeaderActionMenuOpen(false)
-                        navigate('/accounts/create')
-                      }}
-                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
-                        <Plus className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 transition-colors">
-                          Create Account
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                          Manually register a team account with credentials
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="p-1 pt-1.5 space-y-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsHeaderActionMenuOpen(false)
-                        navigate('/accounts/matrix')
-                      }}
-                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
-                          Role & Permission Matrix
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                          Configure enterprise access policies and role permissions
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsHeaderActionMenuOpen(false)
-                        handleExportCSV()
-                      }}
-                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
-                        <Download className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
-                          Export CSV
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                          Download active and inactive account roster as CSV
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         }
       />

@@ -88,7 +88,6 @@ export function App() {
 
                 {/* 4. SUPER ADMIN & ACCOUNT MANAGEMENT */}
                 <Route path="accounts" element={<ManageAccountsPage />} />
-                <Route path="accounts/invite" element={<ManageAccountsPage />} />
                 <Route path="accounts/create" element={<CreateAccountPage />} />
                 <Route path="accounts/new" element={<CreateAccountPage />} />
                 <Route path="accounts/profile/:email?" element={<ManageAccountsPage />} />
