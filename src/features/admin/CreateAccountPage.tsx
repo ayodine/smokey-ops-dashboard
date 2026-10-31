@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   UserPlus,
@@ -27,6 +27,7 @@ import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { useSmokeyOps, type UserRole, type AppUserAccount } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { SYSTEM_ROLE_CONFIGS } from '@/components/layout/ManageAccountsModal'
+import { generateNextStaffId } from '@/lib/staffId'
 
 // Standard row component exactly matching Staff Profile & KYC reference UI
 interface ProfileFieldRowProps {
@@ -62,7 +63,7 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
 
 export const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate()
-  const { currentAccount, createAccount, showToast } = useSmokeyOps()
+  const { currentAccount, createAccount, showToast, availableAccounts } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
 
   // Select dropdown option arrays matching ManageAccountsPage KYC
@@ -124,26 +125,39 @@ export const CreateAccountPage: React.FC = () => {
     { value: 'pending', label: 'Awaiting Guarantor Submission' },
   ], [])
 
-  // 1. Personal Details & Identity
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [staffId, setStaffId] = useState('')
-  const [dob, setDob] = useState('')
-  const [nationalId, setNationalId] = useState('')
-  const [bvn, setBvn] = useState('')
-
-  // 2. Contact & Residential Address
-  const [address, setAddress] = useState('')
-  const [city, setCity] = useState('Lagos Mainland')
-  const [state, setState] = useState('Lagos State')
-
-  // 3. Branch & Employment Details
+  // 3. Branch & Employment Details (declared early for auto staff ID generation)
   const [assignedHub, setAssignedHub] = useState(selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office')
   const [role, setRole] = useState<UserRole>('kitchen')
   const [employmentStatus, setEmploymentStatus] = useState<'full_time' | 'contract' | 'probation' | 'part_time'>('full_time')
   const [shiftSchedule, setShiftSchedule] = useState('Morning Cook & Prep (06:00 - 15:00)')
   const [department, setDepartment] = useState('Culinary Production')
+
+  // Auto-calculated sequential unique Staff ID for the chosen role
+  const [isStaffIdCustom, setIsStaffIdCustom] = useState(false)
+  const autoStaffId = useMemo(() => {
+    return generateNextStaffId(role, availableAccounts)
+  }, [role, availableAccounts])
+
+  // 1. Personal Details & Identity
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [staffId, setStaffId] = useState(() => generateNextStaffId('kitchen', availableAccounts))
+  const [dob, setDob] = useState('')
+  const [nationalId, setNationalId] = useState('')
+  const [bvn, setBvn] = useState('')
+
+  // Sync staffId whenever autoStaffId changes if user hasn't typed a custom override
+  useEffect(() => {
+    if (!isStaffIdCustom) {
+      setStaffId(autoStaffId)
+    }
+  }, [autoStaffId, isStaffIdCustom])
+
+  // 2. Contact & Residential Address
+  const [address, setAddress] = useState('')
+  const [city, setCity] = useState('Lagos Mainland')
+  const [state, setState] = useState('Lagos State')
 
   // 4. Delivery Fleet & Driver Details (conditional for rider)
   const [vehicleType, setVehicleType] = useState('Bajaj Boxer 150 Motorcycle')
@@ -181,6 +195,7 @@ export const CreateAccountPage: React.FC = () => {
     username: string
     tempPass: string
     role: string
+    staffId: string
   } | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -204,7 +219,7 @@ export const CreateAccountPage: React.FC = () => {
     const derivedUsername = username.trim() || email.split('@')[0].toLowerCase()
     const finalPassword = tempPassword.trim() || `Smk@${Math.floor(1000 + Math.random() * 9000)}!`
     const accName = name.trim()
-    const generatedStaffId = staffId.trim() || `SHD-${role.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`
+    const generatedStaffId = staffId.trim() || autoStaffId
 
     const newAccountData: AppUserAccount = {
       email: email.trim().toLowerCase(),
@@ -248,6 +263,7 @@ export const CreateAccountPage: React.FC = () => {
       username: derivedUsername,
       tempPass: finalPassword,
       role: roleLabels[role],
+      staffId: generatedStaffId,
     })
 
     showToast(`Staff Account & KYC registered successfully for ${accName}`, 'success')
@@ -255,7 +271,7 @@ export const CreateAccountPage: React.FC = () => {
 
   const handleCopyCredentials = () => {
     if (!createdAccount) return
-    const text = `SmokeyOps Credentials\nName: ${createdAccount.name}\nEmail: ${createdAccount.email}\nUsername: ${createdAccount.username}\nTemporary Password: ${createdAccount.tempPass}\nRole: ${createdAccount.role}`
+    const text = `SmokeyOps Credentials\nName: ${createdAccount.name}\nStaff ID: ${createdAccount.staffId}\nEmail: ${createdAccount.email}\nUsername: ${createdAccount.username}\nTemporary Password: ${createdAccount.tempPass}\nRole: ${createdAccount.role}`
     navigator.clipboard.writeText(text)
     setCopied(true)
     showToast('Credentials copied to clipboard', 'info')
@@ -316,7 +332,7 @@ export const CreateAccountPage: React.FC = () => {
           <span className="text-[13px] text-kumo-subtle font-sans inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base shadow-2xs">
             <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
             <span>Staff ID:</span>
-            <strong className="text-kumo-strong">{staffId.trim() || 'SHD-STAFF-NEW'}</strong>
+            <strong className="text-kumo-strong font-mono">{staffId.trim() || autoStaffId}</strong>
           </span>
         </div>
       </div>
@@ -339,6 +355,10 @@ export const CreateAccountPage: React.FC = () => {
             <div className="flex justify-between items-center text-[13px]">
               <span className="text-kumo-subtle">Full Legal Name</span>
               <span className="font-semibold text-kumo-strong">{createdAccount.name}</span>
+            </div>
+            <div className="flex justify-between items-center text-[13px]">
+              <span className="text-kumo-subtle">Assigned Staff ID</span>
+              <span className="font-mono font-semibold text-kumo-strong">{createdAccount.staffId}</span>
             </div>
             <div className="flex justify-between items-center text-[13px]">
               <span className="text-kumo-subtle">Work Email Address</span>
@@ -444,14 +464,34 @@ export const CreateAccountPage: React.FC = () => {
 
               <ProfileFieldRow
                 label="Staff / Employee ID"
-                description="Unique identifier (leave blank to auto-generate)"
+                description="Auto-generated unique identifier (customizable if required)"
               >
-                <Input
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
-                  placeholder="e.g. SHD-KIT-18"
-                  aria-label="Staff / Employee ID"
-                />
+                <div className="relative w-full">
+                  <Input
+                    value={staffId}
+                    onChange={(e) => {
+                      setIsStaffIdCustom(true)
+                      setStaffId(e.target.value)
+                    }}
+                    placeholder={autoStaffId}
+                    aria-label="Staff / Employee ID"
+                    className="pr-8 font-mono text-[13px]"
+                  />
+                  {isStaffIdCustom && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsStaffIdCustom(false)
+                        setStaffId(autoStaffId)
+                        showToast(`Staff ID reset to auto-generated ${autoStaffId}`, 'info')
+                      }}
+                      title="Reset to auto-generated Staff ID"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong p-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </ProfileFieldRow>
 
               <ProfileFieldRow
@@ -580,7 +620,13 @@ export const CreateAccountPage: React.FC = () => {
               >
                 <Select
                   value={role}
-                  onValueChange={(val) => setRole(val as UserRole)}
+                  onValueChange={(val) => {
+                    const newRole = val as UserRole
+                    setRole(newRole)
+                    if (!isStaffIdCustom) {
+                      setStaffId(generateNextStaffId(newRole, availableAccounts))
+                    }
+                  }}
                   options={SYSTEM_ROLE_CONFIGS.map(r => ({ value: r.id, label: r.label }))}
                   aria-label="Staff Role Assignment"
                 />

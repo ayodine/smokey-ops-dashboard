@@ -1251,7 +1251,7 @@ export const ManageAccountsPage: React.FC = () => {
             <span className="text-[13px] text-kumo-subtle font-sans inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base shadow-2xs">
               <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
               <span>Staff ID:</span>
-              <strong className="text-kumo-strong">{targetStaff.staff_id || 'SHD-STAFF'}</strong>
+              <strong className="text-kumo-strong font-mono">{targetStaff.staff_id || 'SHD-STF-001'}</strong>
             </span>
           </div>
         </div>
@@ -1850,7 +1850,7 @@ export const ManageAccountsPage: React.FC = () => {
             <span className="text-[13px] text-kumo-subtle font-sans hidden sm:inline-flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5" />
               <span>View member ID:</span>
-              <strong className="text-kumo-strong">{targetStaff.staff_id || 'SHD-STAFF'}</strong>
+              <strong className="text-kumo-strong font-mono">{targetStaff.staff_id || 'SHD-STF-001'}</strong>
             </span>
           </div>
         </div>
