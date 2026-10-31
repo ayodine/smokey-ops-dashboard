@@ -290,27 +290,26 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
 export const getStageLabel = (stage?: PipelineStage): string => {
   switch (stage) {
     case 'p1_ingestion':
-      return 'Order Intake and Payment'
+      return 'Order Received & Paid'
     case 'p1_inventory_deduct':
-      return 'Stock Allocation'
+      return 'Sales Stock Allocated'
     case 'p1_production_batch':
-      return 'Kitchen Production'
+      return 'Production Batch Running'
     case 'p2_in_packaging':
-      return 'Packaging Started'
+      return 'Added to Packaging Queue'
     case 'p2_materials_picked':
-      return 'Materials Picked'
+      return 'In Packaging'
     case 'p2_dispatched':
-      return 'Ready for Dispatch'
+      return 'Packaged for Dispatch'
     case 'p3_delivery_assigned':
-      return 'Driver Assigned'
+      return 'Rider Assigned'
     case 'p3_in_transit':
-      return 'Out for Delivery'
+      return 'In Transit'
     case 'p3_doorstep_handover':
-      return 'Customer Handover'
     case 'p3_delivered':
-      return 'Delivered to Customer'
+      return 'Delivered'
     case 'p3_settled_closed':
-      return 'Completed and Closed'
+      return 'Rider Payout Cleared'
     default:
       return 'Order Processing'
   }
@@ -829,13 +828,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         delivery: {
           driver: 'Done' as const,
           pickup: 'Done' as const,
-          transit: 'Done' as const,
-          verification: 'Done' as const,
+          delivered: 'Done' as const,
           payout: 'Done' as const,
-          completion: 'Done' as const,
-          doneCount: 6,
-          totalCount: 6,
-          badgeLabel: '6/6'
+          doneCount: 4,
+          totalCount: 4,
+          badgeLabel: '4/4'
         }
       }
     }
@@ -848,7 +845,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     const intakeChannel: 'Done' | 'In Progress' | 'Pending' = activeOrder?.channel ? 'Done' : 'Pending'
     const intakeDoneCount = [intakeValidation, intakePayment, intakeChannel].filter((s) => s === 'Done').length
 
-    // Card 2: Inventory Allocation (3 tasks)
+    // Card 2: Sales Stock (3 tasks)
     const invStock: 'Done' | 'In Progress' | 'Pending' =
       activeOrder?.history.includes('p1_inventory_deduct') ||
       activeOrder?.history.includes('p2_in_packaging') ||
@@ -880,7 +877,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : 'Pending'
     const invDoneCount = [invStock, invAllocation, invIngredients].filter((s) => s === 'Done').length
 
-    // Card 3: Kitchen Batch Production Lifecycle (3 tasks: Schedule & Raw Issue, Grill/Oven Smoking, Yield Deposit)
+    // Card 3: Production Batches (3 tasks: Create Batch, Start Smoking Batch, Complete Batch & Add to Stock)
     const cookSchedule: 'Done' | 'In Progress' | 'Pending' = activeOrder?.hasStock
       ? 'Done'
       : activeOrder?.history.includes('p1_production_batch') ||
@@ -904,7 +901,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : 'Pending'
     const cookDoneCount = [cookSchedule, cookCooking, cookOutput].filter((s) => s === 'Done').length
 
-    // Card 4: Packaging Execution & Bench Stock (3 tasks: Queue Intake, Bench Material Deduction, Sealing & Handover)
+    // Card 4: Packaging Execution (3 tasks: Order Added to Packaging Queue, Start Packaging & Deduct Materials, Confirm Packaged for Dispatch)
     const pkgQueue: 'Done' | 'In Progress' | 'Pending' =
       activeOrder?.history.includes('p2_in_packaging') || activeOrder?.history.includes('p3_delivery_assigned')
         ? 'Done'
@@ -935,7 +932,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         : 'Pending'
     const pkgDoneCount = [pkgQueue, pkgDeduction, pkgSealing].filter((s) => s === 'Done').length
 
-    // Card 5: Delivery and Handover (6 tasks: Assign Driver, Kitchen Pickup, Transit, OTP Handover, Payout, Complete)
+    // Card 5: Logistics & Delivery (4 real tasks: Assign Rider/Courier, Confirm Rider Pickup, Mark Delivered/Handover, Clear Rider Payout/Fee)
     const delDriver: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivery_assigned')
       ? 'Done'
       : activeOrder?.currentStage === 'p2_dispatched'
@@ -946,37 +943,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       : activeOrder?.currentStage === 'p3_delivery_assigned'
       ? 'In Progress'
       : 'Pending'
-    const delTransit: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
+    const delDelivered: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_delivered')
       ? 'Done'
       : activeOrder?.history.includes('p3_in_transit')
       ? 'In Progress'
       : 'Pending'
-    const delVerification: 'Done' | 'In Progress' | 'In Review' | 'Pending' =
-      activeOrder?.history.includes('p3_delivered')
-        ? 'Done'
-        : activeOrder?.currentStage === 'p3_doorstep_handover'
-        ? 'In Review'
-        : activeOrder?.history.includes('p3_in_transit')
-        ? 'In Progress'
-        : 'Pending'
     const delPayout: 'Done' | 'In Progress' | 'Pending' = activeOrder?.history.includes('p3_settled_closed')
       ? 'Done'
       : activeOrder?.history.includes('p3_delivered')
       ? 'In Progress'
       : 'Pending'
-    const delCompletion: 'Done' | 'In Progress' | 'Pending' =
-      activeOrder?.currentStage === 'p3_settled_closed'
-        ? 'Done'
-        : activeOrder?.history.includes('p3_delivered')
-        ? 'In Progress'
-        : 'Pending'
     const delDoneCount = [
       delDriver,
       delPickup,
-      delTransit,
-      delVerification,
-      delPayout,
-      delCompletion
+      delDelivered,
+      delPayout
     ].filter((s) => s === 'Done').length
 
     return {
@@ -1017,13 +998,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       delivery: {
         driver: delDriver,
         pickup: delPickup,
-        transit: delTransit,
-        verification: delVerification,
+        delivered: delDelivered,
         payout: delPayout,
-        completion: delCompletion,
         doneCount: delDoneCount,
-        totalCount: 6,
-        badgeLabel: `${delDoneCount}/6`
+        totalCount: 4,
+        badgeLabel: `${delDoneCount}/4`
       }
     }
   }, [activeOrder])
@@ -1083,7 +1062,6 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       case 'p3_delivery_assigned':
         return 'p3_in_transit'
       case 'p3_in_transit':
-        return 'p3_doorstep_handover'
       case 'p3_doorstep_handover':
         return 'p3_delivered'
       case 'p3_delivered':
@@ -1100,7 +1078,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     if (!activeOrder) return
 
     if (activeOrder.currentStage === 'p3_settled_closed') {
-      showToast(`Settlement Complete: Order ${activeOrder.id} is already closed and settled into the driver ledger.`, 'info')
+      showToast(`Payout Cleared: Order ${activeOrder.id} is already completed and rider payout cleared.`, 'info')
       return
     }
 
@@ -1121,11 +1099,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     )
 
     if (next === 'p3_settled_closed') {
-      showToast(`Settlement Complete: ${formatNaira(activeOrder.deliveryFee)} credited to Rider Yusuf ledger. Order closed.`, 'success')
-    } else if (next === 'p3_doorstep_handover') {
-      showToast(`Customer Handover: Verified delivery with customer code ${activeOrder.otpCode}.`, 'success')
+      showToast(`Rider Payout Cleared: ${formatNaira(activeOrder.deliveryFee)} cleared for ${activeOrder.riderName || 'Rider'}.`, 'success')
+    } else if (next === 'p3_delivered') {
+      showToast(`Order Delivered: Order ${activeOrder.id} marked as delivered.`, 'success')
     } else if (next === 'p2_in_packaging') {
-      showToast(`Fulfillment Initiated: Order ${activeOrder.id} moved to Packaging and Assembly.`, 'info')
+      showToast(`Packaging Queue: Order ${activeOrder.id} added to Packaging Execution.`, 'info')
     } else {
       showToast(`Order ${activeOrder.id} progressed to ${getStageLabel(next)}`, 'info')
     }
@@ -1779,27 +1757,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1A && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
-                            title="Website & POS Ingestion"
+                            title="Website Order Received"
                             status={pipelineMetrics.intake.validation}
                             isAutomatic={true}
+                            actionUrl="/sales/orders"
+                            actionTitle="View Website Orders"
                           />
                           <WorkflowTaskRow
-                            title="Payment & Transfer Check"
+                            title="Payment Confirmed"
                             status={pipelineMetrics.intake.payment}
                             isAutomatic={true}
                           />
                           <WorkflowTaskRow
-                            title="Instant vs. Pre-Order Route"
+                            title="Schedule or Send to Queue"
                             status={pipelineMetrics.intake.channel}
                             isAutomatic={true}
                             actionUrl="/logistics/schedule"
-                            actionTitle="View Scheduled Orders Calendar"
+                            actionTitle="View Delivery Schedule"
                           />
                         </div>
                       )}
                     </div>
 
-                    {/* Node 1B: Sales Stock Allocation */}
+                    {/* Node 1B: Sales Stock */}
                     <div ref={node1BCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={node1BHeaderRef}
@@ -1808,7 +1788,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       >
                         <div className="flex items-center gap-2">
                           <Boxes className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Sales Stock Allocation</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Sales Stock</span>
                           <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                         </div>
                         {expandedNodes.node1B ? (
@@ -1821,17 +1801,19 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1B && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
-                            title="Sales Stock & Batch Check"
+                            title="Check Available Sales Stock"
                             status={pipelineMetrics.inventory.stock}
                             isAutomatic={true}
+                            actionUrl="/inventory/sales"
+                            actionTitle="View Sales Stock"
                           />
                           <WorkflowTaskRow
-                            title="Soft-Reserve Active Queue"
+                            title="Allocate Stock to Order"
                             status={pipelineMetrics.inventory.allocation}
                             isAutomatic={true}
                           />
                           <WorkflowTaskRow
-                            title="Deduct Stock on Dispatch"
+                            title="Deduct Stock on Fulfillment"
                             status={pipelineMetrics.inventory.ingredients}
                             isAutomatic={true}
                           />
@@ -1870,7 +1852,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Node 1C: Kitchen Batch Runs */}
+                    {/* Node 1C: Production Batches */}
                     <div ref={node1CCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
                       <div
                         ref={node1CHeaderRef}
@@ -1879,7 +1861,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       >
                         <div className="flex items-center gap-2">
                           <Flame className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Kitchen Batch Runs</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Production Batches</span>
                           <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                         </div>
                         {expandedNodes.node1C ? (
@@ -1892,25 +1874,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.node1C && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
-                            title="Schedule Run & Issue Raw"
+                            title="Create Production Batch"
                             status={pipelineMetrics.cooking.schedule}
                             isAutomatic={false}
                             actionUrl="/production/batches"
-                            actionTitle="Schedule Batch Run in Kitchen Batches"
+                            actionTitle="Create Batch in Production Batches"
                           />
                           <WorkflowTaskRow
-                            title="Marinate & Smoke on Grill"
+                            title="Start Smoking Batch"
                             status={pipelineMetrics.cooking.cooking}
                             isAutomatic={false}
                             actionUrl="/production/batches"
-                            actionTitle="Manage Active Smoking Grills in Kitchen Batches"
+                            actionTitle="Start Smoking in Production Batches"
                           />
                           <WorkflowTaskRow
-                            title="QC & Deposit Sales Yield"
+                            title="Complete Batch & Add to Stock"
                             status={pipelineMetrics.cooking.output}
                             isAutomatic={false}
                             actionUrl="/production/batches"
-                            actionTitle="Deposit Batch Yield in Kitchen Batches"
+                            actionTitle="Complete Batch in Production Batches"
                           />
                         </div>
                       )}
@@ -1918,7 +1900,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   </div>
 
                   {/* =====================================================================
-                      COLUMN 2: PACKAGING AND ASSEMBLY (CENTER ENGINE)
+                      COLUMN 2: PACKAGING EXECUTION (CENTER ENGINE)
                      ===================================================================== */}
                   <div className="w-[280px] sm:w-[310px] shrink-0 space-y-3.5">
                     <div ref={centerCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
@@ -1942,23 +1924,23 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.pillar2 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
-                            title="Release to Packaging Queue"
+                            title="Order Added to Packaging Queue"
                             status={pipelineMetrics.packaging.queue}
-                            isAutomatic={false}
-                            actionUrl="/production/packaging"
-                            actionTitle="Open Packaging Queue to Start Packing"
-                          />
-                          <WorkflowTaskRow
-                            title="Deduct Packaging Materials"
-                            status={pipelineMetrics.packaging.deduction}
                             isAutomatic={true}
                           />
                           <WorkflowTaskRow
-                            title="Tamper Seal & QC Handover"
+                            title="Start Packaging & Deduct Materials"
+                            status={pipelineMetrics.packaging.deduction}
+                            isAutomatic={false}
+                            actionUrl="/production/packaging"
+                            actionTitle="Start Packaging in Packaging Execution"
+                          />
+                          <WorkflowTaskRow
+                            title="Confirm Packaged for Dispatch"
                             status={pipelineMetrics.packaging.sealing}
                             isAutomatic={false}
                             actionUrl="/production/packaging"
-                            actionTitle="Complete Sealing in Packaging Queue"
+                            actionTitle="Confirm Packaged in Packaging Execution"
                           />
 
                           {/* Individual Product Packaging Confirmation */}
@@ -1979,7 +1961,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                                     <span>{item.quantity}x</span>
                                     {pipelineMetrics.isFulfilled || pipelineMetrics.packaging.sealing === 'Done' ? (
                                       <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
-                                        <Check className="w-3 h-3 stroke-[2.5]" /> Sealed & Labeled
+                                        <Check className="w-3 h-3 stroke-[2.5]" /> Packaged
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
@@ -1997,7 +1979,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   </div>
 
                   {/* =====================================================================
-                      COLUMN 3: DELIVERY AND CUSTOMER HANDOVER
+                      COLUMN 3: LOGISTICS & DELIVERY
                      ===================================================================== */}
                   <div className="w-[290px] sm:w-[330px] shrink-0 space-y-3.5">
                     <div ref={bindingsCardRef} className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 transition-all shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700">
@@ -2008,7 +1990,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       >
                         <div className="flex items-center gap-2">
                           <Truck className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Logistics & Handover</span>
+                          <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Logistics & Delivery</span>
                           <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                         </div>
                         {expandedNodes.pillar3 ? (
@@ -2021,42 +2003,32 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                       {expandedNodes.pillar3 && (
                         <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                           <WorkflowTaskRow
-                            title="Assign Rider or 3PL Courier"
+                            title="Assign Rider or External Courier"
                             status={pipelineMetrics.delivery.driver}
                             isAutomatic={false}
                             actionUrl="/logistics/board"
                             actionTitle="Assign Rider on Dispatch Board"
                           />
                           <WorkflowTaskRow
-                            title="Kitchen Dispatch & Pickup"
+                            title="Confirm Rider Pickup (In Transit)"
                             status={pipelineMetrics.delivery.pickup}
                             isAutomatic={false}
                             actionUrl="/logistics/board"
-                            actionTitle="Confirm Pickup Handover on Dispatch Board"
+                            actionTitle="Confirm Rider Pickup on Dispatch Board"
                           />
                           <WorkflowTaskRow
-                            title="Live Transit & Route Track"
-                            status={pipelineMetrics.delivery.transit}
-                            isAutomatic={true}
-                          />
-                          <WorkflowTaskRow
-                            title="Delivery Code or Pickup Verify"
-                            status={pipelineMetrics.delivery.verification}
+                            title="Mark Delivered or Store Handover"
+                            status={pipelineMetrics.delivery.delivered}
                             isAutomatic={false}
                             actionUrl="/logistics/board"
-                            actionTitle="Verify Customer Delivery Code on Dispatch Board"
+                            actionTitle="Mark Delivered on Dispatch Board"
                           />
                           <WorkflowTaskRow
-                            title="Waybill & Rider Payout Audit"
+                            title="Clear Rider Payout or Courier Fee"
                             status={pipelineMetrics.delivery.payout}
                             isAutomatic={false}
                             actionUrl="/logistics/riders"
-                            actionTitle="Clear Rider Payout Ledger in Riders"
-                          />
-                          <WorkflowTaskRow
-                            title="Order & Product Lifecycle Closed"
-                            status={pipelineMetrics.delivery.completion}
-                            isAutomatic={true}
+                            actionTitle="Clear Rider Payout in Delivery Team"
                           />
                         </div>
                       )}
@@ -2090,21 +2062,23 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree1 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
-                        title="Storefront & POS Order Ingestion"
+                        title="Website Order Received"
                         status={pipelineMetrics.intake.validation}
                         isAutomatic={true}
+                        actionUrl="/sales/orders"
+                        actionTitle="View Website Orders"
                       />
                       <WorkflowTaskRow
-                        title="Paystack & Transfer Verification"
+                        title="Payment Confirmed"
                         status={pipelineMetrics.intake.payment}
                         isAutomatic={true}
                       />
                       <WorkflowTaskRow
-                        title="Instant vs. Scheduled Pre-Order Routing"
+                        title="Schedule or Send to Queue"
                         status={pipelineMetrics.intake.channel}
                         isAutomatic={true}
                         actionUrl="/logistics/schedule"
-                        actionTitle="View Scheduled Orders Calendar"
+                        actionTitle="View Delivery Schedule"
                       />
                     </div>
                   )}
@@ -2116,7 +2090,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
-                {/* 2. SALES STOCK ALLOCATION */}
+                {/* 2. SALES STOCK */}
                 <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree2')}
@@ -2124,7 +2098,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   >
                     <div className="flex items-center gap-2">
                       <Boxes className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Sales Stock Allocation</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Sales Stock</span>
                       <CountBadge count={pipelineMetrics.inventory.badgeLabel} />
                     </div>
                     {expandedNodes.tree2 !== false ? (
@@ -2137,17 +2111,19 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree2 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
-                        title="Two-Tier Stock & Incoming Batch Check"
+                        title="Check Available Sales Stock"
                         status={pipelineMetrics.inventory.stock}
                         isAutomatic={true}
+                        actionUrl="/inventory/sales"
+                        actionTitle="View Sales Stock"
                       />
                       <WorkflowTaskRow
-                        title="Soft-Reserve Active Packaging Queue"
+                        title="Allocate Stock to Order"
                         status={pipelineMetrics.inventory.allocation}
                         isAutomatic={true}
                       />
                       <WorkflowTaskRow
-                        title="Deduct Finished Product on Dispatch"
+                        title="Deduct Stock on Fulfillment"
                         status={pipelineMetrics.inventory.ingredients}
                         isAutomatic={true}
                       />
@@ -2192,7 +2168,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
-                {/* 3. KITCHEN BATCH RUNS */}
+                {/* 3. PRODUCTION BATCHES */}
                 <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree3')}
@@ -2200,7 +2176,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   >
                     <div className="flex items-center gap-2">
                       <Flame className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Kitchen Batch Runs</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Production Batches</span>
                       <CountBadge count={pipelineMetrics.cooking.badgeLabel} />
                     </div>
                     {expandedNodes.tree3 !== false ? (
@@ -2213,25 +2189,25 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree3 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
-                        title="Schedule Smoke Run & Issue Raw Stock"
+                        title="Create Production Batch"
                         status={pipelineMetrics.cooking.schedule}
                         isAutomatic={false}
                         actionUrl="/production/batches"
-                        actionTitle="Schedule Batch Run in Kitchen Batches"
+                        actionTitle="Create Batch in Production Batches"
                       />
                       <WorkflowTaskRow
-                        title="Season, Marinate & Smoke on Grill / Oven"
+                        title="Start Smoking Batch"
                         status={pipelineMetrics.cooking.cooking}
                         isAutomatic={false}
                         actionUrl="/production/batches"
-                        actionTitle="Manage Active Smoking Grills in Kitchen Batches"
+                        actionTitle="Start Smoking in Production Batches"
                       />
                       <WorkflowTaskRow
-                        title="QC Inspection & Deposit Yield to Sales Stock"
+                        title="Complete Batch & Add to Stock"
                         status={pipelineMetrics.cooking.output}
                         isAutomatic={false}
                         actionUrl="/production/batches"
-                        actionTitle="Log Output to Sales Inventory"
+                        actionTitle="Complete Batch in Production Batches"
                       />
                     </div>
                   )}
@@ -2264,23 +2240,23 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree4 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
-                        title="Release to Kitchen Packaging Queue"
+                        title="Order Added to Packaging Queue"
                         status={pipelineMetrics.packaging.queue}
-                        isAutomatic={false}
-                        actionUrl="/production/packaging"
-                        actionTitle="Open Packaging Queue to Start Packing"
-                      />
-                      <WorkflowTaskRow
-                        title="Deduct Bench Packaging Materials"
-                        status={pipelineMetrics.packaging.deduction}
                         isAutomatic={true}
                       />
                       <WorkflowTaskRow
-                        title="Tamper-Proof Sealing & Dispatch Handover"
+                        title="Start Packaging & Deduct Materials"
+                        status={pipelineMetrics.packaging.deduction}
+                        isAutomatic={false}
+                        actionUrl="/production/packaging"
+                        actionTitle="Start Packaging in Packaging Execution"
+                      />
+                      <WorkflowTaskRow
+                        title="Confirm Packaged for Dispatch"
                         status={pipelineMetrics.packaging.sealing}
                         isAutomatic={false}
                         actionUrl="/production/packaging"
-                        actionTitle="Complete Sealing in Packaging Queue"
+                        actionTitle="Confirm Packaged in Packaging Execution"
                       />
 
                       {/* Products in packaging */}
@@ -2301,7 +2277,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                                 <span>{item.quantity}x</span>
                                 {pipelineMetrics.isFulfilled || pipelineMetrics.packaging.sealing === 'Done' ? (
                                   <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
-                                    <Check className="w-3 h-3 stroke-[2.5]" /> Sealed & Labeled
+                                    <Check className="w-3 h-3 stroke-[2.5]" /> Packaged
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
@@ -2323,7 +2299,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   <div className="w-2 h-2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#94a3b8] dark:border-zinc-600 -mt-1" />
                 </div>
 
-                {/* 5. LOGISTICS & HANDOVER */}
+                {/* 5. LOGISTICS & DELIVERY */}
                 <div className="p-1 rounded-[16px] border border-[#d4d4d8] dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-[#a1a1aa] dark:hover:border-zinc-700 transition-all">
                   <div
                     onClick={() => toggleNodeExpansion('tree5')}
@@ -2331,7 +2307,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   >
                     <div className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-[#52525b] dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Logistics & Handover</span>
+                      <span className="text-[14px] font-semibold text-[#18181b] dark:text-zinc-100">Logistics & Delivery</span>
                       <CountBadge count={pipelineMetrics.delivery.badgeLabel} />
                     </div>
                     {expandedNodes.tree5 !== false ? (
@@ -2344,42 +2320,32 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                   {expandedNodes.tree5 !== false && (
                     <div className="mt-1 divide-y divide-[#e5e7eb] dark:divide-zinc-800 text-xs">
                       <WorkflowTaskRow
-                        title="Assign Internal Rider or 3PL Courier"
+                        title="Assign Rider or External Courier"
                         status={pipelineMetrics.delivery.driver}
                         isAutomatic={false}
                         actionUrl="/logistics/board"
                         actionTitle="Assign Rider on Dispatch Board"
                       />
                       <WorkflowTaskRow
-                        title="Kitchen Dispatch & Rider Pickup"
+                        title="Confirm Rider Pickup (In Transit)"
                         status={pipelineMetrics.delivery.pickup}
                         isAutomatic={false}
                         actionUrl="/logistics/board"
-                        actionTitle="Confirm Pickup Handover on Dispatch Board"
+                        actionTitle="Confirm Rider Pickup on Dispatch Board"
                       />
                       <WorkflowTaskRow
-                        title="Live Transit & Route Tracking"
-                        status={pipelineMetrics.delivery.transit}
-                        isAutomatic={true}
-                      />
-                      <WorkflowTaskRow
-                        title="Customer Code or Store Pickup Handover"
-                        status={pipelineMetrics.delivery.verification}
+                        title="Mark Delivered or Store Handover"
+                        status={pipelineMetrics.delivery.delivered}
                         isAutomatic={false}
                         actionUrl="/logistics/board"
-                        actionTitle="Verify Customer Delivery Code on Dispatch Board"
+                        actionTitle="Mark Delivered on Dispatch Board"
                       />
                       <WorkflowTaskRow
-                        title="3PL Waybill Audit & Rider Payout Ledger"
+                        title="Clear Rider Payout or Courier Fee"
                         status={pipelineMetrics.delivery.payout}
                         isAutomatic={false}
                         actionUrl="/logistics/riders"
-                        actionTitle="Clear Rider Payout Ledger in Riders"
-                      />
-                      <WorkflowTaskRow
-                        title="Order & Product Lifecycle Closed"
-                        status={pipelineMetrics.delivery.completion}
-                        isAutomatic={true}
+                        actionTitle="Clear Rider Payout in Delivery Team"
                       />
                     </div>
                   )}
