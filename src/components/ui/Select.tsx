@@ -372,13 +372,13 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                   zIndex: 9999,
                 }}
                 className={cn(
-                  'overflow-y-auto overscroll-contain rounded-xl border border-kumo-line bg-kumo-base py-1.5 shadow-xl animate-in fade-in zoom-in-95 font-sans [scrollbar-width:thin]',
+                  'flex flex-col rounded-xl border border-kumo-line bg-kumo-base shadow-xl animate-in fade-in zoom-in-95 font-sans overflow-hidden',
                   dropdownClassName
                 )}
               >
-                {/* Search bar when searchable or large list */}
+                {/* Pinned search bar (separated from scrollable list) */}
                 {(searchable || allOptions.length >= 8) && (
-                  <div className="sticky top-0 z-10 bg-kumo-base pb-2 mb-1 border-b border-kumo-line/60 px-3 pt-1.5">
+                  <div className="shrink-0 p-2 border-b border-kumo-line/60 bg-kumo-base">
                     <div className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none" />
                       <input
@@ -386,74 +386,78 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search options..."
-                        className="w-full pl-9 pr-3 py-2 text-[13px] bg-kumo-canvas/50 border border-kumo-line rounded-lg focus:outline-none focus:border-kumo-brand text-kumo-strong placeholder:text-kumo-subtle/70"
+                        className="w-full pl-9 pr-3 py-1.5 text-[13px] bg-kumo-canvas/50 border border-kumo-line rounded-lg focus:outline-none focus:border-kumo-brand text-kumo-strong placeholder:text-kumo-subtle/70"
                         onClick={e => e.stopPropagation()}
+                        autoFocus
                       />
                     </div>
                   </div>
                 )}
 
-                {filteredGroups.length === 0 ? (
-                  <div className="px-4 py-3 text-[13px] text-kumo-subtle text-center">
-                    No matching options found
-                  </div>
-                ) : (
-                  <div className="divide-y divide-kumo-line/50">
-                    {filteredGroups.map((group, groupIdx) => (
-                      <div key={group.label || groupIdx} className={groupIdx > 0 ? 'pt-1.5' : ''}>
-                        {/* Group Header matching inspiration: ACCOUNT-LEVEL, RESOURCE-SPECIFIC */}
-                        {group.label && (
-                          <div className="px-4 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle select-none">
-                            {group.label}
-                          </div>
-                        )}
+                {/* Dedicated scrollable options container */}
+                <div className="flex-1 overflow-y-auto overscroll-contain py-1.5 [scrollbar-width:thin]">
+                  {filteredGroups.length === 0 ? (
+                    <div className="px-4 py-3 text-[13px] text-kumo-subtle text-center">
+                      No matching options found
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-kumo-line/50">
+                      {filteredGroups.map((group, groupIdx) => (
+                        <div key={group.label || groupIdx} className={groupIdx > 0 ? 'pt-1.5' : ''}>
+                          {/* Group Header matching inspiration: ACCOUNT-LEVEL, RESOURCE-SPECIFIC */}
+                          {group.label && (
+                            <div className="px-4 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle select-none">
+                              {group.label}
+                            </div>
+                          )}
 
-                        {/* Options in group */}
-                        <div className="space-y-0.5 px-1.5 pb-1">
-                          {group.options.map(opt => {
-                            const isSelected = String(opt.value) === String(currentValue)
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                role="option"
-                                aria-selected={isSelected}
-                                disabled={opt.disabled}
-                                onClick={() => !opt.disabled && handleSelect(opt.value)}
-                                className={cn(
-                                  'w-full flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-[13px] transition-colors select-none font-sans',
-                                  opt.disabled
-                                    ? 'text-kumo-subtle/60 cursor-not-allowed opacity-60'
-                                    : 'cursor-pointer hover:bg-kumo-tint/60',
-                                  isSelected
-                                    ? 'text-kumo-strong font-medium bg-kumo-tint/40'
-                                    : 'text-kumo-strong font-normal'
-                                )}
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                                  {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-                                  <div className="min-w-0">
-                                    <span className="block font-normal text-kumo-strong leading-snug">{opt.label}</span>
-                                    {opt.description && (
-                                      <span className="text-[12px] text-kumo-subtle block font-normal mt-0.5 leading-tight">
-                                        {opt.description}
-                                      </span>
-                                    )}
+                          {/* Options in group */}
+                          <div className="space-y-0.5 px-1.5 pb-1">
+                            {group.options.map(opt => {
+                              const isSelected = String(opt.value) === String(currentValue)
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  disabled={opt.disabled}
+                                  onClick={() => !opt.disabled && handleSelect(opt.value)}
+                                  className={cn(
+                                    'w-full flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-[13px] transition-colors select-none font-sans',
+                                    opt.disabled
+                                      ? 'text-kumo-subtle/60 cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer hover:bg-kumo-tint/60',
+                                    isSelected
+                                      ? 'text-kumo-strong font-medium bg-kumo-tint/40'
+                                      : 'text-kumo-strong font-normal'
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                    {opt.icon && <span className="shrink-0">{opt.icon}</span>}
+                                    <div className="min-w-0">
+                                      <span className="block font-normal text-kumo-strong leading-snug">{opt.label}</span>
+                                      {opt.description && (
+                                        <span className="text-[12px] text-kumo-subtle block font-normal mt-0.5 leading-tight">
+                                          {opt.description}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
 
-                                {/* Right Checkmark matching inspiration */}
-                                {isSelected && (
-                                  <Check className="w-4 h-4 text-kumo-strong shrink-0 ml-auto stroke-[2.2]" />
-                                )}
-                              </button>
-                            )
-                          })}
+                                  {/* Right Checkmark matching inspiration */}
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-kumo-strong shrink-0 ml-auto stroke-[2.2]" />
+                                  )}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>,
               document.body
             )}
