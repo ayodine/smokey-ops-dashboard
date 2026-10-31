@@ -505,7 +505,7 @@ const highlightSearchMatch = (
 }
 
 export const OrderWorkflowCanvasOverlay: React.FC = () => {
-  const { showToast } = useSmokeyOps()
+  const { showToast, websiteOrders } = useSmokeyOps()
 
   // Full canvas collapse/expand state (matching Screenshot 2 bottom chevron)
   const [isCanvasExpanded, setIsCanvasExpanded] = useState<boolean>(true)
@@ -516,8 +516,75 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   // Auto-stream interval toggle
   const [isAutoStreamActive, setIsAutoStreamActive] = useState<boolean>(false)
 
-  // Orders in pipeline state
-  const [orders, setOrders] = useState<PipelineOrder[]>(SMOKEY_OPERATIONAL_ORDERS)
+  const mapRowToPipelineOrder = (row: any): PipelineOrder => {
+    const status = row.fulfillment_status || 'delivered'
+    let currentStage: PipelineStage = 'p3_settled_closed'
+    let history: PipelineStage[] = [
+      'p1_ingestion',
+      'p1_inventory_deduct',
+      'p2_in_packaging',
+      'p2_materials_picked',
+      'p2_dispatched',
+      'p3_delivery_assigned',
+      'p3_in_transit',
+      'p3_doorstep_handover',
+      'p3_delivered',
+      'p3_settled_closed'
+    ]
+    if (status === 'in_intake') {
+      currentStage = 'p1_ingestion'
+      history = ['p1_ingestion']
+    } else if (status === 'cooking') {
+      currentStage = 'p1_production_batch'
+      history = ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
+    } else if (status === 'packaging') {
+      currentStage = 'p2_in_packaging'
+      history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
+    } else if (status === 'in_transit') {
+      currentStage = 'p3_in_transit'
+      history = [
+        'p1_ingestion',
+        'p1_inventory_deduct',
+        'p2_in_packaging',
+        'p2_materials_picked',
+        'p2_dispatched',
+        'p3_delivery_assigned',
+        'p3_in_transit'
+      ]
+    }
+    return {
+      id: String(row.order_ref || row.id),
+      customerName: row.customer_name || 'Customer',
+      dishName: row.items_summary || 'Smokey Order Item',
+      totalAmount: Number(row.total_amount ?? row.total) || 0,
+      portions: 1,
+      channel:
+        row.channel === 'whatsapp'
+          ? 'Direct WhatsApp'
+          : row.channel === 'in_store'
+          ? 'In Store Checkout'
+          : 'Website Storefront',
+      hasStock: true,
+      currentStage,
+      paymentRef: row.payment_reference || 'ref_paid',
+      riderName: row.rider_name || 'Rider Yusuf Internal Fleet',
+      destinationAddress: row.address || row.delivery_address || 'Lagos, Nigeria',
+      otpCode: '5842',
+      deliveryFee: Number(row.delivery_fee) || 2500,
+      history
+    }
+  }
+
+  // Orders in pipeline state — pre-populated from context websiteOrders to prevent mount jump
+  const [orders, setOrders] = useState<PipelineOrder[]>(() => {
+    if (websiteOrders && websiteOrders.length > 0) {
+      const mapped = websiteOrders.map(mapRowToPipelineOrder)
+      const ids = new Set(mapped.map((m) => m.id))
+      const remaining = SMOKEY_OPERATIONAL_ORDERS.filter((p) => !ids.has(p.id))
+      return [...mapped, ...remaining]
+    }
+    return SMOKEY_OPERATIONAL_ORDERS
+  })
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [orderSearchInput, setOrderSearchInput] = useState<string>('')
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false)
@@ -534,89 +601,17 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     }
   }, [searchParams])
 
-  // Live Backend Database Orders Ingestion
+  // Keep in sync when websiteOrders updates in context
   useEffect(() => {
-    let isMounted = true
-    const fetchLiveOrders = async () => {
-      try {
-        const res = await fetch('/api/live-orders')
-        if (res.ok) {
-          const json = await res.json()
-          if (json.data && Array.isArray(json.data) && json.data.length > 0 && isMounted) {
-            const mapped: PipelineOrder[] = json.data.map((row: any) => {
-              const status = row.fulfillment_status || 'delivered'
-              let currentStage: PipelineStage = 'p3_settled_closed'
-              let history: PipelineStage[] = [
-                'p1_ingestion',
-                'p1_inventory_deduct',
-                'p2_in_packaging',
-                'p2_materials_picked',
-                'p2_dispatched',
-                'p3_delivery_assigned',
-                'p3_in_transit',
-                'p3_doorstep_handover',
-                'p3_delivered',
-                'p3_settled_closed'
-              ]
-              if (status === 'in_intake') {
-                currentStage = 'p1_ingestion'
-                history = ['p1_ingestion']
-              } else if (status === 'cooking') {
-                currentStage = 'p1_production_batch'
-                history = ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
-              } else if (status === 'packaging') {
-                currentStage = 'p2_in_packaging'
-                history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
-              } else if (status === 'in_transit') {
-                currentStage = 'p3_in_transit'
-                history = [
-                  'p1_ingestion',
-                  'p1_inventory_deduct',
-                  'p2_in_packaging',
-                  'p2_materials_picked',
-                  'p2_dispatched',
-                  'p3_delivery_assigned',
-                  'p3_in_transit'
-                ]
-              }
-              return {
-                id: row.order_ref || row.id,
-                customerName: row.customer_name || 'Customer',
-                dishName: row.items_summary || 'Smokey Order Item',
-                totalAmount: Number(row.total_amount) || 0,
-                portions: 1,
-                channel:
-                  row.channel === 'whatsapp'
-                    ? 'Direct WhatsApp'
-                    : row.channel === 'in_store'
-                    ? 'In Store Checkout'
-                    : 'Website Storefront',
-                hasStock: true,
-                currentStage,
-                paymentRef: row.payment_reference || 'ref_paid',
-                riderName: row.rider_name || 'Rider Yusuf Internal Fleet',
-                destinationAddress: row.address || 'Lagos, Nigeria',
-                otpCode: '5842',
-                deliveryFee: Number(row.delivery_fee) || 2500,
-                history
-              }
-            })
-            setOrders((prev) => {
-              const ids = new Set(mapped.map((m) => m.id))
-              const remaining = prev.filter((p) => !ids.has(p.id))
-              return [...mapped, ...remaining]
-            })
-          }
-        }
-      } catch (err) {
-        console.warn('Could not fetch live orders for canvas overlay:', err)
-      }
+    if (websiteOrders && websiteOrders.length > 0) {
+      const mapped = websiteOrders.map(mapRowToPipelineOrder)
+      setOrders((prev) => {
+        const ids = new Set(mapped.map((m) => m.id))
+        const remaining = prev.filter((p) => !ids.has(p.id))
+        return [...mapped, ...remaining]
+      })
     }
-    fetchLiveOrders()
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  }, [websiteOrders])
 
   // Close search suggestions on click outside
   useEffect(() => {

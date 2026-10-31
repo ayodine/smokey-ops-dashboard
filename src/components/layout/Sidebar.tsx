@@ -57,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     currentAccount,
     switchAccount,
     availableAccounts,
+    websiteOrders,
     rawProducts,
     packagingProducts,
     salesProducts,
@@ -74,24 +75,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
   const { facilities } = useWarehouse()
 
-  // Live active orders count from Supabase
-  const [activeOrdersCount, setActiveOrdersCount] = useState<number | undefined>(undefined)
-
-  useEffect(() => {
-    let isMounted = true
-    fetch('/api/live-orders')
-      .then(res => res.json())
-      .then(json => {
-        if (isMounted && json?.data && Array.isArray(json.data)) {
-          const active = json.data.filter((o: any) => o.status !== 'delivered' && o.status !== 'cancelled')
-          setActiveOrdersCount(active.length)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  // Live active orders count derived synchronously from context websiteOrders
+  const activeOrdersCount = useMemo(() => {
+    if (!websiteOrders || websiteOrders.length === 0) return undefined
+    return websiteOrders.filter(o => o.fulfillment_status !== 'delivered' && o.payment_status !== 'refunded').length
+  }, [websiteOrders])
 
   // Sign-in activity modal state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false)

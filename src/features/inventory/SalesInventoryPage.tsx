@@ -68,6 +68,10 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
 export const SalesInventoryPage: React.FC = () => {
   const {
     salesProducts,
+    liveSalesProducts: liveProducts,
+    setLiveSalesProducts: setLiveProducts,
+    refreshLiveSalesProducts: fetchLiveProducts,
+    isSalesProductsRefreshing: isRefreshing,
     productionBatches,
     dailySales,
     adjustSalesStock,
@@ -94,9 +98,7 @@ export const SalesInventoryPage: React.FC = () => {
     return map
   }, [productionBatches])
 
-  const [liveProducts, setLiveProducts] = useState<LiveSalesProduct[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const [loading] = useState<boolean>(false)
 
   const [activeTab, setActiveTab] = useState<'inventory' | 'daily'>('inventory')
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
@@ -128,60 +130,6 @@ export const SalesInventoryPage: React.FC = () => {
     short_desc: '',
     is_active: true
   })
-
-  // Live Supabase Backend Ingestion
-  const fetchLiveProducts = async (showIndicator = false) => {
-    if (showIndicator) setIsRefreshing(true)
-    try {
-      // 1. Direct Supabase query
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .is('deleted_at', null)
-        .order('name', { ascending: true })
-
-      if (!error && Array.isArray(data) && data.length > 0) {
-        setLiveProducts(data.map(mapSupabaseProductToSalesProduct))
-        return
-      }
-
-      // 2. Dev server proxy fallback
-      const res = await fetch('/api/products')
-      if (res.ok) {
-        const json = await res.json()
-        if (json.data && Array.isArray(json.data)) {
-          setLiveProducts(json.data.map(mapSupabaseProductToSalesProduct))
-          return
-        }
-      }
-    } catch (err) {
-      console.warn('Error fetching Supabase products, using local fallback:', err)
-      setLiveProducts(salesProducts.map(p => ({ ...p, image: null })))
-    } finally {
-      setLoading(false)
-      if (showIndicator) setIsRefreshing(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchLiveProducts()
-
-    // Real-time Supabase postgres_changes listener on products table
-    const channel = supabase
-      .channel('ops_sales_inventory_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchLiveProducts()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
 
   // Active products list
   const displayProducts = liveProducts.length > 0 ? liveProducts : salesProducts

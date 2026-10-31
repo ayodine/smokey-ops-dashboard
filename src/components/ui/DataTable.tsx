@@ -115,7 +115,7 @@ export function DataTable<T>({
   mobileRender,
   showDefaultRowAction = false,
   enableColumnResize = true,
-  enableAnimations = true,
+  enableAnimations = false,
   enableRowSelection = true,
   enableDateFilter = true,
   dateField,
@@ -477,25 +477,19 @@ export function DataTable<T>({
 
   const rowVariants: Variants = {
     hidden: { 
-      opacity: 0, 
-      y: 12,
-      filter: 'blur(3px)' 
+      opacity: 1, 
+      y: 0,
     },
     visible: {
       opacity: 1,
       y: 0,
-      filter: 'blur(0px)',
       transition: {
-        type: 'spring' as const,
-        stiffness: 450,
-        damping: 30,
-        mass: 0.8,
+        duration: 0,
       },
     },
     exit: {
       opacity: 0,
-      y: -8,
-      transition: { duration: 0.15 }
+      transition: { duration: 0.1 }
     }
   }
 
@@ -856,15 +850,8 @@ export function DataTable<T>({
               )}
             </div>
 
-            {/* Rows with Animated Transitions and Light Mode Padding */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`page-${currentPage}`}
-                variants={shouldAnimate ? containerVariants : {}}
-                initial={shouldAnimate ? 'hidden' : 'visible'}
-                animate="visible"
-                className="w-full min-w-full"
-              >
+            {/* Rows with Light Mode Padding */}
+            <div className="w-full min-w-full">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="py-4 px-6 border-b border-border flex items-center animate-pulse w-full">
@@ -881,9 +868,8 @@ export function DataTable<T>({
                     const isSelected = selectedIds.has(id)
 
                     return (
-                      <motion.div
+                      <div
                         key={id}
-                        variants={shouldAnimate ? rowVariants : {}}
                         className="w-full min-w-full"
                       >
                         <div
@@ -975,12 +961,11 @@ export function DataTable<T>({
                             </div>
                           )}
                         </div>
-                      </motion.div>
+                      </div>
                     )
                   })
                 )}
-              </motion.div>
-            </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>

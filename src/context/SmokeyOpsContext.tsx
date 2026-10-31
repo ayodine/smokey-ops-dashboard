@@ -55,13 +55,125 @@ import {
   SEED_RECIPE_TEMPLATES,
   SEED_STOCKTAKE_VARIANCES,
   SEED_WEBSITE_ORDERS,
+  WebsiteOrder,
 } from '@/lib/smokeyData'
 import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
 
+export interface LiveSalesProduct extends SalesProduct {
+  image?: string | null
+  category_name?: string
+}
+
+export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
+  if (p && p.product_type === 'sales' && typeof p.selling_price === 'number') {
+    return p as LiveSalesProduct
+  }
+  const stock = Number(p.stock ?? p.stock_qty ?? 0)
+  const price = Number(p.price ?? p.selling_price ?? 0)
+  const cost = Number(p.cost_price ?? p.unit_cost ?? Math.round(price * 0.45))
+  const reorder = Number(p.reorder_level ?? 10)
+  const allocated = Math.min(stock, 1)
+  const available = Math.max(0, stock - allocated)
+
+  return {
+    id: p.id,
+    sku: p.sku || `SMK-${String(p.id).padStart(4, '0')}`,
+    name: p.name,
+    product_type: 'sales',
+    unit: p.unit || 'unit',
+    reorder_level: reorder,
+    unit_cost: cost,
+    selling_price: price,
+    stock_qty: stock,
+    qty_allocated: allocated,
+    qty_available: available,
+    inventory_value: stock * price,
+    is_active: p.is_active !== false && p.is_active !== 0 ? 1 : 0,
+    image: p.image || null,
+    category_name: p.category_id || p.category_name || 'Product'
+  }
+}
+
+export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
+  if (raw && raw.order_ref && raw.items_summary && raw.fulfillment_status && !Array.isArray(raw.order_items)) {
+    return raw as WebsiteOrder
+  }
+  const status = String(raw.delivery_status || raw.status || '').toLowerCase()
+  let fulfillment_status: WebsiteOrder['fulfillment_status'] = 'in_intake'
+  if (status.includes('deliver')) {
+    fulfillment_status = 'delivered'
+  } else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery') || status.includes('on_road')) {
+    fulfillment_status = 'in_transit'
+  } else if (status.includes('ready') || status.includes('packed') || status.includes('packaged')) {
+    fulfillment_status = 'ready_for_dispatch'
+  } else if (status.includes('pack') || status.includes('process') || status.includes('prep') || status.includes('cook') || status.includes('paid')) {
+    fulfillment_status = 'packaging'
+  } else {
+    fulfillment_status = 'in_intake'
+  }
+
+  const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
+    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join(' + ')
+    : (raw.items_summary || 'Assorted Smokey Delicacies')
+
+  let channel = raw.channel || 'Website Storefront'
+  if (raw.traffic_source) {
+    channel = raw.traffic_source
+  } else if (raw.notes && raw.notes.includes('[via WhatsApp Menu]')) {
+    channel = 'WhatsApp Store'
+  } else if (raw.notes && raw.notes.includes('[via Walk-in POS]')) {
+    channel = 'Walk-in POS'
+  } else if (raw.channel === 'storefront') {
+    channel = 'Website Storefront'
+  }
+
+  const isPaid = Boolean(raw.paid_at) || raw.status === 'processing' || raw.status === 'delivered' || raw.status === 'paid' || raw.payment_status === 'paid'
+
+  let scheduledAt = raw.scheduled_delivery_date ? String(raw.scheduled_delivery_date) : (raw.scheduled_delivery_at ? String(raw.scheduled_delivery_at) : '')
+  if (!scheduledAt && raw.notes && raw.notes.includes('[Scheduled Delivery:')) {
+    const match = raw.notes.match(/\[Scheduled Delivery:\s*([^\]]+)\]/)
+    if (match && match[1]) {
+      scheduledAt = match[1].trim()
+    }
+  }
+
+  return {
+    id: raw.id,
+    order_ref: String(raw.order_ref || raw.id || ''),
+    customer_name: raw.customer_name || 'Storefront Customer',
+    customer_email: raw.customer_email || '',
+    phone: raw.customer_phone || raw.phone || 'N/A',
+    address: raw.delivery_address || raw.address || 'Storefront Counter Pickup',
+    items_summary: items,
+    raw_items: Array.isArray(raw.order_items) ? raw.order_items : (raw.raw_items || []),
+    total_amount: Number(raw.total ?? raw.total_amount) || 0,
+    delivery_fee: Number(raw.delivery_fee) || 0,
+    channel,
+    payment_status: isPaid ? 'paid' : (raw.status === 'cancelled' ? 'refunded' : 'pending'),
+    payment_method: raw.payment_method || raw.payment_channel || 'Paystack',
+    fulfillment_status,
+    created_at: raw.created_at || raw.scheduled_delivery_date || new Date().toISOString(),
+    scheduled_delivery_at: scheduledAt,
+    paid_at: raw.paid_at || '',
+    rider_name: raw.rider_name || (raw.delivery_status ? 'Assigned Rider' : 'Pending Rider'),
+    notes: raw.notes || ''
+  }
+}
+
 interface SmokeyOpsContextType {
+  // Website Orders & Live Sales Products (Centralized Zero-Jump State)
+  websiteOrders: WebsiteOrder[]
+  setWebsiteOrders: React.Dispatch<React.SetStateAction<WebsiteOrder[]>>
+  refreshWebsiteOrders: (showIndicator?: boolean) => Promise<void>
+  isOrdersRefreshing: boolean
+  liveSalesProducts: LiveSalesProduct[]
+  setLiveSalesProducts: React.Dispatch<React.SetStateAction<LiveSalesProduct[]>>
+  refreshLiveSalesProducts: (showIndicator?: boolean) => Promise<void>
+  isSalesProductsRefreshing: boolean
+
   // Inventory State
   rawProducts: RawProduct[]
   rawDeliveries: RawDelivery[]
@@ -619,14 +731,314 @@ export const getOfficeOpeningHourForDate = (dateInput: string): { timeStr: strin
   return { timeStr, label, fullDateTime }
 }
 
+const getLiveBootstrap = (): Record<string, any> | null => {
+  if (typeof window !== 'undefined' && (window as any).__SMOKEY_LIVE_BOOTSTRAP__) {
+    return (window as any).__SMOKEY_LIVE_BOOTSTRAP__
+  }
+  return null
+}
+
+const readLocalCache = <T,>(key: string): T | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as T) : null
+  } catch {
+    return null
+  }
+}
+
+const writeLocalCache = (key: string, value: any) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Ignore quota errors
+  }
+}
+
+const mapRawInventoryItems = (list: any[]): RawProduct[] => {
+  const mapped: RawProduct[] = list.map((p: any) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    product_type: 'raw' as const,
+    unit: p.unit || 'PIECES',
+    reorder_level: parseFloat(p.reorder_level || 10),
+    unit_cost: parseFloat(p.unit_cost || 0),
+    stock_qty: parseFloat(p.stock_qty || 0),
+    qty_allocated: 0,
+    qty_available: parseFloat(p.stock_qty || 0),
+    qty_quarantine: 0,
+    inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
+    is_active: p.is_active ? 1 : 0
+  }))
+  const existingIds = new Set(mapped.map(m => m.id))
+  const supplemental = SEED_RAW_PRODUCTS.filter(sp => !existingIds.has(sp.id))
+  return [...mapped, ...supplemental]
+}
+
+const mapPackagingInventoryItems = (list: any[]): PackagingProduct[] => {
+  return list.map((p: any) => {
+    const existing = SEED_PACKAGING_PRODUCTS.find(sp => sp.id === p.id || sp.sku === p.sku)
+    const stockQty = parseFloat(p.stock_qty ?? existing?.stock_qty ?? 0)
+    const benchQty = p.bench_stock_qty !== undefined ? parseFloat(p.bench_stock_qty) : (existing?.bench_stock_qty ?? 0)
+    const centralQty = p.central_stock_qty !== undefined ? parseFloat(p.central_stock_qty) : Math.max(0, stockQty - benchQty)
+    const unitCost = parseFloat(p.unit_cost ?? existing?.unit_cost ?? 0)
+    return {
+      id: p.id,
+      sku: p.sku,
+      name: p.name,
+      product_type: 'packaging' as const,
+      unit: p.unit || existing?.unit || 'PIECES',
+      reorder_level: parseFloat(p.reorder_level ?? existing?.reorder_level ?? 50),
+      unit_cost: unitCost,
+      stock_qty: stockQty,
+      central_stock_qty: centralQty,
+      bench_stock_qty: benchQty,
+      qty_allocated: existing?.qty_allocated ?? 0,
+      qty_available: stockQty,
+      inventory_value: parseFloat(p.inventory_value || (stockQty * unitCost)),
+      is_active: p.is_active ? 1 : 0
+    }
+  })
+}
+
+const mapSuppliersItems = (list: any[]): Supplier[] => {
+  return list.map((s: any) => ({
+    id: s.id,
+    supplier_ref: s.supplier_ref,
+    name: s.name,
+    phone: s.phone || '',
+    email: s.email || '',
+    address: s.address || '',
+    category: s.name.includes('FIREWOOD') ? 'Firewood & Charcoal' : s.name.includes('NYLON') || s.name.includes('PRINTER') ? 'Packaging & Printing Materials' : s.name.includes('MADAM') ? 'Fresh Poultry & Live Birds' : 'Market Goods & Spices',
+    delivery_count: 0,
+    total_spend: 0,
+    is_active: s.is_active ? 1 : 0
+  }))
+}
+
+const mapFleetRidersItems = (list: any[]): RiderPayout[] => {
+  return list
+    .filter((r: any) => r.is_delivery_rider === 1 || r.rider_user_id !== undefined)
+    .map((r: any) => {
+      if (r.rider_user_id !== undefined && r.rider_name) return r as RiderPayout
+      const existing = SEED_RIDER_PAYOUTS.find(
+        sp => sp.rider_user_id === r.id || sp.email?.toLowerCase() === r.email?.toLowerCase()
+      )
+      return {
+        rider_user_id: r.id,
+        rider_name: r.name,
+        phone: existing?.phone || '09110382689',
+        email: r.email || '',
+        staff_id: existing?.staff_id || `SHD-RDR-${r.id}`,
+        active_assignments: r.active_assignments || 0,
+        today_trips: existing?.today_trips || 0,
+        deliveries_today: existing?.deliveries_today || 0,
+        deliveries_week: existing?.deliveries_week || 0,
+        deliveries_month: existing?.deliveries_month || 0,
+        total_completed: existing?.total_completed || 0,
+        earnings_today: existing?.earnings_today || 0,
+        earnings_week: existing?.earnings_week || 0,
+        earnings_month: existing?.earnings_month || 0,
+        pending_payout: existing?.pending_payout || 0,
+        cod_cash_collected: existing?.cod_cash_collected || 0,
+        cod_remitted_total: existing?.cod_remitted_total || 0,
+        net_balance: existing?.net_balance || 0,
+        paid_total: existing?.paid_total || 0,
+        lifetime_earnings: existing?.lifetime_earnings || 0,
+        status: 'active' as const,
+        operating_hub: existing?.operating_hub || 'Lagos Mainland HQ'
+      }
+    })
+}
+
+const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
+  const now = Date.now()
+  const newPackagingItems: PackagingQueueOrder[] = []
+  const newScheduledItems: ScheduledOrder[] = []
+  const deliveredDeliveries: LogisticsDelivery[] = []
+
+  rawOrders.forEach((o: any, idx: number) => {
+    const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
+    const orderRef = String(o.order_ref || o.id || `SHD-${numericId}`)
+    const customerName = o.customer_name || 'Storefront Customer'
+    const phone = o.customer_phone || o.phone || 'N/A'
+    const address = o.delivery_address || o.address || 'Storefront Counter Pickup'
+    const totalAmount = Number(o.total ?? o.total_amount) || 0
+    const deliveryFee = Number(o.delivery_fee) || 0
+    const createdAt = o.created_at || new Date().toISOString()
+    const notes = o.notes || ''
+    const isDelivered = o.delivery_status === 'delivered' || o.status === 'delivered' || o.fulfillment_status === 'delivered'
+    const isInTransit = o.delivery_status === 'in_transit' || o.delivery_status === 'assigned' || o.fulfillment_status === 'in_transit'
+
+    const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
+      ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
+      : (o.items_summary || 'Assorted Smokey Delicacies')
+
+    const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
+      ? o.order_items.map((i: any) => ({
+          product_name: i.name || 'Smokey Product',
+          quantity: Number(i.qty) || 1,
+          unit_price: Number(i.price) || 0,
+          line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
+        }))
+      : (Array.isArray(o.items) && o.items.length > 0
+          ? o.items
+          : [{ product_name: itemsList, quantity: 1, unit_price: totalAmount, line_total: totalAmount }])
+
+    let schedDateStr = o.scheduled_delivery_date || o.scheduled_delivery_at
+    if (!schedDateStr && o.notes && o.notes.includes('[Scheduled Delivery:')) {
+      const match = o.notes.match(/\[Scheduled Delivery:\s*([^\]]+)\]/)
+      if (match && match[1]) {
+        schedDateStr = match[1].trim()
+      }
+    }
+
+    const isExplicitScheduled = Boolean(
+      o.delivery_status === 'Rescheduled' ||
+      o.delivery_status === 'Scheduled' ||
+      (o.notes && (o.notes.includes('[Scheduled Delivery') || o.notes.includes('[Rescheduled]')))
+    )
+    let effectiveSched = schedDateStr || createdAt
+    if (schedDateStr) {
+      effectiveSched = getOfficeOpeningHourForDate(schedDateStr).fullDateTime
+    }
+
+    const schedTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : NaN
+    const isScheduledFuture = Boolean(
+      (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
+      (isExplicitScheduled && !isDelivered && !isInTransit)
+    )
+
+    if (isScheduledFuture) {
+      const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
+      newScheduledItems.push({
+        id: numericId,
+        order_ref: orderRef,
+        customer_name: customerName,
+        phone,
+        address,
+        total_amount: totalAmount,
+        delivery_fee: deliveryFee,
+        scheduled_delivery_at: effectiveSched,
+        payment_status: 'paid',
+        order_status: 'payment_confirmed',
+        notes: notes || 'Scheduled pre-order from website storefront',
+        can_start_schedule: effectiveTime <= (now + 45 * 60 * 1000)
+      })
+    } else {
+      const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' =
+        (isDelivered || isInTransit) ? 'packaged' : 'ready_for_fulfillment'
+
+      newPackagingItems.push({
+        id: numericId,
+        order_ref: orderRef,
+        customer_name: customerName,
+        phone,
+        address,
+        total_amount: totalAmount,
+        delivery_fee: deliveryFee,
+        delivery_mode: schedDateStr ? 'scheduled' : 'instant',
+        payment_status: 'paid',
+        order_status: pkgStatus,
+        items_summary: itemsList,
+        items: typedItems,
+        packaged_at: (isDelivered || isInTransit) ? createdAt : null,
+        packaged_by_name: (isDelivered || isInTransit) ? 'Bisi Akande (Packaging Lead)' : undefined,
+        created_at: createdAt
+      })
+
+      if (isDelivered) {
+        deliveredDeliveries.push({
+          id: numericId,
+          delivery_ref: `DEL-${numericId}`,
+          order_id: numericId,
+          order_ref: orderRef,
+          customer_name: customerName,
+          phone,
+          address,
+          total_amount: totalAmount,
+          delivery_fee: deliveryFee || 3000,
+          rider_type: 'third_party',
+          assigned_rider: 'FRESH LOGISTICS',
+          assigned_rider_id: 513,
+          status: 'delivered',
+          dispatch_date: createdAt.split('T')[0],
+          pickup_at: createdAt,
+          delivered_at: createdAt,
+          fee_verify_status: 'approved',
+          payment_mode: 'online',
+          items_summary: itemsList
+        })
+      }
+    }
+  })
+
+  return {
+    websiteOrders: rawOrders.map(mapSupabaseOrderToWebsiteOrder),
+    newPackagingItems,
+    newScheduledItems,
+    deliveredDeliveries
+  }
+}
+
 export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const initialOrdersBundle = useMemo(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.liveOrders && Array.isArray(boot.liveOrders) && boot.liveOrders.length > 0) {
+      return deriveQueuesFromRawOrders(boot.liveOrders)
+    }
+    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v3_orders_raw')
+    if (cachedRaw && cachedRaw.length > 0) {
+      return deriveQueuesFromRawOrders(cachedRaw)
+    }
+    return null
+  }, [])
+
+  // Website Orders & Live Storefront Products (Centralized)
+  const [websiteOrders, setWebsiteOrders] = useState<WebsiteOrder[]>(() => {
+    if (initialOrdersBundle) return initialOrdersBundle.websiteOrders
+    const cached = readLocalCache<WebsiteOrder[]>('smokey_live_cache_v3_website_orders')
+    return cached || SEED_WEBSITE_ORDERS
+  })
+  const [isOrdersRefreshing, setIsOrdersRefreshing] = useState<boolean>(false)
+
+  const [liveSalesProducts, setLiveSalesProducts] = useState<LiveSalesProduct[]>(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.products && Array.isArray(boot.products) && boot.products.length > 0) {
+      return boot.products.map(mapSupabaseProductToSalesProduct)
+    }
+    const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
+    if (cached && cached.length > 0) return cached
+    return SEED_SALES_PRODUCTS.map(p => ({ ...p, image: null }))
+  })
+  const [isSalesProductsRefreshing, setIsSalesProductsRefreshing] = useState<boolean>(false)
+
   // Inventory Domain
-  const [rawProducts, setRawProducts] = useState<RawProduct[]>(SEED_RAW_PRODUCTS)
+  const [rawProducts, setRawProducts] = useState<RawProduct[]>(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.rawInventory && Array.isArray(boot.rawInventory) && boot.rawInventory.length > 0) {
+      return mapRawInventoryItems(boot.rawInventory)
+    }
+    const cached = readLocalCache<RawProduct[]>('smokey_live_cache_v3_raw_products')
+    return cached || SEED_RAW_PRODUCTS
+  })
   const [rawDeliveries, setRawDeliveries] = useState<RawDelivery[]>(SEED_RAW_DELIVERIES)
   const [rawMovements, setRawMovements] = useState<RawMovement[]>(SEED_RAW_MOVEMENTS)
   const [rawUsage] = useState<RawUsageItem[]>(SEED_RAW_USAGE)
 
-  const [packagingProducts, setPackagingProducts] = useState<PackagingProduct[]>(SEED_PACKAGING_PRODUCTS)
+  const [packagingProducts, setPackagingProducts] = useState<PackagingProduct[]>(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.packagingInventory && Array.isArray(boot.packagingInventory) && boot.packagingInventory.length > 0) {
+      return mapPackagingInventoryItems(boot.packagingInventory)
+    }
+    const cached = readLocalCache<PackagingProduct[]>('smokey_live_cache_v3_packaging_products')
+    return cached || SEED_PACKAGING_PRODUCTS
+  })
   const [packagingReceiptsTotals, setPackagingReceiptsTotals] = useState<PackagingReceiptTotal[]>(SEED_PACKAGING_RECEIPTS_TOTALS)
   const [packagingReconciliations, setPackagingReconciliations] = useState<PackagingDailyReconciliation[]>(SEED_PACKAGING_RECONCILIATIONS)
   const [intermediatePreps, setIntermediatePreps] = useState<IntermediatePrep[]>(SEED_INTERMEDIATE_PREPS)
@@ -636,14 +1048,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [dailySales] = useState<DailySalesItem[]>(SEED_DAILY_SALES)
   const [salesMovements, setSalesMovements] = useState<SalesMovement[]>(SEED_SALES_MOVEMENTS)
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>(SEED_SUPPLIERS)
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.suppliers && Array.isArray(boot.suppliers) && boot.suppliers.length > 0) {
+      return mapSuppliersItems(boot.suppliers)
+    }
+    const cached = readLocalCache<Supplier[]>('smokey_live_cache_v3_suppliers')
+    return cached || SEED_SUPPLIERS
+  })
   const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(SEED_INVENTORY_LOTS)
   const [recipeTemplates, setRecipeTemplates] = useState<RecipeTemplate[]>(SEED_RECIPE_TEMPLATES)
   const [stocktakeVariances, setStocktakeVariances] = useState<StocktakeVariance[]>(SEED_STOCKTAKE_VARIANCES)
 
   // Production Domain
   const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(SEED_PRODUCTION_BATCHES)
-  const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(SEED_PACKAGING_QUEUE)
+  const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(() => {
+    if (initialOrdersBundle && initialOrdersBundle.newPackagingItems.length > 0) {
+      return initialOrdersBundle.newPackagingItems
+    }
+    const cached = readLocalCache<PackagingQueueOrder[]>('smokey_live_cache_v3_packaging_queue')
+    return cached || SEED_PACKAGING_QUEUE
+  })
   const [packagingMaterialsDaily, setPackagingMaterialsDaily] = useState<PackagingMaterialDaily[]>(SEED_PACKAGING_MATERIALS_DAILY)
   const [kitchenTasks, setKitchenTasks] = useState<KitchenTask[]>(SEED_KITCHEN_TASKS)
 
@@ -675,9 +1100,33 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [salesProducts, activeIncomingBatchesByProduct])
 
   // Logistics Domain
-  const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(SEED_LOGISTICS_DELIVERIES)
-  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrder[]>(SEED_SCHEDULED_ORDERS)
-  const [riders, setRiders] = useState<RiderPayout[]>(SEED_RIDER_PAYOUTS)
+  const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(() => {
+    if (initialOrdersBundle) {
+      const activeDispatches = SEED_LOGISTICS_DELIVERIES.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
+      const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
+      const nonDuplicateDelivered = initialOrdersBundle.deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
+      if (activeDispatches.length > 0 || nonDuplicateDelivered.length > 0) {
+        return [...activeDispatches, ...nonDuplicateDelivered]
+      }
+    }
+    const cached = readLocalCache<LogisticsDelivery[]>('smokey_live_cache_v3_logistics_deliveries')
+    return cached || SEED_LOGISTICS_DELIVERIES
+  })
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrder[]>(() => {
+    if (initialOrdersBundle && initialOrdersBundle.newScheduledItems.length > 0) {
+      return initialOrdersBundle.newScheduledItems
+    }
+    const cached = readLocalCache<ScheduledOrder[]>('smokey_live_cache_v3_scheduled_orders')
+    return cached || SEED_SCHEDULED_ORDERS
+  })
+  const [riders, setRiders] = useState<RiderPayout[]>(() => {
+    const boot = getLiveBootstrap()
+    if (boot?.fleetRiders && Array.isArray(boot.fleetRiders) && boot.fleetRiders.length > 0) {
+      return mapFleetRidersItems(boot.fleetRiders)
+    }
+    const cached = readLocalCache<RiderPayout[]>('smokey_live_cache_v3_riders')
+    return cached || SEED_RIDER_PAYOUTS
+  })
   const [riderTasks, setRiderTasks] = useState<RiderTask[]>(SEED_RIDER_TASKS)
   const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(SEED_STORE_PICKUPS)
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
@@ -709,122 +1158,56 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return 'fivedigita@gmail.com'
   })
 
-  // Synchronize live data from Supabase backend on mount
-  React.useEffect(() => {
-    fetch('/api/raw-inventory')
-      .then(res => res.json())
-      .then(json => {
+  const refreshLiveSalesProducts = React.useCallback(async (showIndicator = false) => {
+    if (showIndicator) setIsSalesProductsRefreshing(true)
+    try {
+      const url = showIndicator ? '/api/products?refresh=1' : '/api/products'
+      const res = await fetch(url)
+      if (res.ok) {
+        const json = await res.json()
         if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: RawProduct[] = json.data.map((p: any) => ({
-            id: p.id,
-            sku: p.sku,
-            name: p.name,
-            product_type: 'raw',
-            unit: p.unit || 'PIECES',
-            reorder_level: parseFloat(p.reorder_level || 10),
-            unit_cost: parseFloat(p.unit_cost || 0),
-            stock_qty: parseFloat(p.stock_qty || 0),
-            qty_allocated: 0,
-            qty_available: parseFloat(p.stock_qty || 0),
-            qty_quarantine: 0,
-            inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
-            is_active: p.is_active ? 1 : 0
-          }))
-          setRawProducts(mapped)
+          const mapped = json.data.map(mapSupabaseProductToSalesProduct)
+          setLiveSalesProducts(mapped)
+          writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
+          return
         }
-      })
-      .catch(err => console.error('Error fetching live raw inventory:', err))
+      }
 
-    fetch('/api/packaging-inventory')
-      .then(res => res.json())
-      .then(json => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .is('deleted_at', null)
+        .order('name', { ascending: true })
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(mapSupabaseProductToSalesProduct)
+        setLiveSalesProducts(mapped)
+        writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
+      }
+    } catch (err) {
+      console.warn('Error fetching Supabase products:', err)
+    } finally {
+      if (showIndicator) setIsSalesProductsRefreshing(false)
+    }
+  }, [])
+
+  const refreshWebsiteOrders = React.useCallback(async (showIndicator = false) => {
+    if (showIndicator) setIsOrdersRefreshing(true)
+    try {
+      let rawOrders: any[] = []
+
+      // 1. Fast local API proxy (uses service role key and warm cache)
+      const url = showIndicator ? '/api/live-orders?refresh=1' : '/api/live-orders'
+      const res = await fetch(url)
+      if (res.ok) {
+        const json = await res.json()
         if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: PackagingProduct[] = json.data.map((p: any) => ({
-            id: p.id,
-            sku: p.sku,
-            name: p.name,
-            product_type: 'packaging',
-            unit: p.unit || 'PIECES',
-            reorder_level: parseFloat(p.reorder_level || 50),
-            unit_cost: parseFloat(p.unit_cost || 0),
-            stock_qty: parseFloat(p.stock_qty || 0),
-            qty_allocated: 0,
-            qty_available: parseFloat(p.stock_qty || 0),
-            inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
-            is_active: p.is_active ? 1 : 0
-          }))
-          setPackagingProducts(mapped)
+          rawOrders = json.data
         }
-      })
-      .catch(err => console.error('Error fetching live packaging inventory:', err))
+      }
 
-    fetch('/api/suppliers')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: Supplier[] = json.data.map((s: any) => ({
-            id: s.id,
-            supplier_ref: s.supplier_ref,
-            name: s.name,
-            phone: s.phone || '',
-            email: s.email || '',
-            address: s.address || '',
-            category: s.name.includes('FIREWOOD') ? 'Firewood & Charcoal' : s.name.includes('NYLON') || s.name.includes('PRINTER') ? 'Packaging & Printing Materials' : s.name.includes('MADAM') ? 'Fresh Poultry & Live Birds' : 'Market Goods & Spices',
-            delivery_count: 0,
-            total_spend: 0,
-            is_active: s.is_active ? 1 : 0
-          }))
-          setSuppliers(mapped)
-        }
-      })
-      .catch(err => console.error('Error fetching live suppliers:', err))
-
-    fetch('/api/fleet-riders')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: RiderPayout[] = json.data
-            .filter((r: any) => r.is_delivery_rider === 1)
-            .map((r: any) => {
-              const existing = SEED_RIDER_PAYOUTS.find(
-                sp => sp.rider_user_id === r.id || sp.email?.toLowerCase() === r.email?.toLowerCase()
-              )
-              return {
-                rider_user_id: r.id,
-                rider_name: r.name,
-                phone: existing?.phone || '09110382689',
-                email: r.email || '',
-                staff_id: existing?.staff_id || `SHD-RDR-${r.id}`,
-                active_assignments: r.active_assignments || 0,
-                today_trips: existing?.today_trips || 0,
-                deliveries_today: existing?.deliveries_today || 0,
-                deliveries_week: existing?.deliveries_week || 0,
-                deliveries_month: existing?.deliveries_month || 0,
-                total_completed: existing?.total_completed || 0,
-                earnings_today: existing?.earnings_today || 0,
-                earnings_week: existing?.earnings_week || 0,
-                earnings_month: existing?.earnings_month || 0,
-                pending_payout: existing?.pending_payout || 0,
-                cod_cash_collected: existing?.cod_cash_collected || 0,
-                cod_remitted_total: existing?.cod_remitted_total || 0,
-                net_balance: existing?.net_balance || 0,
-                paid_total: existing?.paid_total || 0,
-                lifetime_earnings: existing?.lifetime_earnings || 0,
-                status: 'active' as const,
-                operating_hub: existing?.operating_hub || 'Lagos Mainland HQ'
-              }
-            })
-          setRiders(mapped)
-        }
-      })
-      .catch(err => console.error('Error fetching live fleet riders:', err))
-
-    // Automated flow: fetch live orders and populate Packaging Execution & Delivery Schedule
-    const syncLiveWebsiteOrders = async () => {
-      try {
-        let rawOrders: any[] = []
-
-        // 1. Direct Supabase query
+      // 2. Direct Supabase query fallback
+      if (rawOrders.length === 0) {
         const { data, error } = await supabase
           .from('orders')
           .select('*, order_items(*)')
@@ -835,200 +1218,133 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (!error && Array.isArray(data) && data.length > 0) {
           rawOrders = data
-        } else {
-          // 2. Dev server proxy fallback
-          const res = await fetch('/api/live-orders')
-          if (res.ok) {
-            const json = await res.json()
-            if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-              rawOrders = json.data
-            }
-          }
         }
-
-        if (rawOrders.length === 0) {
-          rawOrders = SEED_WEBSITE_ORDERS
-        }
-
-        const now = Date.now()
-        const newPackagingItems: PackagingQueueOrder[] = []
-        const newScheduledItems: ScheduledOrder[] = []
-        const deliveredDeliveries: LogisticsDelivery[] = []
-
-        rawOrders.forEach((o: any, idx: number) => {
-          const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
-          const orderRef = String(o.id || `SHD-${numericId}`)
-          const customerName = o.customer_name || 'Storefront Customer'
-          const phone = o.customer_phone || o.phone || 'N/A'
-          const address = o.delivery_address || o.address || 'Storefront Counter Pickup'
-          const totalAmount = Number(o.total || o.total_amount) || 0
-          const deliveryFee = Number(o.delivery_fee) || 0
-          const createdAt = o.created_at || new Date().toISOString()
-          const notes = o.notes || ''
-          const isDelivered = o.delivery_status === 'delivered' || o.status === 'delivered'
-          const isInTransit = o.delivery_status === 'in_transit' || o.delivery_status === 'assigned'
-
-          const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-            ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
-            : (o.items_summary || 'Assorted Smokey Delicacies')
-
-          const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
-            ? o.order_items.map((i: any) => ({
-                product_name: i.name || 'Smokey Product',
-                quantity: Number(i.qty) || 1,
-                unit_price: Number(i.price) || 0,
-                line_total: (Number(i.qty) || 1) * (Number(i.price) || 0)
-              }))
-            : (Array.isArray(o.items) && o.items.length > 0
-                ? o.items
-                : [{ product_name: itemsList, quantity: 1, unit_price: totalAmount, line_total: totalAmount }])
-
-          // Check if order is scheduled for future delivery or rescheduled from storefront / admin
-          let schedDateStr = o.scheduled_delivery_date || o.scheduled_delivery_at
-          if (!schedDateStr && o.notes && o.notes.includes('[Scheduled Delivery:')) {
-            const match = o.notes.match(/\[Scheduled Delivery:\s*([^\]]+)\]/)
-            if (match && match[1]) {
-              schedDateStr = match[1].trim()
-            }
-          }
-
-          const isExplicitScheduled = Boolean(
-            o.delivery_status === 'Rescheduled' ||
-            o.delivery_status === 'Scheduled' ||
-            (o.notes && (o.notes.includes('[Scheduled Delivery') || o.notes.includes('[Rescheduled]')))
-          )
-          let effectiveSched = schedDateStr || createdAt
-          if (schedDateStr) {
-            effectiveSched = getOfficeOpeningHourForDate(schedDateStr).fullDateTime
-          }
-
-          const schedTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : NaN
-          const isScheduledFuture = Boolean(
-            (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
-            (isExplicitScheduled && !isDelivered && !isInTransit)
-          )
-
-          if (isScheduledFuture) {
-            // Holds in delivery schedule table until assigned date/time is reached
-            const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
-            newScheduledItems.push({
-              id: numericId,
-              order_ref: orderRef,
-              customer_name: customerName,
-              phone,
-              address,
-              total_amount: totalAmount,
-              delivery_fee: deliveryFee,
-              scheduled_delivery_at: effectiveSched,
-              payment_status: 'paid',
-              order_status: 'payment_confirmed',
-              notes: notes || 'Scheduled pre-order from website storefront',
-              can_start_schedule: effectiveTime <= (now + 45 * 60 * 1000)
-            })
-          } else {
-            // Instant website order or scheduled time reached:
-            // Flows automatically into Packaging Queue!
-            const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' = 
-              (isDelivered || isInTransit) ? 'packaged' : 'ready_for_fulfillment'
-
-            newPackagingItems.push({
-              id: numericId,
-              order_ref: orderRef,
-              customer_name: customerName,
-              phone,
-              address,
-              total_amount: totalAmount,
-              delivery_fee: deliveryFee,
-              delivery_mode: schedDateStr ? 'scheduled' : 'instant',
-              payment_status: 'paid',
-              order_status: pkgStatus,
-              items_summary: itemsList,
-              items: typedItems,
-              packaged_at: (isDelivered || isInTransit) ? createdAt : null,
-              packaged_by_name: (isDelivered || isInTransit) ? 'Bisi Akande (Packaging Lead)' : undefined,
-              created_at: createdAt
-            })
-
-            if (isDelivered) {
-              deliveredDeliveries.push({
-                id: numericId,
-                delivery_ref: `DEL-${numericId}`,
-                order_id: numericId,
-                order_ref: orderRef,
-                customer_name: customerName,
-                phone,
-                address,
-                total_amount: totalAmount,
-                delivery_fee: deliveryFee || 3000,
-                rider_type: 'third_party',
-                assigned_rider: 'FRESH LOGISTICS',
-                assigned_rider_id: 513,
-                status: 'delivered',
-                dispatch_date: createdAt.split('T')[0],
-                pickup_at: createdAt,
-                delivered_at: createdAt,
-                fee_verify_status: 'approved',
-                payment_mode: 'online',
-                items_summary: itemsList
-              })
-            }
-          }
-        })
-
-        // Update packagingQueue: merge and preserve in-memory user actions
-        setPackagingQueue(prev => {
-          const prevMap = new Map(prev.map(p => [p.order_ref, p]))
-          const merged = newPackagingItems.map(item => {
-            const existing = prevMap.get(item.order_ref)
-            if (existing) {
-              return {
-                ...item,
-                order_status: existing.order_status,
-                packaging_materials_picked: existing.packaging_materials_picked,
-                packaged_at: existing.packaged_at,
-                packaged_by_name: existing.packaged_by_name
-              }
-            }
-            return item
-          })
-          const newRefs = new Set(newPackagingItems.map(i => i.order_ref))
-          const manualOrders = prev.filter(p => !newRefs.has(p.order_ref))
-          return [...merged, ...manualOrders]
-        })
-
-        // Update scheduledOrders: merge and preserve in-memory status
-        setScheduledOrders(prev => {
-          const prevMap = new Map(prev.map(s => [s.order_ref, s]))
-          const base = newScheduledItems.length > 0 ? newScheduledItems : SEED_SCHEDULED_ORDERS
-          return base.map(item => {
-            const existing = prevMap.get(item.order_ref)
-            if (existing) {
-              return {
-                ...item,
-                order_status: existing.order_status,
-                can_start_schedule: existing.can_start_schedule
-              }
-            }
-            return item
-          })
-        })
-
-        // Update logisticsDeliveries: retain active dispatches awaiting rider assignment or on road
-        setLogisticsDeliveries(prev => {
-          const activeDispatches = prev.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
-          const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
-          const nonDuplicateDelivered = deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
-          if (activeDispatches.length === 0 && nonDuplicateDelivered.length === 0) {
-            return SEED_LOGISTICS_DELIVERIES
-          }
-          return [...activeDispatches, ...nonDuplicateDelivered]
-        })
-      } catch (err) {
-        console.error('Error syncing live website orders:', err)
       }
-    }
 
-    syncLiveWebsiteOrders()
+      if (rawOrders.length === 0) {
+        return
+      }
+
+      writeLocalCache('smokey_live_cache_v3_orders_raw', rawOrders)
+      const {
+        websiteOrders: mappedOrders,
+        newPackagingItems,
+        newScheduledItems,
+        deliveredDeliveries
+      } = deriveQueuesFromRawOrders(rawOrders)
+
+      setWebsiteOrders(mappedOrders)
+      writeLocalCache('smokey_live_cache_v3_website_orders', mappedOrders)
+
+      // Update packagingQueue: merge and preserve in-memory user actions
+      setPackagingQueue(prev => {
+        const prevMap = new Map(prev.map(p => [p.order_ref, p]))
+        const merged = newPackagingItems.map(item => {
+          const existing = prevMap.get(item.order_ref)
+          if (existing) {
+            return {
+              ...item,
+              order_status: existing.order_status,
+              packaging_materials_picked: existing.packaging_materials_picked,
+              packaged_at: existing.packaged_at,
+              packaged_by_name: existing.packaged_by_name
+            }
+          }
+          return item
+        })
+        const newRefs = new Set(newPackagingItems.map(i => i.order_ref))
+        const manualOrders = prev.filter(p => !newRefs.has(p.order_ref))
+        const nextQueue = [...merged, ...manualOrders]
+        writeLocalCache('smokey_live_cache_v3_packaging_queue', nextQueue)
+        return nextQueue
+      })
+
+      // Update scheduledOrders: merge and preserve in-memory status
+      setScheduledOrders(prev => {
+        const prevMap = new Map(prev.map(s => [s.order_ref, s]))
+        const base = newScheduledItems.length > 0 ? newScheduledItems : SEED_SCHEDULED_ORDERS
+        const nextScheduled = base.map(item => {
+          const existing = prevMap.get(item.order_ref)
+          if (existing) {
+            return {
+              ...item,
+              order_status: existing.order_status,
+              can_start_schedule: existing.can_start_schedule
+            }
+          }
+          return item
+        })
+        writeLocalCache('smokey_live_cache_v3_scheduled_orders', nextScheduled)
+        return nextScheduled
+      })
+
+      // Update logisticsDeliveries: retain active dispatches awaiting rider assignment or on road
+      setLogisticsDeliveries(prev => {
+        const activeDispatches = prev.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
+        const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
+        const nonDuplicateDelivered = deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
+        const nextDeliveries =
+          activeDispatches.length === 0 && nonDuplicateDelivered.length === 0
+            ? SEED_LOGISTICS_DELIVERIES
+            : [...activeDispatches, ...nonDuplicateDelivered]
+        writeLocalCache('smokey_live_cache_v3_logistics_deliveries', nextDeliveries)
+        return nextDeliveries
+      })
+    } catch (err) {
+      console.error('Error syncing live website orders:', err)
+    } finally {
+      if (showIndicator) setIsOrdersRefreshing(false)
+    }
+  }, [])
+
+  // Synchronize live data from Supabase backend on mount
+  React.useEffect(() => {
+    fetch('/api/raw-inventory')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = mapRawInventoryItems(json.data)
+          setRawProducts(mapped)
+          writeLocalCache('smokey_live_cache_v3_raw_products', mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live raw inventory:', err))
+
+    fetch('/api/packaging-inventory')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = mapPackagingInventoryItems(json.data)
+          setPackagingProducts(mapped)
+          writeLocalCache('smokey_live_cache_v3_packaging_products', mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live packaging inventory:', err))
+
+    fetch('/api/suppliers')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = mapSuppliersItems(json.data)
+          setSuppliers(mapped)
+          writeLocalCache('smokey_live_cache_v3_suppliers', mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live suppliers:', err))
+
+    fetch('/api/fleet-riders')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = mapFleetRidersItems(json.data)
+          setRiders(mapped)
+          writeLocalCache('smokey_live_cache_v3_riders', mapped)
+        }
+      })
+      .catch(err => console.error('Error fetching live fleet riders:', err))
+
+    refreshLiveSalesProducts(false)
+    refreshWebsiteOrders(false)
 
     const ordersChannel = supabase
       .channel('ops_context_orders_realtime')
@@ -1036,15 +1352,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => {
-          syncLiveWebsiteOrders()
+          refreshWebsiteOrders(false)
+        }
+      )
+      .subscribe()
+
+    const productsChannel = supabase
+      .channel('ops_context_products_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          refreshLiveSalesProducts(false)
         }
       )
       .subscribe()
 
     return () => {
       supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(productsChannel)
     }
-  }, [])
+  }, [refreshLiveSalesProducts, refreshWebsiteOrders])
 
   // Automated background scheduler: checks scheduledOrders every 10 seconds.
   // If an order's scheduled date/time has arrived, automatically sends it to packagingQueue without user action!
@@ -3018,6 +3346,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <SmokeyOpsContext.Provider
       value={{
+        websiteOrders,
+        setWebsiteOrders,
+        refreshWebsiteOrders,
+        isOrdersRefreshing,
+        liveSalesProducts,
+        setLiveSalesProducts,
+        refreshLiveSalesProducts,
+        isSalesProductsRefreshing,
         rawProducts,
         rawDeliveries,
         rawMovements,

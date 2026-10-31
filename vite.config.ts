@@ -9,6 +9,96 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || 'https://itpnfalqjjicesqcjzix.supabase.co'
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || ''
+  const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY || '')
+
+  const serverCache: {
+    liveOrders: any[] | null
+    products: any[] | null
+    rawInventory: any[] | null
+    packagingInventory: any[] | null
+    suppliers: any[] | null
+    fleetRiders: any[] | null
+    staffAccounts: any[] | null
+    facilities: any[] | null
+    lastUpdated: number
+    warmingPromise: Promise<void> | null
+  } = {
+    liveOrders: null,
+    products: null,
+    rawInventory: null,
+    packagingInventory: null,
+    suppliers: null,
+    fleetRiders: null,
+    staffAccounts: null,
+    facilities: null,
+    lastUpdated: 0,
+    warmingPromise: null,
+  }
+
+  const refreshServerCache = async () => {
+    try {
+      const [ordersRes, productsRes, settingsRes] = await Promise.all([
+        sb
+          .from('orders')
+          .select('*, order_items(*)')
+          .is('deleted_at', null)
+          .neq('status', 'pending_payment')
+          .order('created_at', { ascending: false })
+          .limit(200),
+        sb
+          .from('products')
+          .select('*')
+          .is('deleted_at', null)
+          .order('name', { ascending: true }),
+        sb
+          .from('app_settings')
+          .select('key, value')
+          .in('key', [
+            'inventory_raw',
+            'inventory_packaging',
+            'suppliers',
+            'fleet_riders',
+            'staff_accounts',
+            'facilities',
+          ]),
+      ])
+
+      if (!ordersRes.error && Array.isArray(ordersRes.data)) {
+        serverCache.liveOrders = ordersRes.data
+      }
+      if (!productsRes.error && Array.isArray(productsRes.data)) {
+        serverCache.products = productsRes.data
+      }
+      if (!settingsRes.error && Array.isArray(settingsRes.data)) {
+        const settingsMap = new Map(settingsRes.data.map((r: any) => [r.key, r.value]))
+        if (settingsMap.has('inventory_raw')) serverCache.rawInventory = settingsMap.get('inventory_raw') || []
+        if (settingsMap.has('inventory_packaging')) serverCache.packagingInventory = settingsMap.get('inventory_packaging') || []
+        if (settingsMap.has('suppliers')) serverCache.suppliers = settingsMap.get('suppliers') || []
+        if (settingsMap.has('fleet_riders')) serverCache.fleetRiders = settingsMap.get('fleet_riders') || []
+        if (settingsMap.has('staff_accounts')) serverCache.staffAccounts = settingsMap.get('staff_accounts') || []
+        if (settingsMap.has('facilities')) serverCache.facilities = settingsMap.get('facilities') || []
+      }
+      serverCache.lastUpdated = Date.now()
+    } catch (err) {
+      // Ignore transient network errors during background warm
+    } finally {
+      serverCache.warmingPromise = null
+    }
+  }
+
+  const ensureCacheWarm = async (force = false) => {
+    const isCold = serverCache.liveOrders === null || serverCache.products === null
+    const isStale = Date.now() - serverCache.lastUpdated > 10000
+    if (force || isCold) {
+      if (!serverCache.warmingPromise || force) {
+        serverCache.warmingPromise = refreshServerCache()
+      }
+      await serverCache.warmingPromise
+    } else if (isStale && !serverCache.warmingPromise) {
+      // Non-blocking background revalidation
+      serverCache.warmingPromise = refreshServerCache()
+    }
+  }
 
   return {
     plugins: [
@@ -16,14 +106,45 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       {
         name: 'supabase-api-dev-middleware',
+        async transformIndexHtml(html, ctx) {
+          if (!ctx.server) return html
+          await ensureCacheWarm()
+          const payload = JSON.stringify({
+            liveOrders: serverCache.liveOrders || [],
+            products: serverCache.products || [],
+            rawInventory: serverCache.rawInventory || [],
+            packagingInventory: serverCache.packagingInventory || [],
+            suppliers: serverCache.suppliers || [],
+            fleetRiders: serverCache.fleetRiders || [],
+            staffAccounts: serverCache.staffAccounts || [],
+            facilities: serverCache.facilities || [],
+          }).replace(/</g, '\\u003c')
+          return html.replace(
+            '</head>',
+            `<script>window.__SMOKEY_LIVE_BOOTSTRAP__ = ${payload};</script></head>`
+          )
+        },
         configureServer(server) {
+          // Pre-warm cache immediately on dev server startup
+          ensureCacheWarm()
+
           server.middlewares.use(async (req, res, next) => {
             if (req.url?.startsWith('/api/live-orders')) {
               try {
                 const urlObj = new URL(req.url, 'http://localhost')
                 const query = urlObj.searchParams.get('q')?.trim()
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
-                
+                const forceRefresh = urlObj.searchParams.get('refresh') === '1'
+
+                if (!query) {
+                  await ensureCacheWarm(forceRefresh)
+                  if (serverCache.liveOrders) {
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ data: serverCache.liveOrders }))
+                    return
+                  }
+                }
+
                 let queryBuilder = sb
                   .from('orders')
                   .select('*, order_items(*)')
@@ -49,6 +170,10 @@ export default defineConfig(({ mode }) => {
                   return
                 }
 
+                if (!query && Array.isArray(data)) {
+                  serverCache.liveOrders = data
+                }
+
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ data }))
@@ -62,7 +187,16 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/products')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                const urlObj = new URL(req.url, 'http://localhost')
+                const forceRefresh = urlObj.searchParams.get('refresh') === '1'
+                await ensureCacheWarm(forceRefresh)
+                if (serverCache.products) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.products }))
+                  return
+                }
+
                 const { data, error } = await sb
                   .from('products')
                   .select('*')
@@ -89,7 +223,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/raw-inventory')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.rawInventory) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.rawInventory }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')
@@ -116,7 +256,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/packaging-inventory')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.packagingInventory) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.packagingInventory }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')
@@ -143,7 +289,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/suppliers')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.suppliers) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.suppliers }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')
@@ -170,7 +322,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/fleet-riders')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.fleetRiders) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.fleetRiders }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')
@@ -197,7 +355,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/staff-accounts')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.staffAccounts) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.staffAccounts }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')
@@ -224,7 +388,13 @@ export default defineConfig(({ mode }) => {
 
             if (req.url?.startsWith('/api/facilities')) {
               try {
-                const sb = createClient(supabaseUrl, serviceKey || env.VITE_SUPABASE_ANON_KEY)
+                await ensureCacheWarm()
+                if (serverCache.facilities) {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ data: serverCache.facilities }))
+                  return
+                }
                 const { data, error } = await sb
                   .from('app_settings')
                   .select('value')

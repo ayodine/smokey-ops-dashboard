@@ -153,10 +153,17 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
 
 export const WebsiteOrdersPage: React.FC = () => {
   const navigate = useNavigate()
-  const { logisticsDeliveries, packagingQueue, scheduledOrders, rescheduleOrderDelivery } = useSmokeyOps()
-  const [orders, setOrders] = useState<WebsiteOrder[]>(SEED_WEBSITE_ORDERS)
-  const [loading, setLoading] = useState<boolean>(false)
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const {
+    websiteOrders: orders,
+    setWebsiteOrders: setOrders,
+    refreshWebsiteOrders: fetchLiveOrders,
+    isOrdersRefreshing: isRefreshing,
+    logisticsDeliveries,
+    packagingQueue,
+    scheduledOrders,
+    rescheduleOrderDelivery
+  } = useSmokeyOps()
+  const [loading] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -177,63 +184,6 @@ export const WebsiteOrdersPage: React.FC = () => {
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0)
   const searchContainerRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  const fetchLiveOrders = async (showIndicator = false) => {
-    if (showIndicator) setIsRefreshing(true)
-    try {
-      // 1. First attempt direct Supabase client query
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(200)
-
-      if (!error && Array.isArray(data) && data.length > 0) {
-        setOrders(data.map(mapSupabaseOrderToWebsiteOrder))
-        return
-      }
-
-      // 2. Fallback to Vite dev server API proxy (uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS in local dev)
-      const res = await fetch('/api/live-orders')
-      if (res.ok) {
-        const json = await res.json()
-        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-          setOrders(json.data.map(mapSupabaseOrderToWebsiteOrder))
-          return
-        }
-      }
-
-      // 3. Graceful fallback to authentic snapshot seed data if live API is unavailable
-      setOrders(SEED_WEBSITE_ORDERS)
-    } catch (err) {
-      console.error('Failed to load live website orders, falling back to snapshot:', err)
-      setOrders(SEED_WEBSITE_ORDERS)
-    } finally {
-      setLoading(false)
-      if (showIndicator) setIsRefreshing(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchLiveOrders()
-
-    // Real-time Supabase postgres_changes listener
-    const channel = supabase
-      .channel('ops_website_orders_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => {
-          fetchLiveOrders()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
 
   // Debounced Historical Backend Search (queries orders as far back as sales database inception)
   useEffect(() => {
