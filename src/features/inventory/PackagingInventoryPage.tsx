@@ -1025,9 +1025,16 @@ export const PackagingInventoryPage: React.FC = () => {
             required
           />
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between items-center font-sans">
-            <span className="text-kumo-subtle">Total Consignment Cost:</span>
-            <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-sm">{formatNaira(receiveQty * receiveCost)}</span>
+          {/* Total Consignment Cost Container (stacked label and value) */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            <div className="p-3 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                Total Consignment Cost
+              </span>
+              <span className="block font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                {formatNaira(receiveQty * receiveCost)}
+              </span>
+            </div>
           </div>
         </form>
       </Dialog>

@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
+import { Toggle } from '@/components/ui/Toggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatQuantity, formatDate, cn } from '@/lib/utils'
@@ -1088,144 +1089,93 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           )}
 
-          {/* Batch Schedule & Storefront Buffer Mode */}
-          <div className="p-4 rounded-xl border border-kumo-line bg-kumo-surface/60 space-y-3 font-sans">
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] font-bold text-kumo-strong uppercase tracking-wider block">
-                Batch Schedule & Storefront Buffer Feed
+          {/* Batch Schedule & Storefront Settings Container */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            {/* Schedule Mode */}
+            <div className="p-3.5 space-y-2">
+              <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Batch Schedule
               </span>
-              <span className="text-[11px] text-kumo-subtle font-medium">
-                {batchSchedule === 'tomorrow_morning' ? 'Overnight Pre-Order Feed' : 'Daytime Active Production'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setBatchSchedule('today')
-                  setEstimatedReadyTime('Today 1:30 PM')
-                }}
-                className={cn(
-                  "p-3 rounded-lg border text-left transition-all cursor-pointer font-sans",
-                  batchSchedule === 'today'
-                    ? "bg-white dark:bg-zinc-800 border-primary ring-1 ring-primary shadow-2xs"
-                    : "bg-kumo-base border-kumo-line hover:bg-kumo-tint"
-                )}
-              >
-                <div className="font-semibold text-xs text-kumo-strong flex items-center justify-between">
-                  <span>Today's Smoke Run</span>
-                  {batchSchedule === 'today' && <span className="w-2 h-2 rounded-full bg-primary" />}
-                </div>
-                <div className="text-[11px] text-kumo-subtle mt-1 leading-relaxed">
-                  Active daytime smoking. Buffers online store availability while the batch is cooking in pits.
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setBatchSchedule('tomorrow_morning')
-                  setEstimatedReadyTime('Tomorrow 9:30 AM')
-                }}
-                className={cn(
-                  "p-3 rounded-lg border text-left transition-all cursor-pointer font-sans",
-                  batchSchedule === 'tomorrow_morning'
-                    ? "bg-white dark:bg-zinc-800 border-amber-600 ring-1 ring-amber-600 shadow-2xs"
-                    : "bg-kumo-base border-kumo-line hover:bg-kumo-tint"
-                )}
-              >
-                <div className="font-semibold text-xs text-kumo-strong flex items-center justify-between">
-                  <span>Tomorrow Morning Run (Pre-Orders)</span>
-                  {batchSchedule === 'tomorrow_morning' && <span className="w-2 h-2 rounded-full bg-amber-600" />}
-                </div>
-                <div className="text-[11px] text-kumo-subtle mt-1 leading-relaxed">
-                  End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.
-                </div>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-kumo-line">
-              <Input
-                label="Target Ready Time"
-                value={estimatedReadyTime}
-                onChange={(e) => setEstimatedReadyTime(e.target.value)}
-                placeholder="e.g. Today 2:30 PM or Tomorrow 9:30 AM"
-                required
-              />
-              <div className="flex flex-col justify-end">
-                <label className="flex items-center gap-2.5 p-2.5 rounded-lg border border-kumo-line bg-kumo-base cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={feedSalesInventory}
-                    onChange={(e) => setFeedSalesInventory(e.target.checked)}
-                    className="w-4 h-4 text-primary rounded border-zinc-300 focus:ring-primary shrink-0"
-                  />
-                  <div className="text-xs min-w-0">
-                    <span className="font-semibold text-kumo-strong block truncate">Feed Storefront Buffer</span>
-                    <span className="text-[10px] text-kumo-subtle block truncate">Keeps item bookable online while smoking</span>
-                  </div>
-                </label>
+              <div className="grid grid-cols-2 rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-100 dark:bg-zinc-850 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBatchSchedule('today')
+                    setEstimatedReadyTime('Today 1:30 PM')
+                  }}
+                  className={cn(
+                    "py-1.5 px-3 text-xs font-medium rounded-md transition-all cursor-pointer",
+                    batchSchedule === 'today'
+                      ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  )}
+                >
+                  Today's Smoke Run
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBatchSchedule('tomorrow_morning')
+                    setEstimatedReadyTime('Tomorrow 9:30 AM')
+                  }}
+                  className={cn(
+                    "py-1.5 px-3 text-xs font-medium rounded-md transition-all cursor-pointer",
+                    batchSchedule === 'tomorrow_morning'
+                      ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  )}
+                >
+                  Tomorrow Morning Run (Pre-Orders)
+                </button>
               </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {batchSchedule === 'today'
+                  ? 'Active daytime smoking. Buffers online store availability while batch is cooking in pits.'
+                  : 'End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.'}
+              </p>
+            </div>
+
+            {/* Feed Storefront Buffer Toggle */}
+            <div className="p-3.5 flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Feed Storefront Buffer
+                </span>
+                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                  Keeps item bookable on online ordering storefront while cooking in pits
+                </span>
+              </div>
+              <Toggle
+                checked={feedSalesInventory}
+                onChange={setFeedSalesInventory}
+                size="md"
+              />
             </div>
           </div>
 
-          {/* SECTION 1: Recipe Template & Target Output */}
+          {/* Target Ready Time (Single-column stacked) */}
+          <Input
+            label="Target Ready Time"
+            value={estimatedReadyTime}
+            onChange={(e) => setEstimatedReadyTime(e.target.value)}
+            placeholder="e.g. Today 2:30 PM or Tomorrow 9:30 AM"
+            required
+          />
+
+          {/* SECTION 1: Recipe Template & Target Output (Single-column vertical stack) */}
           <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
                 <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 font-sans">
                   Cooking Recipe Template
                 </label>
-                <div className="flex items-center gap-2 text-xs">
-                  <button
-                    type="button"
-                    disabled={selectedRecipeTemplateId === 'custom'}
-                    onClick={() => {
-                      if (selectedRecipeTemplateId !== 'custom') {
-                        handleOpenEditTemplate(Number(selectedRecipeTemplateId))
-                      }
-                    }}
-                    className={cn(
-                      "font-medium transition-colors",
-                      selectedRecipeTemplateId === 'custom'
-                        ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
-                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-                    )}
-                  >
-                    Edit Template
-                  </button>
-
-                  <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
-
-                  <button
-                    type="button"
-                    disabled={selectedRecipeTemplateId === 'custom'}
-                    onClick={() => {
-                      if (selectedRecipeTemplateId !== 'custom') {
-                        handleDeleteTemplate(Number(selectedRecipeTemplateId))
-                      }
-                    }}
-                    className={cn(
-                      "font-medium transition-colors",
-                      selectedRecipeTemplateId === 'custom'
-                        ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-40"
-                        : "text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-                    )}
-                  >
-                    Delete
-                  </button>
-
-                  <span className="text-zinc-300 dark:text-zinc-700 select-none">|</span>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsManageTemplatesModalOpen(true)}
-                    className="font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-                  >
-                    Manage Templates ({recipeTemplates.length})
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsManageTemplatesModalOpen(true)}
+                  className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                >
+                  Manage Templates ({recipeTemplates.length})
+                </button>
               </div>
 
               <Select
@@ -1240,6 +1190,31 @@ export const ProductionBatchesPage: React.FC = () => {
                 ]}
                 size="md"
               />
+
+              {selectedRecipeTemplateId !== 'custom' && (
+                <div className="flex items-center justify-between text-xs px-1 pt-0.5">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Active template: <span className="font-medium text-zinc-900 dark:text-zinc-100">{recipeTemplates.find(t => String(t.id) === String(selectedRecipeTemplateId))?.version_name}</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium transition-colors cursor-pointer"
+                    >
+                      Edit Template
+                    </button>
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTemplate(Number(selectedRecipeTemplateId))}
+                      className="text-red-600 dark:text-red-400 hover:underline font-medium transition-colors cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Select
