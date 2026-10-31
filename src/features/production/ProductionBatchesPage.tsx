@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatQuantity, formatDate, cn } from '@/lib/utils'
 
@@ -1198,12 +1199,13 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Target Ready Time (Single-column stacked) */}
-          <Input
+          {/* Target Ready Time (Using custom DateTimePicker) */}
+          <DateTimePicker
             label="Target Ready Time"
             value={estimatedReadyTime}
-            onChange={(e) => setEstimatedReadyTime(e.target.value)}
-            placeholder="e.g. Today 2:30 PM or Tomorrow 9:30 AM"
+            onChange={(val) => setEstimatedReadyTime(val)}
+            placeholder="Select target ready date & time"
+            helperText="Est. completion time for kitchen line and customer storefront pre-orders"
             required
           />
 

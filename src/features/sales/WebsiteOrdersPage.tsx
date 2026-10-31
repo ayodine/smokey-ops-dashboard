@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
+import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
@@ -163,6 +164,8 @@ export const WebsiteOrdersPage: React.FC = () => {
   // Reschedule / Schedule Delivery State
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false)
   const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('12:00')
+  const [rescheduleDateTime, setRescheduleDateTime] = useState('')
   const [rescheduleNotes, setRescheduleNotes] = useState('')
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false)
 
@@ -890,7 +893,12 @@ export const WebsiteOrdersPage: React.FC = () => {
                       const initialDate = selectedOrder.scheduled_delivery_at
                         ? selectedOrder.scheduled_delivery_at.split('T')[0].split(' ')[0]
                         : new Date().toISOString().split('T')[0]
+                      const initialTime = selectedOrder.scheduled_delivery_at && selectedOrder.scheduled_delivery_at.includes(':')
+                        ? (selectedOrder.scheduled_delivery_at.split(' ')[1] || '12:00').substring(0, 5)
+                        : '12:00'
                       setRescheduleDate(initialDate)
+                      setRescheduleTime(initialTime)
+                      setRescheduleDateTime(`${initialDate} ${initialTime}`)
                       setRescheduleNotes(selectedOrder.notes || '')
                       setIsRescheduleModalOpen(true)
                     }}
@@ -1161,10 +1169,11 @@ export const WebsiteOrdersPage: React.FC = () => {
               if (!rescheduleDate) return
               setIsSubmittingSchedule(true)
               const opening = getOfficeOpeningHourForDate(rescheduleDate)
+              const timePart = rescheduleTime || opening.timeStr
               const success = await rescheduleOrderDelivery(
                 selectedOrder.order_ref,
                 rescheduleDate,
-                undefined,
+                timePart,
                 rescheduleNotes,
                 {
                   customer_name: selectedOrder.customer_name,
@@ -1179,7 +1188,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               if (success) {
                 setSelectedOrder(prev => prev ? {
                   ...prev,
-                  scheduled_delivery_at: `${rescheduleDate} ${opening.timeStr}`,
+                  scheduled_delivery_at: `${rescheduleDate} ${timePart}`,
                   fulfillment_status: 'in_intake'
                 } : null)
                 setIsRescheduleModalOpen(false)
@@ -1205,10 +1214,16 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
             </div>
 
-            <SingleDatePicker
-              label="Delivery Date"
-              value={rescheduleDate}
-              onChange={(dateStr) => setRescheduleDate(dateStr)}
+            <DateTimePicker
+              label="Delivery Date & Time"
+              value={rescheduleDateTime}
+              onChange={(val, details) => {
+                setRescheduleDateTime(val)
+                if (details) {
+                  setRescheduleDate(details.date)
+                  setRescheduleTime(details.time)
+                }
+              }}
               helperText={rescheduleDate ? `Office Opening Time: ${getOfficeOpeningHourForDate(rescheduleDate).label} (Standard dispatch start)` : undefined}
               required
             />
