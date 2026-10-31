@@ -448,7 +448,7 @@ export const PackagingExecutionPage: React.FC = () => {
         description="Select the exact food packaging materials used for this order. Quantities will be deducted from Packaging Inventory."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
               Close
             </Button>
@@ -533,15 +533,17 @@ export const PackagingExecutionPage: React.FC = () => {
               const p = packagingProducts.find(x => x.name.toLowerCase() === it.packaging_name.toLowerCase())
               return p && (p.bench_stock_qty ?? 0) < it.quantity
             }) && (
-              <div className="p-2.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex items-center justify-between text-kumo-strong">
-                <span>Selected quantity exceeds active Packaging Bench stock.</span>
-                <button
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-zinc-700 dark:text-zinc-300 shadow-2xs">
+                <span className="font-medium">Selected quantity exceeds active Packaging Bench stock.</span>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsRequisitionModalOpen(true)}
-                  className="underline font-semibold cursor-pointer text-primary"
+                  className="shrink-0 self-start sm:self-auto text-xs font-semibold h-8 px-3 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                 >
-                  Requisition from Central
-                </button>
+                  Request from Central Store
+                </Button>
               </div>
             )}
           </div>
@@ -556,7 +558,7 @@ export const PackagingExecutionPage: React.FC = () => {
         description="Request stock replenishment from Central Store reserve directly to the Packaging Bench."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsRequisitionModalOpen(false)}>
               Close
             </Button>
@@ -594,20 +596,19 @@ export const PackagingExecutionPage: React.FC = () => {
             }))}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Quantity Needed"
-              type="number"
-              min="1"
-              value={requisitionQty}
-              onChange={(e) => setRequisitionQty(Number(e.target.value))}
-            />
-            <Input
-              label="Requester"
-              value="Packaging Shift Crew"
-              readOnly
-            />
-          </div>
+          <Input
+            label="Quantity Needed"
+            type="number"
+            min="1"
+            value={requisitionQty}
+            onChange={(e) => setRequisitionQty(Number(e.target.value))}
+          />
+
+          <Input
+            label="Requester"
+            value="Packaging Shift Crew"
+            readOnly
+          />
 
           <Input
             label="Reason / Shift Requisition Note"
