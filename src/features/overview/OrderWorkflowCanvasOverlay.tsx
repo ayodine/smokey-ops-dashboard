@@ -1446,12 +1446,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         {isCanvasExpanded && (
           <>
             {/* ACTIVE ORDER SEARCH & FIGMA STATUS LEGEND */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-4 border-b border-[#e4e4e7] dark:border-zinc-800">
-          {/* Left: Design System Search Field with Rock-Solid Fixed Width & Autocomplete Dropdown */}
-          <div
-            ref={searchContainerRef}
-            className="relative w-full sm:w-[280px] lg:w-[320px] xl:w-[340px] shrink-0 font-sans"
-          >
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-4 mb-4 border-b border-[#e4e4e7] dark:border-zinc-800">
+              {/* Left: Design System Search Field with Responsive Fixed Width & Autocomplete Dropdown */}
+              <div
+                ref={searchContainerRef}
+                className="relative w-full sm:w-[260px] md:w-[280px] xl:w-[320px] shrink-0 font-sans"
+              >
             <div className="relative w-full">
               {/* Search Icon */}
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-kumo-subtle pointer-events-none z-20" />
@@ -1566,9 +1566,9 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
 
           {/* Right: Status States & Process Dots Legend extracted from Figma */}
-          <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] dark:text-zinc-400 mr-1 hidden sm:inline shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] dark:text-zinc-400 mr-1 shrink-0">
                 Badge states:
               </span>
               <StatusPill state="draft" label="no-action" size="sm" />
@@ -1578,10 +1578,10 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               <StatusPill state="flagged" label="flagged" size="sm" />
             </div>
 
-            <div className="h-3.5 w-px bg-[#e4e4e7] dark:bg-zinc-700 shrink-0 hidden md:block" />
+            <div className="h-3.5 w-px bg-[#e4e4e7] dark:bg-zinc-700 shrink-0 hidden sm:block" />
 
             {/* Process Indicator Legend: Grey for Automatic, Red for Action Required */}
-            <div className="flex items-center gap-2 text-xs text-[#71717a] dark:text-zinc-400 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2.5 text-xs text-[#71717a] dark:text-zinc-400 shrink-0">
               <div className="flex items-center gap-1.5" title="Automated system task">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#9ca3af] shrink-0" />
                 <span className="text-[11px] font-medium text-[#52525b] dark:text-zinc-300">Automatic</span>
@@ -1596,26 +1596,26 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
         {/* ACTIVE ORDER & ITEM FLOW SUMMARY BANNER */}
         {activeOrder && (
-          <div className="mb-6 p-3.5 sm:p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/40 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-2xs font-sans">
-            <div className="space-y-1.5 min-w-0">
+          <div className="mb-6 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-850/50 flex flex-col md:flex-row md:items-center justify-between gap-3.5 text-xs shadow-2xs font-sans">
+            <div className="space-y-2 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100 px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
+                <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
                   {activeOrder.id}
                 </span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[13px]">
                   {activeOrder.customerName}
                 </span>
-                <span className="text-zinc-400 dark:text-zinc-500">•</span>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-200/70 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                <span className="text-zinc-300 dark:text-zinc-600">•</span>
+                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-700 dark:text-zinc-300">
                   {activeOrder.channel}
                 </span>
                 {pipelineMetrics.isFulfilled ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     Fulfilled & Delivered
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     <Zap className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                     In Progress • {getStageLabel(activeOrder.currentStage)}
                   </span>
@@ -1624,7 +1624,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
 
               {/* Individual Item Flow Badges */}
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium mr-1">
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium mr-1 shrink-0">
                   Items Flowing:
                 </span>
                 {orderItems.map((item, idx) => (
@@ -1633,22 +1633,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                     className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border",
                       pipelineMetrics.isFulfilled
-                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300"
+                        ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300"
                         : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200"
                     )}
                   >
-                    <Package className="w-3 h-3 opacity-60" />
+                    <Package className="w-3 h-3 opacity-60 shrink-0" />
                     <span>{item.quantity}x {item.name}</span>
                     {pipelineMetrics.isFulfilled && (
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Done</span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-0.5">✓ Done</span>
                     )}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="text-right shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 pt-2 md:pt-0 border-zinc-200 dark:border-zinc-700">
-              <div className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">
+            <div className="text-right shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 pt-2.5 md:pt-0 border-zinc-200 dark:border-zinc-700/60 pl-0 md:pl-4">
+              <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
                 {formatNaira(activeOrder.totalAmount)}
               </div>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
