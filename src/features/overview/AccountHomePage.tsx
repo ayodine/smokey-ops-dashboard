@@ -10,9 +10,6 @@ import {
   AlertTitle,
 } from '@/components/reui/alert'
 import {
-  Archive,
-  Ban,
-  Clock,
   ShieldCheckIcon
 } from 'lucide-react'
 import { CloudflareNavigationHub } from './CloudflareNavigationHub'
@@ -104,9 +101,6 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Total stock value
             </span>
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center font-bold text-xs">
-              ₦
-            </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
@@ -127,9 +121,6 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Running low
             </span>
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
-              <Archive className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-            </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
@@ -150,9 +141,6 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Expiring soon
             </span>
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-            </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
@@ -173,9 +161,6 @@ export const AccountHomePage: React.FC = () => {
             <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
               Out of stock
             </span>
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center">
-              <Ban className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-            </div>
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
