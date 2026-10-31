@@ -147,7 +147,7 @@ const AccountActionDropdown: React.FC<{
           zIndex: 9999,
         }}
         className={cn(
-          'w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-2xl p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60 bg-white dark:bg-zinc-900 select-none overflow-y-auto',
+          'w-60 min-w-[230px] rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900 select-none overflow-y-auto',
           position.openUp ? 'origin-bottom-right' : 'origin-top-right'
         )}
         onClick={(e) => e.stopPropagation()}
@@ -217,17 +217,16 @@ const AccountRowActionCell: React.FC<{
         onClose={() => setOpenMenuEmail(null)}
         buttonRef={buttonRef}
       >
-        <div className="py-0.5">
+        <div className="py-0.5 space-y-0.5">
           <button
             type="button"
             onClick={() => {
               setOpenMenuEmail(null)
               onEditProfile(acc.email)
             }}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
           >
-            <UserCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-            <span>Edit Profile & KYC</span>
+            Edit Profile & KYC
           </button>
           <button
             type="button"
@@ -235,10 +234,9 @@ const AccountRowActionCell: React.FC<{
               setOpenMenuEmail(null)
               onChangeRole(acc)
             }}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
           >
-            <Shield className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-            <span>Change Role & Permissions</span>
+            Change Role & Permissions
           </button>
           <button
             type="button"
@@ -246,10 +244,9 @@ const AccountRowActionCell: React.FC<{
               setOpenMenuEmail(null)
               onInspectPermissions(acc)
             }}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-            <span>View Policy Matrix</span>
+            View Policy Matrix
           </button>
           <button
             type="button"
@@ -257,10 +254,9 @@ const AccountRowActionCell: React.FC<{
               setOpenMenuEmail(null)
               onChangePassword(acc)
             }}
-            className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
           >
-            <Key className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-            <span>Change Password</span>
+            Change Password
           </button>
           {acc.email.toLowerCase() !== activeAccountEmail.toLowerCase() && (
             <button
@@ -269,14 +265,13 @@ const AccountRowActionCell: React.FC<{
                 setOpenMenuEmail(null)
                 onSwitchAccount(acc.email)
               }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+              className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
             >
-              <UserCheck className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-              <span>Switch to Account</span>
+              Switch to Account
             </button>
           )}
         </div>
-        <div className="py-0.5">
+        <div className="py-0.5 pt-1">
           <button
             type="button"
             disabled={availableAccounts.length <= 1}
@@ -285,9 +280,9 @@ const AccountRowActionCell: React.FC<{
               onDeleteAccount(acc)
             }}
             className={cn(
-              'w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors',
+              'w-full text-left px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap',
               availableAccounts.length <= 1
-                ? 'opacity-40 cursor-not-allowed text-kumo-subtle'
+                ? 'opacity-40 cursor-not-allowed text-zinc-400'
                 : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
             )}
           >

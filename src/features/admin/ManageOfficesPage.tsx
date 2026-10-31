@@ -119,7 +119,7 @@ const OfficeActionDropdown: React.FC<{
           zIndex: 9999,
         }}
         className={cn(
-          'w-48 rounded-xl border border-kumo-line bg-kumo-base shadow-2xl p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-kumo-line/60 bg-white dark:bg-zinc-900 select-none overflow-y-auto',
+          'w-56 min-w-[220px] rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-1 font-sans text-[13px] animate-in fade-in zoom-in-95 divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900 select-none overflow-y-auto',
           position.openUp ? 'origin-bottom-right' : 'origin-top-right'
         )}
         onClick={(e) => e.stopPropagation()}
@@ -600,17 +600,16 @@ export const ManageOfficesPage: React.FC = () => {
               onClose={() => setOpenMenuId(null)}
               buttonRef={buttonRef}
             >
-              <div className="py-0.5">
+              <div className="py-0.5 space-y-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     setOpenMenuId(null)
                     navigate(`/offices/edit/${fac.id}`)
                   }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
                 >
-                  <Pencil className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                  <span>Edit Facility Details</span>
+                  Edit Facility Details
                 </button>
                 {!isSelected && (
                   <button
@@ -619,14 +618,13 @@ export const ManageOfficesPage: React.FC = () => {
                       setOpenMenuId(null)
                       handleSetActive(fac)
                     }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
+                    className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
                   >
-                    <Check className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
-                    <span>Set Active Workspace</span>
+                    Set Active Workspace
                   </button>
                 )}
               </div>
-              <div className="py-0.5">
+              <div className="py-0.5 pt-1">
                 <button
                   type="button"
                   disabled={isPrimary || facilities.length <= 1}
@@ -635,9 +633,9 @@ export const ManageOfficesPage: React.FC = () => {
                     setFacilityToDelete(fac)
                   }}
                   className={cn(
-                    'w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors',
+                    'w-full text-left px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap',
                     isPrimary || facilities.length <= 1
-                      ? 'opacity-40 cursor-not-allowed text-kumo-subtle'
+                      ? 'opacity-40 cursor-not-allowed text-zinc-400'
                       : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
                   )}
                   title={isPrimary ? 'Default HQ cannot be deleted' : undefined}
