@@ -679,7 +679,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Withdraw packaging materials from the Central Store and transfer them to the Packaging Execution Bench."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsIssueModalOpen(false)}>
               Close
             </Button>
@@ -752,9 +752,9 @@ export const PackagingInventoryPage: React.FC = () => {
         onClose={() => setIsReturnModalOpen(false)}
         title="EOD Shift Return to Central Store"
         description="Return unused packaging materials from the packaging bench back to Central Store reserve and account for damages."
-        maxWidth="lg"
+        maxWidth="2xl"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsReturnModalOpen(false)}>
               Close
             </Button>
@@ -765,29 +765,29 @@ export const PackagingInventoryPage: React.FC = () => {
         }
       >
         <form id="return-packaging-form" onSubmit={handleConfirmReturn} className="space-y-4 font-sans text-xs">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Supervisor / Auditor"
-              value={returnVerifiedBy}
-              onChange={(e) => setReturnVerifiedBy(e.target.value)}
-              required
-            />
-            <Input
-              label="Shift Notes"
-              value={returnNotes}
-              onChange={(e) => setReturnNotes(e.target.value)}
-              required
-            />
-          </div>
+          <Input
+            label="Supervisor / Auditor"
+            value={returnVerifiedBy}
+            onChange={(e) => setReturnVerifiedBy(e.target.value)}
+            required
+            autoFocus
+          />
 
-          <div className="space-y-2.5 pt-3 border-t border-kumo-line">
-            <div className="grid grid-cols-12 gap-3 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
+          <Input
+            label="Shift Notes"
+            value={returnNotes}
+            onChange={(e) => setReturnNotes(e.target.value)}
+            required
+          />
+
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+            <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
               <div className="col-span-6">Bench Material</div>
-              <div className="col-span-3">Return to Hub</div>
-              <div className="col-span-3">Damaged / Scrap</div>
+              <div className="col-span-3 text-center">Return to Store</div>
+              <div className="col-span-3 text-center">Damaged / Scrap</div>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[320px] overflow-y-auto pr-0.5">
               {packagingProducts.map(p => {
                 const entry = returnItemEntries.find(e => e.productId === p.id)
                 const returnQty = entry?.returnQty ?? 0
@@ -795,11 +795,11 @@ export const PackagingInventoryPage: React.FC = () => {
                 const benchQty = p.bench_stock_qty ?? 0
 
                 return (
-                  <div key={p.id} className="grid grid-cols-12 gap-3 items-center p-2.5 bg-kumo-surface border border-kumo-line rounded-lg">
+                  <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-4 py-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
                     <div className="col-span-6 min-w-0">
-                      <div className="font-semibold text-kumo-strong truncate">{p.name}</div>
-                      <div className="text-[11px] text-kumo-subtle">
-                        Bench: <strong className="text-kumo-strong">{benchQty} {p.unit}</strong> &bull; Hub: {p.central_stock_qty ?? 0}
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-[13px]">{p.name}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        Bench: <strong className="text-zinc-900 dark:text-zinc-100 font-medium">{benchQty} {p.unit}</strong> &bull; Central: {p.central_stock_qty ?? 0}
                       </div>
                     </div>
 
@@ -856,7 +856,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Record incoming shipment of packaging items into Central Store stock."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
               Close
             </Button>
@@ -879,28 +879,27 @@ export const PackagingInventoryPage: React.FC = () => {
             options={packagingProducts.map(p => ({ value: p.id, label: `${p.name} [${p.sku}] - Central: ${p.central_stock_qty ?? p.stock_qty} ${p.unit}` }))}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <UnitInput
-              label="Quantity Received"
-              value={receiveQty}
-              onChangeValue={setReceiveQty}
-              unit={packagingProducts.find(p => p.id === receiveProductId)?.unit || 'units'}
-              min={1}
-              required
-            />
-            <Input
-              label="Unit Cost (₦)"
-              type="number"
-              min="1"
-              value={receiveCost}
-              onChange={(e) => setReceiveCost(Number(e.target.value))}
-              required
-            />
-          </div>
+          <UnitInput
+            label="Quantity Received"
+            value={receiveQty}
+            onChangeValue={setReceiveQty}
+            unit={packagingProducts.find(p => p.id === receiveProductId)?.unit || 'units'}
+            min={1}
+            required
+          />
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between font-mono">
+          <Input
+            label="Unit Cost (₦)"
+            type="number"
+            min="1"
+            value={receiveCost}
+            onChange={(e) => setReceiveCost(Number(e.target.value))}
+            required
+          />
+
+          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between items-center font-sans">
             <span className="text-kumo-subtle">Total Consignment Cost:</span>
-            <span className="font-bold text-emerald-700 text-xs sm:text-sm">{formatNaira(receiveQty * receiveCost)}</span>
+            <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-sm">{formatNaira(receiveQty * receiveCost)}</span>
           </div>
         </form>
       </Dialog>
@@ -913,7 +912,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Manually correct stock count for damaged, scrap, or miscounted packaging units."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
               Close
             </Button>
@@ -961,7 +960,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Add a new consumable container, bag, food bowl, or label SKU to the packaging inventory."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-end gap-2.5 w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsNewMaterialModalOpen(false)}>
               Close
             </Button>
@@ -981,65 +980,62 @@ export const PackagingInventoryPage: React.FC = () => {
             autoFocus
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="SKU Code"
-              value={newMaterialForm.sku}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, sku: e.target.value }))}
-              placeholder="e.g. PKG-00010"
-              required
-            />
-            <Select
-              label="Unit of Measure"
-              value={newMaterialForm.unit}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit: e.target.value }))}
-              options={[
-                { value: 'PIECES', label: 'Pieces (Bags / Bowls / Lids)' },
-                { value: 'PACK', label: 'Packs / Bundles' },
-                { value: 'ROLL', label: 'Rolls (Foil / Wrap / Stickers)' },
-                { value: 'CARTON', label: 'Cartons / Cases' },
-                { value: 'KG', label: 'Kilograms (kg)' },
-              ]}
-            />
-          </div>
+          <Input
+            label="SKU Code"
+            value={newMaterialForm.sku}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, sku: e.target.value }))}
+            placeholder="e.g. PKG-00010"
+            required
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Central Store Stock Qty"
-              type="number"
-              min="0"
-              value={newMaterialForm.central_stock_qty}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, central_stock_qty: Number(e.target.value) }))}
-              required
-            />
-            <Input
-              label="Bench Active Qty"
-              type="number"
-              min="0"
-              value={newMaterialForm.bench_stock_qty}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, bench_stock_qty: Number(e.target.value) }))}
-              required
-            />
-          </div>
+          <Select
+            label="Unit of Measure"
+            value={newMaterialForm.unit}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit: e.target.value }))}
+            options={[
+              { value: 'PIECES', label: 'Pieces (Bags / Bowls / Lids)' },
+              { value: 'PACK', label: 'Packs / Bundles' },
+              { value: 'ROLL', label: 'Rolls (Foil / Wrap / Stickers)' },
+              { value: 'CARTON', label: 'Cartons / Cases' },
+              { value: 'KG', label: 'Kilograms (kg)' },
+            ]}
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Unit Cost (₦)"
-              type="number"
-              min="0"
-              value={newMaterialForm.unit_cost}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
-              required
-            />
-            <Input
-              label="Reorder Alert Level"
-              type="number"
-              min="1"
-              value={newMaterialForm.reorder_level}
-              onChange={(e) => setNewMaterialForm(prev => ({ ...prev, reorder_level: Number(e.target.value) }))}
-              required
-            />
-          </div>
+          <Input
+            label="Central Store Stock Qty"
+            type="number"
+            min="0"
+            value={newMaterialForm.central_stock_qty}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, central_stock_qty: Number(e.target.value) }))}
+            required
+          />
+
+          <Input
+            label="Bench Active Qty"
+            type="number"
+            min="0"
+            value={newMaterialForm.bench_stock_qty}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, bench_stock_qty: Number(e.target.value) }))}
+            required
+          />
+
+          <Input
+            label="Unit Cost (₦)"
+            type="number"
+            min="0"
+            value={newMaterialForm.unit_cost}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
+            required
+          />
+
+          <Input
+            label="Reorder Alert Level"
+            type="number"
+            min="1"
+            value={newMaterialForm.reorder_level}
+            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, reorder_level: Number(e.target.value) }))}
+            required
+          />
 
           <Input
             label="Preferred Supplier / Manufacturer"
