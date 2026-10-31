@@ -102,18 +102,120 @@ export default function AuthSectionThree() {
     }, 350);
   };
 
+  // Operational Testimonials Carousel for Left Column
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const testimonials = [
+    {
+      quote:
+        "From smoking pit temperatures to instant courier dispatch, this platform keeps our entire meat operation in sync every single day.",
+      author: "Babajide Ogundipe",
+      role: "Head of Kitchen & Pit Operations",
+      tag: "Live Smokehouse Operations"
+    },
+    {
+      quote:
+        "Two-tier inventory tracking ensures our whole guinea fowl, turkey wings, and spice blends deduct automatically with zero stock variance.",
+      author: "Kemi Adeleke",
+      role: "Inventory & Procurement Lead",
+      tag: "Automated Stock Depletion"
+    },
+    {
+      quote:
+        "Instant courier assignment and digital waybills get our hot wood-smoked barbecue to customers across Lagos in an average of 28 minutes.",
+      author: "Tunde Bakare",
+      role: "Fleet Logistics Coordinator",
+      tag: "Real-Time Fleet Dispatch"
+    }
+  ];
+
+  // Auto-cycle testimonials every 7 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [testimonials.length]);
+
   return (
     <div className="min-h-screen w-full bg-white p-4 sm:p-6 lg:p-5 flex flex-col lg:grid lg:grid-cols-[1.1fr_1fr] xl:grid-cols-[1.15fr_1fr] font-sans antialiased selection:bg-[#c0201f] selection:text-white">
       {/* =========================================================================
-          LEFT PANEL: TEAM HERO CARD (From User Uploaded Design)
+          LEFT PANEL: OPERATIONAL HERO PHOTO CARD (Matching Reference Layout)
           (Desktop & Tablet Landscape: Full Screen Showcase)
          ========================================================================= */}
-      <div className="hidden lg:flex relative rounded-[26px] sm:rounded-[34px] overflow-hidden lg:h-[calc(100vh-2.5rem)] shadow-md bg-zinc-900 select-none group">
+      <div className="hidden lg:flex relative rounded-[26px] sm:rounded-[34px] overflow-hidden lg:h-[calc(100vh-2.5rem)] shadow-xl bg-zinc-950 select-none group">
+        {/* Background Operational Smokehouse Photo */}
         <img
-          src="/login-team.jpg"
-          alt="Operations Team"
-          className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+          src="/operations-hero.jpg"
+          alt="Smokey Hut Delight Smokehouse Operations"
+          className="w-full h-full object-cover object-center transition-transform duration-1000 group-hover:scale-[1.03]"
         />
+
+        {/* Ambient Dark Gradient Overlay for optimal readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+
+        {/* Top Operational Pill Badge */}
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center p-2 backdrop-blur-sm">
+            <img
+              src="/logo.svg"
+              alt="Smokey Hut Delight"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <span className="px-3.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white/90 text-[11px] font-semibold tracking-wider uppercase border border-white/20">
+            {testimonials[activeTestimonial].tag}
+          </span>
+        </div>
+
+        {/* Bottom Testimonial Overlay Content */}
+        <div className="absolute inset-x-0 bottom-0 p-8 sm:p-10 lg:p-12 z-10 flex flex-col justify-end text-white select-none">
+          {/* 5 Golden Stars */}
+          <div className="flex items-center gap-1 mb-3.5 text-amber-400">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <svg
+                key={i}
+                className="w-4 h-4 fill-amber-400 text-amber-400"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
+          </div>
+
+          {/* Operational Copy / Quote */}
+          <blockquote className="text-xl sm:text-[23px] lg:text-[25px] font-bold text-white leading-snug tracking-tight max-w-[480px] font-display transition-all duration-300">
+            “{testimonials[activeTestimonial].quote}”
+          </blockquote>
+
+          {/* Author Details & Pagination Pill Dots */}
+          <div className="mt-6 flex items-end justify-between border-t border-white/10 pt-4">
+            <div>
+              <p className="text-sm font-semibold text-white/95 tracking-wide">
+                {testimonials[activeTestimonial].author}
+              </p>
+              <p className="text-xs text-white/70 mt-0.5">
+                {testimonials[activeTestimonial].role}
+              </p>
+            </div>
+
+            {/* Pagination Indicators: Active elongated pill + inactive dots (Direct reference match) */}
+            <div className="flex items-center gap-1.5 pb-1">
+              {testimonials.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveTestimonial(idx)}
+                  className={`transition-all duration-300 cursor-pointer h-1.5 rounded-full ${
+                    activeTestimonial === idx
+                      ? "w-6 bg-white shadow-xs"
+                      : "w-1.5 bg-white/40 hover:bg-white/70"
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* =========================================================================
