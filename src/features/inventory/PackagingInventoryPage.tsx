@@ -640,7 +640,7 @@ export const PackagingInventoryPage: React.FC = () => {
           tabs={[
             { id: 'materials', label: 'Master Materials & Stock Split', badge: packagingProducts.length },
             { id: 'reconciliation', label: 'Daily EOD Return & Balance', badge: latestReconciliation ? (latestReconciliation.status === 'balanced' ? '0' : '!') : undefined },
-            { id: 'transfers', label: 'Inter-Station Movement Log', badge: packagingTransfers.length },
+            { id: 'transfers', label: 'Store Movement Log', badge: packagingTransfers.length },
             { id: 'totals', label: 'Consignment Receipts', badge: packagingReceiptsTotals.length },
           ]}
         />

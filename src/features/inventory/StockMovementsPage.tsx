@@ -191,7 +191,7 @@ export const StockMovementsPage: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
-        title="Stock Movements & Inter-Station Transfer Ledger"
+        title="Stock Movements & Store Transfer Ledger"
         subtitle="Complete ledger of what was dished out from the Central Store to packaging and production, what was used, and what was returned at EOD."
       />
 
@@ -204,7 +204,7 @@ export const StockMovementsPage: React.FC = () => {
           icon={<Activity className="w-4 h-4 text-primary" />}
         />
         <MetricCard
-          title="Inter-Station Transfers"
+          title="Store Transfers"
           value={interStationTransfers.length}
           description="Central Store ↔ Outlet movements"
           icon={<ArrowRightLeft className="w-4 h-4 text-blue-600" />}
@@ -230,7 +230,7 @@ export const StockMovementsPage: React.FC = () => {
           onChange={(val) => setFilterType(val as any)}
           tabs={[
             { id: 'all', label: 'All Changes', badge: totalMovements },
-            { id: 'transfers', label: 'Inter-Station Transfers (Hub ↔ Outlets)', badge: interStationTransfers.length },
+            { id: 'transfers', label: 'Store Transfers', badge: interStationTransfers.length },
             { id: 'production_output', label: 'Kitchen Cooked' },
             { id: 'sale', label: 'Customer Orders' },
           ]}
@@ -244,8 +244,8 @@ export const StockMovementsPage: React.FC = () => {
           columns={transferColumns}
           searchable={true}
           searchPlaceholder="Search transfer ref, items, or actor..."
-          title="Inter-Station Stock Transfer"
-          exportFilename="smokey-interstation-transfers-ledger"
+          title="Store Transfers"
+          exportFilename="smokey-store-transfers-ledger"
           onDateRangeChange={setDateRange}
           onRowClick={(t) => {
             setSelectedTransfer(t)
@@ -390,8 +390,8 @@ export const StockMovementsPage: React.FC = () => {
         <Dialog
           isOpen={isTransferModalOpen}
           onClose={() => setIsTransferModalOpen(false)}
-          title={`Inter-Station Transfer Audit: ${selectedTransfer.transfer_ref}`}
-          description="Immutable ledger record of materials moved between Central Store and processing stations."
+          title={`Store Transfer Audit: ${selectedTransfer.transfer_ref}`}
+          description="Immutable ledger record of materials moved between Central Store and outlet stations."
           maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">

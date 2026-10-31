@@ -968,7 +968,7 @@ export const RawInventoryPage: React.FC = () => {
           tabs={[
             { id: 'current', label: 'In Stock', badge: rawProducts.length },
             { id: 'fefo', label: 'Expiring Lots', badge: inventoryLots.length },
-            { id: 'transfers', label: 'Inter-Station Transfers', badge: interStationTransfers.length },
+            { id: 'transfers', label: 'Store Transfers', badge: interStationTransfers.length },
             { id: 'inbound', label: 'Stock In', badge: rawDeliveries.length },
             { id: 'outbound', label: 'Stock Out', badge: rawMovements.length },
             { id: 'usage', label: 'Monthly Usage' },
@@ -1014,8 +1014,8 @@ export const RawInventoryPage: React.FC = () => {
             columns={transferColumns}
             searchable={true}
             searchPlaceholder="Search transfer ref, items, or actor..."
-            title="Inter-Station Stock Transfer"
-            exportFilename="smokey-raw-interstation-transfers"
+            title="Store Transfers"
+            exportFilename="smokey-raw-store-transfers"
           />
         )}
 
