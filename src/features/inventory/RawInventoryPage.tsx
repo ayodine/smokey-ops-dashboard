@@ -571,30 +571,28 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'actions',
-      header: 'Actions',
-      defaultWidth: 360,
+      header: 'Action',
+      defaultWidth: 190,
       accessor: (l) => {
         if (l.remaining_qty <= 0) {
-          return <span className="text-[11px] text-kumo-subtle italic">Depleted / Written Off</span>
+          return <span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic">Depleted / Written Off</span>
         }
         return (
-          <div className="flex items-center gap-2 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
             <Tooltip content="Create prep batch targeting this lot so it gets smoked first">
               <TableActionButton
-                variant="warning"
+                variant="primary"
                 onClick={() => handleOpenPrioritize(l)}
-                leftIcon={<Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
               >
-                Prioritize in Kitchen
+                Prioritize
               </TableActionButton>
             </Tooltip>
             <Tooltip content="Record shrinkage with reason 'Expired / Past Date'">
               <TableActionButton
-                variant="danger"
+                variant="outline"
                 onClick={() => handleOpenWaste(l)}
-                leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
               >
-                Log Spoilage / Waste
+                Log Waste
               </TableActionButton>
             </Tooltip>
           </div>
