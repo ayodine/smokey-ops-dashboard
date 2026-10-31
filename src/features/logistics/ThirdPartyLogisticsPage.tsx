@@ -270,7 +270,7 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
         onClose={() => setIsEvidenceModalOpen(false)}
         title={`Audit Courier Invoice: ${selectedDelivery?.order_ref}`}
         description="Verify courier waybill receipt and approve or flag billing discrepancies."
-        maxWidth="lg"
+        maxWidth="2xl"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -283,10 +283,9 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
             </Button>
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="md"
                 type="button"
-                className="text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                 onClick={() => handleActionVerify('flagged')}
               >
                 Flag Overcharge
@@ -303,73 +302,113 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
           </div>
         }
       >
-        <div className="space-y-3.5 font-sans">
-          {/* Unified Invoice Summary Card */}
-          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-xl space-y-2.5 font-sans">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-kumo-line/60">
-              <div>
-                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Courier Provider</div>
-                <div className="text-sm font-semibold text-kumo-strong mt-0.5">{selectedDelivery?.assigned_rider}</div>
+        <div className="space-y-4 font-sans text-xs">
+          {/* Master Divided Card Container (matching design system guardrails) */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+            
+            {/* Section 1: Dispatch & Route Overview */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Dispatch & Routing Manifest
+                </span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                  {selectedDelivery?.delivery_ref}
+                </span>
               </div>
-              <div className="text-left sm:text-right">
-                <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-semibold">Destination</div>
-                <div className="text-xs font-medium text-kumo-default truncate max-w-xs mt-0.5">{selectedDelivery?.address}</div>
-              </div>
-            </div>
 
-            {/* Financial Metrics Strip */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-[11px] text-kumo-subtle block font-medium">Customer Paid</span>
-                <span className="text-xs sm:text-sm font-bold text-emerald-600 block mt-0.5">
-                  {formatNaira(selectedDelivery?.delivery_fee || 0)}
-                </span>
-              </div>
-              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-[11px] text-kumo-subtle block font-medium">Billed Courier Fee</span>
-                <span className="text-xs sm:text-sm font-bold text-red-600 block mt-0.5">
-                  {formatNaira(selectedDelivery?.booked_fee || 0)}
-                </span>
-              </div>
-              <div className="p-2 bg-kumo-base border border-kumo-line rounded-lg">
-                <span className="text-[11px] text-kumo-subtle block font-medium">Variance</span>
-                <span className={cn(
-                  "text-xs sm:text-sm font-bold block mt-0.5",
-                  ((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0 ? 'text-red-600' : 'text-emerald-600'
-                )}>
-                  {((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)) < 0
-                    ? `-${formatNaira(Math.abs((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)))}`
-                    : `+${formatNaira((selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0))}`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Clean Waybill Proof Attachment Row */}
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-kumo-base border border-kumo-line text-kumo-strong flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-kumo-subtle" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-kumo-strong truncate">
-                  Waybill Proof of Delivery Slip
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Courier Partner</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDelivery?.assigned_rider}</span>
                 </div>
-                <div className="text-[11px] text-kumo-subtle truncate mt-0.5">
-                  WB-{selectedDelivery?.order_ref}-POD • Verified GPS Dispatch
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Recipient Customer</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                    {selectedDelivery?.customer_name} {selectedDelivery?.phone && `(${selectedDelivery.phone})`}
+                  </span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Destination</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedDelivery?.address}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Ordered Meals</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedDelivery?.items_summary}</span>
                 </div>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="md"
-              type="button"
-              onClick={() => setIsSlipViewerOpen(true)}
-              className="shrink-0 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Eye className="w-4 h-4" />
-              <span>Inspect Slip</span>
-            </Button>
+
+            {/* Section 2: Financial Fee Breakdown */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Fare Audit & Discrepancy
+                </span>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Paid Fare</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">
+                    {formatNaira(selectedDelivery?.delivery_fee || 0)}
+                  </span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Billed Courier Invoice</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
+                    {formatNaira(selectedDelivery?.booked_fee || 0)}
+                  </span>
+                </div>
+                {(() => {
+                  const variance = (selectedDelivery?.delivery_fee || 0) - (selectedDelivery?.booked_fee || 0)
+                  const hasOvercharge = variance < 0
+                  return (
+                    <div className="flex items-start text-[13px] pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Variance / Balance</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "font-mono font-bold text-sm",
+                          hasOvercharge ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"
+                        )}>
+                          {hasOvercharge ? `-${formatNaira(Math.abs(variance))}` : `+${formatNaira(variance)}`}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                          {hasOvercharge ? 'Overcharge Discrepancy' : 'Within Budget'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* Section 3: Waybill Attachment */}
+            <div className="p-4 flex items-center justify-between gap-3 bg-zinc-50/60 dark:bg-zinc-900/60">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                    Waybill Proof of Delivery Slip
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate">
+                    WB-{selectedDelivery?.order_ref}-POD • Verified GPS Dispatch
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="md"
+                type="button"
+                onClick={() => setIsSlipViewerOpen(true)}
+                leftIcon={<Eye className="w-4 h-4" />}
+                className="shrink-0"
+              >
+                Inspect Slip
+              </Button>
+            </div>
           </div>
 
           <Input
