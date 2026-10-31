@@ -222,7 +222,7 @@ export const CountBadge: React.FC<{ count: string | number; className?: string }
 
 export interface WorkflowTaskRowProps {
   title: string
-  status: 'Done' | 'In Progress' | 'In Review' | 'Pending' | 'Flagged'
+  status: 'Done' | 'In Progress' | 'Pending'
   isAutomatic?: boolean
   actionUrl?: string
   actionTitle?: string
@@ -242,10 +242,6 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
       ? 'completed'
       : status === 'In Progress'
       ? 'in-progress'
-      : status === 'In Review'
-      ? 'in-review'
-      : status === 'Flagged'
-      ? 'flagged'
       : 'draft'
 
   return (
@@ -1483,9 +1479,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               </span>
               <StatusPill state="draft" label="no-action" size="sm" />
               <StatusPill state="in-progress" label="in-progress" size="sm" />
-              <StatusPill state="in-review" label="in-review" size="sm" />
               <StatusPill state="completed" label="completed" size="sm" />
-              <StatusPill state="flagged" label="flagged" size="sm" />
             </div>
 
             <div className="h-3.5 w-px bg-[#e4e4e7] dark:bg-zinc-700 shrink-0 hidden sm:block" />
