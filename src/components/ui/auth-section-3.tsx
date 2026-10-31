@@ -14,7 +14,9 @@ import {
   Boxes,
   Package,
   Truck,
-  Check
+  Check,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSmokeyOps } from "@/context/SmokeyOpsContext";
@@ -109,101 +111,242 @@ export default function AuthSectionThree() {
     }, 350);
   };
 
+  // Carousel slides for the left panel showcase
+  const [activeSlide, setActiveSlide] = useState(0);
+  const slides = [
+    {
+      badge: "REAL-TIME OPERATIONS",
+      title: "Active Kitchen & Grill Hub",
+      quote: 'Did you know orders sync straight to smoking chambers and inventory in under 2 seconds?',
+      highlight: "Operations truly deliver in real time!",
+      metricTitle: "LIVE KITCHEN PIPELINE",
+      stat1: "3 Active Runs",
+      stat2: "100% Stock Sync",
+      stat3: "< 2s Ingestion",
+      rows: [
+        { name: "Smoking Grill #1 (Guineafowl)", meta: "Batch #B412", status: "Active", dot: "bg-emerald-400", metric: "32 Portions" },
+        { name: "Packaging Execution Queue", meta: "Order #SMK-882", status: "Sealing", dot: "bg-amber-400", metric: "4 Orders" },
+        { name: "Fleet Dispatch Handover", meta: "Courier Hub", status: "Transit", dot: "bg-blue-400", metric: "6 En Route" },
+        { name: "Sales Stock soft-reserve", meta: "Inventory Sync", status: "Synced", dot: "bg-emerald-400", metric: "₦3.2M Live" }
+      ]
+    },
+    {
+      badge: "TWO-TIER INVENTORY",
+      title: "Real-Time Stock Depletion",
+      quote: "Raw poultry, marinade spices, and eco containers deduct automatically as orders flow.",
+      highlight: "Zero variance between kitchen and inventory!",
+      metricTitle: "AUTO-DEDUCT METRICS",
+      stat1: "42 Raw Cuts",
+      stat2: "Packaging Ready",
+      stat3: "Auto-Reorder On",
+      rows: [
+        { name: "Whole Smoked Chicken (Frozen)", meta: "Cold Storage", status: "Optimal", dot: "bg-emerald-400", metric: "58 Units" },
+        { name: "Spicy Smoked Turkey Wings", meta: "Marinating", status: "Active", dot: "bg-emerald-400", metric: "34 Portions" },
+        { name: "Eco Packaging Cartons (L)", meta: "Packaging Bay", status: "Stocked", dot: "bg-blue-400", metric: "180 Packs" },
+        { name: "Suya Spice Rub Blend #4", meta: "Pantry Bin", status: "Normal", dot: "bg-amber-400", metric: "14.5 Kg" }
+      ]
+    },
+    {
+      badge: "DISPATCH & LOGISTICS",
+      title: "Live Doorstep Dispatch Fleet",
+      quote: "Riders are assigned instantly with automatic waybills, pickup confirmation, and trip settlements.",
+      highlight: "Seamless doorstep deliveries across Lagos!",
+      metricTitle: "COURIER & 3PL FLEET",
+      stat1: "11 Active Riders",
+      stat2: "Avg 28m Delivery",
+      stat3: "Instant Payouts",
+      rows: [
+        { name: "Tunde Bakare (Lekki Phase 1)", meta: "Order #SMK-884", status: "Delivered", dot: "bg-emerald-400", metric: "14 mins" },
+        { name: "Chinedu Okafor (Ikoyi Loop)", meta: "Order #SMK-889", status: "Transit", dot: "bg-blue-400", metric: "En Route" },
+        { name: "Babatunde Alabi (VI Handover)", meta: "Order #SMK-891", status: "Pickup", dot: "bg-amber-400", metric: "At Kitchen" },
+        { name: "Gokada 3PL Partner Route", meta: "Ikeja Express", status: "Assigned", dot: "bg-blue-400", metric: "Assigned" }
+      ]
+    }
+  ];
+
+  const currentSlide = slides[activeSlide];
+
   return (
-    <div className="min-h-screen bg-[#1c1c1e] p-4 sm:p-8 md:p-12 flex items-center justify-center font-sans antialiased selection:bg-[#c0201f] selection:text-white">
-      {/* Outer Floating Rounded Container with Large Corner Radius and Subtle Shadow */}
-      <div className="w-full max-w-[1140px] bg-white rounded-[36px] sm:rounded-[44px] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.45)] grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] p-3 sm:p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#801211] via-[#aa1c1b] to-[#550b0b] p-3 sm:p-6 md:p-10 lg:p-12 flex items-center justify-center font-sans antialiased selection:bg-[#c0201f] selection:text-white relative overflow-hidden">
+      {/* Background Soft Glows matching reference atmospheric depth */}
+      <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-red-400/20 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-black/35 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Outer Floating White Container with Large Rounded Radius (Direct Reference Match) */}
+      <div className="relative z-10 w-full max-w-[1100px] bg-white rounded-[32px] sm:rounded-[44px] overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.4)] grid grid-cols-1 lg:grid-cols-[1.18fr_1fr] p-3.5 sm:p-4 md:p-5">
         
         {/* =========================================================================
-            LEFT PANEL: BRAND GRADIENT HERO CARD WITH PILL, HEADINGS & STEP CARDS
+            LEFT PANEL: BRAND RED HERO CARD WITH HEXAGONS, MOCKUP SCREEN & CAROUSEL
            ========================================================================= */}
-        <div className="relative rounded-[28px] sm:rounded-[36px] bg-gradient-to-br from-[#c0201f] via-[#b01c1c] to-[#7f1111] p-8 sm:p-12 lg:p-14 text-white flex flex-col justify-between overflow-hidden min-h-[580px] lg:min-h-[660px]">
-          {/* Subtle Ambient Radial Glows */}
-          <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-gradient-to-b from-white/15 to-transparent rounded-full blur-[80px] pointer-events-none -mr-20 -mt-20" />
-          <div className="absolute bottom-0 left-0 w-[380px] h-[380px] bg-black/25 rounded-full blur-[70px] pointer-events-none -ml-16 -mb-16" />
+        <div className="relative rounded-[26px] sm:rounded-[36px] bg-gradient-to-br from-[#c42120] via-[#b81d1c] to-[#861211] p-7 sm:p-9 lg:p-11 text-white flex flex-col justify-between overflow-hidden min-h-[580px] lg:min-h-[660px]">
+          
+          {/* Subtle Decorative Hexagonal Polygons in Background (Matching Reference) */}
+          <div className="absolute top-7 right-7 opacity-20 pointer-events-none">
+            <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
+              <polygon points="70,12 118,39 118,93 70,120 22,93 22,39" stroke="white" strokeWidth="2" fill="white" fillOpacity="0.12" />
+              <polygon points="108,70 136,86 136,118 108,134 80,118 80,86" stroke="white" strokeWidth="1.5" fill="none" opacity="0.6" />
+            </svg>
+          </div>
+          <div className="absolute bottom-8 left-6 opacity-20 pointer-events-none">
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+              <polygon points="60,10 102,34 102,82 60,106 18,82 18,34" stroke="white" strokeWidth="1.8" fill="white" fillOpacity="0.14" />
+              <polygon points="25,75 48,88 48,114 25,127 2,114 2,88" stroke="white" strokeWidth="1.2" fill="none" opacity="0.5" />
+            </svg>
+          </div>
 
-          {/* Top Brand Header: Logo + Brand Name */}
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center p-1.5 shadow-sm">
-              <img
-                src="/logo.svg"
-                alt="Smokey Hut Delight"
-                className="w-full h-full object-contain drop-shadow-xs"
-              />
+          {/* Top Brand Hexagon Badge (Clean, prominent hexagon badge matching reference style) */}
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2.5 transition-transform hover:scale-105">
+                <img
+                  src="/logo.svg"
+                  alt="Smokey Hut Delight"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
-            <span className="text-base font-bold tracking-tight text-white font-display">
-              smokey hut delight
+            <span className="text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white/90 border border-white/20">
+              {currentSlide.badge}
             </span>
           </div>
 
-          {/* Center Content: Pill, Big Bold Headline & Subtitle */}
-          <div className="relative z-10 my-auto py-10 lg:py-14">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-xs font-semibold text-white/95 mb-5 shadow-xs">
-              <span>Operations Portal</span>
-              <span className="text-sm">🔥</span>
+          {/* Center Graphic: Overlapping Dashboard Preview Cards (Direct Reference Layout) */}
+          <div className="relative z-10 my-auto py-5 flex items-center justify-center">
+            <div className="relative w-full max-w-[410px]">
+              {/* Primary Dark Dashboard Mockup Card */}
+              <div className="w-full bg-[#111217]/95 rounded-2xl border border-white/20 p-4 shadow-2xl backdrop-blur-xl">
+                {/* Header bar with controls */}
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                    <span className="font-semibold text-white ml-1.5 font-mono text-[10.5px]">
+                      {currentSlide.title}
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-sans font-semibold text-[10px] flex items-center gap-1 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                  </span>
+                </div>
+
+                {/* Micro Table Rows */}
+                <div className="space-y-1.5 text-[10px]">
+                  {currentSlide.rows.map((row, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${row.dot} shrink-0`} />
+                        <div>
+                          <span className="font-medium text-white/90 block leading-tight">{row.name}</span>
+                          <span className="text-[9px] text-white/40 block">{row.meta}</span>
+                        </div>
+                      </div>
+                      <span className="font-mono text-white/90 font-semibold px-2 py-0.5 rounded bg-white/10 text-[9.5px]">
+                        {row.metric}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Overlapping Floating White Stat Card at Bottom-Right (Direct Reference Match) */}
+              <div className="absolute -bottom-6 -right-2 sm:-right-4 w-[220px] bg-white rounded-2xl p-3.5 shadow-[0_20px_45px_rgba(0,0,0,0.35)] border border-zinc-100 text-zinc-900 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-bold text-zinc-500 uppercase tracking-wider">
+                    {currentSlide.metricTitle}
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                    <span className="block text-[8.5px] text-zinc-400 font-medium">Batches</span>
+                    <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat1}</span>
+                  </div>
+                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                    <span className="block text-[8.5px] text-zinc-400 font-medium">Inventory</span>
+                    <span className="block text-[10px] font-bold text-emerald-600">{currentSlide.stat2}</span>
+                  </div>
+                  <div className="bg-zinc-50 rounded-lg p-1.5 border border-zinc-100">
+                    <span className="block text-[8.5px] text-zinc-400 font-medium">Speed</span>
+                    <span className="block text-[10px] font-bold text-zinc-800">{currentSlide.stat3}</span>
+                  </div>
+                </div>
+                <div className="mt-2 pt-1.5 border-t border-zinc-100 flex items-center justify-between text-[9px] text-zinc-400 font-medium">
+                  <span>Auto-updated live</span>
+                  <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" /> Active
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-bold text-white tracking-tight leading-[1.12] font-display">
-              Start your Shift
-            </h1>
-
-            <p className="mt-3.5 text-sm sm:text-[15px] text-white/80 max-w-[420px] leading-relaxed font-normal">
-              Sign in to manage kitchen batches, raw inventory, order packaging, and live dispatch deliveries.
-            </p>
           </div>
 
-          {/* Bottom Row: 3 Modular Step / Feature Cards (Matching Reference Layout) */}
-          <div className="relative z-10 grid grid-cols-3 gap-2.5 sm:gap-3 pt-4">
-            {/* Step 1: Active Card (Solid White with Brand Red Badge) */}
-            <div className="rounded-[22px] bg-white p-4 text-zinc-900 shadow-md flex flex-col justify-between min-h-[110px]">
-              <div className="w-6 h-6 rounded-full bg-[#c0201f] text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                1
-              </div>
-              <div className="text-[12.5px] font-semibold leading-tight text-zinc-900 pt-3">
-                Sign in with credentials
-              </div>
-            </div>
+          {/* Bottom Content: Headline, Subtitle & Interactive Left/Right Arrow Carousel */}
+          <div className="relative z-10 pt-4 text-center">
+            <p className="text-sm sm:text-[15px] text-white/90 leading-relaxed font-normal max-w-[380px] mx-auto">
+              {currentSlide.quote}
+            </p>
+            <p className="text-sm sm:text-[15px] font-bold text-white mt-1">
+              {currentSlide.highlight}
+            </p>
 
-            {/* Step 2: Frosted Glass Card */}
-            <div className="rounded-[22px] bg-white/15 backdrop-blur-md border border-white/20 p-4 text-white flex flex-col justify-between min-h-[110px]">
-              <div className="w-6 h-6 rounded-full bg-white/25 text-white/90 flex items-center justify-center text-xs font-semibold">
-                2
-              </div>
-              <div className="text-[12px] font-medium leading-tight text-white/90 pt-3">
-                Review assigned station
-              </div>
-            </div>
-
-            {/* Step 3: Frosted Glass Card */}
-            <div className="rounded-[22px] bg-white/15 backdrop-blur-md border border-white/20 p-4 text-white flex flex-col justify-between min-h-[110px]">
-              <div className="w-6 h-6 rounded-full bg-white/25 text-white/90 flex items-center justify-center text-xs font-semibold">
-                3
-              </div>
-              <div className="text-[12px] font-medium leading-tight text-white/90 pt-3">
-                Execute live workflow
-              </div>
+            {/* Carousel Arrow Controls (Matching Reference Circular Buttons) */}
+            <div className="flex items-center justify-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setActiveSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1))}
+                className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1))}
+                className="w-9 h-9 rounded-full border border-white/35 bg-white/10 hover:bg-white/25 active:scale-95 flex items-center justify-center text-white transition-all cursor-pointer backdrop-blur-md shadow-sm"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
           </div>
         </div>
 
         {/* =========================================================================
-            RIGHT PANEL: CLEAN, SLEEK FORM (MATCHING REFERENCE STRUCTURE & STYLES)
+            RIGHT PANEL: CLEAN FORM (MATCHING REFERENCE STRUCTURE, TEXTBOXES & CTAs)
            ========================================================================= */}
-        <div className="flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-14 xl:px-16 bg-white">
-          <div className="w-full max-w-[390px] mx-auto">
-            {/* Title */}
-            <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-[28px] font-bold text-zinc-900 tracking-tight font-display">
-                Sign In
+        <div className="flex flex-col justify-center px-6 py-8 sm:px-10 lg:px-12 xl:px-14 bg-white">
+          <div className="w-full max-w-[370px] mx-auto">
+            {/* Top Brand Wordmark (Matching Reference with Brand Color) */}
+            <div className="flex items-center gap-2.5 mb-7">
+              <div className="w-8 h-8 rounded-xl bg-[#c0201f] flex items-center justify-center p-1.5 shadow-sm">
+                <img
+                  src="/logo.svg"
+                  alt="Smokey Hut Delight"
+                  className="w-full h-full object-contain brightness-0 invert"
+                />
+              </div>
+              <span className="text-base font-extrabold tracking-tight text-[#c0201f] font-display">
+                SMOKEY HUT DELIGHT
+              </span>
+            </div>
+
+            {/* Title & Subtitle */}
+            <div className="mb-6">
+              <h2 className="text-2xl sm:text-[26px] font-bold text-zinc-900 tracking-tight font-display">
+                Sign in to your account
               </h2>
-              <p className="mt-1 text-xs text-zinc-500 font-normal">
-                Access your provisioned staff operational workspace
+              <p className="mt-1.5 text-xs text-zinc-500 font-normal">
+                Need an account? Contact your <span className="font-semibold text-zinc-700">Super Admin</span>
               </p>
             </div>
 
             {/* Error Banner */}
             {errorMessage && (
-              <div className="mb-5 p-3 rounded-2xl bg-red-50 text-red-800 border border-red-200/90 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-800 border border-red-200/90 text-xs flex items-start gap-2 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 text-[#c0201f] shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{errorMessage}</span>
               </div>
@@ -211,7 +354,7 @@ export default function AuthSectionThree() {
 
             {/* Success Banner */}
             {successMessage && (
-              <div className="mb-5 p-3 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 text-xs flex items-center gap-2.5 animate-in fade-in">
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 text-xs flex items-center gap-2 animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span className="font-medium">{successMessage}</span>
               </div>
@@ -221,8 +364,8 @@ export default function AuthSectionThree() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username or Work Email */}
               <div className="space-y-1.5 text-left">
-                <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider block">
-                  Username or email
+                <label className="text-xs font-semibold text-zinc-800">
+                  Email or Username<span className="text-[#c0201f] ml-0.5">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -234,11 +377,11 @@ export default function AuthSectionThree() {
                       setIdentifier(e.target.value);
                       if (errorMessage) setErrorMessage(null);
                     }}
-                    placeholder="e.g. fivedigita@gmail.com"
-                    className="w-full h-12 px-4 rounded-2xl bg-[#f4f4f6] border border-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:bg-white focus:border-[#c0201f] focus:ring-4 focus:ring-[#c0201f]/10 transition-all font-sans"
+                    placeholder="Enter your email or username"
+                    className="w-full h-11 px-3.5 rounded-lg border border-zinc-250 bg-white text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-[#c0201f] focus:ring-2 focus:ring-[#c0201f]/15 transition-all shadow-2xs font-sans"
                   />
                   {identifier.trim().length > 3 && (
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                       <Check className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
                     </div>
                   )}
@@ -248,8 +391,8 @@ export default function AuthSectionThree() {
               {/* Password */}
               <div className="space-y-1.5 text-left">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">
-                    Password
+                  <label className="text-xs font-semibold text-zinc-800">
+                    Password<span className="text-[#c0201f] ml-0.5">*</span>
                   </label>
                   <button
                     type="button"
@@ -258,9 +401,9 @@ export default function AuthSectionThree() {
                         "Password resets are managed by your Super Administrator. Please contact your Super Admin to issue a new password."
                       )
                     }
-                    className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
+                    className="text-xs font-medium text-[#c0201f] hover:underline cursor-pointer"
                   >
-                    Forgot?
+                    Forgot password?
                   </button>
                 </div>
                 <div className="relative">
@@ -274,27 +417,40 @@ export default function AuthSectionThree() {
                       if (errorMessage) setErrorMessage(null);
                     }}
                     placeholder="Enter your password"
-                    className="w-full h-12 pl-4 pr-11 rounded-2xl bg-[#f4f4f6] border border-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:bg-white focus:border-[#c0201f] focus:ring-4 focus:ring-[#c0201f]/10 transition-all font-sans"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-lg border border-zinc-250 bg-white text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-[#c0201f] focus:ring-2 focus:ring-[#c0201f]/15 transition-all shadow-2xs font-sans"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors p-0.5"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-zinc-400 pt-0.5 leading-tight">
-                  Issued by Super Admin for your assigned operational role.
+                <p className="text-[11px] text-zinc-400">
+                  Password issued by your Super Administrator.
                 </p>
               </div>
 
-              {/* Primary Submit CTA (Brand Red) */}
+              {/* Remember Me */}
+              <div className="pt-0.5 text-xs text-zinc-600">
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="size-3.5 rounded border-zinc-300 text-[#c0201f] focus:ring-[#c0201f] accent-[#c0201f] cursor-pointer"
+                  />
+                  <span>Remember me on this device</span>
+                </label>
+              </div>
+
+              {/* Primary Submit CTA (Brand Red, Full Width, Matching Reference Button Style) */}
               <button
                 type="submit"
                 disabled={isSubmitting || lockoutSeconds > 0}
-                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#c0201f] text-sm font-semibold text-white transition-all hover:bg-[#a51918] active:scale-[0.99] cursor-pointer shadow-md shadow-[#c0201f]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#c0201f] text-sm font-semibold text-white transition-all hover:bg-[#a51918] active:scale-[0.99] cursor-pointer shadow-sm shadow-[#c0201f]/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white" />}
                 <span>
@@ -302,33 +458,20 @@ export default function AuthSectionThree() {
                     ? `Locked (${lockoutSeconds}s)`
                     : isSubmitting
                     ? "Signing in..."
-                    : "Continue"}
+                    : "Sign in"}
                 </span>
               </button>
             </form>
 
-            {/* Remember Me Option */}
-            <div className="mt-4 flex items-center justify-center text-xs text-zinc-500">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="size-3.5 rounded border-zinc-300 text-[#c0201f] focus:ring-[#c0201f] accent-[#c0201f] cursor-pointer"
-                />
-                <span>Remember me on this device</span>
-              </label>
-            </div>
-
             {/* Separator / Divider */}
-            <div className="relative my-6 flex items-center justify-center">
+            <div className="relative my-5 flex items-center justify-center">
               <div className="w-full border-t border-zinc-200" />
               <span className="absolute bg-white px-3 text-[11px] uppercase tracking-wider text-zinc-400 font-medium">
                 Or
               </span>
             </div>
 
-            {/* Google Sign-in Mock / Fast-Auth Button (Matching Reference Card) */}
+            {/* Google Sign-in Fast Auth Button (Matching Reference) */}
             <button
               type="button"
               onClick={() => {
@@ -337,7 +480,7 @@ export default function AuthSectionThree() {
                   navigate("/overview", { replace: true });
                 }
               }}
-              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white text-xs sm:text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer shadow-2xs"
+              className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-zinc-200/90 bg-white text-xs sm:text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer shadow-2xs"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -360,10 +503,11 @@ export default function AuthSectionThree() {
               <span>Sign in with Google</span>
             </button>
 
-            {/* Bottom Terms & Security Notice */}
-            <p className="mt-7 text-center text-[10.5px] text-zinc-400 leading-normal">
-              By signing in you confirm that you have read and agree to the Smokey Hut Delight Operations Privacy Policy and Staff Terms of Service.
-            </p>
+            {/* Bottom Security & Privacy Notice */}
+            <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span>Protected staff environment. Provisioned accounts only.</span>
+            </div>
           </div>
         </div>
       </div>
