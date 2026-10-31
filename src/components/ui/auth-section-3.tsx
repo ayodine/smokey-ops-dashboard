@@ -102,39 +102,33 @@ export default function AuthSectionThree() {
     }, 350);
   };
 
-  // Operational Testimonials Carousel for Left Column
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const testimonials = [
+  // Operational Highlights Carousel for Left Column
+  const [activeHighlight, setActiveHighlight] = useState(0);
+  const highlights = [
     {
       quote:
-        "From smoking pit temperatures to instant courier dispatch, this platform keeps our entire meat operation in sync every single day.",
-      author: "Babajide Ogundipe",
-      role: "Head of Kitchen & Pit Operations",
-      tag: "Live Smokehouse Operations"
+        "Orders sync directly to our kitchen grills, packaging queue, and logistics in real time. Kitchen execution has never been faster.",
+      tag: "Kitchen & Order Execution"
     },
     {
       quote:
-        "Two-tier inventory tracking ensures our whole guinea fowl, turkey wings, and spice blends deduct automatically with zero stock variance.",
-      author: "Kemi Adeleke",
-      role: "Inventory & Procurement Lead",
-      tag: "Automated Stock Depletion"
+        "Real-time inventory tracking ensures our Full Smokey Guineafowl, marinades, and packaging deduct accurately with zero stock variance.",
+      tag: "Real-Time Inventory Sync"
     },
     {
       quote:
-        "Instant courier assignment and digital waybills get our hot wood-smoked barbecue to customers across Lagos in an average of 28 minutes.",
-      author: "Tunde Bakare",
-      role: "Fleet Logistics Coordinator",
-      tag: "Real-Time Fleet Dispatch"
+        "Automated waybills and instant rider dispatch get freshly grilled orders delivered to customers across Lagos on time, every time.",
+      tag: "Logistics & Doorstep Delivery"
     }
   ];
 
-  // Auto-cycle testimonials every 7 seconds
+  // Auto-cycle highlights every 7 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
+      setActiveHighlight((prev) => (prev + 1) % highlights.length);
     }, 7000);
     return () => clearInterval(interval);
-  }, [testimonials.length]);
+  }, [highlights.length]);
 
   return (
     <div className="min-h-screen w-full bg-white p-4 sm:p-6 lg:p-5 flex flex-col lg:grid lg:grid-cols-[1.1fr_1fr] xl:grid-cols-[1.15fr_1fr] font-sans antialiased selection:bg-[#c0201f] selection:text-white">
@@ -163,11 +157,11 @@ export default function AuthSectionThree() {
             />
           </div>
           <span className="px-3.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white/90 text-[11px] font-semibold tracking-wider uppercase border border-white/20">
-            {testimonials[activeTestimonial].tag}
+            {highlights[activeHighlight].tag}
           </span>
         </div>
 
-        {/* Bottom Testimonial Overlay Content */}
+        {/* Bottom Highlights Overlay Content */}
         <div className="absolute inset-x-0 bottom-0 p-8 sm:p-10 lg:p-12 z-10 flex flex-col justify-end text-white select-none">
           {/* 5 Golden Stars */}
           <div className="flex items-center gap-1 mb-3.5 text-amber-400">
@@ -184,29 +178,29 @@ export default function AuthSectionThree() {
 
           {/* Operational Copy / Quote */}
           <blockquote className="text-xl sm:text-[23px] lg:text-[25px] font-bold text-white leading-snug tracking-tight max-w-[480px] font-display transition-all duration-300">
-            “{testimonials[activeTestimonial].quote}”
+            “{highlights[activeHighlight].quote}”
           </blockquote>
 
-          {/* Author Details & Pagination Pill Dots */}
+          {/* Operational Brand & Pagination Pill Dots (No staff name attribution) */}
           <div className="mt-6 flex items-end justify-between border-t border-white/10 pt-4">
             <div>
               <p className="text-sm font-semibold text-white/95 tracking-wide">
-                {testimonials[activeTestimonial].author}
+                Operations Control Platform
               </p>
               <p className="text-xs text-white/70 mt-0.5">
-                {testimonials[activeTestimonial].role}
+                Kitchen, Inventory &amp; Logistics
               </p>
             </div>
 
             {/* Pagination Indicators: Active elongated pill + inactive dots (Direct reference match) */}
             <div className="flex items-center gap-1.5 pb-1">
-              {testimonials.map((_, idx) => (
+              {highlights.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => setActiveTestimonial(idx)}
+                  onClick={() => setActiveHighlight(idx)}
                   className={`transition-all duration-300 cursor-pointer h-1.5 rounded-full ${
-                    activeTestimonial === idx
+                    activeHighlight === idx
                       ? "w-6 bg-white shadow-xs"
                       : "w-1.5 bg-white/40 hover:bg-white/70"
                   }`}
