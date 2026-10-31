@@ -357,6 +357,7 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive'
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all')
+  const [isHeaderActionMenuOpen, setIsHeaderActionMenuOpen] = useState(false)
 
   // Filter state for DataTable
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all')
@@ -3709,44 +3710,116 @@ export const ManageAccountsPage: React.FC = () => {
         title="Manage Accounts"
         subtitle="Display team members, configure system permissions, and manage access credentials across all offices."
         actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              leftIcon={<Download className="w-4 h-4" />}
-              className="h-10 px-4 text-[13px] font-medium shadow-xs"
-            >
-              Export CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/accounts/matrix')}
-              leftIcon={<Shield className="w-4 h-4 text-kumo-subtle" />}
-              className="h-10 px-4 text-[13px] font-medium shadow-xs"
-            >
-              Role & Permission
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/accounts/create')}
-              leftIcon={<Plus className="w-4 h-4 text-kumo-subtle" />}
-              className="h-10 px-4 text-[13px] font-medium shadow-xs"
-            >
-              Create Account
-            </Button>
+          <div className="relative">
             <Button
               variant="primary"
               size="sm"
-              onClick={() => navigate('/accounts/invite')}
+              onClick={() => setIsHeaderActionMenuOpen(!isHeaderActionMenuOpen)}
               leftIcon={<UserPlus className="w-4 h-4" />}
+              rightIcon={<ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isHeaderActionMenuOpen && "rotate-180")} />}
               className="h-10 px-4 text-[13px] font-semibold shadow-xs"
             >
               Invite Members
             </Button>
-          </>
+
+            {isHeaderActionMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsHeaderActionMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-40 p-1.5 animate-in fade-in zoom-in-95 font-sans divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsHeaderActionMenuOpen(false)
+                        navigate('/accounts/invite')
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                        <UserPlus className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-primary transition-colors">
+                          Invite Members
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Send email invitations to onboard new team members
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsHeaderActionMenuOpen(false)
+                        navigate('/accounts/create')
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 transition-colors">
+                          Create Account
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Manually register a team account with credentials
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="p-1 pt-1.5 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsHeaderActionMenuOpen(false)
+                        navigate('/accounts/matrix')
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          Role & Permission Matrix
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Configure enterprise access policies and role permissions
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsHeaderActionMenuOpen(false)
+                        handleExportCSV()
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <Download className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          Export CSV
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Download active and inactive account roster as CSV
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         }
       />
 
