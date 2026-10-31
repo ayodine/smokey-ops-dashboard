@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react'
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react'
 import {
   RawProduct,
   RawDelivery,
@@ -61,6 +61,7 @@ import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
+import { playAlertChime, sendDesktopNotification } from '@/lib/notificationAudio'
 
 export interface LiveSalesProduct extends SalesProduct {
   image?: string | null
@@ -298,6 +299,22 @@ interface SmokeyOpsContextType {
   dismissToast: (id: string) => void
   showSuccessModal: (data: { title: string; message: string; details?: Array<{ label: string; value: string }>; actionLabel?: string; onAction?: () => void }) => void
   closeSuccessModal: () => void
+
+  // Live Alerts Feed
+  systemAlerts: SystemAlertItem[]
+  dismissSystemAlert: (id: string) => void
+  refreshSystemAlerts: () => void
+}
+
+export interface SystemAlertItem {
+  id: string
+  variant: 'warning' | 'success' | 'info' | 'error'
+  title: string
+  desc: string
+  time: string
+  linkText: string
+  linkUrl: string
+  category: 'inventory' | 'logistics' | 'production' | 'order'
 }
 
 export type UserRole = 'admin' | 'manager' | 'kitchen' | 'inventory' | 'dispatcher' | 'rider'
@@ -1400,9 +1417,36 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
       .subscribe()
 
+    // Live Operational Alerts & Notifications Broadcast Channel
+    const alertsBroadcastChannel = supabase
+      .channel('ops_context_system_broadcast', { config: { broadcast: { self: true } } })
+      .on('broadcast', { event: 'new_order_alert' }, (payload: any) => {
+        const orderData = payload.payload
+        if (orderData?.id) {
+          playAlertChime('order')
+          showToast(`New Customer Order #${orderData.id} received from ${orderData.customer_name || 'Website'}!`, 'success', 'New Online Order')
+          sendDesktopNotification(`New Order #${orderData.id}`, {
+            body: `${orderData.customer_name || 'Customer'} placed an order of ${formatNaira(orderData.total || 0)}`,
+          })
+          refreshWebsiteOrders(false)
+        }
+      })
+      .on('broadcast', { event: 'low_stock_alert' }, (payload: any) => {
+        const item = payload.payload
+        if (item?.name) {
+          playAlertChime('warning')
+          showToast(`Critical Low Stock: ${item.name} (${item.qty} ${item.unit || 'units'} left)`, 'error', 'Stock Warning')
+          sendDesktopNotification(`Low Stock Warning: ${item.name}`, {
+            body: `Current quantity: ${item.qty} ${item.unit || 'units'}. Reorder needed immediately.`,
+          })
+        }
+      })
+      .subscribe()
+
     return () => {
       supabase.removeChannel(ordersChannel)
       supabase.removeChannel(productsChannel)
+      supabase.removeChannel(alertsBroadcastChannel)
     }
   }, [refreshLiveSalesProducts, refreshWebsiteOrders])
 
@@ -1842,6 +1886,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
     setToasts(prev => [...prev, { id, message, type, title }])
+    // Play alert sound for toasts
+    playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
   }
 
   const dismissToast = (id: string) => {
@@ -1868,6 +1914,133 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const closeSuccessModal = () => {
     setSuccessModal(prev => ({ ...prev, isOpen: false }))
   }
+
+  // Dismissed alert IDs stored in localStorage
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const raw = localStorage.getItem('smokey_dismissed_alerts_v1')
+      return raw ? new Set(JSON.parse(raw)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  const dismissSystemAlert = (id: string) => {
+    setDismissedAlertIds(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      try {
+        localStorage.setItem('smokey_dismissed_alerts_v1', JSON.stringify(Array.from(next)))
+      } catch {}
+      return next
+    })
+  }
+
+  // Derive active live system alerts dynamically from real-time operational state
+  const systemAlerts = useMemo<SystemAlertItem[]>(() => {
+    const alerts: SystemAlertItem[] = []
+
+    // 1. Raw Inventory Low Stock Alerts
+    rawProducts.forEach(prod => {
+      const stock = Number(prod.stock_qty || 0)
+      const min = Number(prod.reorder_level || 10)
+      if (stock <= min) {
+        alerts.push({
+          id: `alert-raw-stock-${prod.id}`,
+          variant: stock === 0 ? 'error' : 'warning',
+          category: 'inventory',
+          title: stock === 0 ? `Out of Stock: ${prod.name}` : `Low Stock Alert: ${prod.name}`,
+          desc: `Current: ${stock} ${prod.unit}. Below safety reorder threshold of ${min} ${prod.unit}.`,
+          time: 'Live',
+          linkText: 'View raw inventory',
+          linkUrl: '/inventory/raw'
+        })
+      }
+    })
+
+    // 2. Packaging Materials Low Stock Alerts
+    packagingProducts.forEach(pkg => {
+      const stock = Number(pkg.stock_qty || 0)
+      const min = Number(pkg.reorder_level || 50)
+      if (stock <= min) {
+        alerts.push({
+          id: `alert-pkg-stock-${pkg.id}`,
+          variant: stock === 0 ? 'error' : 'warning',
+          category: 'inventory',
+          title: stock === 0 ? `Out of Stock: ${pkg.name}` : `Low Packaging Stock: ${pkg.name}`,
+          desc: `Current: ${stock} ${pkg.unit}. Central Store needs restocking (min: ${min}).`,
+          time: 'Live',
+          linkText: 'View packaging inventory',
+          linkUrl: '/inventory/packaging'
+        })
+      }
+    })
+
+    // 3. Finished Products Low Stock Alerts
+    liveSalesProducts.forEach(sp => {
+      const stock = Number(sp.stock_qty ?? 0)
+      if (stock <= 2 && sp.is_active !== 0) {
+        alerts.push({
+          id: `alert-sales-stock-${sp.id}`,
+          variant: stock === 0 ? 'error' : 'warning',
+          category: 'production',
+          title: stock === 0 ? `Out of Stock on Storefront: ${sp.name}` : `Low Stock: ${sp.name}`,
+          desc: `Only ${stock} units available for customer ordering online.`,
+          time: 'Live',
+          linkText: 'View sales products',
+          linkUrl: '/inventory/sales'
+        })
+      }
+    })
+
+    // 4. Scheduled orders due for release
+    const now = Date.now()
+    const dueScheduled = scheduledOrders.filter(o => {
+      const schedTime = new Date(o.scheduled_delivery_at).getTime()
+      return schedTime <= now && o.order_status === 'payment_confirmed'
+    })
+    if (dueScheduled.length > 0) {
+      alerts.push({
+        id: 'alert-scheduled-due',
+        variant: 'info',
+        category: 'logistics',
+        title: `Scheduled Dispatch Due (${dueScheduled.length} Orders)`,
+        desc: `${dueScheduled.length} pre-scheduled customer orders reached dispatch time.`,
+        time: 'Now',
+        linkText: 'Open delivery schedule',
+        linkUrl: '/logistics/schedule'
+      })
+    }
+
+    // 5. Undispatched completed packaging orders awaiting rider assignment
+    const pendingDispatches = logisticsDeliveries.filter(d => d.status === 'pending')
+    if (pendingDispatches.length > 0) {
+      alerts.push({
+        id: `alert-pending-dispatches-${pendingDispatches.length}`,
+        variant: 'info',
+        category: 'logistics',
+        title: `${pendingDispatches.length} Orders Awaiting Rider Assignment`,
+        desc: `Packaged orders ready in dispatch bay. Assign an in-house or third-party rider.`,
+        time: 'Active',
+        linkText: 'Open logistics board',
+        linkUrl: '/logistics'
+      })
+    }
+
+    // Filter out dismissed alerts
+    return alerts.filter(a => !dismissedAlertIds.has(a.id))
+  }, [rawProducts, packagingProducts, liveSalesProducts, scheduledOrders, logisticsDeliveries, dismissedAlertIds])
+
+  const refreshSystemAlerts = useCallback(() => {
+    // Clear dismissed alerts from memory and storage to re-evaluate active operational state
+    setDismissedAlertIds(new Set())
+    try {
+      localStorage.removeItem('smokey_dismissed_alerts_v1')
+    } catch {}
+    refreshWebsiteOrders(false)
+    refreshLiveSalesProducts(false)
+  }, [refreshWebsiteOrders, refreshLiveSalesProducts])
 
   // -------------------------------------------------------------
   // INVENTORY MUTATIONS
@@ -3600,6 +3773,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dismissToast,
         showSuccessModal,
         closeSuccessModal,
+        systemAlerts,
+        dismissSystemAlert,
+        refreshSystemAlerts,
       }}
     >
       {children}

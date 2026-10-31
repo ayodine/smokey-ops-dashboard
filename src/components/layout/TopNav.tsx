@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { useTheme } from '@/context/ThemeContext'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import {
   Menu,
   ChevronDown,
@@ -13,7 +14,11 @@ import {
   ShieldAlert,
   ArrowRight,
   Plus,
-  Building2
+  Building2,
+  AlertTriangle,
+  Package,
+  Truck,
+  RotateCw
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -31,38 +36,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
   const { theme, toggleTheme } = useTheme()
   const [isWarehouseDropdownOpen, setIsWarehouseDropdownOpen] = useState(false)
   const [isAlertsOpen, setIsAlertsOpen] = useState(false)
-  const [alerts, setAlerts] = useState([
-    {
-      id: 'alert-1',
-      variant: 'warning' as const,
-      icon: ShieldAlert,
-      title: 'Low Stock Alert: Hardwood Charcoal',
-      time: '12m ago',
-      desc: 'Current: 14 kg. Below safety threshold of 50 kg.',
-      linkText: 'View raw inventory',
-      linkUrl: '/inventory/raw',
-    },
-    {
-      id: 'alert-2',
-      variant: 'success' as const,
-      icon: Check,
-      title: 'QC Inspection Passed: Batch PRD-2026-081',
-      time: '45m ago',
-      desc: '120 units Whole Smoked Chicken credited to stock.',
-      linkText: 'View production batches',
-      linkUrl: '/production/batches',
-    },
-    {
-      id: 'alert-3',
-      variant: 'info' as const,
-      icon: ArrowRight,
-      title: 'Scheduled Dispatch: Lekki Phase 1',
-      time: '1h ago',
-      desc: '3 scheduled delivery orders awaiting rider assignment.',
-      linkText: 'Open delivery schedule',
-      linkUrl: '/logistics/schedule',
-    },
-  ])
+  const { systemAlerts, dismissSystemAlert, refreshSystemAlerts } = useSmokeyOps()
   const [isAddFacilityModalOpen, setIsAddFacilityModalOpen] = useState(false)
   const [facilitySearchQuery, setFacilitySearchQuery] = useState('')
   const [facilityForm, setFacilityForm] = useState({
@@ -142,8 +116,8 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             className="size-8 flex items-center justify-center rounded-lg text-kumo-default hover:bg-kumo-tint transition-colors relative cursor-pointer"
           >
             <Bell className="w-4 h-4 text-kumo-subtle" />
-            {alerts.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f6821f] ring-2 ring-kumo-canvas" />
+            {systemAlerts.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f6821f] ring-2 ring-kumo-canvas animate-pulse" />
             )}
           </button>
 
@@ -152,27 +126,50 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
               <div className="fixed inset-0 z-40" onClick={() => setIsAlertsOpen(false)} />
               <div className="absolute right-0 mt-2 w-96 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden">
                 <div className="px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    Alerts
-                  </span>
-                  <span className="text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700 px-2 py-0.5 rounded-full">
-                    {alerts.length} Active
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                      Alerts
+                    </span>
+                    <span className="text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700 px-2 py-0.5 rounded-full">
+                      {systemAlerts.length} Active
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshSystemAlerts}
+                    title="Refresh alerts feed"
+                    className="size-6 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <RotateCw className="w-3 h-3" />
+                  </button>
                 </div>
                 <div className="text-xs max-h-[380px] overflow-y-auto p-3 space-y-2.5 bg-white dark:bg-zinc-900">
-                  {alerts.length === 0 ? (
+                  {systemAlerts.length === 0 ? (
                     <div className="p-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
-                      No active alerts
+                      No active operational alerts
                     </div>
                   ) : (
-                    alerts.map((item) => {
-                      const IconComponent = item.icon
+                    systemAlerts.map((item) => {
+                      const IconComponent =
+                        item.category === 'inventory'
+                          ? ShieldAlert
+                          : item.category === 'logistics'
+                          ? Truck
+                          : item.category === 'production'
+                          ? Package
+                          : AlertTriangle
                       return (
                         <div
                           key={item.id}
                           className="p-3 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 text-zinc-900 dark:text-zinc-100 shadow-2xs hover:bg-zinc-100/60 dark:hover:bg-zinc-800/70 transition-colors flex items-start gap-3"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 shadow-2xs mt-0.5">
+                          <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 shadow-2xs mt-0.5 ${
+                            item.variant === 'error'
+                              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-900 text-rose-600 dark:text-rose-400'
+                              : item.variant === 'warning'
+                              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-900 text-amber-600 dark:text-amber-400'
+                              : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/80 dark:border-blue-900 text-blue-600 dark:text-blue-400'
+                          }`}>
                             <IconComponent className="w-3.5 h-3.5 stroke-[1.75]" />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -203,7 +200,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setAlerts((prev) => prev.filter((a) => a.id !== item.id))
+                              dismissSystemAlert(item.id)
                             }}
                             className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200/90 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0 ml-1"
                           >
