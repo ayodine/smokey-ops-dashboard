@@ -1565,7 +1565,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
               </div>
               <div className="text-[11px] text-kumo-subtle flex items-center gap-1 mt-0.5">
                 <Bike className="w-3 h-3" />
-                <span>{activeOrder.riderName || 'Rider Internal Fleet'}</span>
+                <span>{activeOrder.riderName || 'In-House Rider'}</span>
               </div>
             </div>
           </div>

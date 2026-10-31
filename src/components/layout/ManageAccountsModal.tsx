@@ -92,7 +92,7 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   { id: 'perm_dispatch_ctrl', label: 'Logistics Dispatch Controls', category: 'Logistics', description: 'Full control over courier allocation, rider assignment, and emergency re-routes.' },
   { id: 'perm_queue_assign', label: 'Dispatch Queue Assignment', category: 'Logistics', description: 'Assign ready cooked orders to available couriers waiting at the staging dock.' },
   { id: 'perm_tracking', label: 'Rider Location & Route Tracking', category: 'Logistics', description: 'Live tracking of delivery couriers, ETA monitoring, and route compliance.' },
-  { id: 'perm_3pl', label: 'Third-party Courier Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or private fleets.' },
+  { id: 'perm_3pl', label: 'Third-party Rider Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or third-party riders.' },
   { id: 'perm_delivery_transit', label: 'Accept & Transit Delivery', category: 'Logistics', description: 'Rider mobile view to accept assigned trips and initiate waypoint transit.' },
   { id: 'perm_otp_dropoff', label: 'Customer OTP Drop-off Sign-off', category: 'Logistics', description: 'Validate customer delivery OTP code before concluding drop-off handover.' },
   { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' }
@@ -158,7 +158,7 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
     permissions: [
       'Dispatch Queue Assignment',
       'Rider Location & Route Tracking',
-      'Third-party Courier Bookings',
+      'Third-party Rider Bookings',
       'COD Cash Remittance Check-in'
     ]
   },

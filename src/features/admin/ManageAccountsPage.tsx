@@ -769,7 +769,7 @@ export const ManageAccountsPage: React.FC = () => {
           },
           {
             id: 'perm_3pl',
-            label: 'Third-party Courier Bookings',
+            label: 'Third-party Rider Bookings',
             category: 'Logistics',
             description: 'Dispatch overflow delivery orders to Gozem, Gokada, or private 3PL courier fleets.'
           },

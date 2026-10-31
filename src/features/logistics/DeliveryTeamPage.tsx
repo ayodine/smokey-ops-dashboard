@@ -418,8 +418,8 @@ export const DeliveryTeamPage: React.FC = () => {
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
-        title="Delivery Drivers & Fleet"
-        subtitle="Manage fleet drivers, active trip assignments, earnings, cash on delivery, and driver profiles."
+        title="In-House Delivery Riders"
+        subtitle="Manage in-house riders, active trip assignments, earnings, cash on delivery, and rider profiles."
         actions={
           <>
             <Button
@@ -428,7 +428,7 @@ export const DeliveryTeamPage: React.FC = () => {
               onClick={() => setIsOnboardModalOpen(true)}
               leftIcon={<UserPlus className="w-4 h-4" />}
             >
-              Onboard Fleet Driver
+              Onboard In-House Rider
             </Button>
             <Link
               to="/logistics/rider-portal"
@@ -444,9 +444,9 @@ export const DeliveryTeamPage: React.FC = () => {
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          title="Fleet Size"
-          value={`${totalRiders} Drivers`}
-          description="In-house active courier staff"
+          title="Active In-House Riders"
+          value={`${totalRiders} Riders`}
+          description="In-house active delivery staff"
           icon={<Users className="w-4 h-4 text-primary" />}
         />
         <MetricCard
@@ -488,9 +488,9 @@ export const DeliveryTeamPage: React.FC = () => {
         data={filteredRiders}
         columns={columns}
         searchable={true}
-        searchPlaceholder="Search driver name, phone, or plate number..."
-        title="Fleet Drivers"
-        exportFilename="smokey-fleet-drivers"
+        searchPlaceholder="Search rider name, phone, or plate number..."
+        title="In-House Riders"
+        exportFilename="smokey-inhouse-riders"
         onRowClick={(r) => handleOpenAccount(r, 'ledger')}
         onDateRangeChange={setDateRange}
       />
@@ -750,8 +750,8 @@ export const DeliveryTeamPage: React.FC = () => {
       <Dialog
         isOpen={isOnboardModalOpen}
         onClose={() => setIsOnboardModalOpen(false)}
-        title="Onboard Fleet Driver"
-        description="Provision internal fleet driver credentials, vehicle details, and emergency contact records."
+        title="Onboard In-House Rider"
+        description="Provision in-house rider credentials, vehicle details, and emergency contact records."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">

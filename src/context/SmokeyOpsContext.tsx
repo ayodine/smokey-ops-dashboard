@@ -430,7 +430,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   dispatcher: [
     'Dispatch Queue Assignment',
     'Rider Location & Route Tracking',
-    'Third-party Courier Bookings',
+    'Third-party Rider Bookings',
     'COD Cash Remittance Check-in'
   ],
   rider: [
@@ -538,7 +538,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     permissions: [
       'Dispatch Queue Assignment',
       'Rider Location & Route Tracking',
-      'Third-party Courier Bookings',
+      'Third-party Rider Bookings',
       'COD Cash Remittance Check-in'
     ]
   },

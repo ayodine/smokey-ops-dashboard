@@ -127,7 +127,7 @@ export const LogisticsBoardPage: React.FC = () => {
     if (!selectedDelivery) return
 
     if (riderType === 'third_party' && !receiptImage) {
-      setReceiptUploadError('Receipt upload is compulsory for third-party courier assignment. Please upload the fare screenshot.')
+      setReceiptUploadError('Receipt upload is compulsory for third-party rider assignment. Please upload the fare screenshot.')
       return
     }
 
@@ -218,14 +218,14 @@ export const LogisticsBoardPage: React.FC = () => {
     },
     {
       key: 'assigned_rider',
-      header: 'Assigned Courier / Rider',
+      header: 'Assigned Rider',
       accessor: (d) => (
         <div>
           <div className="font-semibold text-kumo-strong font-sans">
             {d.assigned_rider}
           </div>
           <div className="text-[10px] text-kumo-subtle uppercase">
-            {d.rider_type === 'internal' ? 'In-house Fleet' : `Third-Party: ${d.third_party_provider}`}
+            {d.rider_type === 'internal' ? 'In-House Rider' : `Third-Party Rider: ${d.third_party_provider}`}
           </div>
         </div>
       ),
@@ -316,7 +316,7 @@ export const LogisticsBoardPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Logistics Dispatch Board"
-        subtitle="Central dispatch control for packaged orders. Assign trips to internal riders or external courier partners and track delivery completion."
+        subtitle="Central dispatch control for packaged orders. Assign trips to in-house riders or third-party riders and track delivery completion."
       />
 
       {/* KPI Stat Strip */}
@@ -411,7 +411,7 @@ export const LogisticsBoardPage: React.FC = () => {
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         title={`Assign Rider: Order ${selectedDelivery?.order_ref}`}
-        description="Choose between internal logistics dispatch or third-party courier service."
+        description="Choose between in-house rider dispatch or third-party rider service."
         maxWidth="xl"
       >
         <form onSubmit={handleConfirmAssign} className="space-y-4">
@@ -431,7 +431,7 @@ export const LogisticsBoardPage: React.FC = () => {
           </div>
 
           <Select
-            label="Courier Dispatch Mode"
+            label="Rider Dispatch Mode"
             value={riderType}
             onChange={(e) => {
               setRiderType(e.target.value as any)
@@ -442,8 +442,8 @@ export const LogisticsBoardPage: React.FC = () => {
               setReceiptUploadError(null)
             }}
             options={[
-              { value: 'internal', label: 'Internal Logistics (Smokey Hut In-House Dispatch Rider)' },
-              { value: 'third_party', label: 'Third-Party Courier (Uber, InDrive, Gokada, Bolt, GIG)' }
+              { value: 'internal', label: 'In-House Rider (Smokey Hut In-House Dispatch Rider)' },
+              { value: 'third_party', label: 'Third-Party Rider (Uber, InDrive, Gokada, Bolt, GIG)' }
             ]}
           />
 
@@ -460,7 +460,7 @@ export const LogisticsBoardPage: React.FC = () => {
           ) : (
             <div className="space-y-3.5">
               <Select
-                label="3rd-Party Courier Company"
+                label="Third-Party Rider Company"
                 value={thirdPartyName}
                 onChange={(e) => setThirdPartyName(e.target.value)}
                 options={[
@@ -473,7 +473,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 ]}
               />
               <Input
-                label="Booked Delivery Fee (Charged by Courier ₦)"
+                label="Booked Delivery Fee (Charged by Third-Party Rider ₦)"
                 type="number"
                 value={bookedFee}
                 onChange={(e) => setBookedFee(Number(e.target.value))}
@@ -483,7 +483,7 @@ export const LogisticsBoardPage: React.FC = () => {
               {bookedFee > (selectedDelivery?.delivery_fee || 0) && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded text-sm text-amber-900 dark:text-amber-200 font-sans flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span><strong>Subsidy Deficit Warning:</strong> Courier charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
+                  <span><strong>Subsidy Deficit Warning:</strong> Third-party rider charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
                 </div>
               )}
 
@@ -491,7 +491,7 @@ export const LogisticsBoardPage: React.FC = () => {
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between gap-3">
                   <label className="text-sm font-semibold text-kumo-strong leading-tight">
-                    Waybill Proof of Delivery Slip / Courier Fare Receipt
+                    Waybill Proof of Delivery Slip / Rider Fare Receipt
                     <span className="text-rose-500 font-bold ml-1 inline-block">*</span>
                   </label>
                   <span className="shrink-0 text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -553,7 +553,7 @@ export const LogisticsBoardPage: React.FC = () => {
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           title={`Delivery Dispatch: ${selectedDetailsDelivery.order_ref}`}
-          description={`Customer delivery manifest, assigned fleet courier, and trip routing`}
+          description={`Customer delivery manifest, assigned rider, and trip routing`}
           maxWidth="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -627,19 +627,19 @@ export const LogisticsBoardPage: React.FC = () => {
 
               <div className="p-4 space-y-3">
                 <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
-                  Fleet & Dispatch Courier
+                  Dispatch &amp; Delivery Rider
                 </span>
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current Status</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedDetailsDelivery.status.replace('_', ' ')}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
-                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Rider / Fleet</span>
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Rider</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsDelivery.assigned_rider || 'Unassigned'}</span>
                 </div>
                 {selectedDetailsDelivery.booked_fee && (
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Courier Booked Fee</span>
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Rider Booked Fee</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-mono">{formatNaira(selectedDetailsDelivery.booked_fee)}</span>
                   </div>
                 )}

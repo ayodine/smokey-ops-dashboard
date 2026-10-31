@@ -170,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         items: [
           { label: 'Dispatch Board', href: '/logistics/board', badge: activeDispatchesCount > 0 ? activeDispatchesCount : undefined },
           { label: 'Delivery Schedule', href: '/logistics/schedule', badge: scheduledOrdersCount > 0 ? scheduledOrdersCount : undefined },
-          { label: 'Delivery Fleet & Riders', href: '/logistics/riders', badge: riders.length },
+          { label: 'In-House Riders', href: '/logistics/riders', badge: riders.length },
           { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: pendingPickupsCount > 0 ? pendingPickupsCount : undefined },
           { label: 'Third Party Delivery', href: '/logistics/third-party', badge: thirdPartySummaries.length > 0 ? thirdPartySummaries.length : undefined },
         ],
