@@ -1416,22 +1416,6 @@ export const SEED_PACKAGING_PRODUCTS: PackagingProduct[] = [
     "is_active": 1
   },
   {
-    "id": 162,
-    "sku": "SKU-00080",
-    "name": "full guineafowl",
-    "product_type": "packaging",
-    "unit": "unit",
-    "reorder_level": 20,
-    "unit_cost": 0,
-    "central_stock_qty": 0,
-    "bench_stock_qty": 0,
-    "stock_qty": 0,
-    "qty_allocated": 0,
-    "qty_available": 0,
-    "inventory_value": 0,
-    "is_active": 1
-  },
-  {
     "id": 110,
     "sku": "SKU-00076",
     "name": "MEDIUM POLY BAG",
