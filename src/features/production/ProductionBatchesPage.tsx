@@ -1168,7 +1168,6 @@ export const ProductionBatchesPage: React.FC = () => {
                     setEstimatedReadyTime('Tomorrow 9:30 AM')
                   }
                 }}
-                className="w-full flex"
                 tabs={[
                   { id: 'today', label: "Today's Smoke Run" },
                   { id: 'tomorrow_morning', label: "Tomorrow Morning Run (Pre-Orders)" }
