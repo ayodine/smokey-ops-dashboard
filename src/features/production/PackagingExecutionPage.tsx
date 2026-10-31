@@ -459,17 +459,15 @@ export const PackagingExecutionPage: React.FC = () => {
         }
       >
         <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
-          {/* Master Divided Card Container (matching design guardrails) */}
+          {/* Master Divided Card Container (stacked label and value) */}
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
-            <div className="p-3.5 space-y-2.5">
-              <div className="flex items-start text-[13px]">
-                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer</span>
-                <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedOrder?.customer_name}</span>
-              </div>
-              <div className="flex items-start text-[13px]">
-                <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Ordered Items</span>
-                <span className="text-zinc-900 dark:text-zinc-100 font-medium flex-1 leading-snug">{selectedOrder?.items_summary}</span>
-              </div>
+            <div className="p-3.5 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Customer</span>
+              <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder?.customer_name}</span>
+            </div>
+            <div className="p-3.5 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Ordered Items</span>
+              <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px] leading-snug">{selectedOrder?.items_summary}</span>
             </div>
           </div>
 
