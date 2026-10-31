@@ -50,7 +50,8 @@ import {
   Layers,
   ArrowRightLeft,
   RotateCcw,
-  Scale
+  Scale,
+  ChevronDown
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
@@ -74,6 +75,7 @@ export const ProductionBatchesPage: React.FC = () => {
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed' | 'intermediate_preps'>('active')
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
@@ -929,34 +931,94 @@ export const ProductionBatchesPage: React.FC = () => {
         title="Production Batches & Cooking Recipes"
         subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory."
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCreatePrepModalOpen(true)}
-              leftIcon={<Layers className="w-4 h-4 text-primary" />}
-              className="h-10 px-3.5 text-xs sm:text-sm font-medium"
-            >
-              + Recipe Prep Mix
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenTomorrowBatch}
-              leftIcon={<Clock className="w-4 h-4 text-amber-600" />}
-              className="h-10 px-3.5 text-xs sm:text-sm font-medium"
-            >
-              Plan Tomorrow's Smoke (Pre-Order Feed)
-            </Button>
+          <div className="relative">
             <Button
               variant="primary"
               size="sm"
-              onClick={handleOpenTodayBatch}
+              onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
               leftIcon={<Plus className="w-4 h-4" />}
+              rightIcon={<ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isActionMenuOpen && "rotate-180")} />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
             >
               Start Cooking Batch
             </Button>
+
+            {isActionMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsActionMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-40 p-1.5 animate-in fade-in zoom-in-95 font-sans divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false)
+                        handleOpenTodayBatch()
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                        <Flame className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-primary transition-colors">
+                          Start Cooking Batch (Today)
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Active daytime smoke run with live BOM inventory deduction
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false)
+                        handleOpenTomorrowBatch()
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                          Plan Tomorrow's Smoke
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          End-of-day handoff to buffer online pre-orders overnight
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="p-1 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false)
+                        setIsCreatePrepModalOpen(true)
+                      }}
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 transition-colors">
+                          + Recipe Prep Mix
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
+                          Formulate intermediate spice rubs, secret blends & seasonings
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         }
       />
