@@ -1463,13 +1463,13 @@ export const SupportHelpDeskPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => toggleFaq(faq.id)}
-                      className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 text-xs sm:text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
+                      className="w-full p-3.5 text-left flex items-center justify-between gap-3 text-xs sm:text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
                     >
-                      <span className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shrink-0">
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-[10.5px] uppercase font-semibold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0 leading-normal">
                           {faq.category}
                         </span>
-                        <span>{faq.question}</span>
+                        <span className="leading-snug">{faq.question}</span>
                       </span>
                       {isOpen ? (
                         <ChevronUp className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -1478,7 +1478,7 @@ export const SupportHelpDeskPage: React.FC = () => {
                       )}
                     </button>
                     {isOpen && (
-                      <div className="px-4 pb-3.5 pt-1 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/40 dark:bg-zinc-800/20">
+                      <div className="px-3.5 pb-3.5 pt-2 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/40 dark:bg-zinc-800/20">
                         {faq.answer}
                       </div>
                     )}
