@@ -37,6 +37,7 @@ export interface FileUploadProps {
   showBorderBeam?: boolean
   showFileList?: boolean
   title?: string
+  fileReadyText?: string
   onFilesAccepted?: (files: File[]) => void
   onFilesChange?: (files: FileUploadItem[]) => void
 }
@@ -138,6 +139,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   showBorderBeam = true,
   showFileList = true,
   title = 'Click to upload or drop files',
+  fileReadyText = 'Ready for menu display',
   onFilesAccepted,
   onFilesChange,
 }) => {
@@ -320,7 +322,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-semibold text-kumo-strong">{file.name}</div>
                 <div className="truncate text-[11px] text-kumo-subtle mt-0.5">
-                  {file.size > 0 ? `${formatBytes(file.size)} • ` : ''}Ready for menu display
+                  {file.size > 0 ? `${formatBytes(file.size)} • ` : ''}{fileReadyText}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

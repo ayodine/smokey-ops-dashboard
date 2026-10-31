@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { FileUpload } from '@/components/ui/FileUpload'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatDate } from '@/lib/utils'
 import { 
@@ -410,8 +411,8 @@ export const LogisticsBoardPage: React.FC = () => {
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         title={`Assign Rider: Order ${selectedDelivery?.order_ref}`}
-        description="Choose between internal fleet dispatch or third-party courier service."
-        maxWidth="lg"
+        description="Choose between internal logistics dispatch or third-party courier service."
+        maxWidth="xl"
       >
         <form onSubmit={handleConfirmAssign} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
@@ -430,14 +431,18 @@ export const LogisticsBoardPage: React.FC = () => {
           </div>
 
           <Select
-            label="Courier Fleet Mode"
+            label="Courier Dispatch Mode"
             value={riderType}
             onChange={(e) => {
               setRiderType(e.target.value as any)
               setReceiptUploadError(null)
             }}
+            onValueChange={(val) => {
+              setRiderType(val as any)
+              setReceiptUploadError(null)
+            }}
             options={[
-              { value: 'internal', label: 'Internal Fleet (Smokey Hut In-House Dispatch Rider)' },
+              { value: 'internal', label: 'Internal Logistics (Smokey Hut In-House Dispatch Rider)' },
               { value: 'third_party', label: 'Third-Party Courier (Uber, InDrive, Gokada, Bolt, GIG)' }
             ]}
           />
@@ -483,70 +488,46 @@ export const LogisticsBoardPage: React.FC = () => {
               )}
 
               {/* Compulsory 3rd-Party Receipt / Fare Proof Upload */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-semibold text-kumo-strong">
-                    Waybill Proof of Delivery Slip / Courier Fare Receipt <span className="text-rose-500">*</span>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-semibold text-kumo-strong leading-tight">
+                    Waybill Proof of Delivery Slip / Courier Fare Receipt
+                    <span className="text-rose-500 font-bold ml-1 inline-block">*</span>
                   </label>
-                  <span className="text-xs font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-2 py-0.5 rounded uppercase tracking-wider">
+                  <span className="shrink-0 text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Compulsory
                   </span>
                 </div>
-                <p className="text-[13px] text-kumo-subtle leading-normal">
+                <p className="text-xs text-kumo-subtle leading-relaxed">
                   Upload waybill proof of delivery slip or charged fare screenshot from Uber, InDrive, Gokada, Bolt, GIG, etc., before confirming assignment.
                 </p>
 
-                {receiptImage ? (
-                  <div className="border border-kumo-line rounded-lg p-3 bg-kumo-canvas flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative w-14 h-14 rounded-md border border-kumo-line overflow-hidden shrink-0 bg-muted/20">
-                        <img
-                          src={receiptImage}
-                          alt="Waybill Proof of Delivery Slip"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-kumo-strong truncate">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="truncate">{receiptFileName || `waybill-${selectedDelivery?.order_ref?.toLowerCase()}-pod.jpg`}</span>
-                        </div>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1">
-                          Proof of Delivery Attached
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveReceipt}
-                      className="p-1.5 text-kumo-subtle hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors shrink-0 cursor-pointer"
-                      title="Remove receipt"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                    receiptUploadError ? 'border-rose-300 bg-rose-50/40 dark:bg-rose-950/20' : 'border-kumo-line hover:border-primary/50 hover:bg-muted/10'
-                  }`}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleReceiptFileChange}
-                      className="hidden"
-                    />
-                    <Upload className={`w-6 h-6 mb-1.5 ${receiptUploadError ? 'text-rose-500' : 'text-kumo-subtle'}`} />
-                    <span className="text-sm font-semibold text-kumo-strong text-center">
-                      Click to upload Waybill Proof of Delivery Slip or fare screenshot
-                    </span>
-                    <span className="text-[13px] text-kumo-subtle mt-0.5 text-center">
-                      PNG, JPG, or WEBP from Uber, InDrive, Gokada, Bolt, or GIG
-                    </span>
-                  </label>
-                )}
+                <FileUpload
+                  value={receiptImage || ''}
+                  onChange={(newUrl) => {
+                    setReceiptImage(newUrl || null)
+                    if (newUrl) {
+                      setReceiptUploadError(null)
+                    }
+                  }}
+                  onFilesAccepted={(files) => {
+                    if (files[0]) {
+                      setReceiptFileName(files[0].name)
+                      setReceiptUploadError(null)
+                    }
+                  }}
+                  title="Click to upload or drop Waybill Slip / Fare Receipt"
+                  description="PNG, JPG, or WEBP up to 5MB (Uber, InDrive, Gokada, Bolt, or GIG)"
+                  browseLabel="Browse image"
+                  draggingLabel="Drop receipt image"
+                  fileReadyText="Proof of delivery attached"
+                  accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp,application/pdf,.pdf"
+                  showBorderBeam={true}
+                  showFileList={true}
+                />
 
                 {receiptUploadError && (
-                  <div className="flex items-center gap-1.5 text-sm text-rose-600 font-medium mt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mt-1">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{receiptUploadError}</span>
                   </div>
