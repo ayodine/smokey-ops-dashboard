@@ -881,21 +881,24 @@ export const WebsiteOrdersPage: React.FC = () => {
                 Close
               </Button>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => {
-                    const initialDate = selectedOrder.scheduled_delivery_at
-                      ? selectedOrder.scheduled_delivery_at.split('T')[0].split(' ')[0]
-                      : new Date().toISOString().split('T')[0]
-                    setRescheduleDate(initialDate)
-                    setRescheduleNotes(selectedOrder.notes || '')
-                    setIsRescheduleModalOpen(true)
-                  }}
-                  leftIcon={<Calendar className="w-3.5 h-3.5 text-zinc-500" />}
-                >
-                  {selectedOrder.scheduled_delivery_at ? 'Reschedule Delivery' : 'Schedule for Later'}
-                </Button>
+                {/* Only allow scheduling / rescheduling for orders that are not already out for delivery or delivered */}
+                {selectedOrder.fulfillment_status !== 'in_transit' && selectedOrder.fulfillment_status !== 'delivered' && (
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => {
+                      const initialDate = selectedOrder.scheduled_delivery_at
+                        ? selectedOrder.scheduled_delivery_at.split('T')[0].split(' ')[0]
+                        : new Date().toISOString().split('T')[0]
+                      setRescheduleDate(initialDate)
+                      setRescheduleNotes(selectedOrder.notes || '')
+                      setIsRescheduleModalOpen(true)
+                    }}
+                    leftIcon={<Calendar className="w-3.5 h-3.5 text-zinc-500" />}
+                  >
+                    {selectedOrder.scheduled_delivery_at ? 'Reschedule Delivery' : 'Schedule for Later'}
+                  </Button>
+                )}
                 <Button
                   variant="primary"
                   size="md"
