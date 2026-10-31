@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { FileUpload } from '@/components/ui/FileUpload'
 import { formatNaira, formatQuantity, cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -709,39 +710,23 @@ export const SalesInventoryPage: React.FC = () => {
       >
         <form id="sales-product-form" onSubmit={handleConfirmProduct} className="space-y-4 text-xs font-sans">
           {/* Section 1: Product Media & Identity */}
-          <div className="space-y-1.5">
-            <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 block">
-              Product Photo / Image URL
+          <div className="space-y-2">
+            <label className="text-[12px] font-semibold text-kumo-strong block">
+              Product Photo & Menu Imagery
             </label>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-850 overflow-hidden shrink-0 flex items-center justify-center relative shadow-2xs">
-                {productForm.image ? (
-                  <img
-                    src={productForm.image}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.display = 'none'
-                      const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
-                      if (fallback) fallback.style.display = 'flex'
-                    }}
-                  />
-                ) : null}
-                <div className={cn("w-full h-full flex flex-col items-center justify-center text-zinc-400 gap-0.5", productForm.image ? "hidden" : "flex")}>
-                  <Package className="w-4 h-4 opacity-40" />
-                  <span className="text-[8px] uppercase tracking-wider font-semibold opacity-60">No Photo</span>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <Input
-                  placeholder="e.g. https://... or /product-images/guineafowl.png"
-                  value={productForm.image}
-                  onChange={(e) => setProductForm(prev => ({ ...prev, image: e.target.value }))}
-                />
-              </div>
-            </div>
-            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block">
-              Renders in the "Product" table column and customer website storefront.
+            <FileUpload
+              value={productForm.image || ''}
+              onChange={(newUrl) => setProductForm(prev => ({ ...prev, image: newUrl }))}
+              title="Click to upload or drop product photo"
+              description="PNG, JPG, or WEBP up to 5MB (Square or 4:3 recommended)"
+              browseLabel="Browse image"
+              draggingLabel="Drop product image"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp"
+              showBorderBeam={true}
+              showFileList={true}
+            />
+            <span className="text-[11px] text-kumo-subtle block">
+              Photo renders on the Sales Inventory catalog and storefront digital menu.
             </span>
           </div>
 
