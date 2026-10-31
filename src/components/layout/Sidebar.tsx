@@ -56,6 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     activeAccountEmail,
     currentAccount,
     switchAccount,
+    logout,
     availableAccounts,
     websiteOrders,
     rawProducts,
@@ -644,7 +645,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
 
             <button
               type="button"
-              onClick={() => navigate('/login')}
+              onClick={() => {
+                onCloseMobile()
+                logout()
+                navigate('/login', { replace: true })
+              }}
               className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
             >
               <LogOut className="w-4 h-4 text-black dark:text-white shrink-0" />
@@ -663,7 +668,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </button>
             <button
               type="button"
-              onClick={() => navigate('/login')}
+              onClick={() => {
+                onCloseMobile()
+                logout()
+                navigate('/login', { replace: true })
+              }}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
               title="Sign out"
             >

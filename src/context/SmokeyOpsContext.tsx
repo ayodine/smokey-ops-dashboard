@@ -279,8 +279,11 @@ interface SmokeyOpsContextType {
   verifyThirdPartyFee: (deliveryId: number, status: 'approved' | 'flagged', note?: string) => void
 
   // Account Profile & RBAC
+  isAuthenticated: boolean
   activeAccountEmail: string
   currentAccount: AppUserAccount
+  loginWithCredentials: (identifier: string, passwordInput: string, rememberMe?: boolean) => { success: boolean; error?: string; account?: AppUserAccount }
+  logout: () => void
   switchAccount: (email: string) => void
   createAccount: (account: AppUserAccount) => void
   updateAccount: (email: string, updates: Partial<AppUserAccount> & { password?: string }) => void
@@ -301,6 +304,7 @@ export type UserRole = 'admin' | 'manager' | 'kitchen' | 'inventory' | 'dispatch
 
 export interface AppUserAccount {
   email: string
+  username?: string
   name: string
   role: UserRole
   roleLabel: string
@@ -1150,12 +1154,32 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   })
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
+    try {
+      const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
+      if (sessionRaw) {
+        const parsed = JSON.parse(sessionRaw)
+        if (parsed?.email) return parsed.email
+      }
+    } catch {
+      // ignore
+    }
     const saved = localStorage.getItem('smokey_active_account')
     const mockEmails = ['ops-team@smokeyhut.com', 'chef.amara@smokeyhut.com', 'kemi.inv@smokeyhut.com', 'babajide.dispatch@smokeyhut.com', 'ayodine47@gmail.com']
     if (saved && !mockEmails.includes(saved.toLowerCase())) {
       return saved
     }
     return 'fivedigita@gmail.com'
+  })
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
+      if (!sessionRaw) return false
+      const parsed = JSON.parse(sessionRaw)
+      return Boolean(parsed && parsed.email && parsed.sessionToken)
+    } catch {
+      return false
+    }
   })
 
   const refreshLiveSalesProducts = React.useCallback(async (showIndicator = false) => {
@@ -1441,12 +1465,126 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const switchAccount = (email: string) => {
     setActiveAccountEmail(email)
     localStorage.setItem('smokey_active_account', email)
+    try {
+      const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
+      if (sessionRaw) {
+        const parsed = JSON.parse(sessionRaw)
+        const updatedSession = JSON.stringify({ ...parsed, email })
+        sessionStorage.setItem('smokey_auth_session_v1', updatedSession)
+        if (localStorage.getItem('smokey_auth_session_v1')) {
+          localStorage.setItem('smokey_auth_session_v1', updatedSession)
+        }
+      }
+    } catch {
+      // ignore
+    }
     const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
     if (target?.role === 'rider') {
-      showToast('Switched to Rider Yusuf profile — restricted to Logistics & Delivery operations', 'info')
+      showToast(`Switched to ${target.name} profile — restricted to Logistics & Delivery operations`, 'info')
     } else {
       showToast(`Switched account to ${target?.name || email} (${target?.roleLabel || 'Staff'})`, 'info')
     }
+  }
+
+  const loginWithCredentials = (
+    identifier: string,
+    passwordInput: string,
+    rememberMe = true
+  ): { success: boolean; error?: string; account?: AppUserAccount } => {
+    const cleanId = (identifier || '').trim().toLowerCase()
+    const cleanPass = (passwordInput || '').trim()
+
+    if (!cleanId || !cleanPass) {
+      return {
+        success: false,
+        error: 'Please enter both your username/email and password.',
+      }
+    }
+
+    const matchedAccount = accounts.find(acc => {
+      const emailLower = (acc.email || '').toLowerCase()
+      const emailPrefix = emailLower.split('@')[0]
+      const usernameLower = (acc.username || '').toLowerCase()
+      const staffIdLower = (acc.staff_id || '').toLowerCase()
+      const nameLower = (acc.name || '').toLowerCase()
+      const isSuperAdminAlias =
+        emailLower === 'fivedigita@gmail.com' &&
+        (cleanId === 'ayodine47@gmail.com' || cleanId === 'ayodine47' || cleanId === 'ayobami')
+      return (
+        emailLower === cleanId ||
+        (usernameLower && usernameLower === cleanId) ||
+        emailPrefix === cleanId ||
+        (staffIdLower && staffIdLower === cleanId) ||
+        nameLower === cleanId ||
+        isSuperAdminAlias
+      )
+    })
+
+    if (!matchedAccount) {
+      return {
+        success: false,
+        error: 'Account not found. Only accounts provisioned by the Super Admin can sign in.',
+      }
+    }
+
+    if (matchedAccount.status === 'suspended') {
+      return {
+        success: false,
+        error: 'This account has been suspended by the Super Admin.',
+      }
+    }
+
+    const storedPassword = matchedAccount.password || matchedAccount.temporary_password
+    const isPasswordValid = storedPassword
+      ? cleanPass === storedPassword
+      : (cleanPass === 'password123' || cleanPass === 'Smokey@2026' || cleanPass === 'admin123')
+
+    if (!isPasswordValid) {
+      return {
+        success: false,
+        error: 'Incorrect password. Please enter the password issued by your Super Admin.',
+      }
+    }
+
+    const sessionPayload = JSON.stringify({
+      email: matchedAccount.email,
+      role: matchedAccount.role,
+      signedInAt: new Date().toISOString(),
+      rememberMe,
+      sessionToken: `smk_sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+    })
+
+    sessionStorage.setItem('smokey_auth_session_v1', sessionPayload)
+    if (rememberMe) {
+      localStorage.setItem('smokey_auth_session_v1', sessionPayload)
+    } else {
+      localStorage.removeItem('smokey_auth_session_v1')
+    }
+
+    setActiveAccountEmail(matchedAccount.email)
+    localStorage.setItem('smokey_active_account', matchedAccount.email)
+    setIsAuthenticated(true)
+
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.email.toLowerCase() === matchedAccount.email.toLowerCase()
+          ? { ...a, last_active: 'Active now' }
+          : a
+      )
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      return updated
+    })
+
+    return {
+      success: true,
+      account: matchedAccount,
+    }
+  }
+
+  const logout = () => {
+    sessionStorage.removeItem('smokey_auth_session_v1')
+    localStorage.removeItem('smokey_auth_session_v1')
+    setIsAuthenticated(false)
   }
 
   const addRiderProfile = (riderData: Partial<RiderPayout> & { rider_name: string; phone: string }) => {
@@ -1603,6 +1741,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const accountWithPermissions: AppUserAccount = {
       ...newAcc,
+      username: newAcc.username || newAcc.email.split('@')[0].toLowerCase(),
+      password: newAcc.password || newAcc.temporary_password || 'Smokey@2026',
+      temporary_password: newAcc.temporary_password || newAcc.password || 'Smokey@2026',
       permissions: newAcc.permissions || ROLE_DEFAULT_PERMISSIONS[newAcc.role] || [],
     }
 
@@ -1617,7 +1758,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
       return updated
     })
-    switchAccount(accountWithPermissions.email)
     showToast(`Created ${accountWithPermissions.roleLabel} account for ${accountWithPermissions.name || accountWithPermissions.email}`, 'success')
   }
 
@@ -3435,8 +3575,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         remitCodCash,
         markPickupCollected,
         verifyThirdPartyFee,
+        isAuthenticated,
         activeAccountEmail,
         currentAccount,
+        loginWithCredentials,
+        logout,
         switchAccount,
         createAccount,
         updateAccount,

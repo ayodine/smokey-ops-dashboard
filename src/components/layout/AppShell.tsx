@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { Sidebar } from './Sidebar'
 import { TopNav } from './TopNav'
@@ -9,12 +9,13 @@ import { CommandMenu } from '@/components/ui/CommandMenu'
 export const AppShell: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false)
-  const { currentAccount } = useSmokeyOps()
+  const { isAuthenticated, currentAccount } = useSmokeyOps()
   const location = useLocation()
   const navigate = useNavigate()
 
   // RBAC Route Guard: Sandboxes Rider to Logistics & Rider Portal (Spec Section 2.2)
   useEffect(() => {
+    if (!isAuthenticated) return
     if (currentAccount.role === 'rider') {
       const allowedPaths = ['/logistics/rider-portal', '/rider']
       const isAllowed = allowedPaths.some(
@@ -24,10 +25,11 @@ export const AppShell: React.FC = () => {
         navigate('/logistics/rider-portal', { replace: true })
       }
     }
-  }, [currentAccount.role, location.pathname, navigate])
+  }, [isAuthenticated, currentAccount.role, location.pathname, navigate])
 
   // Global Command+K / Ctrl+K keyboard shortcut
   useEffect(() => {
+    if (!isAuthenticated) return
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
@@ -37,7 +39,12 @@ export const AppShell: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [isAuthenticated])
+
+  // Require authentication before rendering any dashboard route
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
 
   return (
     <div

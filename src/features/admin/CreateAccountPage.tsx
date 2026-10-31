@@ -208,6 +208,7 @@ export const CreateAccountPage: React.FC = () => {
 
     const newAccountData: AppUserAccount = {
       email: email.trim().toLowerCase(),
+      username: derivedUsername,
       name: accName,
       role,
       roleLabel: roleLabels[role],
@@ -233,6 +234,7 @@ export const CreateAccountPage: React.FC = () => {
       license_number: role === 'rider' ? (licenseNumber.trim() || 'DL-98234-LAG') : undefined,
       license_expiry: role === 'rider' ? (licenseExpiry.trim() || '2028-12-31') : undefined,
       cod_limit: role === 'rider' ? Number(codLimit) : undefined,
+      password: finalPassword,
       temporary_password: finalPassword,
       status: 'active',
       last_active: 'Account registered just now',
