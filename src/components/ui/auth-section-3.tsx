@@ -1,41 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { FlutedGlass } from "@paper-design/shaders-react";
-import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2, Truck, Bike, ShieldCheck, MapPin, Building, Phone } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
-import { useSmokeyOps, type UserRole } from "@/context/SmokeyOpsContext";
-import { useWarehouse } from "@/context/WarehouseContext";
-import { Select } from "@/components/ui/Select";
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
-  const { createAccount } = useSmokeyOps();
-  const { facilities, selectedWarehouse } = useWarehouse();
-
-  // Mode: 'login' (Sign in) vs 'signup' (Create account)
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   // Form fields
-  const [firstName, setFirstName] = useState("Babajide");
-  const [lastName, setLastName] = useState("Ogundipe");
   const [email, setEmail] = useState("ayodine47@gmail.com");
   const [password, setPassword] = useState("password123");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [agreeTerms, setAgreeTerms] = useState(true);
-
-  // Role-based KYC Fields (Sign Up)
-  const [role, setRole] = useState<UserRole>('manager');
-  const [phone, setPhone] = useState('08031234567');
-  const [assignedHub, setAssignedHub] = useState(selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office');
-  const [nationalId, setNationalId] = useState('7829-4821-9921');
-  const [vehicleType, setVehicleType] = useState('Bajaj Boxer 150 Motorcycle');
-  const [plateNumber, setPlateNumber] = useState('LND-482-XA');
-  const [licenseNumber, setLicenseNumber] = useState('DL-98234-LAG');
-  const [codLimit, setCodLimit] = useState(50000);
 
   // States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,43 +24,6 @@ export default function AuthSectionThree() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    if (authMode === 'signup') {
-      const roleLabels: Record<UserRole, string> = {
-        admin: 'Administrator',
-        manager: 'Operations Manager',
-        kitchen: 'Kitchen Chef / Lead',
-        inventory: 'Inventory & Stock Officer',
-        dispatcher: 'Logistics Dispatcher',
-        rider: 'Delivery Fleet Rider',
-      };
-      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Smokey Staff';
-      createAccount({
-        email: email.trim(),
-        name: fullName,
-        role,
-        roleLabel: roleLabels[role],
-        phone: phone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
-        staff_id: `SHD-${role.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
-        assigned_hub: assignedHub,
-        national_id_nin: nationalId.trim() || '7829-4821-9921',
-        vehicle_type: role === 'rider' ? vehicleType : undefined,
-        plate_number: role === 'rider' ? (plateNumber.trim() || 'LND-482-XA') : undefined,
-        license_number: role === 'rider' ? (licenseNumber.trim() || 'DL-98234-LAG') : undefined,
-        cod_limit: role === 'rider' ? Number(codLimit) : undefined,
-      });
-
-      setSuccessMessage("Account created with verified role profile!");
-      setTimeout(() => {
-        setIsSubmitting(false);
-        if (role === 'rider') {
-          navigate("/logistics/rider-portal");
-        } else {
-          navigate("/overview");
-        }
-      }, 900);
-      return;
-    }
 
     setSuccessMessage("Signing you in...");
     setTimeout(() => {
@@ -121,12 +62,10 @@ export default function AuthSectionThree() {
             {/* Header */}
             <div>
               <h1 className="text-2xl font-bold tracking-[-0.012em] sm:text-3xl text-black dark:text-white font-display">
-                {authMode === 'login' ? "Sign in to your account" : "Create an account"}
+                Sign in to your account
               </h1>
               <p className="mt-1.5 text-xs text-black/55 dark:text-white/55 leading-relaxed">
-                {authMode === 'login'
-                  ? "Enter your work email and password to access the operations dashboard."
-                  : "Sign up with your work email to manage food inventory, cooking batches, and delivery drivers."}
+                Enter your work email and password to access the operations dashboard.
               </p>
             </div>
 
@@ -151,7 +90,7 @@ export default function AuthSectionThree() {
                 ) : (
                   <GoogleIcon />
                 )}
-                <span>{authMode === 'login' ? "Sign in with Google" : "Sign up with Google"}</span>
+                <span>Sign in with Google</span>
               </button>
             </div>
 
@@ -164,39 +103,6 @@ export default function AuthSectionThree() {
 
             {/* Form */}
             <form className="space-y-4" onSubmit={handleSubmit}>
-              {/* If Sign Up mode, show First and Last name */}
-              {authMode === 'signup' && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5 text-left w-full">
-                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                      First name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="e.g. Babajide"
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 text-left w-full">
-                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                      Last name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="e.g. Ogundipe"
-                      className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                    />
-                  </div>
-                </div>
-              )}
-
               {/* Work Email */}
               <div className="space-y-1.5 text-left w-full">
                 <label className="text-xs font-semibold text-black/70 dark:text-white/70">
@@ -212,147 +118,19 @@ export default function AuthSectionThree() {
                 />
               </div>
 
-              {/* Role Selection & KYC Fields for Signup */}
-              {authMode === 'signup' && (
-                <div className="space-y-3.5 pt-1">
-                  <div className="space-y-1.5 text-left w-full">
-                    <Select
-                      label="Operational Role & Permissions"
-                      value={role}
-                      onValueChange={(val) => setRole(val as UserRole)}
-                      options={[
-                        { value: 'manager', label: 'Operations Manager (Kitchen & Logistics)' },
-                        { value: 'admin', label: 'Administrator (Full Access)' },
-                        { value: 'kitchen', label: 'Kitchen Chef / Prep Lead' },
-                        { value: 'inventory', label: 'Inventory & Stock Officer' },
-                        { value: 'dispatcher', label: 'Logistics Dispatcher' },
-                        { value: 'rider', label: 'Delivery Fleet Rider (Trip Portal & Wallet)' },
-                      ]}
-                      size="sm"
-                    />
-                  </div>
-
-                  <div className="grid gap-3.5 sm:grid-cols-2">
-                    <div className="space-y-1.5 text-left w-full">
-                      <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="08012345678"
-                        className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 text-left w-full">
-                      <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                        National ID / NIN
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={nationalId}
-                        onChange={(e) => setNationalId(e.target.value)}
-                        placeholder="7829-4821-9921"
-                        className="w-full h-11 px-3.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-sm text-black dark:text-white outline-none focus:border-black/50 dark:focus:border-white/50"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-left w-full">
-                    <label className="text-xs font-semibold text-black/70 dark:text-white/70">
-                      Operating Hub / Office
-                    </label>
-                    <div className="flex items-center justify-between h-11 px-3.5 rounded-lg border border-black/15 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03] text-sm text-black dark:text-white">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <span className="font-medium truncate">{selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office'}</span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
-                        Active HQ
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Rider Specific KYC Card */}
-                  {role === 'rider' && (
-                    <div className="p-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
-                      <div className="text-xs font-semibold text-black/80 dark:text-white/80 uppercase tracking-wider flex items-center gap-1.5">
-                        <span>Driver Fleet KYC Details</span>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1 text-left">
-                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Vehicle Model</label>
-                          <input
-                            type="text"
-                            required
-                            value={vehicleType}
-                            onChange={(e) => setVehicleType(e.target.value)}
-                            placeholder="e.g. TVS HLX 125 Motorcycle"
-                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
-                          />
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Plate Number</label>
-                          <input
-                            type="text"
-                            required
-                            value={plateNumber}
-                            onChange={(e) => setPlateNumber(e.target.value)}
-                            placeholder="LND-482-XA"
-                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
-                          />
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Driver's License No</label>
-                          <input
-                            type="text"
-                            required
-                            value={licenseNumber}
-                            onChange={(e) => setLicenseNumber(e.target.value)}
-                            placeholder="DL-98234-LAG"
-                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
-                          />
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[11px] font-medium text-black/60 dark:text-white/60">Max Cash Limit (₦)</label>
-                          <input
-                            type="number"
-                            min="5000"
-                            step="5000"
-                            value={codLimit}
-                            onChange={(e) => setCodLimit(Number(e.target.value))}
-                            className="w-full h-9 px-2.5 rounded-lg border border-black/15 bg-white dark:border-white/10 dark:bg-white/5 text-xs text-black dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Password */}
               <div className="space-y-1.5 text-left w-full">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-black/70 dark:text-white/70">
                     Password
                   </label>
-                  {authMode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => alert("Password reset link sent to your email.")}
-                      className="text-xs font-medium text-black/80 hover:text-black dark:text-white/80 dark:hover:text-white underline underline-offset-2 cursor-pointer"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => alert("Password reset link sent to your email.")}
+                    className="text-xs font-medium text-black/80 hover:text-black dark:text-white/80 dark:hover:text-white underline underline-offset-2 cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <div className="relative flex h-11 items-center rounded-lg border border-black/15 bg-white px-3.5 dark:border-white/10 dark:bg-white/5">
                   <input
@@ -373,31 +151,17 @@ export default function AuthSectionThree() {
                 </div>
               </div>
 
-              {/* Checkboxes / Terms */}
+              {/* Remember me */}
               <div className="space-y-2 pt-1 text-xs text-black/60 dark:text-white/60">
-                {authMode === 'login' ? (
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="size-3.5 rounded border border-black/25 accent-black dark:accent-white"
-                    />
-                    <span>Remember me</span>
-                  </label>
-                ) : (
-                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="mt-0.5 size-3.5 rounded border border-black/25 accent-black dark:accent-white"
-                    />
-                    <span>
-                      I agree to the Smokey Hut terms of service and operational privacy policy.
-                    </span>
-                  </label>
-                )}
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="size-3.5 rounded border border-black/25 accent-black dark:accent-white"
+                  />
+                  <span>Remember me</span>
+                </label>
               </div>
 
               {/* Submit CTA Button (Brand Red: #c0201f) */}
@@ -407,42 +171,9 @@ export default function AuthSectionThree() {
                 className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#c0201f] text-sm font-semibold text-white transition-colors hover:bg-[#a01817] cursor-pointer shadow-sm disabled:opacity-70"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white" />}
-                <span>{authMode === 'login' ? "Sign In" : "Create Account"}</span>
+                <span>Sign In</span>
               </button>
             </form>
-
-            {/* Toggle between Sign In and Sign Up */}
-            <div className="mt-6 text-center text-xs text-black/60 dark:text-white/60">
-              {authMode === 'login' ? (
-                <p>
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setSuccessMessage(null);
-                    }}
-                    className="font-semibold text-black dark:text-white underline underline-offset-2 hover:opacity-80 cursor-pointer ml-1"
-                  >
-                    Create an account
-                  </button>
-                </p>
-              ) : (
-                <p>
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setSuccessMessage(null);
-                    }}
-                    className="font-semibold text-black dark:text-white underline underline-offset-2 hover:opacity-80 cursor-pointer ml-1"
-                  >
-                    Sign in to your account
-                  </button>
-                </p>
-              )}
-            </div>
           </div>
         </div>
 

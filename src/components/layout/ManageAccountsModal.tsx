@@ -183,6 +183,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
 }) => {
   const navigate = useNavigate()
   const {
+    currentAccount,
     availableAccounts,
     activeAccountEmail,
     switchAccount,
@@ -499,23 +500,25 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                   >
                     Manage Roles
                   </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    type="button"
-                    onClick={() => {
-                      setOnboardForm((prev) => ({
-                        ...prev,
-                        temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
-                        permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
-                      }))
-                      setIsOnboardOpen(true)
-                    }}
-                    leftIcon={<Plus className="w-4 h-4" />}
-                    className="h-10 text-[13px]"
-                  >
-                    Onboard Account
-                  </Button>
+                  {currentAccount.role === 'admin' && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      type="button"
+                      onClick={() => {
+                        setOnboardForm((prev) => ({
+                          ...prev,
+                          temporaryPassword: 'Smokey@' + Math.floor(1000 + Math.random() * 9000),
+                          permissions: ROLE_DEFAULT_PERMISSIONS['kitchen'] || []
+                        }))
+                        setIsOnboardOpen(true)
+                      }}
+                      leftIcon={<Plus className="w-4 h-4" />}
+                      className="h-10 text-[13px]"
+                    >
+                      Onboard Account
+                    </Button>
+                  )}
                 </div>
               </div>
 

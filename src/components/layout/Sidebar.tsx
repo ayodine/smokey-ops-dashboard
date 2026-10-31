@@ -434,20 +434,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 )}
               </div>
 
-              {/* Action Footer: + Create Account & Manage Account */}
+              {/* Action Footer: + Create Account (Super Admin only) & Manage Account */}
               <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAccountMenuOpen(false)
-                    navigate('/accounts/create')
-                    onCloseMobile()
-                  }}
-                  className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                  <span>Create Account</span>
-                </button>
+                {currentAccount.role === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAccountMenuOpen(false)
+                      navigate('/accounts/create')
+                      onCloseMobile()
+                    }}
+                    className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
+                    <span>Create Account</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -455,7 +457,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                     navigate('/accounts')
                     onCloseMobile()
                   }}
-                  className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80"
+                  className={cn(
+                    "w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors",
+                    currentAccount.role === 'admin' && "border-t border-zinc-100 dark:border-zinc-800/80"
+                  )}
                 >
                   <Settings className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
                   <span>Manage Account</span>

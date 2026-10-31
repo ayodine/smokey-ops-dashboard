@@ -336,6 +336,7 @@ export const ManageAccountsPage: React.FC = () => {
   const { email: urlEmail } = useParams<{ email?: string }>()
 
   const {
+    currentAccount,
     availableAccounts,
     activeAccountEmail,
     switchAccount,
@@ -2559,15 +2560,17 @@ export const ManageAccountsPage: React.FC = () => {
             >
               Export CSV
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/accounts/create')}
-              leftIcon={<UserPlus className="w-4 h-4" />}
-              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
-            >
-              Create Account
-            </Button>
+            {currentAccount.role === 'admin' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => navigate('/accounts/create')}
+                leftIcon={<UserPlus className="w-4 h-4" />}
+                className="h-10 px-4 text-[13px] font-semibold shadow-xs"
+              >
+                Create Account
+              </Button>
+            )}
           </div>
         }
       />

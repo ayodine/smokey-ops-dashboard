@@ -62,7 +62,7 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
 
 export const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate()
-  const { createAccount, showToast } = useSmokeyOps()
+  const { currentAccount, createAccount, showToast } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
 
   // Select dropdown option arrays matching ManageAccountsPage KYC
@@ -258,6 +258,27 @@ export const CreateAccountPage: React.FC = () => {
     setCopied(true)
     showToast('Credentials copied to clipboard', 'info')
     setTimeout(() => setCopied(false), 2500)
+  }
+
+  if (currentAccount.role !== 'admin') {
+    return (
+      <div className="max-w-xl mx-auto mt-12 p-8 rounded-2xl border border-kumo-line bg-kumo-base text-center space-y-4 shadow-xs font-sans">
+        <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-950/30 text-[#c0201f] flex items-center justify-center mx-auto border border-red-200 dark:border-red-900">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-kumo-strong">Super Admin Authorization Required</h2>
+          <p className="text-[13px] text-kumo-subtle">
+            New staff accounts can only be provisioned from the dashboard by a Super Administrator.
+          </p>
+        </div>
+        <div className="pt-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/accounts')}>
+            Back to Team Accounts
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
