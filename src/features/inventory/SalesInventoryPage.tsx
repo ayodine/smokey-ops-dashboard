@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { UnitInput } from '@/components/ui/UnitInput'
+import { Toggle } from '@/components/ui/Toggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { formatNaira, formatQuantity, cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -116,10 +117,15 @@ export const SalesInventoryPage: React.FC = () => {
   const [productForm, setProductForm] = useState({
     name: '',
     sku: '',
-    unit: 'unit',
-    selling_price: 12500,
-    unit_cost: 6500,
-    reorder_level: 20
+    category_id: 'mains',
+    unit: 'portion',
+    stock_qty: 0,
+    selling_price: 15000,
+    unit_cost: 7000,
+    reorder_level: 20,
+    image: '',
+    short_desc: '',
+    is_active: true
   })
 
   // Live Supabase Backend Ingestion
@@ -203,20 +209,30 @@ export const SalesInventoryPage: React.FC = () => {
       setProductForm({
         name: p.name,
         sku: p.sku,
-        unit: p.unit,
-        selling_price: p.selling_price,
-        unit_cost: p.unit_cost,
-        reorder_level: p.reorder_level
+        category_id: p.category_name || 'mains',
+        unit: p.unit || 'portion',
+        stock_qty: p.stock_qty || 0,
+        selling_price: p.selling_price || 15000,
+        unit_cost: p.unit_cost || 7000,
+        reorder_level: p.reorder_level || 20,
+        image: p.image || '',
+        short_desc: '',
+        is_active: p.is_active !== 0
       })
     } else {
       setSelectedProduct(null)
       setProductForm({
         name: '',
         sku: `SMK-${String(displayProducts.length + 1).padStart(4, '0')}`,
-        unit: 'unit',
+        category_id: 'mains',
+        unit: 'portion',
+        stock_qty: 0,
         selling_price: 15000,
         unit_cost: 7000,
-        reorder_level: 20
+        reorder_level: 20,
+        image: '',
+        short_desc: '',
+        is_active: true
       })
     }
     setIsProductModalOpen(true)
@@ -255,17 +271,92 @@ export const SalesInventoryPage: React.FC = () => {
     setIsAdjustModalOpen(false)
   }
 
-  const handleConfirmProduct = (e: React.FormEvent) => {
+  const handleConfirmProduct = async (e: React.FormEvent) => {
     e.preventDefault()
-    saveSalesProduct({
-      id: selectedProduct?.id,
+
+    const stock = Number(productForm.stock_qty)
+    const price = Number(productForm.selling_price)
+    const cost = Number(productForm.unit_cost)
+    const reorder = Number(productForm.reorder_level)
+
+    const targetId = selectedProduct?.id ?? Date.now()
+
+    const productPayload = {
+      id: targetId,
       name: productForm.name,
       sku: productForm.sku,
       unit: productForm.unit,
-      selling_price: Number(productForm.selling_price),
-      unit_cost: Number(productForm.unit_cost),
-      reorder_level: Number(productForm.reorder_level)
+      stock_qty: stock,
+      selling_price: price,
+      unit_cost: cost,
+      reorder_level: reorder,
+      image: productForm.image ? productForm.image.trim() : null,
+      category_name: productForm.category_id,
+      is_active: productForm.is_active ? 1 : 0
+    }
+
+    // 1. Optimistic local update in state
+    if (selectedProduct?.id) {
+      setLiveProducts(prev => prev.map(p => p.id === selectedProduct.id ? {
+        ...p,
+        ...productPayload,
+        inventory_value: stock * price,
+        qty_available: Math.max(0, stock - (p.qty_allocated || 0))
+      } : p))
+    } else {
+      const newCreated: LiveSalesProduct = {
+        product_type: 'sales',
+        qty_allocated: 0,
+        qty_available: stock,
+        inventory_value: stock * price,
+        ...productPayload,
+        id: targetId
+      }
+      setLiveProducts(prev => [newCreated, ...prev])
+    }
+
+    // 2. Save in context
+    saveSalesProduct({
+      ...productPayload,
+      id: selectedProduct?.id
     })
+
+    // 3. Persist to Supabase if available
+    try {
+      if (selectedProduct?.id) {
+        await supabase
+          .from('products')
+          .update({
+            name: productForm.name,
+            price: price,
+            cost_price: cost,
+            stock: stock,
+            reorder_level: reorder,
+            image: productForm.image ? productForm.image.trim() : null,
+            category_id: productForm.category_id,
+            short_desc: productForm.short_desc || null,
+            is_active: productForm.is_active
+          })
+          .eq('id', selectedProduct.id)
+      } else {
+        await supabase
+          .from('products')
+          .insert({
+            name: productForm.name,
+            price: price,
+            cost_price: cost,
+            stock: stock,
+            reorder_level: reorder,
+            image: productForm.image ? productForm.image.trim() : null,
+            category_id: productForm.category_id,
+            short_desc: productForm.short_desc || null,
+            is_active: productForm.is_active
+          })
+      }
+    } catch (err) {
+      console.warn('Direct Supabase product save note:', err)
+    }
+
     setIsProductModalOpen(false)
   }
 
@@ -603,7 +694,7 @@ export const SalesInventoryPage: React.FC = () => {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         title={selectedProduct ? `Edit Product: ${selectedProduct.name}` : 'Register New Sales Product'}
-        description="Configure pricing, cost benchmark, and reorder threshold."
+        description="Configure dish image, holding inventory, commercial pricing, and storefront availability."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-end gap-2.5 w-full">
@@ -617,29 +708,115 @@ export const SalesInventoryPage: React.FC = () => {
         }
       >
         <form id="sales-product-form" onSubmit={handleConfirmProduct} className="space-y-4 text-xs font-sans">
+          {/* Section 1: Product Media & Identity */}
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 block">
+              Product Photo / Image URL
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-850 overflow-hidden shrink-0 flex items-center justify-center relative shadow-2xs">
+                {productForm.image ? (
+                  <img
+                    src={productForm.image}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.display = 'none'
+                      const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
+                      if (fallback) fallback.style.display = 'flex'
+                    }}
+                  />
+                ) : null}
+                <div className={cn("w-full h-full flex flex-col items-center justify-center text-zinc-400 gap-0.5", productForm.image ? "hidden" : "flex")}>
+                  <Package className="w-4 h-4 opacity-40" />
+                  <span className="text-[8px] uppercase tracking-wider font-semibold opacity-60">No Photo</span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <Input
+                  placeholder="e.g. https://... or /product-images/guineafowl.png"
+                  value={productForm.image}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, image: e.target.value }))}
+                />
+              </div>
+            </div>
+            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block">
+              Renders in the "Product" table column and customer website storefront.
+            </span>
+          </div>
+
           <Input
             label="Product Title"
+            placeholder="e.g. Full Smokey Guineafowl (Chopped)"
             value={productForm.name}
             onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
             required
+            autoFocus
+          />
+
+          <Select
+            label="Menu Category"
+            value={productForm.category_id}
+            onChange={(e) => setProductForm(prev => ({ ...prev, category_id: e.target.value }))}
+            options={[
+              { value: 'mains', label: 'Mains / Firewood Grilled Proteins' },
+              { value: 'platters', label: 'Feast Platters & Combos' },
+              { value: 'sides', label: 'Sides & Accompaniments' },
+              { value: 'drinks', label: 'Beverages & Refreshments' },
+            ]}
           />
 
           <Input
+            label="Short Description"
+            placeholder="e.g. Firewood smoked whole bird with signature dry pepper rub"
+            value={productForm.short_desc}
+            onChange={(e) => setProductForm(prev => ({ ...prev, short_desc: e.target.value }))}
+          />
+
+          {/* Section 2: SKU Code & Unit of Measure */}
+          <Input
             label="SKU Code"
+            placeholder="e.g. SMK-0024"
             value={productForm.sku}
             onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
             required
           />
 
-          <Input
-            label="Unit Label"
+          <Select
+            label="Unit of Measure"
             value={productForm.unit}
             onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
+            options={[
+              { value: 'portion', label: 'Portions / Single Servings' },
+              { value: 'unit', label: 'Whole Birds / Whole Units' },
+              { value: 'pack', label: 'Takeout Packs & Food Bowls' },
+              { value: 'piece', label: 'Pieces' },
+              { value: 'bottle', label: 'Bottles / Cans' },
+            ]}
+          />
+
+          {/* Section 3: Physical Stock On-Hand & Reorder Alert */}
+          <Input
+            label="Physical Stock (On-Hand)"
+            type="number"
+            min="0"
+            value={productForm.stock_qty}
+            onChange={(e) => setProductForm(prev => ({ ...prev, stock_qty: Number(e.target.value) }))}
             required
           />
 
           <Input
-            label="Selling Price (₦)"
+            label="Reorder Alert Threshold"
+            type="number"
+            min="0"
+            value={productForm.reorder_level}
+            onChange={(e) => setProductForm(prev => ({ ...prev, reorder_level: Number(e.target.value) }))}
+            required
+          />
+
+          {/* Section 4: Commercial Pricing & Benchmark */}
+          <Input
+            label="Customer Selling Price (₦)"
             type="number"
             min="0"
             value={productForm.selling_price}
@@ -656,15 +833,49 @@ export const SalesInventoryPage: React.FC = () => {
             required
           />
 
-          <UnitInput
-            label="Reorder Alert Threshold"
-            value={productForm.reorder_level}
-            onChangeValue={(val) => setProductForm(prev => ({ ...prev, reorder_level: val }))}
-            unit={productForm.unit || 'packs'}
-            onChangeUnit={(unit) => setProductForm(prev => ({ ...prev, unit }))}
-            min={0}
-            required
-          />
+          {/* Live Commercial Valuation & Gross Margin Preview Card */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            <div className="p-3 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                Estimated Gross Margin
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 text-[13px]">
+                  {formatNaira(Math.max(0, Number(productForm.selling_price) - Number(productForm.unit_cost)))}
+                </span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  ({productForm.selling_price > 0 ? Math.round(((Number(productForm.selling_price) - Number(productForm.unit_cost)) / Number(productForm.selling_price)) * 100) : 0}% margin)
+                </span>
+              </div>
+            </div>
+            <div className="p-3 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+                Initial Retail Valuation
+              </span>
+              <span className="block font-mono font-semibold text-zinc-900 dark:text-zinc-100 text-[13px]">
+                {formatNaira(Number(productForm.stock_qty || 0) * Number(productForm.selling_price || 0))}
+              </span>
+            </div>
+          </div>
+
+          {/* Section 5: Online Storefront Visibility Toggle */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+            <div className="p-3.5 flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Publish to Web Storefront
+                </span>
+                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                  Dish will be visible and available for online orders when in-stock or baking
+                </span>
+              </div>
+              <Toggle
+                checked={productForm.is_active}
+                onChange={(checked) => setProductForm(prev => ({ ...prev, is_active: checked }))}
+                size="md"
+              />
+            </div>
+          </div>
         </form>
       </Dialog>
 

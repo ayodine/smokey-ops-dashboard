@@ -88,7 +88,7 @@ interface SmokeyOpsContextType {
   adjustPackagingStock: (productId: number, delta: number, notes: string) => void
   savePackagingProduct: (product: Partial<PackagingProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number }) => void
   adjustSalesStock: (productId: number, delta: number, notes: string) => void
-  saveSalesProduct: (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number }) => void
+  saveSalesProduct: (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number; stock_qty?: number; image?: string | null; category_name?: string }) => void
   addSupplier: (supplier: Omit<Supplier, 'id' | 'supplier_ref' | 'delivery_count' | 'total_spend' | 'is_active'>) => void
   updateSupplier: (supplier: Supplier) => void
   submitStocktakeCount: (counts: Array<{ productId: number; physicalCount: number; category: 'raw' | 'packaging' | 'sales' }>, countedBy: string) => number
@@ -2377,15 +2377,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSalesMovements(prev => [newMovement, ...prev])
   }
 
-  const saveSalesProduct = (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number }) => {
+  const saveSalesProduct = (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number; stock_qty?: number; image?: string | null; category_name?: string }) => {
     if (product.id) {
       setSalesProducts(prev => prev.map(p => p.id === product.id ? {
         ...p,
         ...product,
-        inventory_value: p.stock_qty * product.unit_cost,
-        qty_available: Math.max(0, p.stock_qty - (p.qty_allocated || 0))
+        stock_qty: product.stock_qty !== undefined ? product.stock_qty : p.stock_qty,
+        inventory_value: (product.stock_qty !== undefined ? product.stock_qty : p.stock_qty) * product.selling_price,
+        qty_available: Math.max(0, (product.stock_qty !== undefined ? product.stock_qty : p.stock_qty) - (p.qty_allocated || 0))
       } : p))
     } else {
+      const stock = product.stock_qty ?? 0
       const newProd: SalesProduct = {
         id: Date.now(),
         sku: product.sku,
@@ -2395,11 +2397,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         reorder_level: product.reorder_level,
         unit_cost: product.unit_cost,
         selling_price: product.selling_price,
-        stock_qty: 0,
+        stock_qty: stock,
         qty_allocated: 0,
-        qty_available: 0,
-        inventory_value: 0,
-        is_active: 1
+        qty_available: stock,
+        inventory_value: stock * product.selling_price,
+        is_active: product.is_active !== undefined ? product.is_active : 1
       }
       setSalesProducts(prev => [...prev, newProd])
     }
