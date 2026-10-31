@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react'
 
 export interface SingleDatePickerProps {
   label?: string
@@ -29,6 +29,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
   helperText,
 }) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [showYearPicker, setShowYearPicker] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 288 })
@@ -95,6 +96,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
         (!popoverRef.current || !popoverRef.current.contains(target))
       ) {
         setIsOpen(false)
+        setShowYearPicker(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -144,6 +146,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
     const str = formatDateStr(d)
     onChange?.(str)
     setIsOpen(false)
+    setShowYearPicker(false)
   }
 
   const handleSelectToday = () => {
@@ -155,6 +158,10 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
     e.stopPropagation()
     onChange?.('')
   }
+
+  // Quick years list for selection (last 75 years down to next 5 years)
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: 80 }, (_, i) => currentYear - 70 + i).reverse()
 
   return (
     <div ref={containerRef} className={cn('relative font-sans select-none', className)}>
@@ -169,7 +176,10 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => {
+          setIsOpen(prev => !prev)
+          setShowYearPicker(false)
+        }}
         className={cn(
           'w-full h-10 px-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-xs sm:text-[13px] text-zinc-900 dark:text-zinc-100 flex items-center justify-between gap-2 cursor-pointer transition-colors shadow-2xs font-sans',
           isOpen && 'ring-2 ring-zinc-400/20 border-zinc-400 dark:border-zinc-600',
@@ -203,84 +213,119 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
         <div
           ref={popoverRef}
           style={{ top: popoverCoords.top, left: popoverCoords.left, width: popoverCoords.width }}
-          className="fixed rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-3.5 font-sans z-[100] animate-in fade-in zoom-in-95 select-none"
+          className="fixed rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl p-4 font-sans z-[100] animate-in fade-in zoom-in-95 select-none"
         >
           {/* Month Header */}
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-zinc-200 dark:border-zinc-800">
-            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-              {monthName}
-            </span>
+          <div className="flex items-center justify-between pb-3 mb-2.5 border-b border-zinc-200 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setShowYearPicker(p => !p)}
+              className="flex items-center gap-1.5 text-[14px] font-bold text-zinc-900 dark:text-zinc-100 hover:text-primary transition-colors cursor-pointer text-left"
+              title="Click to change year"
+            >
+              <span>{monthName}</span>
+              <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform", showYearPicker && "rotate-180")} />
+            </button>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setViewDate(new Date(year, month - 1, 1))}
                 className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setViewDate(new Date(year, month + 1, 1))}
                 className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Days of Week */}
-          <div className="grid grid-cols-7 text-center text-[11px] font-medium text-zinc-400 dark:text-zinc-500 pb-1.5">
-            <span>Su</span>
-            <span>Mo</span>
-            <span>Tu</span>
-            <span>We</span>
-            <span>Th</span>
-            <span>Fr</span>
-            <span>Sa</span>
-          </div>
+          {/* Quick Year Picker Modal Overlay */}
+          {showYearPicker ? (
+            <div className="py-1">
+              <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Select Year</div>
+              <div className="max-h-52 overflow-y-auto grid grid-cols-4 gap-1.5 pr-1">
+                {yearOptions.map(y => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => {
+                      setViewDate(new Date(y, month, 1))
+                      setShowYearPicker(false)
+                    }}
+                    className={cn(
+                      'py-1.5 px-1 text-xs rounded-lg transition-colors cursor-pointer font-medium',
+                      y === year
+                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold'
+                        : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                    )}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Days of Week */}
+              <div className="grid grid-cols-7 text-center text-[12px] font-medium text-zinc-400 dark:text-zinc-500 pb-2">
+                <span>Su</span>
+                <span>Mo</span>
+                <span>Tu</span>
+                <span>We</span>
+                <span>Th</span>
+                <span>Fr</span>
+                <span>Sa</span>
+              </div>
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
-            {calendarCells.map((cell, idx) => {
-              const isSelected = selectedDate &&
-                cell.date.getFullYear() === selectedDate.getFullYear() &&
-                cell.date.getMonth() === selectedDate.getMonth() &&
-                cell.date.getDate() === selectedDate.getDate()
+              {/* Days Grid */}
+              <div className="grid grid-cols-7 gap-y-1.5 text-center text-xs">
+                {calendarCells.map((cell, idx) => {
+                  const isSelected = selectedDate &&
+                    cell.date.getFullYear() === selectedDate.getFullYear() &&
+                    cell.date.getMonth() === selectedDate.getMonth() &&
+                    cell.date.getDate() === selectedDate.getDate()
 
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSelectDay(cell.date)}
-                  className={cn(
-                    'h-8 w-full flex items-center justify-center text-xs rounded-lg transition-colors cursor-pointer',
-                    cell.isCurrentMonth
-                      ? 'text-zinc-900 dark:text-zinc-100 font-normal'
-                      : 'text-zinc-300 dark:text-zinc-700',
-                    isSelected
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
-                      : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  )}
-                >
-                  {cell.day}
-                </button>
-              )
-            })}
-          </div>
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectDay(cell.date)}
+                      className={cn(
+                        'h-8 w-full flex items-center justify-center text-xs rounded-lg transition-colors cursor-pointer',
+                        cell.isCurrentMonth
+                          ? 'text-zinc-900 dark:text-zinc-100 font-normal'
+                          : 'text-zinc-300 dark:text-zinc-700',
+                        isSelected
+                          ? 'bg-[#18181b] text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
+                          : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                      )}
+                    >
+                      {cell.day}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
           {/* Footer Quick Action */}
-          <div className="pt-2.5 mt-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+          <div className="pt-3 mt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <button
               type="button"
               onClick={handleSelectToday}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
+              className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-[#18181b] hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-lg shadow-xs cursor-pointer transition-colors"
             >
               Apply
             </button>

@@ -48,6 +48,7 @@ import {
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
@@ -1313,11 +1314,11 @@ export const ManageAccountsPage: React.FC = () => {
                 label="Date of Birth"
                 description="Staff member's birth date for employment verification"
               >
-                <Input
-                  type="date"
+                <SingleDatePicker
                   value={profileDob}
-                  onChange={(e) => setProfileDob(e.target.value)}
-                  aria-label="Date of Birth"
+                  onChange={(date) => setProfileDob(date)}
+                  placeholder="Select birth date"
+                  className="w-full"
                 />
               </ProfileFieldRow>
               <ProfileFieldRow
@@ -1581,11 +1582,11 @@ export const ManageAccountsPage: React.FC = () => {
                   label="License Expiry Date"
                   description="Expiration date of driver's license"
                 >
-                  <Input
-                    type="date"
+                  <SingleDatePicker
                     value={kycLicenseExpiry}
-                    onChange={(e) => setKycLicenseExpiry(e.target.value)}
-                    aria-label="License Expiry Date"
+                    onChange={(date) => setKycLicenseExpiry(date)}
+                    placeholder="Select expiry date"
+                    className="w-full"
                   />
                 </ProfileFieldRow>
                 <ProfileFieldRow
