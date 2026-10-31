@@ -915,7 +915,7 @@ export function DataTable<T>({
                                 style={{ width: currentWidth, minWidth: currentWidth, flex: '1 1 0%' }}
                                 className={cn(
                                   'flex items-center border-r border-border px-4 py-3 min-w-0 text-xs text-foreground leading-normal font-sans',
-                                  col.key === 'actions' ? 'overflow-visible' : 'overflow-hidden',
+                                  col.key.toLowerCase().includes('action') ? 'overflow-visible' : 'overflow-hidden',
                                   colIdx === 0 ? 'font-medium' : 'font-normal',
                                   col.align === 'right' && 'justify-end text-right',
                                   col.align === 'center' && 'justify-center text-center',
@@ -924,7 +924,7 @@ export function DataTable<T>({
                               >
                                 <div className={cn(
                                   'w-full max-w-full min-w-0 flex items-center',
-                                  col.key === 'actions' ? 'overflow-visible' : 'overflow-hidden',
+                                  col.key.toLowerCase().includes('action') ? 'overflow-visible' : 'overflow-hidden',
                                   col.align === 'right' ? 'justify-end text-right' : col.align === 'center' ? 'justify-center text-center' : 'justify-start text-left',
                                   // Standalone badges & pills adapt naturally without being squeezed
                                   '[&>[data-kumo-component="Badge"]]:w-auto [&>[data-kumo-component="Badge"]]:max-w-full [&>[data-kumo-component="Badge"]]:shrink-0 [&>[data-kumo-component="Badge"]]:whitespace-nowrap',

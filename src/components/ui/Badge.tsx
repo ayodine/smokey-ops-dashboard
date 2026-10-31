@@ -123,6 +123,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'DONE':
     case 'PAID':
     case 'VERIFIED':
+    case 'RESOLVED':
       figmaState = 'completed'
       displayLabel = cleanUserText && !['PASSED & DEPOSITED', 'PASSED'].includes(cleanUserText.toUpperCase())
         ? cleanUserText
@@ -149,6 +150,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'QUALITY_CHECK':
     case 'QC_PENDING':
     case 'IN_REVIEW':
+    case 'UNDER_REVIEW':
     case 'REVIEW':
     case 'RECONCILIATION_REQUIRED':
     case 'ON_SMOKING_GRILL':
@@ -219,6 +221,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       state={figmaState}
       label={displayLabel}
       className={className}
+      size={size}
     />
   )
 }

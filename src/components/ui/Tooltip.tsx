@@ -15,14 +15,26 @@ export const Tooltip: React.FC<TooltipProps> = ({
   className,
 }) => {
   const [isVisible, setIsVisible] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [clampedStyle, setClampedStyle] = useState<React.CSSProperties>({})
+  const [computedPos, setComputedPos] = useState<'top' | 'bottom' | 'left' | 'right'>(position)
 
   useLayoutEffect(() => {
-    if (isVisible && tooltipRef.current) {
+    if (isVisible && containerRef.current && tooltipRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect()
       const rect = tooltipRef.current.getBoundingClientRect()
       const viewportWidth = window.innerWidth
       const padding = 12 // minimum safe distance from screen edge
+
+      // If positioned top but near modal header or top of viewport (< 120px), auto-flip to bottom
+      let resolvedPos = position
+      if (position === 'top' && containerRect.top < 130) {
+        resolvedPos = 'bottom'
+        setComputedPos('bottom')
+      } else {
+        setComputedPos(position)
+      }
 
       let shiftX = 0
       if (rect.left < padding) {
@@ -32,7 +44,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       }
 
       if (shiftX !== 0) {
-        if (position === 'top' || position === 'bottom') {
+        if (resolvedPos === 'top' || resolvedPos === 'bottom') {
           setClampedStyle({
             transform: `translateX(calc(-50% + ${Math.round(shiftX)}px))`
           })
@@ -42,6 +54,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       }
     } else {
       setClampedStyle({})
+      setComputedPos(position)
     }
   }, [isVisible, position])
 
@@ -56,6 +69,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
   return (
     <div
+      ref={containerRef}
       data-kumo-tooltip="true"
       className={cn('relative inline-flex items-center', className)}
       onMouseEnter={() => setIsVisible(true)}
@@ -72,7 +86,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
           className={cn(
             'absolute z-50 px-2.5 py-1.5 text-[11px] font-medium text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 rounded-lg shadow-lg pointer-events-none transition-opacity duration-150 font-sans',
             'max-w-[280px] sm:max-w-xs w-max whitespace-normal break-words text-center leading-snug',
-            posClasses[position]
+            posClasses[computedPos]
           )}
         >
           {content}
