@@ -7,8 +7,8 @@ const SMOKEY_OPERATIONS_STAFF: Employee[] = [
     id: "emp-01",
     name: "Babajide 'Oven Supervisor' Ogundipe",
     email: "babajide.o@smokeyhut.com",
-    department: "Pit Production",
-    position: "Lead Smoker & Oven Supervisor",
+    department: "Grill & Oven Production",
+    position: "Production Supervisor",
     salary: 450000,
     hireDate: "2021-04-12",
     status: "active"
@@ -67,8 +67,8 @@ const SMOKEY_OPERATIONS_STAFF: Employee[] = [
     id: "emp-07",
     name: "Emeka Nwosu",
     email: "emeka.n@smokeyhut.com",
-    department: "Pit Production",
-    position: "Smoker Pit Operator (Pit 1)",
+    department: "Grill & Oven Production",
+    position: "Smoking Grill Operator (Grill 1)",
     salary: 260000,
     hireDate: "2024-02-18",
     status: "active"
@@ -82,6 +82,16 @@ const SMOKEY_OPERATIONS_STAFF: Employee[] = [
     salary: 250000,
     hireDate: "2023-09-12",
     status: "inactive"
+  },
+  {
+    id: "emp-09",
+    name: "Halimat Danjuma",
+    email: "halimat.d@smokeyhut.com",
+    department: "Beverage Production",
+    position: "Drinks & Bottling Assistant",
+    salary: 240000,
+    hireDate: "2024-03-01",
+    status: "active"
   },
   ...defaultEmployees.map(e => ({
     ...e,

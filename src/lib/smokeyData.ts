@@ -239,8 +239,8 @@ export interface SalesProduct {
   qty_available: number // Physical stock ready for instant fulfillment (stock_qty - qty_allocated)
   inventory_value: number
   is_active: number
-  // Two-Tier Inventory Pipeline (Active/Scheduled Smoker Batches Buffer)
-  estimated_incoming_qty?: number // Quantity currently in smoker pits or scheduled next-day
+  // Two-Tier Inventory Pipeline (Active/Scheduled Smoking Grill Batches Buffer)
+  estimated_incoming_qty?: number // Quantity currently on smoking grills or scheduled next-day
   sellable_qty?: number // Total available for sale on online storefront = max(0, stock_qty + estimated_incoming_qty - qty_allocated)
 }
 
@@ -538,7 +538,7 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
     id: 1,
     output_product_id: 38,
     output_product_name: "Full Smokey Guineafowl",
-    version_name: "Standard Smokery Run (Batch 50)",
+    version_name: "Signature Smoking Grill Run (Batch 50)",
     standard_batch_size: 50,
     standard_yield_percent: 100,
     unit: "unit",
@@ -553,17 +553,18 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
   {
     id: 2,
     output_product_id: 44,
-    output_product_name: "1 Liter Bowl Guineafowl Rice",
-    version_name: "Kitchen Jollof Lunch Run (Batch 40)",
+    output_product_name: "1-Liter Bowl Smokey Jollof Rice (Cooked in Guinea Fowl Broth)",
+    version_name: "Kitchen Jollof Broth Run (Batch 40)",
     standard_batch_size: 40,
     standard_yield_percent: 100,
     unit: "unit",
     allowed_variance_pct: 5.0,
     ingredients: [
-      { raw_product_id: 62, sku: "SKU-00028", name: "FRESH GUINEAFOWL", standard_qty_per_unit: 0.5, unit: "PIECES" },
+      { raw_product_id: 62, sku: "SKU-00028", name: "FRESH GUINEAFOWL (BROTH & MEAT)", standard_qty_per_unit: 0.5, unit: "PIECES" },
       { raw_product_id: 55, sku: "SKU-00021", name: "VEGETABLE OIL", standard_qty_per_unit: 0.075, unit: "LITRE" },
       { raw_product_id: 54, sku: "SKU-00020", name: "SPICIES (SECRET BLEND)", standard_qty_per_unit: 0.0375, unit: "PACK" },
       { raw_product_id: 53, sku: "SKU-00019", name: "DRY PEPPER", standard_qty_per_unit: 0.05, unit: "KG" },
+      { raw_product_id: 52, sku: "SKU-00018", name: "FIREWOOD", standard_qty_per_unit: 0.05, unit: "BUNDLE" },
     ]
   },
   {
@@ -578,7 +579,7 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
     ingredients: [
       { raw_product_id: 70, sku: "SKU-00036", name: "JUMBO TURKEY WINGS", standard_qty_per_unit: 0.75, unit: "KG" },
       { raw_product_id: 53, sku: "SKU-00019", name: "DRY PEPPER", standard_qty_per_unit: 0.05, unit: "KG" },
-      { raw_product_id: 74, sku: "SKU-00040", name: "HICKORY WOOD CHIPS", standard_qty_per_unit: 0.075, unit: "SACK" },
+      { raw_product_id: 52, sku: "SKU-00018", name: "FIREWOOD", standard_qty_per_unit: 0.06, unit: "BUNDLE" },
     ]
   },
   {
@@ -599,23 +600,23 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
   {
     id: 5,
     output_product_id: 48,
-    output_product_name: "Smokey Beef Jerkey (Kilishi)",
-    version_name: "Dehydrator Dehydrated Slice Run (Batch 30)",
+    output_product_name: "Smokey Beef Kilishi (125g Pack)",
+    version_name: "Traditional Sun-Cured & Light-Smoked Kilishi (Batch 30)",
     standard_batch_size: 30,
     standard_yield_percent: 95,
     unit: "unit",
     allowed_variance_pct: 5.0,
     ingredients: [
-      { raw_product_id: 71, sku: "SKU-00037", name: "BEEF BRISKET CUT (PRIME)", standard_qty_per_unit: 0.667, unit: "KG" },
-      { raw_product_id: 73, sku: "SKU-00039", name: "CRUSHED HABANERO FLAKES", standard_qty_per_unit: 0.067, unit: "KG" },
-      { raw_product_id: 74, sku: "SKU-00040", name: "HICKORY WOOD CHIPS", standard_qty_per_unit: 0.033, unit: "SACK" },
+      { raw_product_id: 105, sku: "SKU-00053", name: "BEEF CUTS FOR KILISHI", standard_qty_per_unit: 0.667, unit: "KG" },
+      { raw_product_id: 82, sku: "SKU-00048", name: "YAJI PEPPER (567)", standard_qty_per_unit: 0.08, unit: "KG" },
+      { raw_product_id: 52, sku: "SKU-00018", name: "FIREWOOD", standard_qty_per_unit: 0.033, unit: "BUNDLE" },
     ]
   },
   {
     id: 6,
     output_product_id: 72,
     output_product_name: "Smoked Goat Meat Asun (Spiced Chevon)",
-    version_name: "Spiced Pit Asun Run (Batch 25)",
+    version_name: "Spiced Grill Asun Run (Batch 25)",
     standard_batch_size: 25,
     standard_yield_percent: 92,
     unit: "unit",
@@ -672,14 +673,14 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
       { raw_product_id: 65, sku: "SKU-00031", name: "FRESH KING-SIZE GUINEAFOWL", standard_qty_per_unit: 1.0, unit: "PIECES" },
       { raw_product_id: 53, sku: "SKU-00019", name: "DRY PEPPER", standard_qty_per_unit: 0.06, unit: "KG" },
       { raw_product_id: 54, sku: "SKU-00020", name: "SPICIES (SECRET BLEND)", standard_qty_per_unit: 0.03, unit: "PACK" },
-      { raw_product_id: 74, sku: "SKU-00040", name: "HICKORY WOOD CHIPS", standard_qty_per_unit: 0.08, unit: "SACK" },
+      { raw_product_id: 52, sku: "SKU-00018", name: "FIREWOOD", standard_qty_per_unit: 0.08, unit: "BUNDLE" },
     ]
   },
   {
     id: 10,
     output_product_id: 66,
     output_product_name: "Charcoal Smoked Whole Turkey",
-    version_name: "Whole Holiday Turkey Pit Run (Batch 12)",
+    version_name: "Whole Holiday Turkey Grill Run (Batch 12)",
     standard_batch_size: 12,
     standard_yield_percent: 96,
     unit: "unit",
@@ -694,13 +695,14 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
   {
     id: 11,
     output_product_id: 61,
-    output_product_name: "Spiced Hibiscus Zobo Beverage (50cl)",
-    version_name: "Artisan Brew & Botanical Infusion (Batch 60)",
+    output_product_name: "Fresh Spiced Zobo Drink (50cl)",
+    version_name: "Slow-Brewed Spiced Zobo Bottling (Batch 60)",
     standard_batch_size: 60,
     standard_yield_percent: 100,
-    unit: "unit",
+    unit: "bottle",
     allowed_variance_pct: 2.0,
     ingredients: [
+      { raw_product_id: 107, sku: "SKU-00055", name: "ZOBO (HIBISCUS) LEAVES", standard_qty_per_unit: 0.05, unit: "KG" },
       { raw_product_id: 68, sku: "SKU-00034", name: "CINNAMON STICK", standard_qty_per_unit: 0.02, unit: "PACK" },
       { raw_product_id: 69, sku: "SKU-00035", name: "CLOVE", standard_qty_per_unit: 0.015, unit: "CUP" },
       { raw_product_id: 54, sku: "SKU-00020", name: "SPICIES (SECRET BLEND)", standard_qty_per_unit: 0.01, unit: "PACK" },
@@ -719,6 +721,38 @@ export const SEED_RECIPE_TEMPLATES: RecipeTemplate[] = [
       { raw_product_id: 62, sku: "SKU-00028", name: "FRESH GUINEAFOWL", standard_qty_per_unit: 1.0, unit: "PIECES" },
       { raw_product_id: 53, sku: "SKU-00019", name: "DRY PEPPER", standard_qty_per_unit: 0.05, unit: "KG" },
       { raw_product_id: 55, sku: "SKU-00021", name: "VEGETABLE OIL", standard_qty_per_unit: 0.02, unit: "LITRE" },
+    ]
+  },
+  {
+    id: 13,
+    output_product_id: 80,
+    output_product_name: "Whole Smoked Farm Rabbit (Marinated & Grilled)",
+    version_name: "Smoking Grill Rabbit Run (Batch 20)",
+    standard_batch_size: 20,
+    standard_yield_percent: 100,
+    unit: "unit",
+    allowed_variance_pct: 5.0,
+    ingredients: [
+      { raw_product_id: 64, sku: "SKU-00030", name: "FRESH RABBIT", standard_qty_per_unit: 1.0, unit: "PIECES" },
+      { raw_product_id: 53, sku: "SKU-00019", name: "DRY PEPPER", standard_qty_per_unit: 0.06, unit: "KG" },
+      { raw_product_id: 54, sku: "SKU-00020", name: "SPICIES (SECRET BLEND)", standard_qty_per_unit: 0.03, unit: "PACK" },
+      { raw_product_id: 55, sku: "SKU-00021", name: "VEGETABLE OIL", standard_qty_per_unit: 0.04, unit: "LITRE" },
+      { raw_product_id: 52, sku: "SKU-00018", name: "FIREWOOD", standard_qty_per_unit: 0.08, unit: "BUNDLE" },
+    ]
+  },
+  {
+    id: 14,
+    output_product_id: 51,
+    output_product_name: "Fresh Undiluted Palmwine (50cl Chilled)",
+    version_name: "Cold-Chilled Palmwine Bottling (Batch 50)",
+    standard_batch_size: 50,
+    standard_yield_percent: 100,
+    unit: "bottle",
+    allowed_variance_pct: 2.0,
+    ingredients: [
+      { raw_product_id: 103, sku: "PMW25", name: "PALMWINE 25LITRE", standard_qty_per_unit: 0.5, unit: "litre" },
+      { raw_product_id: 66, sku: "SKU-00032", name: "PALMWINE BOTTLE", standard_qty_per_unit: 1.0, unit: "PIECES" },
+      { raw_product_id: 71, sku: "SKU-00037", name: "PALMWINE STICKER", standard_qty_per_unit: 1.0, unit: "PIECES" },
     ]
   }
 ]
@@ -842,6 +876,66 @@ export const SEED_STOCKTAKE_VARIANCES: StocktakeVariance[] = [
 // -------------------------------------------------------------
 
 export const SEED_RAW_PRODUCTS: RawProduct[] = [
+  {
+    "id": 104,
+    "sku": "SKU-00052",
+    "name": "FRESH GUINEAFOWL EGGS (CRATE)",
+    "product_type": "raw",
+    "unit": "CRATE",
+    "reorder_level": 20,
+    "unit_cost": 3500,
+    "stock_qty": 45,
+    "qty_allocated": 0,
+    "qty_available": 45,
+    "qty_quarantine": 0,
+    "inventory_value": 157500,
+    "is_active": 1
+  },
+  {
+    "id": 105,
+    "sku": "SKU-00053",
+    "name": "BEEF CUTS FOR KILISHI",
+    "product_type": "raw",
+    "unit": "KG",
+    "reorder_level": 15,
+    "unit_cost": 6500,
+    "stock_qty": 25,
+    "qty_allocated": 0,
+    "qty_available": 25,
+    "qty_quarantine": 0,
+    "inventory_value": 162500,
+    "is_active": 1
+  },
+  {
+    "id": 106,
+    "sku": "SKU-00054",
+    "name": "LONG GRAIN RICE (BAG)",
+    "product_type": "raw",
+    "unit": "BAG",
+    "reorder_level": 5,
+    "unit_cost": 42000,
+    "stock_qty": 8,
+    "qty_allocated": 0,
+    "qty_available": 8,
+    "qty_quarantine": 0,
+    "inventory_value": 336000,
+    "is_active": 1
+  },
+  {
+    "id": 107,
+    "sku": "SKU-00055",
+    "name": "ZOBO (HIBISCUS) LEAVES",
+    "product_type": "raw",
+    "unit": "KG",
+    "reorder_level": 10,
+    "unit_cost": 2500,
+    "stock_qty": 18,
+    "qty_allocated": 0,
+    "qty_available": 18,
+    "qty_quarantine": 0,
+    "inventory_value": 45000,
+    "is_active": 1
+  },
   {
     "id": 68,
     "sku": "SKU-00034",
@@ -1189,7 +1283,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     product_name: "FRESH GUINEAFOWL",
     sku: "SKU-00028",
     unit: "PIECES",
-    location: "Central Kitchen Smoker Pits",
+    location: "Central Kitchen Smoking Grills",
     movement_type: "consumption",
     quantity: -42,
     unit_cost: 5500,
@@ -1197,7 +1291,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     balance_after: 45,
     notes: "Allocated to Production Batch BATCH-2026-001 (Signature Smoked Guineafowl).",
     created_at: "2026-10-30 07:15:00",
-    user_name: "Babajide (Lead Oven Supervisor)"
+    user_name: "Babajide (Production Supervisor)"
   },
   {
     id: 2,
@@ -1213,7 +1307,7 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     balance_after: 0,
     notes: "Allocated to Production Batch BATCH-2026-003 (Charcoal Roasted Whole Catfish).",
     created_at: "2026-10-30 06:30:00",
-    user_name: "Babajide (Lead Oven Supervisor)"
+    user_name: "Babajide (Production Supervisor)"
   },
   {
     id: 3,
@@ -1227,9 +1321,9 @@ export const SEED_RAW_MOVEMENTS: RawMovement[] = [
     unit_cost: 6000,
     value_amount: -30000,
     balance_after: 25,
-    notes: "Fuel consumption for daytime pit roasting and pre-heating smoker bays.",
+    notes: "Fuel consumption for daytime smoking grill roasting and pre-heating grill bays.",
     created_at: "2026-10-30 06:00:00",
-    user_name: "Babajide (Lead Oven Supervisor)"
+    user_name: "Babajide (Production Supervisor)"
   }
 ]
 
@@ -1705,14 +1799,16 @@ export const SEED_INTER_STATION_TRANSFERS: InterStationTransfer[] = [
 export const SEED_SALES_PRODUCTS: SalesProduct[] = [
   { id: 38, sku: "WEB-FULL-SMOKEY-GUINEAFOWL", name: "Full Smokey Guineafowl", product_type: "sales", unit: "unit", reorder_level: 20, unit_cost: 6500, selling_price: 12500, stock_qty: 64, qty_allocated: 5, qty_available: 59, inventory_value: 416000, is_active: 1, estimated_incoming_qty: 40, sellable_qty: 99 },
   { id: 39, sku: "WEB-FULL-SMOKEY-GUINEAFOWL-CHOP", name: "Full Smokey Guineafowl (Chopped)", product_type: "sales", unit: "unit", reorder_level: 15, unit_cost: 6500, selling_price: 12500, stock_qty: 28, qty_allocated: 2, qty_available: 26, inventory_value: 182000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 26 },
-  { id: 44, sku: "WEB-1-LITER-BOWL-GUINEAFOWL", name: "1 Liter Bowl Guineafowl Rice", product_type: "sales", unit: "unit", reorder_level: 50, unit_cost: 9500, selling_price: 22000, stock_qty: 50, qty_allocated: 4, qty_available: 46, inventory_value: 475000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 46 },
+  { id: 44, sku: "WEB-1-LITER-BOWL-GUINEAFOWL", name: "1-Liter Bowl Smokey Jollof Rice (Cooked in Guinea Fowl Broth)", product_type: "sales", unit: "unit", reorder_level: 50, unit_cost: 9500, selling_price: 22000, stock_qty: 50, qty_allocated: 4, qty_available: 46, inventory_value: 475000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 46 },
   { id: 40, sku: "WEB-TRAVEL-STANDARD-DRY-GUIN", name: "Travel Standard Dry Guineafowl", product_type: "sales", unit: "unit", reorder_level: 25, unit_cost: 7000, selling_price: 13000, stock_qty: 42, qty_allocated: 0, qty_available: 42, inventory_value: 294000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 42 },
-  { id: 48, sku: "WEB-SMOKEY-BEEF-JERKEY-KILISHI", name: "Smokey Beef Jerkey (Kilishi) 125g", product_type: "sales", unit: "unit", reorder_level: 30, unit_cost: 2500, selling_price: 5500, stock_qty: 85, qty_allocated: 4, qty_available: 81, inventory_value: 212500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 81 },
+  { id: 48, sku: "WEB-SMOKEY-BEEF-JERKEY-KILISHI", name: "Smokey Beef Kilishi (Traditional Sun-Cured & Light-Smoked Slices 125g)", product_type: "sales", unit: "unit", reorder_level: 30, unit_cost: 2500, selling_price: 5500, stock_qty: 85, qty_allocated: 4, qty_available: 81, inventory_value: 212500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 81 },
   { id: 56, sku: "WEB-JUMBO-TURKEY-WINGS-PAIR", name: "Smokey Jumbo Turkey Wings (Pair)", product_type: "sales", unit: "unit", reorder_level: 20, unit_cost: 7500, selling_price: 14500, stock_qty: 32, qty_allocated: 0, qty_available: 32, inventory_value: 240000, is_active: 1, estimated_incoming_qty: 30, sellable_qty: 62 },
   { id: 57, sku: "WEB-ROASTED-CATFISH-FAMILY", name: "Charcoal Roasted Whole Catfish (Family)", product_type: "sales", unit: "unit", reorder_level: 15, unit_cost: 5000, selling_price: 11000, stock_qty: 24, qty_allocated: 0, qty_available: 24, inventory_value: 120000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 24 },
   { id: 60, sku: "WEB-PEPPERED-GIZZARD-SKEWERS", name: "Peppered Smoked Gizzard Skewers (5 pcs)", product_type: "sales", unit: "unit", reorder_level: 20, unit_cost: 2200, selling_price: 5000, stock_qty: 45, qty_allocated: 0, qty_available: 45, inventory_value: 99000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 45 },
-  { id: 51, sku: "WEB-UNDILUTED-PALMWINE-50CL", name: "Undiluted Palmwine (50cl)", product_type: "sales", unit: "unit", reorder_level: 40, unit_cost: 800, selling_price: 2000, stock_qty: 95, qty_allocated: 3, qty_available: 92, inventory_value: 76000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 92 },
-  { id: 61, sku: "WEB-HIBISCUS-ZOBO-50CL", name: "Spiced Hibiscus Zobo Beverage (50cl)", product_type: "sales", unit: "unit", reorder_level: 35, unit_cost: 650, selling_price: 1800, stock_qty: 80, qty_allocated: 0, qty_available: 80, inventory_value: 52000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 80 },
+  { id: 51, sku: "WEB-UNDILUTED-PALMWINE-50CL", name: "Fresh Undiluted Palmwine (50cl Chilled)", product_type: "sales", unit: "bottle", reorder_level: 40, unit_cost: 800, selling_price: 2000, stock_qty: 95, qty_allocated: 3, qty_available: 92, inventory_value: 76000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 92 },
+  { id: 61, sku: "WEB-HIBISCUS-ZOBO-50CL", name: "Fresh Spiced Zobo Drink (50cl Chilled with Ginger & Cloves)", product_type: "sales", unit: "bottle", reorder_level: 35, unit_cost: 650, selling_price: 1800, stock_qty: 80, qty_allocated: 0, qty_available: 80, inventory_value: 52000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 80 },
+  { id: 79, sku: "WEB-GUINEAFOWL-EGGS-CRATE", name: "Farm Fresh Guinea Fowl Eggs (Crate of 30)", product_type: "sales", unit: "crate", reorder_level: 15, unit_cost: 4500, selling_price: 8500, stock_qty: 45, qty_allocated: 0, qty_available: 45, inventory_value: 202500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 45 },
+  { id: 80, sku: "WEB-WHOLE-SMOKEY-RABBIT", name: "Whole Smoked Farm Rabbit (Marinated & Grilled)", product_type: "sales", unit: "unit", reorder_level: 10, unit_cost: 8000, selling_price: 18000, stock_qty: 15, qty_allocated: 0, qty_available: 15, inventory_value: 120000, is_active: 1, estimated_incoming_qty: 10, sellable_qty: 25 },
   { id: 50, sku: "WEB-EXTRA-BAG", name: "Extra Branded Bag", product_type: "sales", unit: "unit", reorder_level: 50, unit_cost: 250, selling_price: 600, stock_qty: 170, qty_allocated: 1, qty_available: 169, inventory_value: 42500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 169 },
   { id: 75, sku: "WEB-SMOKED-GOAT-ASUN-BOWL", name: "Smoked Goat Meat Asun (Chevon Bowl)", product_type: "sales", unit: "unit", reorder_level: 25, unit_cost: 7500, selling_price: 16000, stock_qty: 38, qty_allocated: 2, qty_available: 36, inventory_value: 285000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 36 },
   { id: 76, sku: "WEB-PEPPERED-SNAIL-PLANTAIN", name: "Peppered Jumbo Snail & Plantain Combo", product_type: "sales", unit: "unit", reorder_level: 15, unit_cost: 9000, selling_price: 19500, stock_qty: 22, qty_allocated: 1, qty_available: 21, inventory_value: 198000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 21 },
@@ -1734,7 +1830,7 @@ export const SEED_DAILY_SALES: DailySalesItem[] = [
   },
   {
     product_id: 44,
-    product_name: "1 Liter Bowl Guineafowl Rice",
+    product_name: "1-Liter Bowl Smokey Jollof Rice (Cooked in Guinea Fowl Broth)",
     sku: "WEB-1-LITER-BOWL-GUINEAFOWL",
     unit: "unit",
     qty_sold: 28,
@@ -1745,7 +1841,7 @@ export const SEED_DAILY_SALES: DailySalesItem[] = [
   },
   {
     product_id: 48,
-    product_name: "Smokey Beef Jerkey (Kilishi) 125g",
+    product_name: "Smokey Beef Kilishi (Traditional Sun-Cured & Light-Smoked Slices 125g)",
     sku: "WEB-SMOKEY-BEEF-JERKEY-KILISHI",
     unit: "unit",
     qty_sold: 35,
@@ -1819,7 +1915,7 @@ export const SEED_SALES_MOVEMENTS: SalesMovement[] = [
     balance_after: 24,
     notes: "Production batch completed: Batch #BATCH-2026-003 (Charcoal Roasted Whole Catfish).",
     created_at: "2026-10-30 09:45:00",
-    user_name: "Babajide (Lead Oven Supervisor)"
+    user_name: "Babajide (Production Supervisor)"
   },
   {
     id: 5,
@@ -1847,7 +1943,7 @@ export const SEED_SUPPLIERS: Supplier[] = [
     "phone": "",
     "email": "",
     "address": "",
-    "category": "Firewood & Smoker Wood",
+    "category": "Firewood & Charcoal",
     "delivery_count": 0,
     "total_spend": 0,
     "is_active": 1
@@ -1917,8 +2013,8 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     estimated_ready_time: "Today 1:30 PM",
     started_at: "2026-10-30 09:15:00",
     completed_at: null,
-    remarks: "Standard morning smoke run in Pit #1. Feeds active web storefront buffer.",
-    created_by_name: "Babajide (Lead Oven Supervisor)",
+    remarks: "Standard morning run on Smoking Grill #1. Feeds active web storefront buffer.",
+    created_by_name: "Babajide (Production Supervisor)",
     raw_materials: [
       { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 50, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2.5, unit: "kg" },
@@ -1940,8 +2036,8 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     estimated_ready_time: "Tomorrow 9:30 AM",
     started_at: null,
     completed_at: null,
-    remarks: "Overnight pre-order buffer. Pit fires up at 6:00 AM tomorrow.",
-    created_by_name: "Babajide (Lead Oven Supervisor)",
+    remarks: "Overnight pre-order buffer. Smoking Grill fires up at 6:00 AM tomorrow.",
+    created_by_name: "Babajide (Production Supervisor)",
     raw_materials: [
       { product_id: 1, sku: "RAW-GUINEAFOWL", name: "FRESH GUINEAFOWL", quantity: 40, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 2, unit: "kg" },
@@ -1962,8 +2058,8 @@ export const SEED_PRODUCTION_BATCHES: ProductionBatch[] = [
     estimated_ready_time: "Today 10:00 AM",
     started_at: "2026-10-30 06:30:00",
     completed_at: "2026-10-30 09:45:00",
-    remarks: "Early morning smoke cycle. Deposited +24 fish into Sales Inventory.",
-    created_by_name: "Babajide (Lead Oven Supervisor)",
+    remarks: "Early morning grill cycle. Deposited +24 fish into Sales Inventory.",
+    created_by_name: "Babajide (Production Supervisor)",
     raw_materials: [
       { product_id: 8, sku: "RAW-CATFISH", name: "FRESH CATFISH", quantity: 25, unit: "pieces" },
       { product_id: 2, sku: "RAW-PEPPER", name: "DRY PEPPER", quantity: 1.5, unit: "kg" },
@@ -2131,7 +2227,7 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
     task_ref: "TASK-001",
     title: "Season & Marinate 50x Fresh Guineafowls (Batch 2026-004)",
     description: "Apply garlic, dry habanero pepper, ginger, and signature dry rub. Store in chiller for 4-hour cold cure.",
-    assignee_name: "Babajide (Lead Oven Supervisor)",
+    assignee_name: "Babajide (Production Supervisor)",
     due_date: "Today 3:00 PM",
     priority: "high",
     status: "in_progress"
@@ -2139,8 +2235,8 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
   {
     id: 2,
     task_ref: "TASK-002",
-    title: "Charcoal Pit Restock & Firewood Split",
-    description: "Restock applewood and dry oak hardwood logs in Main Pit Bay 2 ahead of evening rush.",
+    title: "Charcoal & Firewood Restock for Smoking Grills",
+    description: "Restock hardwood firewood and charcoal bags at Grill Station #1 ahead of afternoon cooking.",
     assignee_name: "Ibrahim Sanusi",
     due_date: "Today 2:30 PM",
     priority: "high",
@@ -2150,7 +2246,7 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
     id: 3,
     task_ref: "TASK-003",
     title: "Clean & Butterfly 25x Fresh Catfish",
-    description: "Wash with warm lime water, score flesh, and apply spiced suya oil marinade for afternoon smoke.",
+    description: "Wash with warm lime water, score flesh, and apply spiced pepper oil marinade for afternoon grill run.",
     assignee_name: "Sunday Balogun",
     due_date: "Today 4:00 PM",
     priority: "normal",
@@ -2161,7 +2257,7 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
     task_ref: "TASK-004",
     title: "Simmer 40L Signature Herb Pepper Sauce",
     description: "Prep hot spicy dipping pepper sauce in 20L stock pots and bottle into 500ml squeeze containers.",
-    assignee_name: "Chef Kemi",
+    assignee_name: "Kemi (Sauce Prep Lead)",
     due_date: "Today 5:00 PM",
     priority: "normal",
     status: "pending"
@@ -2169,12 +2265,22 @@ export const SEED_KITCHEN_TASKS: KitchenTask[] = [
   {
     id: 5,
     task_ref: "TASK-005",
-    title: "Morning Smoker Pit Ash Extraction",
-    description: "Clear ash trays from overnight pit cycle, clean fire grates, and wipe ventilation hoods.",
+    title: "Morning Smoking Grill & Oven Cleaning",
+    description: "Clear ash trays from overnight grill cycle, clean fire grates, and wipe ventilation hoods.",
     assignee_name: "Ibrahim Sanusi",
     due_date: "Today 8:00 AM",
     priority: "normal",
     status: "done"
+  },
+  {
+    id: 6,
+    task_ref: "TASK-006",
+    title: "Bottle 50x Fresh Undiluted Palmwine & Chilled Zobo",
+    description: "Fill 50cl bottles, seal with tamper caps, and store in beverage chiller for day orders.",
+    assignee_name: "Drinks & Bottling Assistant",
+    due_date: "Today 1:00 PM",
+    priority: "normal",
+    status: "in_progress"
   }
 ]
 

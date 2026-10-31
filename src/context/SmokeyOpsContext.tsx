@@ -82,7 +82,7 @@ interface SmokeyOpsContextType {
   receiveRawStockWithLot: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; lotNumber?: string; expiryDate?: string; notes?: string }) => void
   adjustRawStock: (productId: number, delta: number, notes: string, reason: string) => void
   writeOffLotWaste: (data: { lotId: number; quantity: number; notes: string; approverName: string }) => void
-  prioritizeLotInKitchen: (data: { lotId: number; quantity: number; targetDishName: string; pitmasterName: string; shiftRemarks?: string }) => void
+  prioritizeLotInKitchen: (data: { lotId: number; quantity: number; targetDishName: string; supervisorName?: string; pitmasterName?: string; shiftRemarks?: string }) => void
   saveRawProduct: (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => void
   receivePackaging: (data: { productId: number; quantity: number; unitCost: number }) => void
   adjustPackagingStock: (productId: number, delta: number, notes: string) => void
@@ -769,7 +769,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             phone: s.phone || '',
             email: s.email || '',
             address: s.address || '',
-            category: s.name.includes('FIREWOOD') ? 'Firewood & Smoker Wood' : s.name.includes('NYLON') || s.name.includes('PRINTER') ? 'Packaging & Printing Materials' : s.name.includes('MADAM') ? 'Fresh Poultry & Live Birds' : 'Market Goods & Spices',
+            category: s.name.includes('FIREWOOD') ? 'Firewood & Charcoal' : s.name.includes('NYLON') || s.name.includes('PRINTER') ? 'Packaging & Printing Materials' : s.name.includes('MADAM') ? 'Fresh Poultry & Live Birds' : 'Market Goods & Spices',
             delivery_count: 0,
             total_spend: 0,
             is_active: s.is_active ? 1 : 0
@@ -1585,13 +1585,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     lotId,
     quantity,
     targetDishName,
+    supervisorName,
     pitmasterName,
     shiftRemarks
   }: {
     lotId: number
     quantity: number
     targetDishName: string
-    pitmasterName: string
+    supervisorName?: string
+    pitmasterName?: string
     shiftRemarks?: string
   }) => {
     const lot = inventoryLots.find(l => l.id === lotId)
@@ -1620,6 +1622,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // 4. Create real production batch
     const batchRef = `BAT-${String(productionBatches.length + 23).padStart(5, '0')}`
+    const finalSupervisor = supervisorName || pitmasterName || "Production Supervisor"
     const newBatch: ProductionBatch = {
       id: Date.now(),
       batch_ref: batchRef,
@@ -1631,8 +1634,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: "in_production",
       started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       completed_at: null,
-      remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Smoke immediately on current shift to prevent food waste.'}`,
-      created_by_name: pitmasterName || "Shift Oven Supervisor",
+      remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Cook immediately on smoking grill / oven to prevent food waste.'}`,
+      created_by_name: finalSupervisor,
       raw_materials: [
         {
           product_id: lot.product_id,
@@ -1647,13 +1650,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     showSuccessModal({
       title: 'Kitchen Batch Created (Expiring Stock Priority)',
-      message: `Lot ${lot.lot_number} has been allocated and sent directly to the kitchen smoker for immediate preparation.`,
+      message: `Lot ${lot.lot_number} has been allocated and sent directly to the smoking grill for immediate preparation.`,
       details: [
         { label: 'Batch Reference', value: batchRef },
         { label: 'Source Lot', value: `${lot.lot_number} (Exp: ${lot.expiry_date})` },
         { label: 'Target Finished Dish', value: targetDishName },
         { label: 'Quantity Prepped', value: `${actualQty} ${lot.unit}` },
-        { label: 'Assigned Oven Supervisor', value: pitmasterName || 'Shift Oven Supervisor' },
+        { label: 'Assigned Supervisor', value: finalSupervisor },
         { label: 'Kitchen Status', value: 'In Production (Cooking Started)' }
       ]
     })
@@ -2479,7 +2482,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const startBatch = (batchId: number) => {
     setProductionBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: "in_production", started_at: new Date().toISOString().replace('T', ' ').substring(0, 19) } : b))
-    showToast(`Batch cooking started in smoker pit`, 'info')
+    showToast(`Batch cooking started on smoking grill`, 'info')
   }
 
   const completeBatch = (batchId: number, actualOutput: number, wastage: number, remarks?: string) => {

@@ -32,7 +32,7 @@ import {
 const STANDARD_SUPPLY_CATEGORIES = [
   { value: 'Fresh Poultry & Proteins', label: 'Fresh Poultry & Proteins (Guinea Fowls, Chicken, Turkey)' },
   { value: 'Spices & Dry Peppers', label: 'Spices & Dry Peppers' },
-  { value: 'Smoker Firewood & Charcoal', label: 'Smoker Firewood & Charcoal' },
+  { value: 'Hardwood Firewood & Charcoal', label: 'Hardwood Firewood & Charcoal' },
   { value: 'Food Grade Packaging & Bags', label: 'Food Grade Packaging & Bags' },
   { value: 'Cooking Oils & Seasonings', label: 'Cooking Oils & Seasonings' },
 ]

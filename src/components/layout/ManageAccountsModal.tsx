@@ -75,7 +75,7 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   { id: 'perm_wallet', label: 'Wallet & Payout History', category: 'Finance', description: 'Inspect individual courier earnings ledger, trip commissions, and deductions.' },
 
   // Production
-  { id: 'perm_batches', label: 'Batch Scheduling & Cook Approvals', category: 'Production', description: 'Schedule pit smoke cooks, modify recipes, and sign off completed runs.' },
+  { id: 'perm_batches', label: 'Batch Scheduling & Cook Approvals', category: 'Production', description: 'Schedule smoking grill cooks, modify recipes, and sign off completed runs.' },
   { id: 'perm_cook', label: 'Start & Complete Batches', category: 'Production', description: 'Record real-time cook progress, internal food temps, and yield outputs.' },
   { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of meat, seasoning packs, and marinades during runs.' },
   { id: 'perm_packout', label: 'Portion Pack-out Logging', category: 'Production', description: 'Log sealed units into vacuum pouches and carton cases for sales inventory.' },
@@ -129,7 +129,7 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
   {
     id: 'kitchen',
     label: 'Production Cook',
-    description: 'Executes daily smoking pit runs, batch packaging, ingredients intake, and yield tracking.',
+    description: 'Executes daily smoking grill runs, batch packaging, ingredients intake, and yield tracking.',
     badgeClass: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400',
     permissions: [
       'Start & Complete Batches',

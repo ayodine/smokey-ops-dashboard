@@ -679,19 +679,19 @@ export const ManageAccountsPage: React.FC = () => {
             id: 'perm_batches',
             label: 'Batch Scheduling & Cook Approvals',
             category: 'Production',
-            description: 'Schedule pit smoke cooks, modify recipes, and sign off completed operational runs.'
+            description: 'Schedule smoking grill cooks, modify recipes, and sign off completed operational runs.'
           },
           {
             id: 'perm_cook',
             label: 'Start & Complete Batches',
             category: 'Production',
-            description: 'Record real-time cook progress, internal meat temps, pit smoker timings, and yield outputs.'
+            description: 'Record real-time cook progress, internal meat temps, smoking grill timings, and yield outputs.'
           },
           {
             id: 'perm_raw_deplete',
             label: 'Raw Materials Depletion',
             category: 'Production',
-            description: 'Auto-deplete raw cuts of meat, seasoning packs, marinades, and wood chips during runs.'
+            description: 'Auto-deplete raw cuts of livestock, seasoning packs, marinades, and firewood during runs.'
           },
           {
             id: 'perm_packout',

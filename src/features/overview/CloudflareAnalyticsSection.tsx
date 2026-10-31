@@ -703,7 +703,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                 <span>12.6%</span>
               </span>
               <span className="text-xs text-[#71717a] dark:text-zinc-400 font-normal ml-auto">
-                {stats.activeBatchesCount} batches in smoker
+                {stats.activeBatchesCount} batches on smoking grill
               </span>
             </div>
           </div>
@@ -728,9 +728,9 @@ export const CloudflareAnalyticsSection: React.FC = () => {
                 metricLabel="Batch Output"
                 formatValue={(v) => `${v.toFixed(1)} kg`}
                 getContextNote={(v) => {
-                  if (v >= 120) return 'Smoker Chamber A & B • 98.4% yield'
-                  if (v >= 80) return 'Active smoking cycle • 97.8% yield'
-                  if (v >= 40) return 'Raw prep & seasoning brine'
+                  if (v >= 120) return 'Smoking Grill Chamber A & B • 98.4% yield'
+                  if (v >= 80) return 'Active smoking grill cycle • 97.8% yield'
+                  if (v >= 40) return 'Raw prep & seasoning marinade'
                   return 'Resting rack cooling phase'
                 }}
               />

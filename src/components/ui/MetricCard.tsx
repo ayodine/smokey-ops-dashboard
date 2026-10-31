@@ -43,8 +43,8 @@ function generateDeterministicPoints(title: string, value: string | number, type
     ]
   }
 
-  // Type: Dense jitter (e.g. CPU Time, Active Pit Runs, Live tracking)
-  if (type === 'dense' || title.toLowerCase().includes('time') || title.toLowerCase().includes('cpu') || title.toLowerCase().includes('pit') || title.toLowerCase().includes('transit')) {
+  // Type: Dense jitter (e.g. CPU Time, Active Grill Runs, Live tracking)
+  if (type === 'dense' || title.toLowerCase().includes('time') || title.toLowerCase().includes('cpu') || title.toLowerCase().includes('grill') || title.toLowerCase().includes('pit') || title.toLowerCase().includes('transit')) {
     return [
       32, 60, 45, 78, 40, 85, 52, 70, 38, 90, 48, 82, 55, 68, 44, 75, 50, 88, 58, 72, 65
     ]

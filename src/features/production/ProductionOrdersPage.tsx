@@ -19,7 +19,7 @@ const LIFECYCLE_STEPS: { status: ProductionStatus; label: string }[] = [
   { status: 'PLANNED', label: '2. Planned' },
   { status: 'MATERIALS_RESERVED', label: '3. Reserved' },
   { status: 'READY_TO_PRODUCE', label: '4. Ready' },
-  { status: 'IN_PRODUCTION', label: '5. In Pit' },
+  { status: 'IN_PRODUCTION', label: '5. On Grill' },
   { status: 'QUALITY_CHECK', label: '6. QC Audit' },
   { status: 'COMPLETED', label: '7. Completed' },
   { status: 'CLOSED', label: '8. Closed' },
@@ -80,7 +80,7 @@ export const ProductionOrdersPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Production Orders"
-        subtitle="Track kitchen cooking stages from raw meat preparation to smoker pits and final packaging."
+        subtitle="Track kitchen cooking stages from raw ingredient collection and marinating to smoking grills and final packaging."
       />
 
       {/* Interactive 8-Stage Lifecycle Stepper Plate */}
@@ -153,12 +153,12 @@ export const ProductionOrdersPage: React.FC = () => {
               </span>
               <p className="text-slate-500">
                 {activeOrder.status === 'IN_PRODUCTION'
-                  ? 'Batch currently inside Pit 2. Monitor core temperatures before transferring to QC inspection.'
+                  ? 'Batch currently on Smoking Grill #2. Monitor grill heat and core doneness before transferring to QC inspection.'
                   : activeOrder.status === 'QUALITY_CHECK'
-                  ? 'Batch harvested. Awaiting QC inspector sign-off to credit finished stock.'
+                  ? 'Cooking completed. Awaiting QC inspector sign-off to credit finished stock.'
                   : activeOrder.status === 'COMPLETED'
                   ? 'Batch successfully verified. 48 units credited to products.stock in Supabase.'
-                  : 'Staged and ready for pit loading.'}
+                  : 'Marinated and ready for smoking grill / oven loading.'}
               </p>
             </div>
           </div>
@@ -179,7 +179,7 @@ export const ProductionOrdersPage: React.FC = () => {
                 onClick={() => handleAdvanceState('IN_PRODUCTION')}
                 leftIcon={<Play className="w-4 h-4 fill-white" />}
               >
-                Light Smokery Pit (Start Run)
+                Start Smoking Grill Run
               </Button>
             )}
 
@@ -189,7 +189,7 @@ export const ProductionOrdersPage: React.FC = () => {
                 onClick={() => handleAdvanceState('QUALITY_CHECK')}
                 leftIcon={<ShieldCheck className="w-4 h-4" />}
               >
-                Harvest Batch & Send to QC
+                Unload from Grill & Send to QC
               </Button>
             )}
 

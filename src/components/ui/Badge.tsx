@@ -151,6 +151,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'IN_REVIEW':
     case 'REVIEW':
     case 'RECONCILIATION_REQUIRED':
+    case 'ON_SMOKING_GRILL':
     case 'IN_SMOKER_PIT':
     case 'ON_HOLD':
     case 'NEEDS_ATTENTION':

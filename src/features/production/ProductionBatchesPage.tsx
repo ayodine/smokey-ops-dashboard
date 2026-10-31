@@ -157,7 +157,7 @@ export const ProductionBatchesPage: React.FC = () => {
   const [selectedRecipeTemplateId, setSelectedRecipeTemplateId] = useState<number | 'custom'>(1)
   const [selectedOutputProduct, setSelectedOutputProduct] = useState<number>(salesProducts[0]?.id || 38)
   const [expectedOutput, setExpectedOutput] = useState<number>(50)
-  const [batchRemarks, setBatchRemarks] = useState<string>('Standard morning smoke run in Pit #1')
+  const [batchRemarks, setBatchRemarks] = useState<string>('Standard morning run on Smoking Grill #1')
   const [batchSchedule, setBatchSchedule] = useState<'today' | 'tomorrow_morning'>('today')
   const [estimatedReadyTime, setEstimatedReadyTime] = useState<string>('Today 1:30 PM')
   const [feedSalesInventory, setFeedSalesInventory] = useState<boolean>(true)
@@ -402,7 +402,7 @@ export const ProductionBatchesPage: React.FC = () => {
     setSelectedBatch(b)
     setActualOutput(b.expected_output)
     setWastage(0)
-    setQcNotes('Smoker cycle completed. Core temp passed HACCP inspection.')
+    setQcNotes('Smoking grill cycle completed. Core temp and doneness passed inspection.')
     setIsCompleteModalOpen(true)
   }
 
@@ -590,7 +590,7 @@ export const ProductionBatchesPage: React.FC = () => {
       defaultWidth: 200,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Begin cooking this batch in smoker pit">
+          <Tooltip content="Begin cooking this batch on smoking grill">
             <TableActionButton
               variant="primary"
               onClick={() => startBatch(b.id)}
@@ -641,14 +641,14 @@ export const ProductionBatchesPage: React.FC = () => {
       accessor: (b) => (
         <div>
           <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
-          <div className="text-xs text-kumo-subtle font-sans">{b.raw_materials.length} ingredients loaded in pit</div>
+          <div className="text-xs text-kumo-subtle font-sans">{b.raw_materials.length} ingredients loaded on smoking grill</div>
         </div>
       ),
       sortValue: (b) => b.output_product_name,
     },
     {
       key: 'expected_output',
-      header: 'Smoker Output & Buffer Feed',
+      header: 'Grill Output & Buffer Feed',
       accessor: (b) => (
         <div>
           <div className="font-semibold text-kumo-strong font-sans text-xs">{b.expected_output} units</div>
@@ -929,7 +929,7 @@ export const ProductionBatchesPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Production Batches & Cooking Recipes"
-        subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs in the pit, and automatically credit completed yield into Sales Inventory."
+        subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs on the grill, and automatically credit completed yield into Sales Inventory."
         actions={
           <div className="relative">
             <Button
@@ -1034,11 +1034,11 @@ export const ProductionBatchesPage: React.FC = () => {
         <MetricCard
           title="Prep Queued"
           value={filteredPrepQueued.length}
-          description="Awaiting smoker ignition"
+          description="Awaiting grill ignition"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
-          title="In Pit Smokers"
+          title="On Smoking Grills"
           value={filteredProducing.length}
           description="Cooking in chambers"
           icon={<Flame className="w-4 h-4 text-rose-500" />}
@@ -1192,7 +1192,7 @@ export const ProductionBatchesPage: React.FC = () => {
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 {batchSchedule === 'today'
-                  ? 'Active daytime smoking. Buffers online store availability while batch is cooking in pits.'
+                  ? 'Active daytime smoking. Buffers online store availability while batch is cooking on smoking grills.'
                   : 'End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.'}
               </p>
             </div>
@@ -1204,7 +1204,7 @@ export const ProductionBatchesPage: React.FC = () => {
                   Feed Storefront Buffer
                 </span>
                 <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                  Keeps item bookable on online ordering storefront while cooking in pits
+                  Keeps item bookable on online ordering storefront while cooking on smoking grill
                 </span>
               </div>
               <Toggle
@@ -1404,7 +1404,7 @@ export const ProductionBatchesPage: React.FC = () => {
         isOpen={isCompleteModalOpen}
         onClose={() => setIsCompleteModalOpen(false)}
         title={`Complete Batch: ${selectedBatch?.batch_ref} (${selectedBatch?.output_product_name})`}
-        description="Verify actual cooking yield, log pit shrinkage, and reconcile estimated buffer into Physical Ready Stock in Sales Inventory."
+        description="Verify actual cooking yield, log grill shrinkage, and reconcile estimated buffer into Physical Ready Stock in Sales Inventory."
         maxWidth="xl"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1774,7 +1774,7 @@ export const ProductionBatchesPage: React.FC = () => {
         isOpen={isManageTemplatesModalOpen}
         onClose={() => setIsManageTemplatesModalOpen(false)}
         title="Manage Recipe Templates"
-        description="Standard Bill of Materials (BOM) formulas used for automated cooking allocations, yield tracking, and pit runs."
+        description="Standard Bill of Materials (BOM) formulas used for automated cooking allocations, yield tracking, and smoking grill runs."
         maxWidth="3xl"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1910,7 +1910,7 @@ export const ProductionBatchesPage: React.FC = () => {
             value={editTemplateForm.version_name}
             onChange={(e) => setEditTemplateForm(prev => ({ ...prev, version_name: e.target.value }))}
             required
-            placeholder="e.g. Standard Smokery Run (Batch 50)"
+            placeholder="e.g. Signature Smoking Grill Run (Batch 50)"
           />
 
           <UnitInput

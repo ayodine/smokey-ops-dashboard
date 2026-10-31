@@ -100,12 +100,12 @@ export const RawInventoryPage: React.FC = () => {
   // Prioritize in Kitchen Form State
   const [prioritizeQty, setPrioritizeQty] = useState<number>(1)
   const [prioritizeDish, setPrioritizeDish] = useState<string>('')
-  const [prioritizePitmaster, setPrioritizePitmaster] = useState('Babajide (Oven Supervisor)')
+  const [prioritizeSupervisor, setPrioritizeSupervisor] = useState('Babajide (Production Supervisor)')
   const [prioritizeRemarks, setPrioritizeRemarks] = useState('')
 
   // Spoilage / Waste Form State
   const [wasteQty, setWasteQty] = useState<number>(1)
-  const [wasteApprover, setWasteApprover] = useState('Babajide (Oven Supervisor)')
+  const [wasteApprover, setWasteApprover] = useState('Babajide (Production Supervisor)')
   const [wasteNotes, setWasteNotes] = useState('')
 
   // Modals state
@@ -339,8 +339,8 @@ export const RawInventoryPage: React.FC = () => {
     if (upper.includes('TURKEY')) {
       return 'Smokey Jumbo Turkey Wings (Pair)'
     }
-    if (upper.includes('BEEF') || upper.includes('BRISKET')) {
-      return 'Smokey Beef Jerkey (Kilishi) 125g'
+    if (upper.includes('BEEF') || upper.includes('KILISHI')) {
+      return 'Smokey Beef Kilishi (Traditional Sun-Cured & Light-Smoked Slices 125g)'
     }
     if (upper.includes('CHICKEN')) {
       return 'Full Smokey Guineafowl'
@@ -352,8 +352,8 @@ export const RawInventoryPage: React.FC = () => {
     setSelectedLot(lot)
     setPrioritizeQty(lot.remaining_qty)
     setPrioritizeDish(getMatchingDishForProtein(lot.product_name))
-    setPrioritizePitmaster('Babajide (Oven Supervisor)')
-    setPrioritizeRemarks(`[URGENT EXPIRING BATCH] Lot ${lot.lot_number} allocated to smoker pit. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
+    setPrioritizeSupervisor('Babajide (Production Supervisor)')
+    setPrioritizeRemarks(`[URGENT EXPIRING BATCH] Lot ${lot.lot_number} allocated to smoking grill / oven. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
     setIsPrioritizeModalOpen(true)
   }
 
@@ -364,7 +364,7 @@ export const RawInventoryPage: React.FC = () => {
       lotId: selectedLot.id,
       quantity: Number(prioritizeQty),
       targetDishName: prioritizeDish,
-      pitmasterName: prioritizePitmaster,
+      supervisorName: prioritizeSupervisor,
       shiftRemarks: prioritizeRemarks
     })
     setIsPrioritizeModalOpen(false)
@@ -941,7 +941,7 @@ export const RawInventoryPage: React.FC = () => {
         <MetricCard
           title="Total Inventory Value"
           value={formatNaira(totalValuation)}
-          description="Working capital in meat/spices"
+          description="Working capital in livestock & ingredients"
           trend={{ value: 4.8, isPositive: true }}
           icon={<BarChart3 className="w-4 h-4 text-emerald-500" />}
         />
@@ -1435,12 +1435,12 @@ export const RawInventoryPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* MODAL 6: Prioritize Lot for Kitchen Smoker */}
+      {/* MODAL 6: Prioritize Lot for Smoking Grill */}
       <Dialog
         isOpen={isPrioritizeModalOpen}
         onClose={() => setIsPrioritizeModalOpen(false)}
-        title={`Prioritize in Kitchen Smoker: ${selectedLot?.lot_number || ''}`}
-        description="Allocate this perishable lot directly to a kitchen smoke batch so it gets smoked first to prevent food waste."
+        title={`Prioritize for Smoking Grill: ${selectedLot?.lot_number || ''}`}
+        description="Allocate this perishable lot directly to a smoking grill run so it cooks first to prevent food waste."
       >
         <form onSubmit={handleSubmitPrioritize} className="space-y-4">
           <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs space-y-1.5">
@@ -1466,7 +1466,7 @@ export const RawInventoryPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <UnitInput
-              label="Quantity to Allocate to Smoker"
+              label="Quantity to Allocate to Smoking Grill"
               value={prioritizeQty}
               onChangeValue={(val) => setPrioritizeQty(Math.min(selectedLot?.remaining_qty || val, Math.max(1, val)))}
               unit={selectedLot?.unit || 'units'}
@@ -1476,7 +1476,7 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
             <Select
-              label="Target Finished Smoked Dish"
+              label="Target Finished Dish"
               value={prioritizeDish}
               onChange={(e) => setPrioritizeDish(e.target.value)}
               options={salesProducts.map(p => ({
@@ -1487,23 +1487,23 @@ export const RawInventoryPage: React.FC = () => {
           </div>
 
           <Input
-            label="Assigned Lead Oven Supervisor"
-            value={prioritizePitmaster}
-            onChange={(e) => setPrioritizePitmaster(e.target.value)}
-            placeholder="e.g. Babajide (Oven Supervisor)"
+            label="Assigned Production Supervisor"
+            value={prioritizeSupervisor}
+            onChange={(e) => setPrioritizeSupervisor(e.target.value)}
+            placeholder="e.g. Babajide (Production Supervisor)"
             required
           />
 
           <div>
             <label className="block text-xs font-semibold text-kumo-default mb-1">
-              Kitchen Shift Remarks & Smoker Instructions
+              Kitchen Shift Remarks & Grill Instructions
             </label>
             <textarea
               value={prioritizeRemarks}
               onChange={(e) => setPrioritizeRemarks(e.target.value)}
               rows={2}
               className="w-full text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-strong p-2.5 focus:border-amber-500 focus:outline-none"
-              placeholder="e.g. Smoke first on morning shift run..."
+              placeholder="e.g. Grill first on morning shift run..."
               required
             />
           </div>

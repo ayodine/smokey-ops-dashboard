@@ -78,7 +78,7 @@ const COMMAND_INDEX: CommandItem[] = [
   {
     id: 'page-batches',
     title: 'Production Batches',
-    subtitle: 'Live smoker pit runs, cooking logs, yields, and QC logs',
+    subtitle: 'Live smoking grill runs, cooking logs, yields, and QC logs',
     category: 'Pages',
     href: '/production/batches',
     icon: Flame,
@@ -96,7 +96,7 @@ const COMMAND_INDEX: CommandItem[] = [
   {
     id: 'page-tasks',
     title: 'Kitchen Tasks',
-    subtitle: 'Hygiene checks, temperature logs, pit seasoning and safety',
+    subtitle: 'Hygiene checks, temperature logs, grill seasoning and safety',
     category: 'Pages',
     href: '/production/tasks',
     icon: ClipboardList,
@@ -258,7 +258,7 @@ const COMMAND_INDEX: CommandItem[] = [
   {
     id: 'action-batch',
     title: 'Start Cooking Batch',
-    subtitle: 'Launch a new smoker pit run with recipe ingredient deductions',
+    subtitle: 'Launch a new smoking grill run with recipe ingredient deductions',
     category: 'Quick Actions',
     href: '/production/batches',
     icon: Flame,

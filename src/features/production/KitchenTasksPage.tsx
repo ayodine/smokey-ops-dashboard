@@ -178,7 +178,7 @@ export const KitchenTasksPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Kitchen Tasks & Shift Delegation"
-        subtitle="Assign smoker calibration, cold room temp monitoring, pre-marination rubbing, and hygiene checklist tasks to shift operators."
+        subtitle="Assign smoking grill calibration, chiller temp monitoring, pre-marination rubbing, and hygiene checklist tasks to shift operators."
         actions={
           <Button
             variant="primary"
@@ -274,7 +274,7 @@ export const KitchenTasksPage: React.FC = () => {
         <form id="assign-kitchen-task-form" onSubmit={handleConfirmCreate} className="space-y-4">
           <Input
             label="Task Title"
-            placeholder="e.g. Clean & re-season Smoker Pit #2 grates"
+            placeholder="e.g. Clean & re-season Smoking Grill #2 grates"
             value={newTask.title}
             onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
             required
@@ -294,8 +294,9 @@ export const KitchenTasksPage: React.FC = () => {
               value={newTask.assignee_name}
               onChange={(e) => setNewTask(prev => ({ ...prev, assignee_name: e.target.value }))}
               options={[
-                { value: "Babajide 'Oven Supervisor'", label: "Babajide 'Oven Supervisor' (Lead Smoker)" },
+                { value: "Babajide (Production Supervisor)", label: "Babajide (Production Supervisor)" },
                 { value: "Folake Adebayo", label: "Folake Adebayo (HACCP / QC Lead)" },
+                { value: "Drinks & Bottling Assistant", label: "Drinks & Bottling Assistant (Palmwine & Zobo)" },
                 { value: "Chioma Okonkwo", label: "Chioma Okonkwo (Cold-chain Store)" },
                 { value: "Emeka Nwosu", label: "Emeka Nwosu (Prep Cook)" },
                 { value: "Admin", label: "Admin" },
@@ -431,7 +432,7 @@ export const KitchenTasksPage: React.FC = () => {
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Station Scope</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Central Kitchen Prep & Smoker Line</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">Central Kitchen Prep & Smoking Grill Line</span>
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Quality Sign-Off</span>

@@ -31,7 +31,7 @@ export const CloudflareNavigationHub: React.FC = () => {
     { id: 'batches', title: 'Production Batches', path: '/production/batches' },
     { id: 'pkg-exec', title: 'Packaging Execution', path: '/production/packaging' },
     { id: 'kitchen', title: 'Kitchen Shift Tasks', path: '/production/kitchen' },
-    { id: 'smoker', title: 'Smoker Oven Supervisor Status', path: '/production/batches' }
+    { id: 'smoker', title: 'Smoking Grill Supervisor Status', path: '/production/batches' }
   ]
 
   const recentItems: HubItem[] = [

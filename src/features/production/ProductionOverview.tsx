@@ -109,10 +109,10 @@ export const ProductionOverview: React.FC = () => {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Active Pit Runs (WIP)"
+          title="Active Grill Runs (WIP)"
           value={inProductionCount}
-          delta={{ value: '2 Pits Active', isPositive: true }}
-          subtext="Batches currently undergoing smoke cycle"
+          delta={{ value: '2 Grills Active', isPositive: true }}
+          subtext="Batches currently undergoing cooking cycle"
           icon={<Flame className="w-5 h-5 text-[#f6821f]" />}
         />
 

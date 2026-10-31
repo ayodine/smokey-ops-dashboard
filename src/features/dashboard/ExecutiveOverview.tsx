@@ -73,7 +73,7 @@ export const ExecutiveOverview: React.FC = () => {
             </Heading>
           </div>
           <Subheading size="xs" className="mt-1.5">
-            Connected to <strong className="text-kumo-strong">{currentOffice?.name || 'Yaba Head Office'}</strong>. 2 pit runs active, 3 orders staged for courier dispatch.
+            Connected to <strong className="text-kumo-strong">{currentOffice?.name || 'Yaba Head Office'}</strong>. 2 smoking grill runs active, 3 orders staged for courier dispatch.
           </Subheading>
         </div>
 
@@ -125,7 +125,7 @@ export const ExecutiveOverview: React.FC = () => {
         />
 
         <MetricCard
-          title="Active pit invocations"
+          title="Active grill invocations"
           value={invocationsValue}
           delta={{ value: '51.0%', isPositive: false }}
           sparklineType="spikes"
@@ -145,7 +145,7 @@ export const ExecutiveOverview: React.FC = () => {
         />
 
         <MetricCard
-          title="Smoker pit cycle time"
+          title="Smoking grill cycle time"
           value="73 min"
           delta={{ value: '536.9%', isPositive: false }}
           sparklineType="dense"
@@ -404,13 +404,13 @@ export const ExecutiveOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Pipeline 2: Live Production Pit Status */}
+        {/* Pipeline 2: Live Production Smoking Grill Status */}
         <div className="rounded-lg ring ring-kumo-line bg-kumo-base p-4.5 shadow-xs space-y-3">
           <div className="flex items-center justify-between border-b border-kumo-line pb-2.5">
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-[#f6821f]" />
               <h2 className="text-sm font-bold text-kumo-strong">
-                Smokery Pit Runs
+                Smoking Grill Runs
               </h2>
             </div>
             <Link to="/production" className="text-xs text-kumo-link hover:underline flex items-center gap-1 font-medium">
@@ -423,7 +423,7 @@ export const ExecutiveOverview: React.FC = () => {
             <div className="p-3 rounded-lg border border-kumo-brand/30 bg-kumo-brand/5 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-kumo-brand">
-                  PRD-2026-082 (Pit 2)
+                  PRD-2026-082 (Grill 2)
                 </span>
                 <StatusBadge status="IN_PRODUCTION" size="sm" />
               </div>
@@ -439,7 +439,7 @@ export const ExecutiveOverview: React.FC = () => {
             <div className="p-3 rounded-lg bg-kumo-tint ring ring-kumo-line/50 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-kumo-strong">
-                  PRD-2026-081 (Pit 1)
+                  PRD-2026-081 (Grill 1)
                 </span>
                 <StatusBadge status="COMPLETED" size="sm" />
               </div>

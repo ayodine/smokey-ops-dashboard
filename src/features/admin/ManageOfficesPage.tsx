@@ -986,7 +986,7 @@ export const ManageOfficesPage: React.FC = () => {
         <MetricCard
           title="Production Kitchens"
           value={kitchenCount}
-          description="Smoke pit & cook stations"
+          description="Smoking grill & oven stations"
           icon={<ChefHat className="w-4 h-4 text-amber-500" />}
         />
       </div>
