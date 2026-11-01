@@ -196,7 +196,10 @@ const AccountRowActionCell: React.FC<{
       <Tooltip content="Edit staff profile and verified KYC dossier">
         <TableActionButton
           variant="outline"
-          onClick={() => onEditProfile(acc.email)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onEditProfile(acc.email)
+          }}
           leftIcon={<UserCheck className="w-3.5 h-3.5" />}
         >
           Edit Profile
@@ -345,6 +348,11 @@ export const ManageAccountsPage: React.FC = () => {
     deleteAccount,
     changePassword,
     showToast,
+    getRoleDefaultLandingPath,
+    customScopes,
+    createCustomScope,
+    updateCustomScope,
+    deleteCustomScope,
   } = useSmokeyOps()
 
   const { facilities } = useWarehouse()
@@ -352,7 +360,8 @@ export const ManageAccountsPage: React.FC = () => {
   // Route detection
   const isProfilePage = location.pathname.includes('/accounts/profile')
   const isRoutePage = location.pathname.includes('/accounts/route')
-  const isMatrixPage = location.pathname.includes('/accounts/matrix')
+  const isCreateScopePage = location.pathname.includes('/accounts/matrix/create') || location.pathname.includes('/accounts/scopes/create')
+  const isMatrixPage = location.pathname.includes('/accounts/matrix') && !isCreateScopePage
   
   // Kumo Tabs State for Accounts Table: 'all' | 'active' | 'inactive'
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all')
@@ -367,13 +376,25 @@ export const ManageAccountsPage: React.FC = () => {
   const [accountToDelete, setAccountToDelete] = useState<AppUserAccount | null>(null)
 
   // Standardized role scope options showing baseline policies count matching Cloudflare reference
-  const roleScopeOptions = useMemo(() => [
-    { value: '', label: 'Select a scope...' },
-    ...SYSTEM_ROLE_CONFIGS.map(r => ({
+  const roleScopeOptions = useMemo(() => {
+    const defaultRoles = SYSTEM_ROLE_CONFIGS.map(r => ({
       value: r.id,
       label: `${r.label} (${(ROLE_DEFAULT_PERMISSIONS[r.id] || []).length} baseline policies)`,
+      group: 'Standard Operational Scopes'
     }))
-  ], [])
+
+    const customOptions = (customScopes || []).map(s => ({
+      value: s.id,
+      label: `${s.label} (${(s.permissions || []).length} custom policies)`,
+      group: 'Custom Operational Scopes'
+    }))
+
+    return [
+      { value: '', label: 'Select a scope...' },
+      ...defaultRoles,
+      ...customOptions
+    ]
+  }, [customScopes])
 
 
   // -------------------------------------------------------------
@@ -416,6 +437,15 @@ export const ManageAccountsPage: React.FC = () => {
     'Finance & Payout Disbursements': false,
     'Administration & Security Controls': false,
   })
+
+  // Handle auto-selecting scope from query string (e.g. ?scope=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const scopeParam = params.get('scope')
+    if (scopeParam) {
+      handleMatrixScopeChange(scopeParam)
+    }
+  }, [location.search, customScopes])
 
   // Initialize Edit Route State when target staff changes
   useEffect(() => {
@@ -652,14 +682,111 @@ export const ManageAccountsPage: React.FC = () => {
     'Administration & Security Controls': false,
   })
 
+  // Create Custom Scope Form State
+  const [newScopeForm, setNewScopeForm] = useState<{
+    label: string
+    description: string
+    baseRole: UserRole
+    defaultLandingPath: string
+    permissions: string[]
+  }>({
+    label: '',
+    description: '',
+    baseRole: 'kitchen',
+    defaultLandingPath: '/production/packaging',
+    permissions: [...(ROLE_DEFAULT_PERMISSIONS['kitchen'] || [])]
+  })
+
+  const [createScopeSearchQuery, setCreateScopeSearchQuery] = useState('')
+  const [createScopeExpandedCats, setCreateScopeExpandedCats] = useState<Record<string, boolean>>({
+    'Kitchen & Production Operations': true,
+    'Sales & Storefront Orders': true,
+    'Inventory & Warehouse Control': true,
+    'Logistics & Fleet Dispatch': true,
+    'Finance & Payout Disbursements': true,
+    'Administration & Security Controls': true,
+  })
+
+  const toggleCreateScopeCategory = (catLabels: string[], currentlyAllActive: boolean) => {
+    if (currentlyAllActive) {
+      setNewScopeForm(prev => ({
+        ...prev,
+        permissions: prev.permissions.filter(p => !catLabels.includes(p))
+      }))
+    } else {
+      setNewScopeForm(prev => ({
+        ...prev,
+        permissions: Array.from(new Set([...prev.permissions, ...catLabels]))
+      }))
+    }
+  }
+
+  const toggleCreateScopePolicy = (policyLabel: string) => {
+    setNewScopeForm(prev => {
+      const exists = prev.permissions.includes(policyLabel)
+      return {
+        ...prev,
+        permissions: exists
+          ? prev.permissions.filter(p => p !== policyLabel)
+          : [...prev.permissions, policyLabel]
+      }
+    })
+  }
+
+  const handleOpenCreateScopeModal = () => {
+    setNewScopeForm({
+      label: '',
+      description: '',
+      baseRole: 'kitchen',
+      defaultLandingPath: '/production/packaging',
+      permissions: [...(ROLE_DEFAULT_PERMISSIONS['kitchen'] || [])]
+    })
+    navigate('/accounts/matrix/create')
+  }
+
   const handleMatrixScopeChange = (scopeId: string) => {
     setMatrixScope(scopeId)
+    const customMatch = (customScopes || []).find(s => s.id === scopeId)
+    if (customMatch) {
+      setMatrixPermissions(customMatch.permissions || [])
+      return
+    }
     const matchedRole = SYSTEM_ROLE_CONFIGS.find(r => r.id === scopeId)
     if (matchedRole) {
       setMatrixPermissions(ROLE_DEFAULT_PERMISSIONS[matchedRole.id] || [])
     } else {
       setMatrixPermissions([])
     }
+  }
+
+  const handleDeleteCurrentScope = () => {
+    if (!matrixScope) return
+    const customMatch = (customScopes || []).find(s => s.id === matrixScope)
+    if (!customMatch) return
+    if (window.confirm(`Are you sure you want to delete the custom scope "${customMatch.label}"?`)) {
+      deleteCustomScope(matrixScope)
+      setMatrixScope('')
+      setMatrixPermissions([])
+    }
+  }
+
+  const handleCreateScopeSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newScopeForm.label.trim()) {
+      showToast('Please enter a valid scope title', 'error')
+      return
+    }
+    const created = createCustomScope({
+      label: newScopeForm.label.trim(),
+      description: newScopeForm.description.trim() || `Custom ${newScopeForm.label.trim()} scope configured for specialized operational control.`,
+      baseRole: newScopeForm.baseRole,
+      defaultLandingPath: newScopeForm.defaultLandingPath,
+      permissions: newScopeForm.permissions
+    })
+    showToast(`Custom scope "${created.label}" successfully created`, 'success')
+    setMatrixScope(created.id)
+    setMatrixPermissions(created.permissions)
+    navigate(`/accounts/matrix?scope=${encodeURIComponent(created.id)}`)
   }
 
   // Change Password Form State
@@ -999,6 +1126,23 @@ export const ManageAccountsPage: React.FC = () => {
       showToast('Please select a scope to create policy', 'error')
       return
     }
+    const customMatch = (customScopes || []).find(s => s.id === matrixScope)
+    if (customMatch) {
+      updateCustomScope(matrixScope, {
+        permissions: [...matrixPermissions]
+      })
+      availableAccounts.forEach(acc => {
+        if (acc.scope_id === matrixScope) {
+          updateAccount(acc.email, {
+            permissions: [...matrixPermissions]
+          })
+        }
+      })
+      showToast(`Custom scope "${customMatch.label}" baseline policy successfully saved`, 'success')
+      navigate('/accounts')
+      return
+    }
+
     const matchedRole = SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)
     // Persist updated policy permissions to matching accounts
     availableAccounts.forEach(acc => {
@@ -1094,10 +1238,10 @@ export const ManageAccountsPage: React.FC = () => {
         <div
           onClick={(e) => {
             e.stopPropagation()
-            navigate(`/accounts/profile/${encodeURIComponent(acc.email)}`)
+            navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)
           }}
           className="cursor-pointer group select-none"
-          title="Click to view & edit staff KYC profile"
+          title="Click to view and configure role & permissions"
         >
           <div className="font-semibold text-kumo-strong text-[14px] font-sans group-hover:text-primary group-hover:underline underline-offset-2">
             {acc.name}
@@ -1117,10 +1261,10 @@ export const ManageAccountsPage: React.FC = () => {
         <span
           onClick={(e) => {
             e.stopPropagation()
-            navigate(`/accounts/profile/${encodeURIComponent(acc.email)}`)
+            navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)
           }}
           className="text-[13px] text-kumo-subtle font-sans hover:text-kumo-strong cursor-pointer"
-          title="Click to view & edit staff KYC profile"
+          title="Click to view and configure role & permissions"
         >
           {acc.email}
         </span>
@@ -1230,7 +1374,14 @@ export const ManageAccountsPage: React.FC = () => {
             setAccountToChangePassword(account)
             setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
           }}
-          onSwitchAccount={(email) => switchAccount(email)}
+          onSwitchAccount={(email) => {
+            switchAccount(email)
+            const targetAcc = availableAccounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+            if (targetAcc) {
+              const targetLanding = getRoleDefaultLandingPath(targetAcc.role, targetAcc)
+              navigate(targetLanding, { replace: true })
+            }
+          }}
           onDeleteAccount={(account) => setAccountToDelete(account)}
         />
       ),
@@ -2286,6 +2437,338 @@ export const ManageAccountsPage: React.FC = () => {
   }
 
   // =========================================================================
+  // VIEW: DEDICATED CREATE OPERATIONAL SCOPE PAGE (Adapting Image 2)
+  // =========================================================================
+  if (isCreateScopePage) {
+    const totalSelectedCount = newScopeForm.permissions.length
+
+    return (
+      <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
+        {/* Navigation Breadcrumb & Header matching Reference Image 2 */}
+        <div className="flex items-center justify-between gap-4 pt-1">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/accounts/matrix')}
+              className="w-9 h-9 rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-tint flex items-center justify-center text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer shadow-2xs shrink-0"
+              aria-label="Back to role matrix"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Create Operational Scope</h1>
+                <span className="text-kumo-subtle text-[16px] font-normal">/</span>
+                <span className="text-[16px] font-semibold text-kumo-default">
+                  {newScopeForm.label.trim() || 'New Scope'}
+                </span>
+              </div>
+              <p className="text-[13px] text-kumo-subtle mt-0.5">
+                Define a new role-based operational scope with custom workspace landing and granular permissions.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[13px] text-kumo-subtle font-sans inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Scope Mode:</span>
+              <strong className="text-kumo-strong font-semibold">Custom RBAC</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Dedicated Create Scope Form Sections (Adapting Staff Profile & KYC Reference Layout) */}
+        <form onSubmit={handleCreateScopeSubmit} className="space-y-6">
+          {/* Card 1: Scope Identity & Workspace Assignment */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Scope Identity & Assignment</h3>
+                  <p className="text-[13px] text-kumo-subtle">Define scope name, description, role inheritance, and landing workspace</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Scope Name / Title"
+                description="Descriptive title for this operational role scope"
+                required
+              >
+                <Input
+                  value={newScopeForm.label}
+                  onChange={(e) => setNewScopeForm(prev => ({ ...prev, label: e.target.value }))}
+                  placeholder="e.g. Packaging Operations Lead, Night Shift Prep Cook, Quality Control"
+                  required
+                  aria-label="Scope Name / Title"
+                  className="w-full text-[13px]"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Scope Description"
+                description="Brief summary of operational duties and responsibilities"
+              >
+                <Input
+                  value={newScopeForm.description}
+                  onChange={(e) => setNewScopeForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Brief description of the operational responsibilities..."
+                  aria-label="Scope Description"
+                  className="w-full text-[13px]"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Base Role Template"
+                description="Inherit core operational baseline and security fallback policy"
+                required
+              >
+                <Select
+                  value={newScopeForm.baseRole}
+                  onValueChange={(val) => {
+                    const role = String(val) as UserRole
+                    const defaultPerms = ROLE_DEFAULT_PERMISSIONS[role] || []
+                    let defaultWorkspace = '/production/packaging'
+                    if (role === 'sales_manager') defaultWorkspace = '/sales/orders'
+                    else if (role === 'inventory') defaultWorkspace = '/inventory/raw'
+                    else if (role === 'dispatcher') defaultWorkspace = '/logistics/board'
+                    else if (role === 'kitchen') defaultWorkspace = '/production/packaging'
+                    else if (role === 'rider') defaultWorkspace = '/logistics/rider-portal'
+                    else if (role === 'manager') defaultWorkspace = '/overview'
+
+                    setNewScopeForm(prev => ({
+                      ...prev,
+                      baseRole: role,
+                      defaultLandingPath: defaultWorkspace,
+                      permissions: [...defaultPerms]
+                    }))
+                  }}
+                  options={[
+                    { value: 'kitchen', label: 'Production Cook' },
+                    { value: 'inventory', label: 'Inventory Specialist' },
+                    { value: 'sales_manager', label: 'Sale Manager' },
+                    { value: 'dispatcher', label: 'Logistics Coordinator' },
+                    { value: 'manager', label: 'Operations Manager' },
+                  ]}
+                  buttonClassName="h-10 text-[13px] w-full"
+                  aria-label="Base Role Template"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Assigned Landing Workspace"
+                description="Primary operational route staff assigned this scope will land on after login"
+                required
+              >
+                <Select
+                  value={newScopeForm.defaultLandingPath}
+                  onValueChange={(val) => setNewScopeForm(prev => ({ ...prev, defaultLandingPath: String(val) }))}
+                  options={[
+                    { value: '/production/packaging', label: 'Packaging Execution' },
+                    { value: '/production/batches', label: 'Production Batches' },
+                    { value: '/production/tasks', label: 'Kitchen Shift Tasks' },
+                    { value: '/inventory/raw', label: 'Raw Inventory' },
+                    { value: '/inventory/packaging', label: 'Packaging Materials' },
+                    { value: '/sales/orders', label: 'Website Orders' },
+                    { value: '/inventory/sales', label: 'Sales Inventory' },
+                    { value: '/logistics/board', label: 'Dispatch Board' },
+                    { value: '/logistics/schedule', label: 'Delivery Schedule' },
+                    { value: '/logistics/riders', label: 'In-House Riders' },
+                    { value: '/logistics/pickup', label: 'Store Pickup Counter' },
+                    { value: '/overview', label: 'Operations Overview' },
+                  ]}
+                  buttonClassName="h-10 text-[13px] w-full"
+                  aria-label="Assigned Landing Workspace"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Card 2: Granular Operational Permissions (Zero Truncation, Categorized) */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Granular Operational Permissions</h3>
+                  <p className="text-[13px] text-kumo-subtle">Configure specific functional capabilities and record-level privileges for this scope</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setNewScopeForm(prev => ({ ...prev, permissions: ALL_SYSTEM_PERMISSIONS.map(p => p.label) }))}
+                  className="text-[12px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-kumo-subtle">•</span>
+                <button
+                  type="button"
+                  onClick={() => setNewScopeForm(prev => ({ ...prev, permissions: [] }))}
+                  className="text-[12px] font-medium text-kumo-subtle hover:text-red-500 cursor-pointer"
+                >
+                  Clear All
+                </button>
+                <span className="text-kumo-line">|</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>{totalSelectedCount} Policies Selected</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-kumo-subtle absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={createScopeSearchQuery}
+                  onChange={(e) => setCreateScopeSearchQuery(e.target.value)}
+                  placeholder="Search by role or permission name..."
+                  className="w-full h-10 pl-9 pr-8 text-[13px] bg-kumo-canvas/50 border border-kumo-line rounded-xl text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all font-sans"
+                />
+                {createScopeSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateScopeSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Accordion Categories matching Matrix View */}
+              <div className="border border-kumo-line rounded-xl overflow-hidden bg-kumo-base divide-y divide-kumo-line">
+                {policyCategoryGroups.map((group) => {
+                  const isExpanded = createScopeExpandedCats[group.name] ?? true
+                  const categoryPermLabels = group.permissions.map(p => p.label)
+                  const activeInGroup = categoryPermLabels.filter(label => newScopeForm.permissions.includes(label))
+                  const isAllGroupActive = activeInGroup.length === categoryPermLabels.length && categoryPermLabels.length > 0
+
+                  const filteredInGroup = group.permissions.filter(p => {
+                    const q = createScopeSearchQuery.toLowerCase().trim()
+                    if (!q) return true
+                    return p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+                  })
+
+                  if (createScopeSearchQuery && filteredInGroup.length === 0) {
+                    return null
+                  }
+
+                  return (
+                    <div key={group.id} className="divide-y divide-kumo-line/60">
+                      <div
+                        onClick={() => setCreateScopeExpandedCats(prev => ({
+                          ...prev,
+                          [group.name]: !isExpanded
+                        }))}
+                        className="flex items-center justify-between px-6 py-4 bg-kumo-canvas/30 hover:bg-kumo-canvas/60 transition-colors cursor-pointer select-none"
+                      >
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-kumo-subtle" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-kumo-subtle" />
+                          )}
+                          <span className="font-semibold text-[14px] text-kumo-strong">{group.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                          <span className="text-[13px] font-sans text-kumo-subtle font-medium">
+                            {activeInGroup.length}/{group.permissions.length}
+                          </span>
+                          <ToggleSwitch
+                            checked={isAllGroupActive}
+                            onChange={() => toggleCreateScopeCategory(categoryPermLabels, isAllGroupActive)}
+                            ariaLabel={`Toggle all ${group.name}`}
+                          />
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                          {filteredInGroup.map((perm) => {
+                            const isChecked = newScopeForm.permissions.includes(perm.label)
+                            return (
+                              <div
+                                key={perm.id}
+                                className="grid grid-cols-[1.5fr_2.5fr_auto] items-center gap-4 px-6 py-4 hover:bg-kumo-tint/20 transition-colors cursor-pointer"
+                                onClick={() => toggleCreateScopePolicy(perm.label)}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
+                                    {perm.label}
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 pr-3">
+                                  <p className="text-[13px] text-kumo-default leading-relaxed">
+                                    {perm.description}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center justify-end pl-2" onClick={(e) => e.stopPropagation()}>
+                                  <ToggleSwitch
+                                    checked={isChecked}
+                                    onChange={() => toggleCreateScopePolicy(perm.label)}
+                                    ariaLabel={`Toggle ${perm.label}`}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Action Bar matching Staff Profile & KYC */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-kumo-base border border-kumo-line rounded-xl shadow-2xs gap-3 mt-8">
+            <div className="flex items-center gap-2 text-[13px] text-kumo-subtle">
+              <ShieldCheck className="w-4 h-4 text-kumo-subtle shrink-0" />
+              <span>Custom operational scopes take effect immediately across staff profiles and route access guards.</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                onClick={() => navigate('/accounts/matrix')}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+                leftIcon={<ShieldCheck className="w-4 h-4" />}
+                className="shadow-xs font-semibold cursor-pointer"
+              >
+                Create Scope
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // =========================================================================
   // VIEW 2: DEDICATED ROLE MATRIX PAGE (Screenshot 2 & Screenshot 1 style)
   // =========================================================================
   if (isMatrixPage) {
@@ -2316,23 +2799,14 @@ export const ManageAccountsPage: React.FC = () => {
 
           <div className="flex items-center gap-2 shrink-0">
             <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() => navigate('/accounts')}
-              className="h-10 px-4 text-[13px] font-medium"
-            >
-              Cancel
-            </Button>
-            <Button
               variant="primary"
               size="sm"
               type="button"
-              disabled={!isScopeSelected}
-              onClick={handleSaveMatrixPolicy}
-              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
+              onClick={handleOpenCreateScopeModal}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-[13px] font-semibold shadow-xs cursor-pointer"
             >
-              Save Baseline Policy
+              Create New Scope
             </Button>
           </div>
         </div>
@@ -2340,8 +2814,27 @@ export const ManageAccountsPage: React.FC = () => {
         {/* Create Policy Card (Exact match to Screenshot 2 & Screenshot 1) */}
         <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
           {/* Card Header: 16px (text-[16px] font-semibold) */}
-          <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40">
-            <h2 className="text-[16px] font-semibold text-kumo-strong">Configure Role Baseline Policy</h2>
+          <div className="p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[16px] font-semibold text-kumo-strong">Configure Role Baseline Policy</h2>
+              {Boolean((customScopes || []).find(s => s.id === matrixScope)) && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                  Custom Scope
+                </span>
+              )}
+            </div>
+            {Boolean((customScopes || []).find(s => s.id === matrixScope)) && (
+              <Button
+                variant="destructive"
+                size="sm"
+                type="button"
+                onClick={handleDeleteCurrentScope}
+                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                className="h-8 px-3 text-xs font-medium cursor-pointer"
+              >
+                Delete Custom Scope
+              </Button>
+            )}
           </div>
 
           <div className="p-6 space-y-5">
@@ -2352,7 +2845,7 @@ export const ManageAccountsPage: React.FC = () => {
                   value={matrixScope}
                   onValueChange={(val) => handleMatrixScopeChange(String(val))}
                   options={roleScopeOptions}
-                  placeholder="Select a role..."
+                  placeholder="Select a scope..."
                   buttonClassName="h-10 text-[13px]"
                 />
               </div>
@@ -2386,14 +2879,22 @@ export const ManageAccountsPage: React.FC = () => {
             {!isScopeSelected ? (
               <div className="border-2 border-dashed border-kumo-line rounded-2xl p-16 text-center my-6">
                 <p className="text-[13px] text-kumo-subtle select-none font-medium">
-                  Select a role from the dropdown above to view and configure its baseline permissions.
+                  Select a role from the dropdown above or click{' '}
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateScopeModal}
+                    className="text-primary hover:underline font-semibold cursor-pointer"
+                  >
+                    "Create New Scope"
+                  </button>{' '}
+                  to configure baseline permissions.
                 </p>
               </div>
             ) : (
               /* When Scope IS Selected: EXACT MATCH TO SCREENSHOT 1 */
               <div className="space-y-5 animate-in fade-in duration-200">
                 <p className="text-[13px] text-kumo-default leading-relaxed">
-                  Define what permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)?.label || matrixScope}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{matrixAppliesTo}</strong>.
+                  Define what permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === matrixScope)?.label || (customScopes || []).find(s => s.id === matrixScope)?.label || matrixScope}</strong> should have within the account-level scope: <strong className="text-kumo-strong font-semibold">{matrixAppliesTo}</strong>.
                 </p>
 
                 {/* Search Input matching Screenshot 1 */}
@@ -2612,7 +3113,7 @@ export const ManageAccountsPage: React.FC = () => {
           title="Team Members"
           exportFilename="smokey-team-accounts.csv"
           enableRowSelection={true}
-          onRowClick={(acc) => navigate(`/accounts/profile/${encodeURIComponent(acc.email)}`)}
+          onRowClick={(acc) => navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)}
           filterCategories={[
             {
               name: 'Role Scope',

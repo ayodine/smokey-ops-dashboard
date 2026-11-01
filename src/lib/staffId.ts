@@ -3,6 +3,7 @@ import type { UserRole, AppUserAccount } from '@/context/SmokeyOpsContext'
 export const ROLE_STAFF_PREFIXES: Record<UserRole, string> = {
   admin: 'SHD-ADM',
   manager: 'SHD-OPS',
+  sales_manager: 'SHD-SLS',
   kitchen: 'SHD-KIT',
   inventory: 'SHD-INV',
   dispatcher: 'SHD-LOG',
@@ -13,6 +14,7 @@ export const ROLE_STAFF_PREFIXES: Record<UserRole, string> = {
 const ROLE_ALIASES: Record<UserRole, string[]> = {
   admin: ['SHD-ADM', 'ADM'],
   manager: ['SHD-OPS', 'SHD-MGT', 'OPS', 'MGT'],
+  sales_manager: ['SHD-SLS', 'SLS', 'SALES'],
   kitchen: ['SHD-KIT', 'SHD-PKG', 'KIT', 'PKG'],
   inventory: ['SHD-INV', 'SHD-SLS', 'INV', 'SLS'],
   dispatcher: ['SHD-LOG', 'SHD-DSP', 'LOG', 'DSP'],

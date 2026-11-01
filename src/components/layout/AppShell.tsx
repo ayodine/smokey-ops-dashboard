@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { Sidebar } from './Sidebar'
 import { TopNav } from './TopNav'
 import { Breadcrumbs } from './Breadcrumbs'
 import { CommandMenu } from '@/components/ui/CommandMenu'
+import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt'
 
 export const AppShell: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -18,10 +19,12 @@ export const AppShell: React.FC = () => {
   } = useSmokeyOps()
   const location = useLocation()
   const navigate = useNavigate()
+  const lastDeniedPathRef = useRef<string | null>(null)
+  const isRedirectingRef = useRef<boolean>(false)
 
   // Strict RBAC Route Guard: Validates every route against the active operator's assigned role and permissions
   useEffect(() => {
-    if (!isAuthenticated || !currentAccount) return
+    if (!isAuthenticated || !currentAccount || isRedirectingRef.current) return
 
     // 1. Dedicated Rider Sandbox
     if (currentAccount.role === 'rider') {
@@ -48,12 +51,22 @@ export const AppShell: React.FC = () => {
     // 3. Strict declarative route authorization
     const isAllowed = isRouteAllowed(location.pathname, currentAccount)
     if (!isAllowed) {
-      const fallbackPath = getRoleDefaultLandingPath(currentAccount.role)
+      if (lastDeniedPathRef.current === location.pathname) return
+      lastDeniedPathRef.current = location.pathname
+      isRedirectingRef.current = true
+
+      const fallbackPath = getRoleDefaultLandingPath(currentAccount.role, currentAccount)
       showToast(
-        `Access Restricted: Your role (${currentAccount.roleLabel}) does not have permission to view this section. Redirected to your assigned workspace.`,
-        'error'
+        `Your role (${currentAccount.roleLabel}) does not have permission to view this section. Redirected to your assigned workspace.`,
+        'error',
+        'Access Restricted'
       )
       navigate(fallbackPath, { replace: true })
+
+      setTimeout(() => {
+        isRedirectingRef.current = false
+        lastDeniedPathRef.current = null
+      }, 500)
     }
   }, [
     isAuthenticated,
@@ -87,7 +100,7 @@ export const AppShell: React.FC = () => {
   return (
     <div
       data-theme="kumo"
-      className="min-h-screen flex bg-kumo-canvas text-kumo-default antialiased"
+      className="min-h-screen flex bg-kumo-canvas text-kumo-default antialiased pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
     >
       {/* Sidebar (Desktop persistent, Mobile drawer) */}
       <Sidebar
@@ -110,7 +123,7 @@ export const AppShell: React.FC = () => {
         {/* Page Canvas */}
         <main
           id="main-content"
-          className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1560px] w-full mx-auto space-y-6"
+          className="flex-1 p-3 sm:p-6 lg:p-8 max-w-[1560px] w-full mx-auto space-y-6"
         >
           <Outlet />
         </main>
@@ -121,6 +134,9 @@ export const AppShell: React.FC = () => {
         isOpen={isCommandMenuOpen}
         onClose={() => setIsCommandMenuOpen(false)}
       />
+
+      {/* PWA Home Screen Installation Prompt Banner */}
+      <PwaInstallPrompt />
     </div>
   )
 }

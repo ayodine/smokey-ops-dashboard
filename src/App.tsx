@@ -93,6 +93,8 @@ export function App() {
                 <Route path="accounts/profile/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/route/:email?" element={<ManageAccountsPage />} />
                 <Route path="accounts/matrix" element={<ManageAccountsPage />} />
+                <Route path="accounts/matrix/create" element={<ManageAccountsPage />} />
+                <Route path="accounts/scopes/create" element={<ManageAccountsPage />} />
                 <Route path="admin/accounts" element={<ManageAccountsPage />} />
 
                 {/* 5. OFFICE & REGIONAL HUB MANAGEMENT */}

@@ -4,26 +4,26 @@ import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
   [
-    "relative w-full text-xs font-sans border grid gap-y-1 items-center [&>svg:not([class*=size-])]:size-4.5",
-    "has-[>svg]:grid-cols-[auto_1fr_auto] grid-cols-[1fr_auto] has-[>svg]:gap-x-3 gap-x-2",
+    "relative w-full text-xs font-sans border grid gap-y-1 items-center [&>svg:not([class*=size-])]:size-5",
+    "has-[>svg]:grid-cols-[auto_1fr_auto] grid-cols-[1fr_auto] has-[>svg]:gap-x-3.5 gap-x-2.5",
     "has-[>[data-slot=alert-title]+[data-slot=alert-description]]:[&_[data-slot=alert-action]]:sm:row-end-3",
     "has-[>[data-slot=alert-title]+[data-slot=alert-description]]:items-start",
     "has-[>[data-slot=alert-title]+[data-slot=alert-description]]:[&_svg]:translate-y-0.5",
-    "rounded-xl",
-    "p-3.5",
+    "rounded-2xl",
+    "p-3.5 sm:p-4",
   ],
   {
     variants: {
       variant: {
-        default: "bg-kumo-base text-kumo-default border-kumo-line shadow-xs",
+        default: "bg-white dark:bg-zinc-900 text-kumo-strong border-zinc-200/90 dark:border-zinc-800 shadow-md shadow-black/5 dark:shadow-black/30",
         destructive:
-          "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400 [&>svg]:text-red-600 dark:[&>svg]:text-red-400",
+          "border-red-400/50 dark:border-red-500/40 bg-white dark:bg-zinc-900 text-kumo-strong shadow-md shadow-black/5 dark:shadow-black/30 [&>svg]:text-red-500",
         info:
-          "border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-850/60 text-zinc-900 dark:text-zinc-100 [&>svg]:text-zinc-500 dark:[&>svg]:text-zinc-400",
+          "border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-kumo-strong shadow-md shadow-black/5 dark:shadow-black/30 [&>svg]:text-zinc-500",
         success:
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 [&>svg]:text-emerald-500",
+          "border-emerald-400/50 dark:border-emerald-500/40 bg-white dark:bg-zinc-900 text-kumo-strong shadow-md shadow-black/5 dark:shadow-black/30 [&>svg]:text-emerald-500",
         warning:
-          "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 [&>svg]:text-amber-500",
+          "border-amber-400/50 dark:border-amber-500/40 bg-white dark:bg-zinc-900 text-kumo-strong shadow-md shadow-black/5 dark:shadow-black/30 [&>svg]:text-amber-500",
         invert:
           "border-zinc-800 bg-zinc-900 text-zinc-50 [&_[data-slot=alert-description]]:text-zinc-400 [&>svg]:text-zinc-100",
       },
@@ -54,7 +54,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="alert-title"
       className={cn(
-        "col-start-2 line-clamp-1 min-h-4 font-semibold text-xs tracking-tight text-kumo-strong",
+        "col-start-2 line-clamp-1 min-h-4 font-semibold text-[13.5px] tracking-tight text-kumo-strong",
         className
       )}
       {...props}
@@ -70,7 +70,7 @@ function AlertDescription({
     <div
       data-slot="alert-description"
       className={cn(
-        "text-kumo-subtle col-start-2 grid justify-items-start gap-1 text-xs [&_p]:leading-relaxed",
+        "text-kumo-subtle col-start-2 grid justify-items-start gap-1 text-[12.5px] [&_p]:leading-normal",
         className
       )}
       {...props}

@@ -201,6 +201,7 @@ export const CreateAccountPage: React.FC = () => {
   const roleLabels: Record<UserRole, string> = {
     admin: 'Administrator',
     manager: 'Operations Manager',
+    sales_manager: 'Sale Manager',
     kitchen: 'Kitchen Chef / Prep Lead',
     inventory: 'Inventory & Stock Officer',
     dispatcher: 'Logistics Dispatcher',

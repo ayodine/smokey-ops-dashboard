@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   RawProduct,
   RawDelivery,
@@ -351,7 +351,7 @@ interface SmokeyOpsContextType {
   hasAllPermissions: (permissions: string[], account?: AppUserAccount) => boolean
   hasRole: (roles: UserRole | UserRole[], account?: AppUserAccount) => boolean
   isRouteAllowed: (path: string, account?: AppUserAccount) => boolean
-  getRoleDefaultLandingPath: (role?: UserRole) => string
+  getRoleDefaultLandingPath: (role?: UserRole, account?: AppUserAccount) => string
   getRoleAuthorizedRoutes: (role?: UserRole) => string[]
 
   // Feedback, Toasts & Success Confirmation Modals
@@ -365,6 +365,11 @@ interface SmokeyOpsContextType {
   systemAlerts: SystemAlertItem[]
   dismissSystemAlert: (id: string) => void
   refreshSystemAlerts: () => void
+  // Custom Role Scopes Management
+  customScopes: CustomRoleScope[]
+  createCustomScope: (scope: Omit<CustomRoleScope, 'id' | 'createdAt' | 'isCustom'>) => CustomRoleScope
+  updateCustomScope: (id: string, updates: Partial<CustomRoleScope>) => void
+  deleteCustomScope: (id: string) => boolean
 }
 
 export interface SystemAlertItem {
@@ -378,7 +383,18 @@ export interface SystemAlertItem {
   category: 'inventory' | 'logistics' | 'production' | 'order'
 }
 
-export type UserRole = 'admin' | 'manager' | 'kitchen' | 'inventory' | 'dispatcher' | 'rider'
+export type UserRole = 'admin' | 'manager' | 'kitchen' | 'inventory' | 'dispatcher' | 'rider' | 'sales_manager'
+
+export interface CustomRoleScope {
+  id: string
+  label: string
+  description: string
+  baseRole: UserRole
+  defaultLandingPath: string
+  permissions: string[]
+  createdAt: string
+  isCustom: boolean
+}
 
 export interface AppUserAccount {
   email: string
@@ -386,6 +402,7 @@ export interface AppUserAccount {
   name: string
   role: UserRole
   roleLabel: string
+  scope_id?: string
   rider_user_id?: number
   phone?: string
   staff_id?: string
@@ -650,6 +667,16 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Accept & Transit Delivery',
     'Customer OTP Drop-off Sign-off',
     'Wallet & Payout History'
+  ],
+  sales_manager: [
+    'View Customer Orders',
+    'View Storefront & Website Orders',
+    'Update Order Fulfillment Status',
+    'Export Sales & Revenue Reports',
+    'Export Sales & Order Reports',
+    'Sales Inventory & Menu Availability',
+    'Store Pickup Handover',
+    'Periodic Cycle Counts'
   ]
 }
 
@@ -673,12 +700,12 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { prefix: '/rider', allowedRoles: ['rider'], title: 'Rider Delivery Portal' },
 
   // Sales domain
-  { prefix: '/sales', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_orders_view', 'View Storefront & Website Orders'], title: 'Website Orders' },
+  { prefix: '/sales', allowedRoles: ['admin', 'manager', 'dispatcher', 'sales_manager'], requiredPermissions: ['perm_orders_view', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
 
   // Inventory sub-routes
   { prefix: '/inventory/suppliers', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_invoices', 'Supplier Invoice Verification', 'perm_intake'], title: 'Suppliers & Vendors' },
   { prefix: '/inventory/movements', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts', 'perm_transfers'], title: 'Stock Movements Ledger' },
-  { prefix: '/inventory/sales', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts'], title: 'Sales Inventory' },
+  { prefix: '/inventory/sales', allowedRoles: ['admin', 'manager', 'inventory', 'sales_manager'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts', 'perm_sales_catalog', 'Sales Inventory & Menu Availability'], title: 'Sales Inventory' },
   { prefix: '/inventory/raw', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Raw Inventory' },
   { prefix: '/inventory/packaging', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Packaging Materials' },
   { prefix: '/inventory', exact: true, allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Inventory Domain' },
@@ -693,7 +720,7 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { prefix: '/logistics/board', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_dispatch_ctrl'], title: 'Dispatch Board' },
   { prefix: '/logistics/schedule', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment'], title: 'Delivery Schedule' },
   { prefix: '/logistics/riders', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_tracking', 'Rider Location & Route Tracking', 'perm_dispatch_ctrl'], title: 'In-House Riders' },
-  { prefix: '/logistics/pickup', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_otp_dropoff'], title: 'Store Pickup Counter' },
+  { prefix: '/logistics/pickup', allowedRoles: ['admin', 'manager', 'dispatcher', 'sales_manager'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_otp_dropoff'], title: 'Store Pickup Counter' },
   { prefix: '/logistics/third-party', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_3pl', 'Third-party Rider Bookings'], title: 'Third Party Delivery' },
   { prefix: '/logistics', exact: true, allowedRoles: ['admin', 'manager', 'dispatcher'], title: 'Logistics Domain' },
 
@@ -701,7 +728,7 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { prefix: '/overview', allowedRoles: ['admin', 'manager'], title: 'Operations Overview' },
 
   // Support Help Desk (Universal for all authenticated staff)
-  { prefix: '/support', allowedRoles: ['admin', 'manager', 'kitchen', 'inventory', 'dispatcher', 'rider'], title: 'Support & Help Desk' },
+  { prefix: '/support', allowedRoles: ['admin', 'manager', 'kitchen', 'inventory', 'dispatcher', 'rider', 'sales_manager'], title: 'Support & Help Desk' },
 ]
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
@@ -2772,6 +2799,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Password successfully updated for ${email}`, 'success', 'Security Credentials')
   }
 
+  // Custom Role Scopes State & CRUD
+  const [customScopes, setCustomScopes] = useState<CustomRoleScope[]>(() => {
+    try {
+      const local = localStorage.getItem('smokey_custom_scopes')
+      if (local) return JSON.parse(local)
+    } catch {}
+    return []
+  })
+
   // Strict RBAC & Permissions Engine Methods
   const hasPermission = React.useCallback(
     (permIdOrLabel: string, account: AppUserAccount = currentAccount): boolean => {
@@ -2796,7 +2832,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return true
       }
 
-      // 3. Check role default permissions
+      // 3. Check custom scope permissions if assigned
+      if (account.scope_id) {
+        const customScope = customScopes.find(s => s.id === account.scope_id)
+        if (customScope) {
+          if (
+            customScope.permissions.some(
+              p =>
+                p === resolvedId ||
+                p === resolvedLabel ||
+                p.toLowerCase() === cleanInput.toLowerCase()
+            )
+          ) {
+            return true
+          }
+        }
+      }
+
+      // 4. Check role default permissions
       const roleDefaults = ROLE_DEFAULT_PERMISSIONS[account.role] || []
       return roleDefaults.some(
         p =>
@@ -2805,7 +2858,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           p.toLowerCase() === cleanInput.toLowerCase()
       )
     },
-    [currentAccount]
+    [currentAccount, customScopes]
   )
 
   const hasAnyPermission = React.useCallback(
@@ -2836,11 +2889,25 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   )
 
   const getRoleDefaultLandingPath = React.useCallback(
-    (role?: UserRole): string => {
-      const targetRole = role || currentAccount?.role || 'admin'
+    (role?: UserRole, account?: AppUserAccount): string => {
+      const active = account || currentAccount
+      // 1. If account has custom scope with designated workspace, use it
+      if (active?.scope_id) {
+        const customScope = customScopes.find(s => s.id === active.scope_id)
+        if (customScope?.defaultLandingPath) {
+          return customScope.defaultLandingPath
+        }
+      }
+      // 2. Special landing for Packaging Team account (lands directly on packaging execution)
+      if (active?.email?.toLowerCase() === 'smokeyhutpackagingteam@gmail.com') {
+        return '/production/packaging'
+      }
+      const targetRole = role || active?.role || 'admin'
       switch (targetRole) {
         case 'rider':
           return '/logistics/rider-portal'
+        case 'sales_manager':
+          return '/sales/orders'
         case 'kitchen':
           return '/production/batches'
         case 'inventory':
@@ -2853,7 +2920,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return '/overview'
       }
     },
-    [currentAccount?.role]
+    [currentAccount, customScopes]
   )
 
   const isRouteAllowed = React.useCallback(
@@ -2862,6 +2929,28 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (account.role === 'admin') return true
 
       const normalizedPath = path.split('?')[0].split('#')[0]
+
+      // Check if account has custom scope with this landing path
+      if (account.scope_id) {
+        const customScope = customScopes.find(s => s.id === account.scope_id)
+        if (customScope && customScope.defaultLandingPath === normalizedPath) {
+          return true
+        }
+      }
+
+      // Special case: Packaging team can access packaging execution, materials, batches, raw and tasks
+      if (account.email?.toLowerCase() === 'smokeyhutpackagingteam@gmail.com') {
+        if (
+          normalizedPath === '/production/packaging' ||
+          normalizedPath === '/inventory/packaging' ||
+          normalizedPath === '/production/batches' ||
+          normalizedPath === '/inventory/raw' ||
+          normalizedPath === '/production/tasks' ||
+          normalizedPath === '/support'
+        ) {
+          return true
+        }
+      }
 
       const matchingRule = ROUTE_ACCESS_RULES
         .filter(rule => {
@@ -2875,7 +2964,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       if (matchingRule.allowedRoles && !matchingRule.allowedRoles.includes(account.role)) {
-        return false
+        // If account has custom scope, check if baseRole matches
+        if (account.scope_id) {
+          const customScope = customScopes.find(s => s.id === account.scope_id)
+          if (customScope && matchingRule.allowedRoles.includes(customScope.baseRole)) {
+            // continue to permission check
+          } else {
+            return false
+          }
+        } else {
+          return false
+        }
       }
 
       if (matchingRule.requiredPermissions && matchingRule.requiredPermissions.length > 0) {
@@ -2884,7 +2983,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       return true
     },
-    [currentAccount, hasAnyPermission]
+    [currentAccount, hasAnyPermission, customScopes]
   )
 
   const getRoleAuthorizedRoutes = React.useCallback(
@@ -2934,18 +3033,34 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     message: '',
   })
 
-  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
-    setToasts(prev => [...prev, { id, message, type, title }])
-    // Play alert sound for toasts
+  const lastToastMsgRef = useRef<string>('')
+  const lastToastTimeRef = useRef<number>(0)
+
+  const showToast = React.useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
+    const now = Date.now()
+    // Deduplicate identical toasts within 3000ms
+    if (message === lastToastMsgRef.current && now - lastToastTimeRef.current < 3000) {
+      return
+    }
+    lastToastMsgRef.current = message
+    lastToastTimeRef.current = now
+
+    const id = `toast-${now}-${Math.random().toString(36).substring(2, 6)}`
+    setToasts(prev => {
+      // Keep at most 3 active toasts to prevent viewport clogging
+      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev
+      return [...trimmed, { id, message, type, title }]
+    })
+
+    // Play throttled alert sound for toasts
     playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
-  }
+  }, [])
 
-  const dismissToast = (id: string) => {
+  const dismissToast = React.useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
-  }
+  }, [])
 
-  const showSuccessModal = (data: {
+  const showSuccessModal = React.useCallback((data: {
     title: string
     message: string
     details?: Array<{ label: string; value: string }>
@@ -2960,11 +3075,50 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       actionLabel: data.actionLabel || 'Done',
       onAction: data.onAction,
     })
-  }
+  }, [])
 
-  const closeSuccessModal = () => {
+  const closeSuccessModal = React.useCallback(() => {
     setSuccessModal(prev => ({ ...prev, isOpen: false }))
-  }
+  }, [])
+
+  const createCustomScope = React.useCallback((scopeData: Omit<CustomRoleScope, 'id' | 'createdAt' | 'isCustom'>): CustomRoleScope => {
+    const id = `scope_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+    const newScope: CustomRoleScope = {
+      ...scopeData,
+      id,
+      createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      isCustom: true
+    }
+    setCustomScopes(prev => {
+      const updated = [...prev, newScope]
+      localStorage.setItem('smokey_custom_scopes', JSON.stringify(updated))
+      persistAppSetting('custom_scopes', updated)
+      return updated
+    })
+    showToast(`Custom scope "${newScope.label}" successfully created`, 'success')
+    return newScope
+  }, [showToast])
+
+  const updateCustomScope = React.useCallback((id: string, updates: Partial<CustomRoleScope>) => {
+    setCustomScopes(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, ...updates } : s)
+      localStorage.setItem('smokey_custom_scopes', JSON.stringify(updated))
+      persistAppSetting('custom_scopes', updated)
+      return updated
+    })
+    showToast('Scope policies updated successfully', 'success')
+  }, [showToast])
+
+  const deleteCustomScope = React.useCallback((id: string): boolean => {
+    setCustomScopes(prev => {
+      const updated = prev.filter(s => s.id !== id)
+      localStorage.setItem('smokey_custom_scopes', JSON.stringify(updated))
+      persistAppSetting('custom_scopes', updated)
+      return updated
+    })
+    showToast('Custom scope removed', 'info')
+    return true
+  }, [showToast])
 
   // Dismissed alert IDs stored in localStorage
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(() => {
@@ -6009,6 +6163,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isRouteAllowed,
         getRoleDefaultLandingPath,
         getRoleAuthorizedRoutes,
+        customScopes,
+        createCustomScope,
+        updateCustomScope,
+        deleteCustomScope,
         toasts,
         showToast,
         dismissToast,

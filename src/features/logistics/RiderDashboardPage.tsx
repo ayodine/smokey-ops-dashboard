@@ -10,6 +10,8 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/Select'
 import { formatNaira } from '@/lib/utils'
+import { RiderDeliveryMobileCard } from './components/RiderDeliveryMobileCard'
+import { RiderMobileBottomNav } from './components/RiderMobileBottomNav'
 import {
   Bike,
   Phone,
@@ -22,7 +24,10 @@ import {
   RotateCcw,
   Check,
   Layers,
-  Navigation
+  Navigation,
+  LayoutGrid,
+  Table as TableIcon,
+  CircleDot,
 } from 'lucide-react'
 
 export const RiderDashboardPage: React.FC = () => {
@@ -49,9 +54,24 @@ export const RiderDashboardPage: React.FC = () => {
     )
   }, [riders, currentAccount])
 
-  // Active Tab: 'assigned' | 'delivered' | 'earnings' | 'tasks'
+  // Active Tab: 'assigned' | 'in_transit' | 'delivered' | 'earnings'
   const [activeTab, setActiveTab] = useState<string>('assigned')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [dutyStatus, setDutyStatus] = useState<'available' | 'on_road' | 'offline'>('available')
+
+  const toggleDutyStatus = () => {
+    if (dutyStatus === 'available') {
+      setDutyStatus('on_road')
+      showToast('Duty status updated: On Road / Active Trips', 'info')
+    } else if (dutyStatus === 'on_road') {
+      setDutyStatus('offline')
+      showToast('Duty status updated: Off Duty / Offline', 'info')
+    } else {
+      setDutyStatus('available')
+      showToast('Duty status updated: Available for Dispatch', 'success')
+    }
+  }
 
   const handleRefresh = () => {
     setIsRefreshing(true)
@@ -531,7 +551,7 @@ export const RiderDashboardPage: React.FC = () => {
   ]
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-6 font-sans pb-24 md:pb-6">
       <PageHeader
         title="Rider Operations Portal"
         subtitle={
@@ -540,15 +560,68 @@ export const RiderDashboardPage: React.FC = () => {
             : 'Order fulfillment queue, trip milestones, proof of delivery, and earnings ledger.'
         }
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            className="h-9 px-3 text-xs font-medium text-kumo-subtle hover:text-kumo-strong"
-            leftIcon={<RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
-          >
-            Refresh
-          </Button>
+          <div className="flex items-center flex-wrap gap-2">
+            {/* Duty Status Quick Toggle */}
+            <button
+              type="button"
+              onClick={toggleDutyStatus}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                dutyStatus === 'available'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                  : dutyStatus === 'on_road'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                  : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+              }`}
+              title="Click to change duty status"
+            >
+              <CircleDot className="w-3.5 h-3.5" />
+              <span>
+                {dutyStatus === 'available'
+                  ? 'Available'
+                  : dutyStatus === 'on_road'
+                  ? 'On Road'
+                  : 'Offline'}
+              </span>
+            </button>
+
+            {/* Mobile View Switcher: Cards vs Table */}
+            <div className="flex md:hidden items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'cards'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                }`}
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              className="h-9 px-3 text-xs font-medium text-kumo-subtle hover:text-kumo-strong"
+              leftIcon={<RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
+            >
+              Refresh
+            </Button>
+          </div>
         }
       />
 
@@ -685,138 +758,286 @@ export const RiderDashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* TAB DATA TABLES */}
+      {/* TAB CONTENT: MOBILE CARDS OR DESKTOP TABLE */}
       <div>
-        {/* ------------------------------------------------------------- */}
-        {/* TAB 1: ASSIGNED ORDERS TABLE                                  */}
-        {/* ------------------------------------------------------------- */}
-        {activeTab === 'assigned' && (
-          <div className="space-y-4">
-            <DataTable
-              tableId="rider-assigned-orders"
-              title="Assigned Orders (Pending Acceptance)"
-              data={assignedOrders}
-              columns={assignedColumns}
-              searchable={true}
-              searchPlaceholder="Search order ref, customer, phone, address..."
-              searchFilter={(d, q) =>
-                d.order_ref.toLowerCase().includes(q) ||
-                d.customer_name.toLowerCase().includes(q) ||
-                d.phone.toLowerCase().includes(q) ||
-                d.address.toLowerCase().includes(q)
-              }
-              enableDateFilter={true}
-              exportFilename="smokey-rider-assigned-orders"
-              onRowClick={(order) => setPreviewOrder(order)}
-              emptyMessage="No pending trip assignments found. When kitchen dispatch assigns an order, it will appear here."
-            />
-          </div>
-        )}
+        {/* ============================================================= */}
+        {/* 1. MOBILE TOUCH CARDS VIEW (Active on mobile by default)       */}
+        {/* ============================================================= */}
+        <div className={viewMode === 'cards' ? 'block md:hidden' : 'hidden'}>
+          {/* TAB 1: ASSIGNED CARDS */}
+          {activeTab === 'assigned' && (
+            <div className="space-y-3">
+              {assignedOrders.length === 0 ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center shadow-sm">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <Bike className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Pending Trips</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                    When kitchen dispatch assigns an order to your route, it will immediately appear here.
+                  </p>
+                </div>
+              ) : (
+                assignedOrders.map((order) => (
+                  <RiderDeliveryMobileCard
+                    key={order.id}
+                    order={order}
+                    tab="assigned"
+                    onAccept={(orderId) => acceptDelivery(orderId)}
+                    onDecline={(ord) => handleOpenDecline(ord)}
+                    onViewDetails={(ord) => setPreviewOrder(ord)}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-        {/* ------------------------------------------------------------- */}
-        {/* TAB 2: IN-TRANSIT ORDERS TABLE                                */}
-        {/* ------------------------------------------------------------- */}
-        {activeTab === 'in_transit' && (
-          <div className="space-y-4">
-            <DataTable
-              tableId="rider-in-transit-orders"
-              title="In-Transit Active Deliveries"
-              data={inTransitOrders}
-              columns={inTransitColumns}
-              searchable={true}
-              searchPlaceholder="Search order ref, customer, phone, address..."
-              searchFilter={(d, q) =>
-                d.order_ref.toLowerCase().includes(q) ||
-                d.customer_name.toLowerCase().includes(q) ||
-                d.phone.toLowerCase().includes(q) ||
-                d.address.toLowerCase().includes(q)
-              }
-              enableDateFilter={true}
-              exportFilename="smokey-rider-in-transit-orders"
-              onRowClick={(order) => setPreviewOrder(order)}
-              emptyMessage="No in-transit orders currently on the road. Accept an assigned order above to start delivery."
-            />
-          </div>
-        )}
+          {/* TAB 2: IN-TRANSIT CARDS */}
+          {activeTab === 'in_transit' && (
+            <div className="space-y-3">
+              {inTransitOrders.length === 0 ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center shadow-sm">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <Navigation className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Trips on the Road</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                    Accept an assigned order to start delivery and access live turn-by-turn navigation.
+                  </p>
+                </div>
+              ) : (
+                inTransitOrders.map((order) => (
+                  <RiderDeliveryMobileCard
+                    key={order.id}
+                    order={order}
+                    tab="in_transit"
+                    onConfirmDelivered={(ord) => setConfirmDeliveryTarget(ord)}
+                    onViewDetails={(ord) => setPreviewOrder(ord)}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-        {/* ------------------------------------------------------------- */}
-        {/* TAB 3: DELIVERED ORDERS TABLE                                 */}
-        {/* ------------------------------------------------------------- */}
-        {activeTab === 'delivered' && (
-          <div className="space-y-4">
-            <DataTable
-              tableId="rider-delivered-orders"
-              title="Delivered Orders"
-              data={completedOrders}
-              columns={deliveredColumns}
-              searchable={true}
-              searchPlaceholder="Search delivered order ref, customer, address..."
-              searchFilter={(d, q) =>
-                d.order_ref.toLowerCase().includes(q) ||
-                d.customer_name.toLowerCase().includes(q) ||
-                d.phone.toLowerCase().includes(q) ||
-                d.address.toLowerCase().includes(q)
-              }
-              enableDateFilter={true}
-              exportFilename="smokey-rider-delivered-history"
-              onRowClick={(order) => setPreviewOrder(order)}
-              emptyMessage="No historical delivered orders found matching your search."
-            />
-          </div>
-        )}
+          {/* TAB 3: DELIVERED CARDS */}
+          {activeTab === 'delivered' && (
+            <div className="space-y-3">
+              {completedOrders.length === 0 ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center shadow-sm">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Delivered Orders Yet</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                    Completed handovers will be recorded here with delivery time and commission details.
+                  </p>
+                </div>
+              ) : (
+                completedOrders.map((order) => (
+                  <RiderDeliveryMobileCard
+                    key={order.id}
+                    order={order}
+                    tab="delivered"
+                    onViewDetails={(ord) => setPreviewOrder(ord)}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-        {/* ------------------------------------------------------------- */}
-        {/* TAB 4: EARNINGS & WALLET TABLE                                */}
-        {/* ------------------------------------------------------------- */}
-        {activeTab === 'earnings' && (
-          <div className="space-y-5">
-            {/* Settled Ledger Banner */}
-            {pendingPayoutBalance === 0 ? (
-              <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+          {/* TAB 4: EARNINGS & WALLET MOBILE VIEW */}
+          {activeTab === 'earnings' && (
+            <div className="space-y-4">
+              {/* Mobile Wallet Summary */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-700">
+                <span className="text-xs text-slate-300 font-medium">Pending Payout Balance</span>
+                <div className="text-3xl font-black font-mono mt-1 text-white">
+                  {formatNaira(pendingPayoutBalance)}
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-700/60 text-xs">
                   <div>
-                    <h4 className="font-bold text-xs sm:text-sm">Account settled — outstanding balance is ₦0.00</h4>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
-                      All completed trips have been disbursed and audited. Settled payment history is preserved below for your records.
-                    </p>
+                    <span className="text-slate-400 block text-[11px]">Gross Earnings</span>
+                    <span className="font-bold font-mono text-emerald-400">{formatNaira(lifetimeEarned)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Historically Settled</span>
+                    <span className="font-bold font-mono text-slate-200">{formatNaira(currentRider?.paid_total ?? 0)}</span>
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-xs sm:text-sm">Pending disbursement balance: {formatNaira(pendingPayoutBalance)}</h4>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
-                      Delivery commissions earned from recently confirmed trips awaiting scheduled accounting clearing.
-                    </p>
+
+              {/* Recent Trip Ledger */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider px-1">
+                  Trip Ledger ({completedOrders.length})
+                </h4>
+                {completedOrders.length === 0 ? (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500">
+                    No completed trip earnings yet.
+                  </div>
+                ) : (
+                  completedOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      onClick={() => setPreviewOrder(order)}
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-sm hover:shadow transition cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900 dark:text-white font-mono">
+                            #{order.order_ref}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-sans">
+                            {order.delivered_at ? order.delivered_at.substring(0, 10) : order.dispatch_date}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 truncate mt-0.5 font-medium">
+                          {order.customer_name} • {order.address}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400 block">
+                          +{formatNaira(order.delivery_fee)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-sans">
+                          {pendingPayoutBalance > 0 ? 'Pending' : 'Settled'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ============================================================= */}
+        {/* 2. DESKTOP / TABLE VIEW (Shown on desktop or when toggled)   */}
+        {/* ============================================================= */}
+        <div className={viewMode === 'table' ? 'block' : 'hidden md:block'}>
+          {/* TAB 1: ASSIGNED ORDERS TABLE */}
+          {activeTab === 'assigned' && (
+            <div className="space-y-4">
+              <DataTable
+                tableId="rider-assigned-orders"
+                title="Assigned Orders (Pending Acceptance)"
+                data={assignedOrders}
+                columns={assignedColumns}
+                searchable={true}
+                searchPlaceholder="Search order ref, customer, phone, address..."
+                searchFilter={(d, q) =>
+                  d.order_ref.toLowerCase().includes(q) ||
+                  d.customer_name.toLowerCase().includes(q) ||
+                  d.phone.toLowerCase().includes(q) ||
+                  d.address.toLowerCase().includes(q)
+                }
+                enableDateFilter={true}
+                exportFilename="smokey-rider-assigned-orders"
+                onRowClick={(order) => setPreviewOrder(order)}
+                emptyMessage="No pending trip assignments found. When kitchen dispatch assigns an order, it will appear here."
+              />
+            </div>
+          )}
+
+          {/* TAB 2: IN-TRANSIT ORDERS TABLE */}
+          {activeTab === 'in_transit' && (
+            <div className="space-y-4">
+              <DataTable
+                tableId="rider-in-transit-orders"
+                title="In-Transit Active Deliveries"
+                data={inTransitOrders}
+                columns={inTransitColumns}
+                searchable={true}
+                searchPlaceholder="Search order ref, customer, phone, address..."
+                searchFilter={(d, q) =>
+                  d.order_ref.toLowerCase().includes(q) ||
+                  d.customer_name.toLowerCase().includes(q) ||
+                  d.phone.toLowerCase().includes(q) ||
+                  d.address.toLowerCase().includes(q)
+                }
+                enableDateFilter={true}
+                exportFilename="smokey-rider-in-transit-orders"
+                onRowClick={(order) => setPreviewOrder(order)}
+                emptyMessage="No in-transit orders currently on the road. Accept an assigned order above to start delivery."
+              />
+            </div>
+          )}
+
+          {/* TAB 3: DELIVERED ORDERS TABLE */}
+          {activeTab === 'delivered' && (
+            <div className="space-y-4">
+              <DataTable
+                tableId="rider-delivered-orders"
+                title="Delivered Orders"
+                data={completedOrders}
+                columns={deliveredColumns}
+                searchable={true}
+                searchPlaceholder="Search delivered order ref, customer, address..."
+                searchFilter={(d, q) =>
+                  d.order_ref.toLowerCase().includes(q) ||
+                  d.customer_name.toLowerCase().includes(q) ||
+                  d.phone.toLowerCase().includes(q) ||
+                  d.address.toLowerCase().includes(q)
+                }
+                enableDateFilter={true}
+                exportFilename="smokey-rider-delivered-history"
+                onRowClick={(order) => setPreviewOrder(order)}
+                emptyMessage="No historical delivered orders found matching your search."
+              />
+            </div>
+          )}
+
+          {/* TAB 4: EARNINGS & WALLET TABLE */}
+          {activeTab === 'earnings' && (
+            <div className="space-y-5">
+              {/* Settled Ledger Banner */}
+              {pendingPayoutBalance === 0 ? (
+                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-xs sm:text-sm">Account settled — outstanding balance is ₦0.00</h4>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
+                        All completed trips have been disbursed and audited. Settled payment history is preserved below for your records.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-xs sm:text-sm">Pending disbursement balance: {formatNaira(pendingPayoutBalance)}</h4>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
+                        Delivery commissions earned from recently confirmed trips awaiting scheduled accounting clearing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            {/* Earnings Breakdown Table */}
-            <DataTable
-              tableId="rider-earnings-ledger"
-              title="Earnings Ledger"
-              data={completedOrders}
-              columns={earningsColumns}
-              searchable={true}
-              searchPlaceholder="Search trip earnings by order #, customer, address..."
-              searchFilter={(d, q) =>
-                d.order_ref.toLowerCase().includes(q) ||
-                d.customer_name.toLowerCase().includes(q) ||
-                d.address.toLowerCase().includes(q)
-              }
-              enableDateFilter={true}
-              exportFilename="smokey-rider-earnings-ledger"
-              onRowClick={(order) => setPreviewOrder(order)}
-              emptyMessage="No trip earnings found matching criteria."
-            />
-          </div>
-        )}
+              {/* Earnings Breakdown Table */}
+              <DataTable
+                tableId="rider-earnings-ledger"
+                title="Earnings Ledger"
+                data={completedOrders}
+                columns={earningsColumns}
+                searchable={true}
+                searchPlaceholder="Search trip earnings by order #, customer, address..."
+                searchFilter={(d, q) =>
+                  d.order_ref.toLowerCase().includes(q) ||
+                  d.customer_name.toLowerCase().includes(q) ||
+                  d.address.toLowerCase().includes(q)
+                }
+                enableDateFilter={true}
+                exportFilename="smokey-rider-earnings-ledger"
+                onRowClick={(order) => setPreviewOrder(order)}
+                emptyMessage="No trip earnings found matching criteria."
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
@@ -1165,6 +1386,15 @@ export const RiderDashboardPage: React.FC = () => {
           </div>
         </div>
       </Dialog>
+
+      {/* Mobile Sticky Bottom Navigation Bar for Riders */}
+      <RiderMobileBottomNav
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        assignedCount={assignedOrders.length}
+        inTransitCount={inTransitOrders.length}
+        deliveredCount={completedOrders.length}
+      />
     </div>
   )
 }

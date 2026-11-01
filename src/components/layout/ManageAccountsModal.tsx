@@ -132,6 +132,19 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
     ]
   },
   {
+    id: 'sales_manager',
+    label: 'Sale Manager',
+    description: 'Oversees incoming customer storefront orders, catalog pricing & availability, sales inventory allocations, and pickup desk handovers.',
+    badgeClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400',
+    permissions: [
+      'View Customer Orders',
+      'Update Order Fulfillment Status',
+      'Export Sales & Revenue Reports',
+      'Sales Inventory & Menu Availability',
+      'Store Pickup Handover'
+    ]
+  },
+  {
     id: 'kitchen',
     label: 'Production Cook',
     description: 'Executes daily smoking grill runs, batch packaging, ingredients intake, and yield tracking.',
@@ -196,6 +209,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
     deleteAccount,
     changePassword,
     showToast,
+    getRoleDefaultLandingPath,
   } = useSmokeyOps()
 
   const { facilities } = useWarehouse()
@@ -784,6 +798,9 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                                         onClick={() => {
                                           switchAccount(acc.email)
                                           setOpenMenuEmail(null)
+                                          onClose()
+                                          const targetLanding = getRoleDefaultLandingPath(acc.role, acc)
+                                          navigate(targetLanding, { replace: true })
                                         }}
                                         className="w-full text-left px-3 py-2 rounded-lg text-kumo-default hover:bg-kumo-tint flex items-center gap-2 cursor-pointer transition-colors"
                                       >

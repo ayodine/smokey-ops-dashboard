@@ -1,0 +1,58 @@
+{
+  "name": "SmokeyOps Rider — Logistics & Delivery",
+  "short_name": "SmokeyOps",
+  "description": "Fulfillment logistics, dispatch routing, and rider delivery console for Smokey Smokery.",
+  "start_url": "/logistics/rider-portal",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#ffffff",
+  "theme_color": "#c0201f",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["business", "logistics", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Active Deliveries",
+      "short_name": "In-Transit",
+      "description": "View active on-road delivery milestones",
+      "url": "/logistics/rider-portal?tab=in_transit",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Assigned Orders",
+      "short_name": "Assigned",
+      "description": "Orders dispatched awaiting rider acceptance",
+      "url": "/logistics/rider-portal?tab=assigned",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Earnings & Wallet",
+      "short_name": "Wallet",
+      "description": "View pending payouts and trip history",
+      "url": "/logistics/rider-portal?tab=earnings",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

@@ -77,6 +77,12 @@ export const Breadcrumbs: React.FC = () => {
         
         // Handle contextual route differences (e.g. production/packaging vs inventory/packaging)
         let displayLabel = labelMap[name]
+        if (name === 'create' && pathnames[0] === 'accounts' && (pathnames[1] === 'matrix' || pathnames[1] === 'scopes')) {
+          displayLabel = 'Create Operational Scope'
+        }
+        if (name === 'scopes') {
+          displayLabel = 'Role Scopes'
+        }
         if (name === 'packaging' && pathnames[0] === 'production') {
           displayLabel = 'Packaging execution'
         }

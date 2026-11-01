@@ -20,11 +20,18 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
+let lastChimeTime = 0
+
 /**
  * Play a gentle, professional chime when a new live notification or order alert arrives
  */
 export function playAlertChime(type: 'order' | 'warning' | 'info' | 'success' = 'order') {
   try {
+    const wallNow = Date.now()
+    // Throttle consecutive alert chimes to at most once every 1200ms to prevent audio spam
+    if (wallNow - lastChimeTime < 1200) return
+    lastChimeTime = wallNow
+
     const ctx = getAudioContext()
     if (!ctx) return
 

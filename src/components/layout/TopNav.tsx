@@ -126,8 +126,8 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
           {isAlertsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAlertsOpen(false)} />
-              <div className="absolute right-0 mt-2 w-96 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden">
-                <div className="px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+              <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 sm:translate-x-0 top-[54px] sm:top-full mt-1 max-w-[420px] sm:w-[400px] rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-[0_12px_36px_rgba(0,0,0,0.18)] z-50 animate-in fade-in zoom-in-95 font-sans overflow-hidden mx-auto">
+                <div className="px-4 py-3.5 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                       Alerts
@@ -140,7 +140,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     type="button"
                     onClick={refreshSystemAlerts}
                     title="Refresh alerts feed"
-                    className="size-6 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    className="size-6 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                   >
                     <RotateCw className="w-3 h-3" />
                   </button>
@@ -163,14 +163,14 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                       return (
                         <div
                           key={item.id}
-                          className="p-3 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 text-zinc-900 dark:text-zinc-100 shadow-2xs hover:bg-zinc-100/60 dark:hover:bg-zinc-800/70 transition-colors flex items-start gap-3"
+                          className="p-3.5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-800/40 text-zinc-900 dark:text-zinc-100 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors flex items-start gap-3.5"
                         >
-                          <div className="w-7 h-7 rounded-lg border border-zinc-200/90 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-                            <IconComponent className="w-3.5 h-3.5 stroke-[1.75]" />
+                          <div className="w-8 h-8 rounded-xl border border-zinc-200/90 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                            <IconComponent className="w-4 h-4 stroke-[1.75]" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div
-                              className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 line-clamp-1 cursor-pointer hover:underline"
+                              className="font-semibold text-[13.5px] text-zinc-900 dark:text-zinc-100 line-clamp-1 cursor-pointer hover:underline tracking-tight"
                               onClick={() => {
                                 navigate(item.linkUrl)
                                 setIsAlertsOpen(false)
@@ -178,18 +178,18 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                             >
                               {item.title}
                             </div>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal mt-0.5">
+                            <p className="text-[12.5px] text-zinc-500 dark:text-zinc-400 leading-normal mt-0.5">
                               {item.desc}
                             </p>
                             <span
-                              className="text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 font-medium inline-flex items-center gap-1 mt-1.5 cursor-pointer hover:underline transition-colors"
+                              className="text-[12px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 font-medium inline-flex items-center gap-1.5 mt-2 cursor-pointer hover:underline transition-colors"
                               onClick={() => {
                                 navigate(item.linkUrl)
                                 setIsAlertsOpen(false)
                               }}
                             >
                               <span>{item.linkText}</span>
-                              <ArrowRight className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" />
+                              <ArrowRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
                             </span>
                           </div>
                           <button
@@ -198,7 +198,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                               e.stopPropagation()
                               dismissSystemAlert(item.id)
                             }}
-                            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200/90 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0 ml-1"
+                            className="px-3.5 py-1.5 text-[13px] font-medium rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200/90 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0 ml-1 self-start"
                           >
                             Dismiss
                           </button>
@@ -255,11 +255,14 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-left bg-transparent border-0 font-sans hover:bg-kumo-tint transition-colors cursor-pointer"
           >
             <div className="flex flex-col min-w-0 leading-tight">
-              <span className="block text-[13px] font-semibold truncate text-zinc-900 dark:text-zinc-100 max-w-[140px] sm:max-w-[200px]">
+              <span className="hidden sm:block text-[13px] font-semibold truncate text-zinc-900 dark:text-zinc-100 max-w-[200px]">
                 {selectedWarehouse.name}
               </span>
+              <span className="sm:hidden text-xs font-bold truncate text-zinc-900 dark:text-zinc-100 max-w-[90px]">
+                {selectedWarehouse.code}
+              </span>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-sans truncate">
-                {selectedWarehouse.code} • {selectedWarehouse.city}
+                {selectedWarehouse.city}
               </span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 shrink-0 text-zinc-500 dark:text-zinc-400 ml-0.5" />
