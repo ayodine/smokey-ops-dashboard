@@ -15,8 +15,18 @@ export const PwaInstallPrompt: React.FC = () => {
   const [isIos, setIsIos] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [isMobileScreen, setIsMobileScreen] = useState(false);
 
   useEffect(() => {
+    // Strictly restrict to mobile screen viewports (< 768px)
+    const checkMobile = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     // Check if running as standalone PWA
     const standalone = isStandalonePwa();
     setIsStandalone(standalone);
@@ -37,7 +47,10 @@ export const PwaInstallPrompt: React.FC = () => {
       setCanInstall(available);
     });
 
-    return unsubscribe;
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      unsubscribe();
+    };
   }, []);
 
   const handleDismiss = () => {
@@ -56,8 +69,8 @@ export const PwaInstallPrompt: React.FC = () => {
     }
   };
 
-  // Do not show if already running as installed app, or dismissed, or neither installable nor iOS
-  if (isStandalone || isDismissed) {
+  // Only visible on mobile screens, strictly excluded on desktop
+  if (!isMobileScreen || isStandalone || isDismissed) {
     return null;
   }
 
@@ -68,7 +81,7 @@ export const PwaInstallPrompt: React.FC = () => {
 
   return (
     <>
-      <div className="fixed bottom-20 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="md:hidden fixed bottom-20 left-3 right-3 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700/60 p-4 backdrop-blur-md">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#c0201f] text-white flex items-center justify-center shrink-0 shadow-md">
