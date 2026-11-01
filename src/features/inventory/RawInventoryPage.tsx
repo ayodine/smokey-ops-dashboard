@@ -91,7 +91,9 @@ export const RawInventoryPage: React.FC = () => {
     productionBatches,
     fulfillBatchMaterialRequisition,
     rejectBatchMaterialRequisition,
-    currentAccount
+    currentAccount,
+    hasPermission,
+    hasRole
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'current' | 'batches' | 'receipts' | 'requisitions' | 'variances'>('current')
@@ -530,22 +532,29 @@ export const RawInventoryPage: React.FC = () => {
       defaultWidth: 180,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Record incoming stock from supplier">
-            <TableActionButton
-              variant="success"
-              onClick={() => handleOpenReceive(p)}
-            >
-              + Receive
-            </TableActionButton>
-          </Tooltip>
-          <Tooltip content="Adjust on-hand stock or record kitchen wastage">
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenAdjust(p)}
-            >
-              Adjust
-            </TableActionButton>
-          </Tooltip>
+          {hasPermission('perm_intake') && (
+            <Tooltip content="Record incoming stock from supplier">
+              <TableActionButton
+                variant="success"
+                onClick={() => handleOpenReceive(p)}
+              >
+                + Receive
+              </TableActionButton>
+            </Tooltip>
+          )}
+          {hasPermission('perm_cycle_counts') && (
+            <Tooltip content="Adjust on-hand stock or record kitchen wastage">
+              <TableActionButton
+                variant="outline"
+                onClick={() => handleOpenAdjust(p)}
+              >
+                Adjust
+              </TableActionButton>
+            </Tooltip>
+          )}
+          {!hasPermission('perm_intake') && !hasPermission('perm_cycle_counts') && (
+            <span className="text-xs text-kumo-subtle font-sans italic">View Only</span>
+          )}
         </div>
       ),
     },
@@ -1066,33 +1075,39 @@ export const RawInventoryPage: React.FC = () => {
         subtitle="Manage fresh meats, cooking spices, hardwood charcoal, and oil deliveries from trusted local suppliers."
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenBlindStocktake}
-              leftIcon={<ClipboardCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
-              className="h-10 px-4 text-sm font-medium shadow-xs"
-            >
-              Record Stock Count
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenEditProduct()}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="h-10 px-4 text-sm font-medium shadow-xs"
-            >
-              New Item
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => handleOpenReceive()}
-              leftIcon={<PackagePlus className="w-4 h-4" />}
-              className="h-10 px-4 text-sm font-medium shadow-xs"
-            >
-              Add Received Stock
-            </Button>
+            {hasPermission('perm_cycle_counts') && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenBlindStocktake}
+                leftIcon={<ClipboardCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
+                className="h-10 px-4 text-sm font-medium shadow-xs"
+              >
+                Record Stock Count
+              </Button>
+            )}
+            {hasRole(['admin', 'manager']) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenEditProduct()}
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="h-10 px-4 text-sm font-medium shadow-xs"
+              >
+                New Item
+              </Button>
+            )}
+            {hasPermission('perm_intake') && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleOpenReceive()}
+                leftIcon={<PackagePlus className="w-4 h-4" />}
+                className="h-10 px-4 text-sm font-medium shadow-xs"
+              >
+                Add Received Stock
+              </Button>
+            )}
           </>
         }
       />

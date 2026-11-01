@@ -57,7 +57,7 @@ export interface RoleConfig {
 export interface SystemPermissionItem {
   id: string
   label: string
-  category: 'Administration' | 'Finance' | 'Production' | 'Inventory' | 'Logistics'
+  category: 'Administration' | 'Finance' | 'Production' | 'Inventory' | 'Logistics' | 'Sales'
   description: string
 }
 
@@ -94,7 +94,13 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   { id: 'perm_3pl', label: 'Third-party Rider Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or third-party riders.' },
   { id: 'perm_delivery_transit', label: 'Accept & Transit Delivery', category: 'Logistics', description: 'Rider mobile view to accept assigned trips and initiate waypoint transit.' },
   { id: 'perm_otp_dropoff', label: 'Customer OTP Drop-off Sign-off', category: 'Logistics', description: 'Validate customer delivery OTP code before concluding drop-off handover.' },
-  { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' }
+  { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' },
+
+  // Sales & Storefront Orders
+  { id: 'perm_orders_view', label: 'View Customer Orders', category: 'Sales', description: 'Monitor incoming customer orders, payment statuses, and fulfillment pipeline.' },
+  { id: 'perm_orders_status', label: 'Update Order Fulfillment Status', category: 'Sales', description: 'Progress orders through kitchen prep, packaging, ready for delivery, and completed.' },
+  { id: 'perm_orders_export', label: 'Export Sales & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and daily sales summaries.' },
+  { id: 'perm_sales_catalog', label: 'Sales Inventory & Menu Availability', category: 'Sales', description: 'Toggle items in/out of stock and adjust sellable menu listings.' }
 ]
 
 export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
@@ -1019,7 +1025,7 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
 
               {/* Permission Category Filter Tabs */}
               <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
-                {['All', 'Administration', 'Finance', 'Production', 'Inventory', 'Logistics'].map((cat) => (
+                {['All', 'Administration', 'Finance', 'Production', 'Inventory', 'Logistics', 'Sales'].map((cat) => (
                   <button
                     key={cat}
                     type="button"

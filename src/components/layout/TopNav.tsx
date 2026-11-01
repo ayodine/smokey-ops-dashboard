@@ -38,7 +38,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
   const { theme, toggleTheme } = useTheme()
   const [isWarehouseDropdownOpen, setIsWarehouseDropdownOpen] = useState(false)
   const [isAlertsOpen, setIsAlertsOpen] = useState(false)
-  const { systemAlerts, dismissSystemAlert, refreshSystemAlerts } = useSmokeyOps()
+  const { systemAlerts, dismissSystemAlert, refreshSystemAlerts, currentAccount } = useSmokeyOps()
   const [isAddFacilityModalOpen, setIsAddFacilityModalOpen] = useState(false)
   const [facilitySearchQuery, setFacilitySearchQuery] = useState('')
   const [facilityForm, setFacilityForm] = useState({
@@ -341,31 +341,33 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
                     })}
                 </div>
 
-                {/* Action Footer: Manage Offices & Add New Office / Branch */}
-                <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl divide-y divide-zinc-100 dark:divide-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsWarehouseDropdownOpen(false)
-                      navigate('/offices')
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
-                  >
-                    <Building2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400 stroke-[1.75] shrink-0" />
-                    <span>Manage Offices</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsWarehouseDropdownOpen(false)
-                      navigate('/offices/register')
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
-                  >
-                    <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                    <span>Add New Office / Branch</span>
-                  </button>
-                </div>
+                {/* Action Footer: Manage Offices & Add New Office / Branch (Admin only) */}
+                {currentAccount.role === 'admin' && (
+                  <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsWarehouseDropdownOpen(false)
+                        navigate('/offices')
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors"
+                    >
+                      <Building2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400 stroke-[1.75] shrink-0" />
+                      <span>Manage Offices</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsWarehouseDropdownOpen(false)
+                        navigate('/offices/register')
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors rounded-b-2xl"
+                    >
+                      <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
+                      <span>Add New Office / Branch</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

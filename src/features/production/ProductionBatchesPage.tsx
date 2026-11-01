@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { PermissionGate } from '@/components/ui/PermissionGate'
 import { ProductionBatch, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation, BatchMaterialRequisition } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
@@ -1405,7 +1406,8 @@ export const ProductionBatchesPage: React.FC = () => {
         title="Production Batches & Cooking Recipes"
         subtitle="Formulate multi-ingredient cooking recipes, track active smoking runs on the grill, and automatically credit completed yield into Sales Inventory."
         actions={
-          <div className="relative">
+          <PermissionGate permission="perm_cook">
+            <div className="relative">
             <Button
               variant="primary"
               size="sm"
@@ -1494,6 +1496,7 @@ export const ProductionBatchesPage: React.FC = () => {
               </>
             )}
           </div>
+          </PermissionGate>
         }
       />
 

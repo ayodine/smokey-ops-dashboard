@@ -59,6 +59,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     switchAccount,
     logout,
     availableAccounts,
+    isRouteAllowed,
+    getRoleDefaultLandingPath,
     websiteOrders,
     rawProducts,
     packagingProducts,
@@ -183,19 +185,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       },
     ]
 
-    if (currentAccount.role === 'kitchen') {
-      return allSections.filter(s => ['production', 'packaging', 'inventory'].includes(s.id))
-    }
-    if (currentAccount.role === 'inventory') {
-      return allSections.filter(s => ['inventory', 'packaging', 'sales'].includes(s.id))
-    }
-    if (currentAccount.role === 'dispatcher') {
-      return allSections.filter(s => ['logistic', 'packaging', 'sales'].includes(s.id))
-    }
-
+    // Strict RBAC: Filter each item by isRouteAllowed, and exclude sections with 0 visible items
     return allSections
+      .map(section => {
+        const filteredItems = section.items.filter(item => isRouteAllowed(item.href, currentAccount))
+        return {
+          ...section,
+          items: filteredItems,
+          defaultHref: filteredItems[0]?.href || section.defaultHref
+        }
+      })
+      .filter(section => section.items.length > 0)
   }, [
-    currentAccount.role,
+    currentAccount,
+    isRouteAllowed,
     activeOrdersCount,
     salesProducts.length,
     liveSalesProducts.length,
@@ -365,20 +368,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           </div>
         ) : (
           <div className="flex h-[58px] shrink-0 items-center justify-between px-3">
-            <button
-              type="button"
-              aria-label="Switch account profile"
-              onClick={() => {
-                setIsAccountMenuOpen(prev => !prev)
-                setAccountSearchQuery('')
-              }}
-              className="flex items-center justify-between gap-1.5 min-w-0 flex-1 max-w-[200px] text-left bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 py-1.5 px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 cursor-pointer transition-colors shadow-2xs"
-            >
-              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                {currentAccount.email.length > 18 ? `${currentAccount.email.slice(0, 16)}...` : currentAccount.email}
-              </span>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
-            </button>
+            {currentAccount.role === 'admin' ? (
+              <button
+                type="button"
+                aria-label="Switch account profile"
+                onClick={() => {
+                  setIsAccountMenuOpen(prev => !prev)
+                  setAccountSearchQuery('')
+                }}
+                className="flex items-center justify-between gap-1.5 min-w-0 flex-1 max-w-[200px] text-left bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 py-1.5 px-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 cursor-pointer transition-colors shadow-2xs"
+              >
+                <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  {currentAccount.email.length > 18 ? `${currentAccount.email.slice(0, 16)}...` : currentAccount.email}
+                </span>
+                <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 max-w-[200px] bg-zinc-100/70 dark:bg-zinc-800/60 py-1.5 px-3 rounded-lg border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xs select-none">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+                    {currentAccount.name}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono">
+                    {currentAccount.roleLabel || currentAccount.role}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sidebar Collapse Toggle Button */}
             <button
@@ -393,7 +409,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         )}
 
         {/* Account Menu Popover */}
-        {isAccountMenuOpen && !isCollapsed && (
+        {isAccountMenuOpen && !isCollapsed && currentAccount.role === 'admin' && (
           <>
             <div
               className="fixed inset-0 z-40"
@@ -429,11 +445,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                           onClick={() => {
                             switchAccount(acc.email)
                             setIsAccountMenuOpen(false)
-                            if (acc.role === 'rider') {
-                              navigate('/logistics/rider-portal')
-                            } else if (location.pathname.startsWith('/logistics/rider-portal')) {
-                              navigate('/overview')
-                            }
+                            const targetLanding = getRoleDefaultLandingPath(acc.role)
+                            navigate(targetLanding, { replace: true })
                           }}
                           className={cn(
                             "w-full px-3.5 py-2.5 rounded-xl text-left text-[13px] transition-colors cursor-pointer flex items-center justify-between",
@@ -535,8 +548,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
             </button>
           </div>
 
-          {/* Home Overview Link (Hidden for Rider Profile) */}
-          {currentAccount.role !== 'rider' && (
+          {/* Home Overview Link (Only for Admin & Operations Manager) */}
+          {isRouteAllowed('/overview', currentAccount) && (
             <Link
               to="/overview"
               onClick={onCloseMobile}
@@ -679,19 +692,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               </div>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsActivityModalOpen(true)}
-              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <ShieldCheck className="w-4 h-4 text-black dark:text-white shrink-0" />
-                <span className="truncate">Sign-in activity</span>
-              </div>
-              <span className="text-[9px] uppercase tracking-wider font-bold bg-kumo-tint text-kumo-strong px-1.5 py-0.2 rounded shrink-0">
-                Admin
-              </span>
-            </button>
+            {currentAccount.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsActivityModalOpen(true)}
+                className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <ShieldCheck className="w-4 h-4 text-black dark:text-white shrink-0" />
+                  <span className="truncate">Sign-in activity</span>
+                </div>
+                <span className="text-[9px] uppercase tracking-wider font-bold bg-kumo-tint text-kumo-strong px-1.5 py-0.2 rounded shrink-0">
+                  Admin
+                </span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -725,14 +740,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               <HelpCircle className="w-4 h-4" />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsActivityModalOpen(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
-              title="Sign-in Activity (Admin)"
-            >
-              <ShieldCheck className="w-4 h-4 text-black dark:text-white" />
-            </button>
+            {currentAccount.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsActivityModalOpen(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
+                title="Sign-in Activity (Admin)"
+              >
+                <ShieldCheck className="w-4 h-4 text-black dark:text-white" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

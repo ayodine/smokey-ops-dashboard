@@ -50,7 +50,9 @@ export const DeliveryTeamPage: React.FC = () => {
     addRiderProfile,
     currentAccount,
     availableAccounts,
-    createAccount
+    createAccount,
+    hasRole,
+    hasPermission
   } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
   const [selectedRider, setSelectedRider] = useState<RiderPayout | null>(null)
@@ -109,6 +111,10 @@ export const DeliveryTeamPage: React.FC = () => {
 
   const handlePayAndReset = () => {
     if (!selectedRider) return
+    if (!hasRole(['admin', 'manager']) && !hasPermission('perm_rider_payout')) {
+      alert('Unauthorized: Rider disbursement requires Manager or Admin permissions.')
+      return
+    }
     payAndResetRider(selectedRider.rider_user_id)
     setSelectedRider(prev => prev ? {
       ...prev,
@@ -411,14 +417,25 @@ export const DeliveryTeamPage: React.FC = () => {
         return (
           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
             {r.pending_payout > 0 ? (
-              <Tooltip content="Audit completed trips and disburse payout">
-                <TableActionButton
-                  variant="primary"
-                  onClick={() => handleOpenAccount(r, 'ledger')}
-                >
-                  Disburse Payout
-                </TableActionButton>
-              </Tooltip>
+              (hasRole(['admin', 'manager']) || hasPermission('perm_rider_payout')) ? (
+                <Tooltip content="Audit completed trips and disburse payout">
+                  <TableActionButton
+                    variant="primary"
+                    onClick={() => handleOpenAccount(r, 'ledger')}
+                  >
+                    Disburse Payout
+                  </TableActionButton>
+                </Tooltip>
+              ) : (
+                <Tooltip content="Disbursement requires Manager or Admin authorization">
+                  <TableActionButton
+                    variant="secondary"
+                    onClick={() => handleOpenAccount(r, 'ledger')}
+                  >
+                    Audit Ledger
+                  </TableActionButton>
+                </Tooltip>
+              )
             ) : (
               <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium text-kumo-subtle bg-kumo-surface border border-kumo-line rounded-md">
                 Settled
@@ -436,14 +453,16 @@ export const DeliveryTeamPage: React.FC = () => {
         title="In-House Delivery Riders"
         subtitle="Manage in-house riders, active trip assignments, earnings audits, and payout disbursements."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsOnboardModalOpen(true)}
-            leftIcon={<UserPlus className="w-4 h-4" />}
-          >
-            Onboard In-House Rider
-          </Button>
+          hasRole(['admin', 'manager', 'dispatcher']) ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsOnboardModalOpen(true)}
+              leftIcon={<UserPlus className="w-4 h-4" />}
+            >
+              Onboard In-House Rider
+            </Button>
+          ) : undefined
         }
       />
 
@@ -518,14 +537,20 @@ export const DeliveryTeamPage: React.FC = () => {
               Close
             </Button>
             {selectedRider && (selectedRider.pending_payout || 0) > 0 && (
-              <Button
-                variant="primary"
-                size="md"
-                type="button"
-                onClick={handlePayAndReset}
-              >
-                Disburse Payout ({formatNaira(selectedRider.pending_payout)})
-              </Button>
+              (hasRole(['admin', 'manager']) || hasPermission('perm_rider_payout')) ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  type="button"
+                  onClick={handlePayAndReset}
+                >
+                  Disburse Payout ({formatNaira(selectedRider.pending_payout)})
+                </Button>
+              ) : (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium px-2.5 py-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                  Manager approval required for payout disbursement
+                </span>
+              )
             )}
           </div>
         }

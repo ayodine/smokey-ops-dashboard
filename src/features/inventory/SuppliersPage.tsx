@@ -47,7 +47,7 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 export const SuppliersPage: React.FC = () => {
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier, rawDeliveries } = useSmokeyOps()
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, rawDeliveries, hasRole, hasPermission } = useSmokeyOps()
   
   // Tab & Filtering State
   const [activeStatusTab, setActiveStatusTab] = useState<'all' | 'active' | 'inactive'>('all')
@@ -174,6 +174,10 @@ export const SuppliersPage: React.FC = () => {
 
   const handleDeleteVendor = () => {
     if (!selectedSupplier) return
+    if (!hasRole('admin')) {
+      alert('Unauthorized: Deleting a vendor profile requires Administrator role.')
+      return
+    }
     const success = deleteSupplier(selectedSupplier.id)
     if (success) {
       setIsManageModalOpen(false)
@@ -308,19 +312,21 @@ export const SuppliersPage: React.FC = () => {
         title="Suppliers & Vendor Procurement"
         subtitle="Registered live poultry farmers, agro-wholesale markets, firewood contractors, and food packaging manufacturers."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setIsCustomCategoryMode(false)
-              setCustomCategoryInput('')
-              setIsAddModalOpen(true)
-            }}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit cursor-pointer"
-          >
-            Add New Vendor
-          </Button>
+          (hasRole(['admin', 'manager', 'inventory']) || hasPermission('perm_invoices')) ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setIsCustomCategoryMode(false)
+                setCustomCategoryInput('')
+                setIsAddModalOpen(true)
+              }}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit cursor-pointer"
+            >
+              Add New Vendor
+            </Button>
+          ) : undefined
         }
       />
 
@@ -585,57 +591,59 @@ export const SuppliersPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Danger Zone: Audit-Guarded Vendor Deletion */}
-                <div className="p-3 rounded-lg border border-rose-200 dark:border-rose-950/50 bg-rose-50/40 dark:bg-rose-950/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold text-xs">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span>Delete Vendor Profile</span>
+                {/* Danger Zone: Audit-Guarded Vendor Deletion (Admin Only) */}
+                {hasRole('admin') && (
+                  <div className="p-3 rounded-lg border border-rose-200 dark:border-rose-950/50 bg-rose-50/40 dark:bg-rose-950/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold text-xs">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Delete Vendor Profile</span>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-[11px] text-kumo-subtle leading-relaxed">
-                    {selectedDeliveriesCount > 0
-                      ? `This vendor has ${selectedDeliveriesCount} fulfilled shipment${selectedDeliveriesCount === 1 ? '' : 's'} on record. Permanent deletion is locked to preserve ledger audit trail. Mark inactive instead.`
-                      : 'Permanently remove this vendor from the database. Allowed only because 0 shipments have been recorded.'}
-                  </p>
-                  {selectedDeliveriesCount === 0 && (
-                    <div className="pt-1">
-                      {!isConfirmingDelete ? (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setIsConfirmingDelete(true)}
-                          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                          className="h-8 px-3 text-xs cursor-pointer"
-                        >
-                          Delete Vendor
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setIsConfirmingDelete(false)}
-                            className="h-8 px-3 text-xs"
-                          >
-                            Cancel
-                          </Button>
+                    <p className="text-[11px] text-kumo-subtle leading-relaxed">
+                      {selectedDeliveriesCount > 0
+                        ? `This vendor has ${selectedDeliveriesCount} fulfilled shipment${selectedDeliveriesCount === 1 ? '' : 's'} on record. Permanent deletion is locked to preserve ledger audit trail. Mark inactive instead.`
+                        : 'Permanently remove this vendor from the database. Allowed only because 0 shipments have been recorded.'}
+                    </p>
+                    {selectedDeliveriesCount === 0 && (
+                      <div className="pt-1">
+                        {!isConfirmingDelete ? (
                           <Button
                             type="button"
                             variant="destructive"
                             size="sm"
-                            onClick={handleDeleteVendor}
-                            className="h-8 px-3 text-xs"
+                            onClick={() => setIsConfirmingDelete(true)}
+                            leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                            className="h-8 px-3 text-xs cursor-pointer"
                           >
-                            Confirm Delete
+                            Delete Vendor
                           </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setIsConfirmingDelete(false)}
+                              className="h-8 px-3 text-xs"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={handleDeleteVendor}
+                              className="h-8 px-3 text-xs"
+                            >
+                              Confirm Delete
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
             )}
 

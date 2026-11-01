@@ -707,6 +707,36 @@ export const ManageAccountsPage: React.FC = () => {
         ]
       },
       {
+        id: 'sales',
+        name: 'Sales & Storefront Orders',
+        permissions: [
+          {
+            id: 'perm_orders_view',
+            label: 'View Customer Orders',
+            category: 'Sales',
+            description: 'Monitor incoming customer orders, payment statuses, and fulfillment pipeline.'
+          },
+          {
+            id: 'perm_orders_status',
+            label: 'Update Order Fulfillment Status',
+            category: 'Sales',
+            description: 'Progress orders through kitchen prep, packaging, ready for delivery, and completed.'
+          },
+          {
+            id: 'perm_orders_export',
+            label: 'Export Sales & Revenue Reports',
+            category: 'Sales',
+            description: 'Download CSV and Excel order manifests and daily sales summaries.'
+          },
+          {
+            id: 'perm_sales_catalog',
+            label: 'Sales Inventory & Menu Availability',
+            category: 'Sales',
+            description: 'Toggle items in/out of stock and adjust sellable menu listings.'
+          }
+        ]
+      },
+      {
         id: 'inventory',
         name: 'Inventory & Warehouse Control',
         permissions: [

@@ -345,6 +345,15 @@ interface SmokeyOpsContextType {
   addRiderProfile: (riderData: Partial<RiderPayout> & { rider_name: string; phone: string }) => RiderPayout
   availableAccounts: AppUserAccount[]
 
+  // Strict RBAC & Permissions Engine
+  hasPermission: (permission: string, account?: AppUserAccount) => boolean
+  hasAnyPermission: (permissions: string[], account?: AppUserAccount) => boolean
+  hasAllPermissions: (permissions: string[], account?: AppUserAccount) => boolean
+  hasRole: (roles: UserRole | UserRole[], account?: AppUserAccount) => boolean
+  isRouteAllowed: (path: string, account?: AppUserAccount) => boolean
+  getRoleDefaultLandingPath: (role?: UserRole) => string
+  getRoleAuthorizedRoutes: (role?: UserRole) => string[]
+
   // Feedback, Toasts & Success Confirmation Modals
   toasts: ToastMessage[]
   showToast: (message: string, type?: 'success' | 'info' | 'error', title?: string) => void
@@ -466,6 +475,99 @@ export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
   }
 }
 
+export type PermissionId =
+  // Sales
+  | 'perm_orders_view'
+  | 'perm_orders_status'
+  | 'perm_orders_export'
+  | 'perm_sales_catalog'
+  // Production
+  | 'perm_batches'
+  | 'perm_cook'
+  | 'perm_raw_deplete'
+  | 'perm_packout'
+  | 'perm_spoilage'
+  // Inventory
+  | 'perm_intake'
+  | 'perm_cycle_counts'
+  | 'perm_transfers'
+  | 'perm_expiry'
+  | 'perm_thresholds'
+  // Logistics
+  | 'perm_dispatch_ctrl'
+  | 'perm_queue_assign'
+  | 'perm_tracking'
+  | 'perm_3pl'
+  | 'perm_delivery_transit'
+  | 'perm_otp_dropoff'
+  | 'perm_shifts'
+  // Finance
+  | 'perm_finance'
+  | 'perm_invoices'
+  | 'perm_rider_payout'
+  | 'perm_wallet'
+  // Administration
+  | 'perm_records'
+  | 'perm_users'
+  | 'perm_rbac'
+
+export interface SystemPermissionDef {
+  id: PermissionId
+  label: string
+  category: 'Sales' | 'Production' | 'Inventory' | 'Logistics' | 'Finance' | 'Administration'
+  description: string
+}
+
+export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> = {
+  // Sales
+  perm_orders_view: { id: 'perm_orders_view', label: 'View Storefront & Website Orders', category: 'Sales', description: 'Access customer orders, Paystack verification, and kitchen handover status.' },
+  perm_orders_status: { id: 'perm_orders_status', label: 'Update Order Fulfillment Status', category: 'Sales', description: 'Advance order stages across Ready, In Packaging, Packaged, and Dispatched.' },
+  perm_orders_export: { id: 'perm_orders_export', label: 'Export Sales & Order Reports', category: 'Sales', description: 'Download CSV audit exports of customer transactions and delivery fees.' },
+  perm_sales_catalog: { id: 'perm_sales_catalog', label: 'Manage Sales Menu & Finished Pricing', category: 'Sales', description: 'Configure finished goods sales prices, combos, and oven buffer thresholds.' },
+
+  // Production
+  perm_batches: { id: 'perm_batches', label: 'Batch Scheduling & Cook Approvals', category: 'Production', description: 'Schedule smoking grill cooks, modify recipes, and sign off completed runs.' },
+  perm_cook: { id: 'perm_cook', label: 'Start & Complete Batches', category: 'Production', description: 'Record real-time cook progress, internal meat temps, and yield outputs.' },
+  perm_raw_deplete: { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of livestock, seasoning packs, and marinades during runs.' },
+  perm_packout: { id: 'perm_packout', label: 'Portion Pack-out Logging', category: 'Production', description: 'Log sealed units into vacuum pouches and carton cases ready for sales inventory.' },
+  perm_spoilage: { id: 'perm_spoilage', label: 'Waste & Spoilage Incident Reports', category: 'Production', description: 'Submit and approve burned portions, expired cuts, or compromised batches.' },
+
+  // Inventory
+  perm_intake: { id: 'perm_intake', label: 'Stock Intake PO Receipts', category: 'Inventory', description: 'Receive vendor deliveries at loading dock, confirm item quantities, and verify lots.' },
+  perm_cycle_counts: { id: 'perm_cycle_counts', label: 'Periodic Cycle Counts', category: 'Inventory', description: 'Perform physical warehouse stock reconciliations and adjustments against system tallies.' },
+  perm_transfers: { id: 'perm_transfers', label: 'Packaging Unit Transfers', category: 'Inventory', description: 'Transfer foil trays, branded thermal bags, and boxes across kitchens, depots, and hubs.' },
+  perm_expiry: { id: 'perm_expiry', label: 'Lot Expiry Monitoring', category: 'Inventory', description: 'Track meat and spice freshness dates, send urgent reorder notifications, and quarantine aging lots.' },
+  perm_thresholds: { id: 'perm_thresholds', label: 'Inventory Threshold Overrides', category: 'Inventory', description: 'Adjust safety stock minimums, maximum storage capacities, and critical reorder threshold parameters.' },
+
+  // Logistics
+  perm_dispatch_ctrl: { id: 'perm_dispatch_ctrl', label: 'Logistics Dispatch Controls', category: 'Logistics', description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.' },
+  perm_queue_assign: { id: 'perm_queue_assign', label: 'Dispatch Queue Assignment', category: 'Logistics', description: 'Assign ready cooked orders to available couriers waiting at the dispatch staging dock.' },
+  perm_tracking: { id: 'perm_tracking', label: 'Rider Location & Route Tracking', category: 'Logistics', description: 'Live tracking of delivery couriers, ETA monitoring, and route compliance.' },
+  perm_3pl: { id: 'perm_3pl', label: 'Third-party Rider Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or third-party riders.' },
+  perm_delivery_transit: { id: 'perm_delivery_transit', label: 'Accept & Transit Delivery', category: 'Logistics', description: 'Rider mobile interface to accept assigned trips and initiate waypoint transit.' },
+  perm_otp_dropoff: { id: 'perm_otp_dropoff', label: 'Customer OTP Drop-off Sign-off', category: 'Logistics', description: 'Validate customer delivery OTP code or handover signature before drop-off handover.' },
+  perm_shifts: { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' },
+
+  // Finance
+  perm_finance: { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
+  perm_invoices: { id: 'perm_invoices', label: 'Supplier Invoice Verification', category: 'Finance', description: 'Review purchase order billing, confirm line item unit costs, and approve credits.' },
+  perm_rider_payout: { id: 'perm_rider_payout', label: 'Rider Payout Disbursement', category: 'Finance', description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.' },
+  perm_wallet: { id: 'perm_wallet', label: 'Wallet & Payout History', category: 'Finance', description: 'Inspect individual courier earnings ledger, trip commissions, and deductions.' },
+
+  // Administration
+  perm_records: { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Master database records and operational raw data access.' },
+  perm_users: { id: 'perm_users', label: 'User Onboarding & Deletion', category: 'Administration', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
+  perm_rbac: { id: 'perm_rbac', label: 'Role & Permission Management', category: 'Administration', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' }
+}
+
+export const PERMISSION_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.values(PERMISSION_DEFINITIONS).map(d => [d.id, d.label])
+)
+
+export const PERMISSION_LABEL_TO_ID: Record<string, string> = Object.fromEntries(
+  Object.values(PERMISSION_DEFINITIONS).map(d => [d.label, d.id])
+)
+
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   admin: [
     'Full Database & Records Access',
@@ -473,38 +575,134 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Role & Permission Management',
     'Finance & Payout Remittances',
     'Inventory Threshold Overrides',
-    'Logistics Dispatch Controls'
-  ],
-  manager: [
+    'Logistics Dispatch Controls',
+    'View Storefront & Website Orders',
+    'Update Order Fulfillment Status',
+    'Export Sales & Order Reports',
+    'Manage Sales Menu & Finished Pricing',
     'Batch Scheduling & Cook Approvals',
-    'Variance Reconciliation',
-    'Staff Shift Assignments',
-    'Supplier Invoice Verification',
-    'Waste & Spoilage Write-offs'
-  ],
-  kitchen: [
     'Start & Complete Batches',
     'Raw Materials Depletion',
     'Portion Pack-out Logging',
-    'Waste & Spoilage Incident Reports'
+    'Waste & Spoilage Incident Reports',
+    'Stock Intake PO Receipts',
+    'Periodic Cycle Counts',
+    'Packaging Unit Transfers',
+    'Lot Expiry Monitoring',
+    'Dispatch Queue Assignment',
+    'Rider Location & Route Tracking',
+    'Third-party Rider Bookings',
+    'Rider Payout Disbursement',
+    'Supplier Invoice Verification',
+    'Staff Shift Assignments'
+  ],
+  manager: [
+    'View Storefront & Website Orders',
+    'Update Order Fulfillment Status',
+    'Export Sales & Order Reports',
+    'Batch Scheduling & Cook Approvals',
+    'Start & Complete Batches',
+    'Raw Materials Depletion',
+    'Portion Pack-out Logging',
+    'Waste & Spoilage Incident Reports',
+    'Stock Intake PO Receipts',
+    'Periodic Cycle Counts',
+    'Packaging Unit Transfers',
+    'Lot Expiry Monitoring',
+    'Inventory Threshold Overrides',
+    'Logistics Dispatch Controls',
+    'Dispatch Queue Assignment',
+    'Rider Location & Route Tracking',
+    'Third-party Rider Bookings',
+    'Staff Shift Assignments',
+    'Supplier Invoice Verification',
+    'Rider Payout Disbursement',
+    'Finance & Payout Remittances'
+  ],
+  kitchen: [
+    'Start & Complete Batches',
+    'Batch Scheduling & Cook Approvals',
+    'Raw Materials Depletion',
+    'Portion Pack-out Logging',
+    'Waste & Spoilage Incident Reports',
+    'Packaging Unit Transfers'
   ],
   inventory: [
     'Stock Intake PO Receipts',
     'Periodic Cycle Counts',
     'Packaging Unit Transfers',
-    'Lot Expiry Monitoring'
+    'Lot Expiry Monitoring',
+    'Inventory Threshold Overrides',
+    'Supplier Invoice Verification'
   ],
   dispatcher: [
+    'View Storefront & Website Orders',
+    'Update Order Fulfillment Status',
     'Dispatch Queue Assignment',
     'Rider Location & Route Tracking',
     'Third-party Rider Bookings',
-    ],
+    'Logistics Dispatch Controls',
+    'Customer OTP Drop-off Sign-off',
+    'Staff Shift Assignments',
+    'Portion Pack-out Logging'
+  ],
   rider: [
     'Accept & Transit Delivery',
     'Customer OTP Drop-off Sign-off',
     'Wallet & Payout History'
   ]
 }
+
+export interface RouteAccessRule {
+  prefix: string
+  exact?: boolean
+  allowedRoles?: UserRole[]
+  requiredPermissions?: string[]
+  title: string
+}
+
+export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
+  // Super Admin only routes
+  { prefix: '/accounts', allowedRoles: ['admin'], title: 'Staff Account Management' },
+  { prefix: '/admin/accounts', allowedRoles: ['admin'], title: 'Staff Account Management' },
+  { prefix: '/offices', allowedRoles: ['admin'], title: 'Office & Regional Hub Management' },
+  { prefix: '/admin/offices', allowedRoles: ['admin'], title: 'Office & Regional Hub Management' },
+
+  // Dedicated Rider Portal
+  { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], title: 'Rider Delivery Portal' },
+  { prefix: '/rider', allowedRoles: ['rider'], title: 'Rider Delivery Portal' },
+
+  // Sales domain
+  { prefix: '/sales', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_orders_view', 'View Storefront & Website Orders'], title: 'Website Orders' },
+
+  // Inventory sub-routes
+  { prefix: '/inventory/suppliers', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_invoices', 'Supplier Invoice Verification', 'perm_intake'], title: 'Suppliers & Vendors' },
+  { prefix: '/inventory/movements', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts', 'perm_transfers'], title: 'Stock Movements Ledger' },
+  { prefix: '/inventory/sales', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts'], title: 'Sales Inventory' },
+  { prefix: '/inventory/raw', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Raw Inventory' },
+  { prefix: '/inventory/packaging', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Packaging Materials' },
+  { prefix: '/inventory', exact: true, allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Inventory Domain' },
+
+  // Production sub-routes
+  { prefix: '/production/batches', allowedRoles: ['admin', 'manager', 'kitchen'], requiredPermissions: ['perm_cook', 'Start & Complete Batches', 'perm_batches'], title: 'Production Batches' },
+  { prefix: '/production/tasks', allowedRoles: ['admin', 'manager', 'kitchen'], requiredPermissions: ['perm_cook', 'Start & Complete Batches'], title: 'Kitchen Shift Tasks' },
+  { prefix: '/production/packaging', allowedRoles: ['admin', 'manager', 'kitchen', 'dispatcher'], title: 'Packaging Execution' },
+  { prefix: '/production', exact: true, allowedRoles: ['admin', 'manager', 'kitchen'], title: 'Production Domain' },
+
+  // Logistics sub-routes
+  { prefix: '/logistics/board', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_dispatch_ctrl'], title: 'Dispatch Board' },
+  { prefix: '/logistics/schedule', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment'], title: 'Delivery Schedule' },
+  { prefix: '/logistics/riders', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_tracking', 'Rider Location & Route Tracking', 'perm_dispatch_ctrl'], title: 'In-House Riders' },
+  { prefix: '/logistics/pickup', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_otp_dropoff'], title: 'Store Pickup Counter' },
+  { prefix: '/logistics/third-party', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_3pl', 'Third-party Rider Bookings'], title: 'Third Party Delivery' },
+  { prefix: '/logistics', exact: true, allowedRoles: ['admin', 'manager', 'dispatcher'], title: 'Logistics Domain' },
+
+  // Operations Overview (Executive)
+  { prefix: '/overview', allowedRoles: ['admin', 'manager'], title: 'Operations Overview' },
+
+  // Support Help Desk (Universal for all authenticated staff)
+  { prefix: '/support', allowedRoles: ['admin', 'manager', 'kitchen', 'inventory', 'dispatcher', 'rider'], title: 'Support & Help Desk' },
+]
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
   {
@@ -2181,11 +2379,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const switchAccount = (email: string) => {
     setActiveAccountEmail(email)
     localStorage.setItem('smokey_active_account', email)
+    const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
     try {
       const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
       if (sessionRaw) {
         const parsed = JSON.parse(sessionRaw)
-        const updatedSession = JSON.stringify({ ...parsed, email })
+        const updatedSession = JSON.stringify({
+          ...parsed,
+          email,
+          role: target?.role || parsed.role
+        })
         sessionStorage.setItem('smokey_auth_session_v1', updatedSession)
         if (localStorage.getItem('smokey_auth_session_v1')) {
           localStorage.setItem('smokey_auth_session_v1', updatedSession)
@@ -2194,7 +2397,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch {
       // ignore
     }
-    const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
     if (target?.role === 'rider') {
       showToast(`Switched to ${target.name} profile — restricted to Logistics & Delivery operations`, 'info')
     } else {
@@ -2569,6 +2771,153 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateAccount(email, { password: newPassword, temporary_password: newPassword })
     showToast(`Password successfully updated for ${email}`, 'success', 'Security Credentials')
   }
+
+  // Strict RBAC & Permissions Engine Methods
+  const hasPermission = React.useCallback(
+    (permIdOrLabel: string, account: AppUserAccount = currentAccount): boolean => {
+      if (!account) return false
+      // 1. Super Admin possesses all privileges
+      if (account.role === 'admin') return true
+
+      const cleanInput = permIdOrLabel.trim()
+      const resolvedId = PERMISSION_LABEL_TO_ID[cleanInput] || cleanInput
+      const resolvedLabel = PERMISSION_ID_TO_LABEL[cleanInput] || cleanInput
+
+      // 2. Check explicit custom user permissions
+      const userPerms = account.permissions || []
+      if (
+        userPerms.some(
+          p =>
+            p === resolvedId ||
+            p === resolvedLabel ||
+            p.toLowerCase() === cleanInput.toLowerCase()
+        )
+      ) {
+        return true
+      }
+
+      // 3. Check role default permissions
+      const roleDefaults = ROLE_DEFAULT_PERMISSIONS[account.role] || []
+      return roleDefaults.some(
+        p =>
+          p === resolvedId ||
+          p === resolvedLabel ||
+          p.toLowerCase() === cleanInput.toLowerCase()
+      )
+    },
+    [currentAccount]
+  )
+
+  const hasAnyPermission = React.useCallback(
+    (perms: string[], account: AppUserAccount = currentAccount): boolean => {
+      if (!account) return false
+      if (account.role === 'admin') return true
+      return perms.some(p => hasPermission(p, account))
+    },
+    [hasPermission, currentAccount]
+  )
+
+  const hasAllPermissions = React.useCallback(
+    (perms: string[], account: AppUserAccount = currentAccount): boolean => {
+      if (!account) return false
+      if (account.role === 'admin') return true
+      return perms.every(p => hasPermission(p, account))
+    },
+    [hasPermission, currentAccount]
+  )
+
+  const hasRole = React.useCallback(
+    (roles: UserRole | UserRole[], account: AppUserAccount = currentAccount): boolean => {
+      if (!account) return false
+      const roleList = Array.isArray(roles) ? roles : [roles]
+      return roleList.includes(account.role)
+    },
+    [currentAccount]
+  )
+
+  const getRoleDefaultLandingPath = React.useCallback(
+    (role?: UserRole): string => {
+      const targetRole = role || currentAccount?.role || 'admin'
+      switch (targetRole) {
+        case 'rider':
+          return '/logistics/rider-portal'
+        case 'kitchen':
+          return '/production/batches'
+        case 'inventory':
+          return '/inventory/raw'
+        case 'dispatcher':
+          return '/logistics/board'
+        case 'manager':
+        case 'admin':
+        default:
+          return '/overview'
+      }
+    },
+    [currentAccount?.role]
+  )
+
+  const isRouteAllowed = React.useCallback(
+    (path: string, account: AppUserAccount = currentAccount): boolean => {
+      if (!account) return false
+      if (account.role === 'admin') return true
+
+      const normalizedPath = path.split('?')[0].split('#')[0]
+
+      const matchingRule = ROUTE_ACCESS_RULES
+        .filter(rule => {
+          if (rule.exact) return normalizedPath === rule.prefix
+          return normalizedPath === rule.prefix || normalizedPath.startsWith(`${rule.prefix}/`)
+        })
+        .sort((a, b) => b.prefix.length - a.prefix.length)[0]
+
+      if (!matchingRule) {
+        return normalizedPath === '/support' || normalizedPath === '/login' || normalizedPath === '/auth'
+      }
+
+      if (matchingRule.allowedRoles && !matchingRule.allowedRoles.includes(account.role)) {
+        return false
+      }
+
+      if (matchingRule.requiredPermissions && matchingRule.requiredPermissions.length > 0) {
+        return hasAnyPermission(matchingRule.requiredPermissions, account)
+      }
+
+      return true
+    },
+    [currentAccount, hasAnyPermission]
+  )
+
+  const getRoleAuthorizedRoutes = React.useCallback(
+    (role?: UserRole): string[] => {
+      const targetRole = role || currentAccount?.role || 'admin'
+      if (targetRole === 'admin') {
+        return [
+          '/overview',
+          '/sales/orders',
+          '/inventory/raw',
+          '/inventory/packaging',
+          '/inventory/sales',
+          '/inventory/movements',
+          '/inventory/suppliers',
+          '/production/batches',
+          '/production/packaging',
+          '/production/tasks',
+          '/logistics/board',
+          '/logistics/schedule',
+          '/logistics/riders',
+          '/logistics/pickup',
+          '/logistics/third-party',
+          '/accounts',
+          '/offices',
+          '/support'
+        ]
+      }
+      return ROUTE_ACCESS_RULES
+        .filter(rule => !rule.allowedRoles || rule.allowedRoles.includes(targetRole))
+        .map(rule => rule.prefix)
+    },
+    [currentAccount?.role]
+  )
 
   // Feedback: Toasts & Success Modal
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -5653,6 +6002,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         changePassword,
         addRiderProfile,
         availableAccounts: accounts,
+        hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
+        hasRole,
+        isRouteAllowed,
+        getRoleDefaultLandingPath,
+        getRoleAuthorizedRoutes,
         toasts,
         showToast,
         dismissToast,

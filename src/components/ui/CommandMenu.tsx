@@ -44,6 +44,8 @@ interface CommandMenuProps {
 export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate()
   const {
+    currentAccount,
+    isRouteAllowed,
     rawProducts,
     packagingProducts,
     salesProducts,
@@ -316,8 +318,13 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
       badge: ord.fulfillment_status?.replace(/_/g, ' ').toUpperCase() || 'CONFIRMED',
     }))
 
-    return [...quickActions, ...pages, ...skuItems, ...orderItems]
+    // Strict RBAC: Exclude any pages, actions, or SKUs on routes not allowed for current role
+    return [...quickActions, ...pages, ...skuItems, ...orderItems].filter(item =>
+      isRouteAllowed(item.href, currentAccount)
+    )
   }, [
+    currentAccount,
+    isRouteAllowed,
     rawProducts,
     packagingProducts,
     salesProducts,

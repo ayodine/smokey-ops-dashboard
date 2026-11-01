@@ -9,13 +9,21 @@ import { CommandMenu } from '@/components/ui/CommandMenu'
 export const AppShell: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false)
-  const { isAuthenticated, currentAccount } = useSmokeyOps()
+  const {
+    isAuthenticated,
+    currentAccount,
+    isRouteAllowed,
+    getRoleDefaultLandingPath,
+    showToast
+  } = useSmokeyOps()
   const location = useLocation()
   const navigate = useNavigate()
 
-  // RBAC Route Guard: Sandboxes Rider to Logistics & Rider Portal, and restricts Admin routes
+  // Strict RBAC Route Guard: Validates every route against the active operator's assigned role and permissions
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated || !currentAccount) return
+
+    // 1. Dedicated Rider Sandbox
     if (currentAccount.role === 'rider') {
       const allowedPaths = ['/logistics/rider-portal', '/rider', '/support']
       const isAllowed = allowedPaths.some(
@@ -27,23 +35,35 @@ export const AppShell: React.FC = () => {
       return
     }
 
-    // Guard rider portal from non-rider office staff
-    const isRiderRoute = location.pathname === '/logistics/rider-portal' || location.pathname === '/rider' || location.pathname.startsWith('/logistics/rider-portal/')
+    // 2. Guard the mobile rider portal from office dashboard staff
+    const isRiderRoute =
+      location.pathname === '/logistics/rider-portal' ||
+      location.pathname === '/rider' ||
+      location.pathname.startsWith('/logistics/rider-portal/')
     if (isRiderRoute) {
       navigate('/logistics/riders', { replace: true })
       return
     }
 
-    if (currentAccount.role !== 'admin') {
-      const adminOnlyPrefixes = ['/accounts', '/admin/accounts', '/offices', '/admin/offices']
-      const isAdminRoute = adminOnlyPrefixes.some(
-        p => location.pathname === p || location.pathname.startsWith(`${p}/`)
+    // 3. Strict declarative route authorization
+    const isAllowed = isRouteAllowed(location.pathname, currentAccount)
+    if (!isAllowed) {
+      const fallbackPath = getRoleDefaultLandingPath(currentAccount.role)
+      showToast(
+        `Access Restricted: Your role (${currentAccount.roleLabel}) does not have permission to view this section. Redirected to your assigned workspace.`,
+        'error'
       )
-      if (isAdminRoute) {
-        navigate('/overview', { replace: true })
-      }
+      navigate(fallbackPath, { replace: true })
     }
-  }, [isAuthenticated, currentAccount.role, location.pathname, navigate])
+  }, [
+    isAuthenticated,
+    currentAccount,
+    location.pathname,
+    navigate,
+    isRouteAllowed,
+    getRoleDefaultLandingPath,
+    showToast
+  ])
 
   // Global Command+K / Ctrl+K keyboard shortcut
   useEffect(() => {
