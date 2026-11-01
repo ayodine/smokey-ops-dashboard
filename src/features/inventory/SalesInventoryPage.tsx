@@ -43,7 +43,7 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
   const price = Number(p.price ?? 0)
   const cost = Number(p.cost_price ?? Math.round(price * 0.45))
   const reorder = Number(p.reorder_level ?? 10)
-  const allocated = Math.min(stock, 1) // Reserved for active packaging queue
+  const allocated = Number(p.qty_allocated ?? 0)
   const available = Math.max(0, stock - allocated)
 
   return {
@@ -273,6 +273,24 @@ export const SalesInventoryPage: React.FC = () => {
     // 3. Persist to Supabase if available
     try {
       if (selectedProduct?.id) {
+        fetch('/api/update-product', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedProduct.id,
+            updates: {
+              name: productForm.name,
+              price: price,
+              cost_price: cost,
+              stock: stock,
+              image: productForm.image ? productForm.image.trim() : null,
+              category_id: productForm.category_id,
+              short_desc: productForm.short_desc || null,
+              is_active: productForm.is_active
+            }
+          })
+        }).catch(() => {})
+
         await supabase
           .from('products')
           .update({
@@ -280,7 +298,6 @@ export const SalesInventoryPage: React.FC = () => {
             price: price,
             cost_price: cost,
             stock: stock,
-            reorder_level: reorder,
             image: productForm.image ? productForm.image.trim() : null,
             category_id: productForm.category_id,
             short_desc: productForm.short_desc || null,
@@ -295,7 +312,6 @@ export const SalesInventoryPage: React.FC = () => {
             price: price,
             cost_price: cost,
             stock: stock,
-            reorder_level: reorder,
             image: productForm.image ? productForm.image.trim() : null,
             category_id: productForm.category_id,
             short_desc: productForm.short_desc || null,
@@ -311,45 +327,39 @@ export const SalesInventoryPage: React.FC = () => {
 
   const inventoryColumns: ColumnDef<LiveSalesProduct>[] = [
     {
-      key: 'image',
-      header: 'Product',
-      defaultWidth: 80,
-      accessor: (p) => (
-        <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
-          {p.image ? (
-            <img
-              src={p.image}
-              alt={p.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                ;(e.currentTarget as HTMLElement).style.display = 'none'
-                const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
-                if (fallback) fallback.style.display = 'flex'
-              }}
-            />
-          ) : null}
-          <div
-            className={cn(
-              "w-full h-full flex items-center justify-center text-zinc-400",
-              p.image ? "hidden" : "flex"
-            )}
-          >
-            <Package className="w-4 h-4 opacity-50" />
-          </div>
-        </div>
-      ),
-      sortValue: (p) => p.name,
-    },
-    {
       key: 'name',
-      header: 'Sales Item / Product',
-      defaultWidth: 220,
+      header: 'Product / Dish',
+      defaultWidth: 280,
       accessor: (p) => (
-        <div className="font-sans">
-          <div className="font-medium text-xs text-zinc-800 dark:text-zinc-200">{p.name}</div>
-          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {p.sku} • {p.unit.toUpperCase()}
+        <div className="flex items-center gap-3 font-sans">
+          <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
+            {p.image ? (
+              <img
+                src={p.image}
+                alt={p.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.display = 'none'
+                  const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
+                  if (fallback) fallback.style.display = 'flex'
+                }}
+              />
+            ) : null}
+            <div
+              className={cn(
+                "w-full h-full flex items-center justify-center text-zinc-400",
+                p.image ? "hidden" : "flex"
+              )}
+            >
+              <Package className="w-4 h-4 opacity-50" />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-xs text-zinc-800 dark:text-zinc-200 truncate">{p.name}</div>
+            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {p.sku} • {p.unit.toUpperCase()}
+            </div>
           </div>
         </div>
       ),
@@ -598,7 +608,7 @@ export const SalesInventoryPage: React.FC = () => {
         description="Manual finished stock intake or inventory reconciliation."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
               Cancel
             </Button>
@@ -621,7 +631,7 @@ export const SalesInventoryPage: React.FC = () => {
           </div>
 
           <UnitInput
-            label="Delta Quantity"
+            label="Delta Quantity (+/-)"
             value={adjustDelta}
             onChangeValue={setAdjustDelta}
             unit={selectedProduct?.unit || 'packs'}
@@ -646,7 +656,7 @@ export const SalesInventoryPage: React.FC = () => {
         description="Configure product image, holding inventory, commercial pricing, and storefront availability."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
               Cancel
             </Button>

@@ -11,6 +11,8 @@ import {
   SalesMovement,
   Supplier,
   ProductionBatch,
+  RawMaterialBOM,
+  BatchMaterialRequisition,
   PackagingQueueOrder,
   PackagingMaterialDaily,
   KitchenTask,
@@ -28,6 +30,8 @@ import {
   IntermediatePrepAllocation,
   IntermediatePrep,
   InterStationTransfer,
+  CompoundInventoryItem,
+  CompoundPreparationLot,
   SEED_RAW_PRODUCTS,
   SEED_RAW_DELIVERIES,
   SEED_RAW_MOVEMENTS,
@@ -36,6 +40,7 @@ import {
   SEED_PACKAGING_RECEIPTS_TOTALS,
   SEED_PACKAGING_RECONCILIATIONS,
   SEED_INTERMEDIATE_PREPS,
+  SEED_COMPOUND_INVENTORY,
   SEED_INTER_STATION_TRANSFERS,
   SEED_SALES_PRODUCTS,
   SEED_DAILY_SALES,
@@ -76,7 +81,7 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
   const price = Number(p.price ?? p.selling_price ?? 0)
   const cost = Number(p.cost_price ?? p.unit_cost ?? Math.round(price * 0.45))
   const reorder = Number(p.reorder_level ?? 10)
-  const allocated = Math.min(stock, 1)
+  const allocated = Number(p.qty_allocated ?? 0)
   const available = Math.max(0, stock - allocated)
 
   return {
@@ -191,34 +196,38 @@ interface SmokeyOpsContextType {
   stocktakeVariances: StocktakeVariance[]
 
   // Inventory Actions
-  receiveRawStock: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; notes?: string }) => void
-  receiveRawStockWithLot: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; lotNumber?: string; expiryDate?: string; notes?: string }) => void
+  receiveRawStock: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; invoiceRef?: string; receiptDate?: string; notes?: string }) => void
+  receiveRawStockWithLot: (data: { supplierId: number; productId: number; quantity: number; unitCost: number; lotNumber?: string; expiryDate?: string; invoiceRef?: string; receiptDate?: string; notes?: string }) => void
   adjustRawStock: (productId: number, delta: number, notes: string, reason: string) => void
   writeOffLotWaste: (data: { lotId: number; quantity: number; notes: string; approverName: string }) => void
   prioritizeLotInKitchen: (data: { lotId: number; quantity: number; targetDishName: string; supervisorName?: string; pitmasterName?: string; shiftRemarks?: string }) => void
   saveRawProduct: (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => void
-  receivePackaging: (data: { productId: number; quantity: number; unitCost: number }) => void
+  receivePackaging: (data: { productId: number; quantity: number; unitCost: number; supplierId?: number; notes?: string }) => void
   adjustPackagingStock: (productId: number, delta: number, notes: string) => void
   savePackagingProduct: (product: Partial<PackagingProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number }) => void
   adjustSalesStock: (productId: number, delta: number, notes: string) => void
   saveSalesProduct: (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number; stock_qty?: number; image?: string | null; category_name?: string }) => void
   addSupplier: (supplier: Omit<Supplier, 'id' | 'supplier_ref' | 'delivery_count' | 'total_spend' | 'is_active'>) => void
   updateSupplier: (supplier: Supplier) => void
+  deleteSupplier: (supplierId: number) => boolean
   submitStocktakeCount: (counts: Array<{ productId: number; physicalCount: number; category: 'raw' | 'packaging' | 'sales' }>, countedBy: string) => number
   resolveStocktakeVariance: (varianceId: number, supervisorNotes: string) => void
 
   // Hub & Outlets Inventory State
   packagingReconciliations: PackagingDailyReconciliation[]
   intermediatePreps: IntermediatePrep[]
+  compoundInventory: CompoundInventoryItem[]
   interStationTransfers: InterStationTransfer[]
 
   // Hub & Outlets Actions
   issuePackagingFromCentral: (items: Array<{ productId: number; quantity: number }>, issuedTo: string, notes?: string) => boolean
   returnPackagingToCentral: (items: Array<{ productId: number; returnQty: number; damagedQty: number }>, notes?: string, verifiedBy?: string) => void
   performDailyPackagingReconciliation: (date: string, counts: Array<{ productId: number; actualClosingBench: number; damagedQty?: number }>, reconciledBy: string, notes?: string) => void
-  createIntermediatePrep: (recipeName: string, rawIngredients: Array<{ productId: number; quantity: number }>, yieldQty: number, unit: string, preparedBy: string) => void
+  createIntermediatePrep: (recipeName: string, rawIngredients: Array<{ productId: number; quantity: number }>, yieldQty: number, unit: string, preparedBy: string, expiryDays?: number) => void
   allocatePrepToBatch: (prepId: number, batchRef: string, productName: string, allocatedQty: number, allocatedBy: string, batchId?: number) => boolean
   returnPrepToCentral: (prepId: number, returnQty: number, notes: string, returnedBy: string) => void
+  issueCompoundToBatch: (compoundId: number, batchId: number, quantity: number, staffName?: string) => boolean
+  returnCompoundSurplusFromBatch: (compoundId: number, batchId: number, quantity: number, notes?: string, staffName?: string) => boolean
 
   // Production State
   productionBatches: ProductionBatch[]
@@ -235,14 +244,51 @@ interface SmokeyOpsContextType {
     batch_schedule?: 'today' | 'tomorrow_morning'
     feed_sales_inventory?: boolean
     estimated_ready_time?: string
-    rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }>
+    rawMaterials: Array<{
+      product_id: number
+      sku: string
+      name: string
+      quantity: number
+      unit: string
+      item_type?: 'raw' | 'compound'
+      compound_id?: number
+      prep_ref?: string
+    }>
   }) => void
   updateBatch: (batchId: number, data: Partial<ProductionBatch>) => void
+  deleteBatch: (batchId: number) => boolean
+  deleteIntermediatePrep: (prepId: number) => boolean
+  requestAdditionalBatchMaterial: (data: {
+    batchId: number
+    productId: number
+    quantity: number
+    reason: string
+    requestedBy?: string
+  }) => boolean
+  fulfillBatchMaterialRequisition: (
+    requisitionId: string,
+    fulfilledQty: number,
+    notes?: string
+  ) => boolean
+  rejectBatchMaterialRequisition: (
+    requisitionId: string,
+    rejectionReason: string
+  ) => boolean
+  returnUnconsumedBatchMaterials: (
+    batchId: number,
+    returns: Array<{ productId: number; quantity: number; notes?: string; item_type?: 'raw' | 'compound'; compound_id?: number }>
+  ) => boolean
   saveCustomRecipeTemplate: (template: Omit<RecipeTemplate, 'id'>) => void
   updateRecipeTemplate: (id: number, template: Partial<RecipeTemplate>) => void
   deleteRecipeTemplate: (id: number) => void
   startBatch: (batchId: number) => void
-  completeBatch: (batchId: number, actualOutput: number, wastage: number, remarks?: string) => void
+  completeBatch: (
+    batchId: number,
+    actualOutput: number,
+    wastage: number,
+    remarks?: string,
+    returnedMaterials?: Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>
+  ) => void
   cancelBatch: (batchId: number) => void
   addPackagingQueueOrder: (order: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => void
   startPackagingOrder: (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => void
@@ -259,7 +305,14 @@ interface SmokeyOpsContextType {
   thirdPartySummaries: ThirdPartyWeeklySummary[]
 
   // Logistics Actions
-  assignRider: (deliveryId: number, riderType: 'internal' | 'third_party', riderName: string, riderId?: number, bookedFee?: number, feeEvidencePath?: string) => void
+  assignRider: (
+    deliveryId: number,
+    riderType: 'internal' | 'third_party',
+    riderName: string,
+    riderId?: number,
+    bookedFee?: number,
+    feeEvidencePath?: string
+  ) => void
   confirmRiderCollect: (deliveryId: number) => void
   acceptDelivery: (deliveryId: number) => void
   markDelivered: (deliveryId: number) => void
@@ -275,7 +328,6 @@ interface SmokeyOpsContextType {
     orderDetails?: Partial<ScheduledOrder>
   ) => Promise<boolean>
   payAndResetRider: (riderId: number) => void
-  remitCodCash: (riderId: number, cashAmount: number, cashierName: string) => void
   markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => void
   verifyThirdPartyFee: (deliveryId: number, status: 'approved' | 'flagged', note?: string) => void
 
@@ -370,7 +422,6 @@ export interface AppUserAccount {
   plate_number?: string
   license_number?: string
   license_expiry?: string
-  cod_limit?: number
   assigned_zone?: string
   inspection_status?: string
   vehicle_ownership?: string
@@ -384,35 +435,34 @@ export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
 
   return {
     ...acc,
-    residential_address: acc.residential_address || (isRider ? '14 Herbert Macaulay Way, Alagomeji' : isKitchen ? '28 Commercial Avenue, Sabo' : isInventory ? '5 Montgomery Road, Yaba' : isDispatcher ? '19 Commercial Road, Yaba' : '10 Commercial Avenue, Yaba'),
+    residential_address: acc.residential_address || '',
     city: acc.city || 'Lagos Mainland',
     state: acc.state || 'Lagos State',
-    date_of_birth: acc.date_of_birth || (isRider ? '1996-08-14' : isKitchen ? '1992-04-22' : isInventory ? '1994-09-15' : isDispatcher ? '1991-03-10' : '1988-11-05'),
-    national_id_nin: acc.national_id_nin || (isRider ? '7829-4821-9921' : isKitchen ? '8941-2315-6672' : isInventory ? '6621-0042-8819' : isDispatcher ? '4431-7729-1082' : '5412-9983-1120'),
-    nin_verified: acc.nin_verified ?? true,
-    bvn: acc.bvn || '22349018471',
+    date_of_birth: acc.date_of_birth || '',
+    national_id_nin: acc.national_id_nin || '',
+    nin_verified: Boolean(acc.national_id_nin && acc.nin_verified),
+    bvn: acc.bvn || '',
     employment_status: acc.employment_status || 'full_time',
-    shift_schedule: acc.shift_schedule || (isKitchen ? 'Morning Cook & Prep (06:00 - 15:00)' : isRider ? 'Day Dispatch (08:00 - 18:00)' : isInventory ? 'Morning Intake & Audit (07:00 - 16:00)' : isDispatcher ? 'All-Day Fulfillment (08:00 - 18:00)' : 'General Executive Operations'),
-    date_joined: acc.date_joined || acc.created_at || '12 Feb 2025',
-    emergency_contact: acc.emergency_contact || (isRider ? 'Mrs. Funke Balogun' : isKitchen ? 'Mr. David Okon' : isInventory ? 'Dr. E. Adebayo' : isDispatcher ? 'Mrs. Jumoke Alao' : 'Mrs. Mary Olowookere'),
-    emergency_phone: acc.emergency_phone || '+234 802 345 6789',
-    emergency_relationship: acc.emergency_relationship || (isRider ? 'Spouse' : isKitchen ? 'Sibling' : isInventory ? 'Parent' : isDispatcher ? 'Spouse' : 'Spouse'),
-    guarantor_name: acc.guarantor_name || (isRider ? 'Alhaji M. Adeleke' : isKitchen ? 'Chef Tunde Bakare' : isInventory ? 'Pastor F. Williams' : isDispatcher ? 'Chief O. Lawson' : 'Barrister K. Shonowo'),
-    guarantor_phone: acc.guarantor_phone || '+234 803 311 2233',
-    guarantor_relationship: acc.guarantor_relationship || (isRider ? 'Corporate Merchant / Landlord' : isKitchen ? 'Executive Chef / Mentor' : isInventory ? 'Community Leader' : isDispatcher ? 'Senior Logistics Director' : 'Legal Counsel'),
-    guarantor_status: acc.guarantor_status || 'verified',
-    bank_name: acc.bank_name || (isRider ? 'Kuda Microfinance Bank' : isKitchen ? 'Guaranty Trust Bank (GTBank)' : isInventory ? 'Access Bank' : isDispatcher ? 'Zenith Bank' : 'Guaranty Trust Bank (GTBank)'),
-    bank_account_number: acc.bank_account_number || (isRider ? '2039481726' : isKitchen ? '0148920194' : isInventory ? '0029384719' : isDispatcher ? '1048291048' : '0129485712'),
+    shift_schedule: acc.shift_schedule || (isKitchen ? 'Morning Cook & Prep (06:00 - 15:00)' : isRider ? 'Day Dispatch (08:00 - 18:00)' : isInventory ? 'Morning Intake & Audit (07:00 - 16:00)' : isDispatcher ? 'All-Day Fulfillment (08:00 - 18:00)' : 'General Operations'),
+    date_joined: acc.date_joined || acc.created_at || '',
+    emergency_contact: acc.emergency_contact || '',
+    emergency_phone: acc.emergency_phone || '',
+    emergency_relationship: acc.emergency_relationship || '',
+    guarantor_name: acc.guarantor_name || '',
+    guarantor_phone: acc.guarantor_phone || '',
+    guarantor_relationship: acc.guarantor_relationship || '',
+    guarantor_status: acc.guarantor_name ? (acc.guarantor_status || 'verified') : 'pending',
+    bank_name: acc.bank_name || '',
+    bank_account_number: acc.bank_account_number || '',
     bank_account_name: acc.bank_account_name || acc.name,
     // Rider specific
-    vehicle_type: acc.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
-    plate_number: acc.plate_number || 'LND-482-XA',
-    license_number: acc.license_number || 'DL-98234-LAG',
-    license_expiry: acc.license_expiry || '2027-11-30',
-    cod_limit: acc.cod_limit || 50000,
-    assigned_zone: acc.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)',
-    inspection_status: acc.inspection_status || 'Passed & Certified',
-    vehicle_ownership: acc.vehicle_ownership || 'Smokey Fleet Unit #04',
+    vehicle_type: acc.vehicle_type || (isRider ? 'Dispatch Motorcycle' : ''),
+    plate_number: acc.plate_number || '',
+    license_number: acc.license_number || '',
+    license_expiry: acc.license_expiry || '',
+    assigned_zone: acc.assigned_zone || (isRider ? 'Lagos Mainland & Island' : ''),
+    inspection_status: acc.inspection_status || (isRider ? 'Active' : ''),
+    vehicle_ownership: acc.vehicle_ownership || (isRider ? 'Company Fleet' : ''),
   }
 }
 
@@ -448,12 +498,10 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Dispatch Queue Assignment',
     'Rider Location & Route Tracking',
     'Third-party Rider Bookings',
-    'COD Cash Remittance Check-in'
-  ],
+    ],
   rider: [
     'Accept & Transit Delivery',
     'Customer OTP Drop-off Sign-off',
-    'COD Cash Collection',
     'Wallet & Payout History'
   ]
 }
@@ -556,8 +604,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
       'Dispatch Queue Assignment',
       'Rider Location & Route Tracking',
       'Third-party Rider Bookings',
-      'COD Cash Remittance Check-in'
-    ]
+      ]
   },
   {
     email: 'Smokeyhutdelight01@gmail.com',
@@ -579,7 +626,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     ]
   },
   {
-    email: 'ridersmokeyfrlgs@gmail.com',
+    email: 'ridersmokeyhutfrlgs@gmail.com',
     name: 'FRESH LOGISTICS',
     role: 'rider',
     roleLabel: 'Delivery Fleet Rider',
@@ -591,7 +638,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyabu@gmail.com',
@@ -606,7 +653,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyaminu@gmail.com',
@@ -621,7 +668,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyidris@gmail.com',
@@ -636,7 +683,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyhutjoshua@gmail.com',
@@ -651,7 +698,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyhutprince@gmail.com',
@@ -666,7 +713,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyhutsam@gmail.com',
@@ -681,7 +728,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeysunday@gmail.com',
@@ -696,7 +743,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyhutwasiu@gmail.com',
@@ -711,7 +758,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   },
   {
     email: 'ridersmokeyyusuf@gmail.com',
@@ -726,7 +773,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'COD Cash Collection', 'Wallet & Payout History']
+    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
   }
 ]
 
@@ -771,6 +818,18 @@ const readLocalCache = <T,>(key: string): T | null => {
   }
 }
 
+const readAppSettingCache = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = localStorage.getItem(`smokey_app_setting_${key}`)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as unknown as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
 const writeLocalCache = (key: string, value: any) => {
   if (typeof window === 'undefined') return
   try {
@@ -778,6 +837,112 @@ const writeLocalCache = (key: string, value: any) => {
   } catch {
     // Ignore quota errors
   }
+}
+
+const persistAppSetting = (key: string, value: any) => {
+  if (typeof window === 'undefined') return
+  writeLocalCache(`smokey_app_setting_${key}`, value)
+  fetch('/api/app-settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, value }),
+  }).catch(() => {})
+}
+
+export interface OrderPipelineOverride {
+  order_status?: 'ready_for_fulfillment' | 'in_packaging' | 'packaged'
+  packaging_materials_picked?: Array<{ packaging_name: string; quantity: number }>
+  packaged_at?: string | null
+  packaged_by_name?: string
+  delivery_status?: 'pending' | 'assigned' | 'in_transit' | 'delivered'
+  rider_type?: 'internal' | 'third_party'
+  assigned_rider?: string
+  assigned_rider_id?: number
+  third_party_provider?: string | null
+  booked_fee?: number | null
+  fee_evidence_path?: string | null
+  fee_verify_status?: 'none' | 'pending' | 'approved' | 'flagged'
+  pickup_at?: string | null
+  delivered_at?: string | null
+  notes?: string
+  decline_reason?: string
+  scheduled_released?: boolean
+  collected_at?: string | null
+  collected_by?: string | null
+  handover_staff?: string | null
+  collector_phone?: string | null
+}
+
+export const calculateRiderRating = (
+  delayedDeliveries: number = 0,
+  declinedDispatches: number = 0
+): { rating: number; onTimeRate: number } => {
+  // Option 1 Formula: Rating = 5.0 - (Delayed Deliveries * 0.2) - (Declined Dispatches * 0.1)
+  const rawScore = 5.0 - (delayedDeliveries * 0.2) - (declinedDispatches * 0.1)
+  const rating = Math.max(1.0, Math.min(5.0, Number(rawScore.toFixed(1))))
+
+  // On-time rate percentage: 100% baseline, -4% per delay, -2% per decline
+  const penalty = (delayedDeliveries * 4) + (declinedDispatches * 2)
+  const onTimeRate = Math.max(0, Math.min(100, Math.round(100 - penalty)))
+
+  return { rating, onTimeRate }
+}
+
+const readOrderPipelineState = (): Record<string, OrderPipelineOverride> => {
+  if (typeof window === 'undefined') return {}
+  try {
+    const rawLocal = localStorage.getItem('smokey_order_pipeline_state_v1')
+    const rawAppSetting = localStorage.getItem('smokey_app_setting_order_pipeline_state')
+    const parsedLocal = rawLocal ? JSON.parse(rawLocal) : {}
+    const parsedApp = rawAppSetting ? JSON.parse(rawAppSetting) : {}
+    const localObj = (typeof parsedLocal === 'object' && parsedLocal && !Array.isArray(parsedLocal)) ? parsedLocal : {}
+    const appObj = (typeof parsedApp === 'object' && parsedApp && !Array.isArray(parsedApp)) ? parsedApp : {}
+
+    // Deep merge: local first, remote appObj on top so authoritative backend settings win
+    const mergedKeys = Array.from(new Set([...Object.keys(localObj), ...Object.keys(appObj)]))
+    const result: Record<string, OrderPipelineOverride> = {}
+    for (const key of mergedKeys) {
+      result[key] = {
+        ...(localObj[key] || {}),
+        ...(appObj[key] || {})
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+const updateOrderPipelineState = (orderRef: string, patch: Partial<OrderPipelineOverride>) => {
+  if (typeof window === 'undefined' || !orderRef) return
+  try {
+    const current = readOrderPipelineState()
+    current[orderRef] = { ...(current[orderRef] || {}), ...patch }
+    localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(current))
+    persistAppSetting('order_pipeline_state', current)
+  } catch {
+    // Ignore quota errors
+  }
+}
+
+const persistOrderUpdateToBackend = (orderRef: string, updates: Record<string, any>) => {
+  if (!orderRef) return
+  fetch('/api/update-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: orderRef, updates }),
+  }).catch(() => {})
+  Promise.resolve(supabase.from('orders').update(updates).eq('id', orderRef)).catch(() => {})
+}
+
+const persistProductUpdateToBackend = (productId: number, updates: Record<string, any>) => {
+  if (!productId) return
+  fetch('/api/update-product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: productId, updates }),
+  }).catch(() => {})
+  Promise.resolve(supabase.from('products').update(updates).eq('id', productId)).catch(() => {})
 }
 
 const mapRawInventoryItems = (list: any[]): RawProduct[] => {
@@ -866,9 +1031,7 @@ const mapFleetRidersItems = (list: any[]): RiderPayout[] => {
         earnings_week: existing?.earnings_week || 0,
         earnings_month: existing?.earnings_month || 0,
         pending_payout: existing?.pending_payout || 0,
-        cod_cash_collected: existing?.cod_cash_collected || 0,
-        cod_remitted_total: existing?.cod_remitted_total || 0,
-        net_balance: existing?.net_balance || 0,
+        net_balance: existing?.pending_payout || 0,
         paid_total: existing?.paid_total || 0,
         lifetime_earnings: existing?.lifetime_earnings || 0,
         status: 'active' as const,
@@ -879,22 +1042,47 @@ const mapFleetRidersItems = (list: any[]): RiderPayout[] => {
 
 const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
   const now = Date.now()
+  const pipelineOverrides = readOrderPipelineState()
   const newPackagingItems: PackagingQueueOrder[] = []
   const newScheduledItems: ScheduledOrder[] = []
   const deliveredDeliveries: LogisticsDelivery[] = []
+  const newStorePickups: StorePickupOrder[] = []
 
   rawOrders.forEach((o: any, idx: number) => {
     const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
     const orderRef = String(o.order_ref || o.id || `SHD-${numericId}`)
+    const override = pipelineOverrides[orderRef]
     const customerName = o.customer_name || 'Storefront Customer'
     const phone = o.customer_phone || o.phone || 'N/A'
     const address = o.delivery_address || o.address || 'Storefront Counter Pickup'
     const totalAmount = Number(o.total ?? o.total_amount) || 0
     const deliveryFee = Number(o.delivery_fee) || 0
     const createdAt = o.created_at || new Date().toISOString()
-    const notes = o.notes || ''
-    const isDelivered = o.delivery_status === 'delivered' || o.status === 'delivered' || o.fulfillment_status === 'delivered'
-    const isInTransit = o.delivery_status === 'in_transit' || o.delivery_status === 'assigned' || o.fulfillment_status === 'in_transit'
+    const notes = override?.notes || o.notes || ''
+
+    const normDelivStatus = String(o.delivery_status || '').toLowerCase().trim().replace(/\s+/g, '_')
+    const normOrderStatus = String(o.status || '').toLowerCase().trim().replace(/\s+/g, '_')
+    const normFulfillStatus = String(o.fulfillment_status || '').toLowerCase().trim().replace(/\s+/g, '_')
+
+    const isDelivered =
+      override?.delivery_status === 'delivered' ||
+      normDelivStatus === 'delivered' ||
+      normOrderStatus === 'delivered' ||
+      normFulfillStatus === 'delivered'
+    const isInTransit =
+      !isDelivered && (
+        override?.delivery_status === 'in_transit' ||
+        override?.delivery_status === 'assigned' ||
+        normDelivStatus === 'in_transit' ||
+        normDelivStatus === 'assigned' ||
+        normFulfillStatus === 'in_transit'
+      )
+    const isPackaged =
+      isDelivered ||
+      isInTransit ||
+      override?.order_status === 'packaged' ||
+      normDelivStatus === 'ready_for_dispatch' ||
+      normDelivStatus === 'packaged'
 
     const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
       ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
@@ -930,13 +1118,19 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     }
 
     const schedTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : NaN
-    const isScheduledFuture = Boolean(
+    const isScheduledOrder = Boolean(
       (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
-      (isExplicitScheduled && !isDelivered && !isInTransit)
+      isExplicitScheduled
     )
+    const isReleasedToPackaging = Boolean(override?.scheduled_released || isPackaged || isInTransit || isDelivered)
 
-    if (isScheduledFuture) {
+    if (isScheduledOrder) {
       const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
+      const schedStatus: ScheduledOrder['order_status'] =
+        (isInTransit || isDelivered)
+          ? 'dispatched'
+          : (isReleasedToPackaging ? 'in_queue' : 'payment_confirmed')
+
       newScheduledItems.push({
         id: numericId,
         order_ref: orderRef,
@@ -947,13 +1141,19 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         delivery_fee: deliveryFee,
         scheduled_delivery_at: effectiveSched,
         payment_status: 'paid',
-        order_status: 'payment_confirmed',
+        order_status: schedStatus,
         notes: notes || 'Scheduled pre-order from website storefront',
-        can_start_schedule: effectiveTime <= (now + 45 * 60 * 1000)
+        can_start_schedule: effectiveTime <= (now + 45 * 60 * 1000) || isReleasedToPackaging,
+        items_summary: itemsList,
+        items: typedItems
       })
-    } else {
+    }
+
+    if (!isScheduledOrder || isReleasedToPackaging) {
       const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' =
-        (isDelivered || isInTransit) ? 'packaged' : 'ready_for_fulfillment'
+        isPackaged
+          ? 'packaged'
+          : (override?.order_status || 'ready_for_fulfillment')
 
       newPackagingItems.push({
         id: numericId,
@@ -968,12 +1168,66 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         order_status: pkgStatus,
         items_summary: itemsList,
         items: typedItems,
-        packaged_at: (isDelivered || isInTransit) ? createdAt : null,
-        packaged_by_name: (isDelivered || isInTransit) ? 'Bisi Akande (Packaging Lead)' : undefined,
+        packaging_materials_picked: override?.packaging_materials_picked,
+        packaged_at: isPackaged ? (override?.packaged_at || createdAt) : null,
+        packaged_by_name: isPackaged ? (override?.packaged_by_name || o.packaged_by_name || 'Packaging Station') : undefined,
         created_at: createdAt
       })
 
-      if (isDelivered) {
+      const isPickupOrder = Boolean(
+        (address && (address.toLowerCase().includes('pickup') || address.toLowerCase().includes('counter'))) ||
+        (o.delivery_zone && o.delivery_zone.toLowerCase().includes('pickup')) ||
+        (o.notes && o.notes.toLowerCase().includes('pickup') && !o.notes.toLowerCase().includes('not pickup')) ||
+        o.delivery_type === 'pickup' ||
+        o.fulfillment_type === 'pickup' ||
+        (deliveryFee === 0 && (address.toLowerCase().includes('store') || address.toLowerCase().includes('hq') || address.toLowerCase().includes('yaba')))
+      )
+
+      if (isPickupOrder) {
+        const isCollected =
+          isDelivered ||
+          override?.delivery_status === 'delivered' ||
+          normDelivStatus === 'collected' ||
+          normDelivStatus === 'delivered' ||
+          normOrderStatus === 'collected' ||
+          normOrderStatus === 'delivered' ||
+          normFulfillStatus === 'delivered'
+        newStorePickups.push({
+          id: numericId,
+          order_ref: orderRef,
+          customer_name: customerName,
+          phone,
+          address,
+          total_amount: totalAmount,
+          payment_status: 'paid',
+          order_status: isCollected ? 'collected' : 'ready_for_pickup',
+          packaged_at: override?.packaged_at || createdAt,
+          collected_at: isCollected ? (override?.delivered_at || override?.collected_at || createdAt) : null,
+          collected_by: override?.collected_by || (isCollected ? customerName : null),
+          handover_staff: override?.handover_staff || null,
+          collector_phone: override?.collector_phone || phone,
+          items_summary: itemsList
+        })
+      } else if (isDelivered || isInTransit || isPackaged) {
+        const delivStatus: LogisticsDelivery['status'] = isDelivered
+          ? 'delivered'
+          : (override?.delivery_status === 'in_transit' || normDelivStatus === 'in_transit'
+              ? 'in_transit'
+              : (override?.delivery_status === 'assigned' || normDelivStatus === 'assigned'
+                  ? 'assigned'
+                  : 'pending'))
+        const resolvedRiderType = override?.rider_type || 'internal'
+        const rawRiderName = override?.assigned_rider || o.rider_name
+        const riderName =
+          rawRiderName && rawRiderName !== 'Dispatched Courier' && rawRiderName !== 'Unassigned'
+            ? rawRiderName
+            : 'Unassigned'
+        const resolvedRiderId =
+          override?.assigned_rider_id !== undefined
+            ? Number(override.assigned_rider_id)
+            : (resolvedRiderType === 'internal' && riderName !== 'Unassigned'
+                ? SEED_RIDER_PAYOUTS.find(r => r.rider_name.toLowerCase() === riderName.toLowerCase())?.rider_user_id
+                : undefined)
         deliveredDeliveries.push({
           id: numericId,
           delivery_ref: `DEL-${numericId}`,
@@ -984,26 +1238,47 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           address,
           total_amount: totalAmount,
           delivery_fee: deliveryFee || 3000,
-          rider_type: 'third_party',
-          assigned_rider: 'FRESH LOGISTICS',
-          assigned_rider_id: 513,
-          status: 'delivered',
+          booked_fee: override?.booked_fee ?? null,
+          rider_type: resolvedRiderType,
+          assigned_rider: riderName,
+          assigned_rider_id: resolvedRiderId,
+          third_party_provider: resolvedRiderType === 'third_party' ? (override?.third_party_provider || riderName) : null,
+          status: delivStatus,
           dispatch_date: createdAt.split('T')[0],
-          pickup_at: createdAt,
-          delivered_at: createdAt,
-          fee_verify_status: 'approved',
-          payment_mode: 'online',
-          items_summary: itemsList
+          pickup_at: override?.pickup_at || (isDelivered || delivStatus === 'in_transit' ? createdAt : null),
+          delivered_at: override?.delivered_at || (isDelivered ? (o.updated_at || createdAt) : null),
+          fee_evidence_path: override?.fee_evidence_path || null,
+          fee_verify_status: override?.fee_verify_status || (resolvedRiderType === 'third_party' ? 'pending' : (isDelivered ? 'approved' : 'none')),
+          items_summary: itemsList,
+          notes: notes || undefined,
+          decline_reason: override?.decline_reason
         })
       }
     }
   })
 
+  const mappedWebsiteOrders = rawOrders.map(o => {
+    const base = mapSupabaseOrderToWebsiteOrder(o)
+    const override = pipelineOverrides[base.order_ref]
+    if (!override) return base
+    let fulfillment_status = base.fulfillment_status
+    if (override.delivery_status === 'delivered') fulfillment_status = 'delivered'
+    else if (override.delivery_status === 'in_transit' || override.delivery_status === 'assigned') fulfillment_status = 'in_transit'
+    else if (override.order_status === 'packaged') fulfillment_status = 'ready_for_dispatch'
+    else if (override.order_status === 'in_packaging') fulfillment_status = 'packaging'
+    return {
+      ...base,
+      fulfillment_status,
+      rider_name: override.assigned_rider || base.rider_name
+    }
+  })
+
   return {
-    websiteOrders: rawOrders.map(mapSupabaseOrderToWebsiteOrder),
+    websiteOrders: mappedWebsiteOrders,
     newPackagingItems,
     newScheduledItems,
-    deliveredDeliveries
+    deliveredDeliveries,
+    newStorePickups
   }
 }
 
@@ -1048,9 +1323,37 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const cached = readLocalCache<RawProduct[]>('smokey_live_cache_v3_raw_products')
     return cached || SEED_RAW_PRODUCTS
   })
-  const [rawDeliveries, setRawDeliveries] = useState<RawDelivery[]>(SEED_RAW_DELIVERIES)
-  const [rawMovements, setRawMovements] = useState<RawMovement[]>(SEED_RAW_MOVEMENTS)
-  const [rawUsage] = useState<RawUsageItem[]>(SEED_RAW_USAGE)
+  const [rawDeliveries, setRawDeliveries] = useState<RawDelivery[]>(() =>
+    readAppSettingCache('raw_deliveries', SEED_RAW_DELIVERIES)
+  )
+  const [rawMovements, setRawMovements] = useState<RawMovement[]>(() =>
+    readAppSettingCache('raw_movements', SEED_RAW_MOVEMENTS)
+  )
+
+  const rawUsage = useMemo<RawUsageItem[]>(() => {
+    const map = new Map<number, RawUsageItem>()
+    rawMovements.forEach(m => {
+      if (m.movement_type === 'consumption' || m.quantity < 0) {
+        const usedQty = Math.abs(m.quantity)
+        const existing = map.get(m.product_id)
+        if (existing) {
+          existing.total_used += usedQty
+          existing.total_value += usedQty * m.unit_cost
+        } else {
+          map.set(m.product_id, {
+            product_id: m.product_id,
+            product_name: m.product_name,
+            sku: m.sku,
+            unit: m.unit,
+            unit_cost: m.unit_cost,
+            total_used: usedQty,
+            total_value: usedQty * m.unit_cost
+          })
+        }
+      }
+    })
+    return Array.from(map.values())
+  }, [rawMovements])
 
   const [packagingProducts, setPackagingProducts] = useState<PackagingProduct[]>(() => {
     const boot = getLiveBootstrap()
@@ -1060,14 +1363,74 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const cached = readLocalCache<PackagingProduct[]>('smokey_live_cache_v3_packaging_products')
     return cached || SEED_PACKAGING_PRODUCTS
   })
-  const [packagingReceiptsTotals, setPackagingReceiptsTotals] = useState<PackagingReceiptTotal[]>(SEED_PACKAGING_RECEIPTS_TOTALS)
-  const [packagingReconciliations, setPackagingReconciliations] = useState<PackagingDailyReconciliation[]>(SEED_PACKAGING_RECONCILIATIONS)
-  const [intermediatePreps, setIntermediatePreps] = useState<IntermediatePrep[]>(SEED_INTERMEDIATE_PREPS)
-  const [interStationTransfers, setInterStationTransfers] = useState<InterStationTransfer[]>(SEED_INTER_STATION_TRANSFERS)
+  const [packagingReceiptsTotals, setPackagingReceiptsTotals] = useState<PackagingReceiptTotal[]>(() =>
+    readAppSettingCache('packaging_receipts_totals', SEED_PACKAGING_RECEIPTS_TOTALS)
+  )
+  const [packagingReconciliations, setPackagingReconciliations] = useState<PackagingDailyReconciliation[]>(() =>
+    readAppSettingCache('packaging_reconciliations', SEED_PACKAGING_RECONCILIATIONS)
+  )
+  const [intermediatePreps, setIntermediatePreps] = useState<IntermediatePrep[]>(() =>
+    readAppSettingCache('intermediate_preps', SEED_INTERMEDIATE_PREPS)
+  )
+  const [compoundInventory, setCompoundInventory] = useState<CompoundInventoryItem[]>(() =>
+    readAppSettingCache('compound_inventory', SEED_COMPOUND_INVENTORY)
+  )
+  const [interStationTransfers, setInterStationTransfers] = useState<InterStationTransfer[]>(() =>
+    readAppSettingCache('inter_station_transfers', SEED_INTER_STATION_TRANSFERS)
+  )
 
-  const [salesProducts, setSalesProducts] = useState<SalesProduct[]>(SEED_SALES_PRODUCTS)
-  const [dailySales] = useState<DailySalesItem[]>(SEED_DAILY_SALES)
-  const [salesMovements, setSalesMovements] = useState<SalesMovement[]>(SEED_SALES_MOVEMENTS)
+  const [salesProducts, setSalesProducts] = useState<SalesProduct[]>(() => {
+    const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
+    return cached && cached.length > 0 ? cached : SEED_SALES_PRODUCTS
+  })
+
+  // Keep salesProducts unified with liveSalesProducts whenever liveSalesProducts updates
+  useEffect(() => {
+    if (liveSalesProducts.length > 0) {
+      setSalesProducts(liveSalesProducts)
+    }
+  }, [liveSalesProducts])
+
+  // Compute dailySales dynamically from real websiteOrders
+  const dailySales = useMemo<DailySalesItem[]>(() => {
+    const map = new Map<string, DailySalesItem>()
+    websiteOrders.forEach(order => {
+      if (order.payment_status === 'refunded') return
+      const items = Array.isArray(order.raw_items) ? order.raw_items : []
+      items.forEach((item: any) => {
+        const name = String(item.name || '').trim()
+        if (!name) return
+        const qty = Number(item.qty || item.quantity || 1)
+        const price = Number(item.price || item.unit_price || 0)
+        const key = name.toLowerCase()
+        const matchedProd = liveSalesProducts.find(p => p.name.toLowerCase().trim() === key)
+        const existing = map.get(key)
+        if (existing) {
+          existing.qty_sold += qty
+          existing.sale_count += 1
+          existing.order_count += 1
+          existing.total_value += qty * price
+        } else {
+          map.set(key, {
+            product_id: matchedProd?.id || Number(item.product_id || 0),
+            product_name: matchedProd?.name || name,
+            sku: matchedProd?.sku || `SMK-${String(matchedProd?.id || 1).padStart(4, '0')}`,
+            unit: matchedProd?.unit || 'unit',
+            qty_sold: qty,
+            sale_count: 1,
+            order_count: 1,
+            total_value: qty * price,
+            channel_breakdown: order.channel || 'Website Storefront'
+          })
+        }
+      })
+    })
+    return Array.from(map.values()).sort((a, b) => b.total_value - a.total_value)
+  }, [websiteOrders, liveSalesProducts])
+
+  const [salesMovements, setSalesMovements] = useState<SalesMovement[]>(() =>
+    readAppSettingCache('sales_movements', SEED_SALES_MOVEMENTS)
+  )
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     const boot = getLiveBootstrap()
@@ -1077,12 +1440,21 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const cached = readLocalCache<Supplier[]>('smokey_live_cache_v3_suppliers')
     return cached || SEED_SUPPLIERS
   })
-  const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(SEED_INVENTORY_LOTS)
-  const [recipeTemplates, setRecipeTemplates] = useState<RecipeTemplate[]>(SEED_RECIPE_TEMPLATES)
-  const [stocktakeVariances, setStocktakeVariances] = useState<StocktakeVariance[]>(SEED_STOCKTAKE_VARIANCES)
+  const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(() =>
+    readAppSettingCache('inventory_lots', SEED_INVENTORY_LOTS)
+  )
+  const [recipeTemplates, setRecipeTemplates] = useState<RecipeTemplate[]>(() => {
+    const cached = readAppSettingCache<RecipeTemplate[]>('recipe_templates', [])
+    return cached.length > 0 ? cached : SEED_RECIPE_TEMPLATES
+  })
+  const [stocktakeVariances, setStocktakeVariances] = useState<StocktakeVariance[]>(() =>
+    readAppSettingCache('stocktake_variances', SEED_STOCKTAKE_VARIANCES)
+  )
 
   // Production Domain
-  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(SEED_PRODUCTION_BATCHES)
+  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(() =>
+    readAppSettingCache('production_batches', SEED_PRODUCTION_BATCHES)
+  )
   const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(() => {
     if (initialOrdersBundle && initialOrdersBundle.newPackagingItems.length > 0) {
       return initialOrdersBundle.newPackagingItems
@@ -1090,8 +1462,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const cached = readLocalCache<PackagingQueueOrder[]>('smokey_live_cache_v3_packaging_queue')
     return cached || SEED_PACKAGING_QUEUE
   })
-  const [packagingMaterialsDaily, setPackagingMaterialsDaily] = useState<PackagingMaterialDaily[]>(SEED_PACKAGING_MATERIALS_DAILY)
-  const [kitchenTasks, setKitchenTasks] = useState<KitchenTask[]>(SEED_KITCHEN_TASKS)
+  const [packagingMaterialsDaily, setPackagingMaterialsDaily] = useState<PackagingMaterialDaily[]>(() =>
+    readAppSettingCache('packaging_materials_daily', SEED_PACKAGING_MATERIALS_DAILY)
+  )
+  const [kitchenTasks, setKitchenTasks] = useState<KitchenTask[]>(() =>
+    readAppSettingCache('kitchen_tasks', SEED_KITCHEN_TASKS)
+  )
 
   // Two-Tier Inventory Pipeline: Calculate live incoming estimated batches from active/scheduled smoke runs
   const activeIncomingBatchesByProduct = useMemo(() => {
@@ -1122,13 +1498,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Logistics Domain
   const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(() => {
-    if (initialOrdersBundle) {
-      const activeDispatches = SEED_LOGISTICS_DELIVERIES.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
-      const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
-      const nonDuplicateDelivered = initialOrdersBundle.deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
-      if (activeDispatches.length > 0 || nonDuplicateDelivered.length > 0) {
-        return [...activeDispatches, ...nonDuplicateDelivered]
-      }
+    if (initialOrdersBundle && initialOrdersBundle.deliveredDeliveries.length > 0) {
+      return initialOrdersBundle.deliveredDeliveries
     }
     const cached = readLocalCache<LogisticsDelivery[]>('smokey_live_cache_v3_logistics_deliveries')
     return cached || SEED_LOGISTICS_DELIVERIES
@@ -1146,10 +1517,40 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return mapFleetRidersItems(boot.fleetRiders)
     }
     const cached = readLocalCache<RiderPayout[]>('smokey_live_cache_v3_riders')
-    return cached || SEED_RIDER_PAYOUTS
+    if (cached && cached.length > 0) {
+      return cached.filter(r => r.rider_user_id !== 583 && (r.email || '').toLowerCase() !== 'johndoe@streetmba.com')
+    }
+    return SEED_RIDER_PAYOUTS
   })
-  const [riderTasks, setRiderTasks] = useState<RiderTask[]>(SEED_RIDER_TASKS)
-  const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(SEED_STORE_PICKUPS)
+  const [riderTasks, setRiderTasks] = useState<RiderTask[]>(() =>
+    readAppSettingCache('rider_tasks', SEED_RIDER_TASKS)
+  )
+  const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(() => {
+    if (initialOrdersBundle && initialOrdersBundle.newStorePickups.length > 0) {
+      const cached = readAppSettingCache<StorePickupOrder[]>('store_pickups', [])
+      if (cached && cached.length > 0) {
+        const cachedMap = new Map(cached.map(c => [c.order_ref, c]))
+        return initialOrdersBundle.newStorePickups.map(item => {
+          const c = cachedMap.get(item.order_ref)
+          if (c) {
+            return {
+              ...item,
+              order_status: c.order_status === 'collected' ? 'collected' : item.order_status,
+              collected_at: c.collected_at || item.collected_at,
+              collected_by: c.collected_by || item.collected_by,
+              handover_staff: c.handover_staff || item.handover_staff,
+              collector_phone: c.collector_phone || item.collector_phone
+            }
+          }
+          return item
+        })
+      }
+      return initialOrdersBundle.newStorePickups
+    }
+    const cached = readAppSettingCache<StorePickupOrder[]>('store_pickups', SEED_STORE_PICKUPS)
+    if (cached && cached.length > 0) return cached
+    return SEED_STORE_PICKUPS
+  })
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
 
   // Account / Role Management (RBAC)
@@ -1159,7 +1560,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const mockEmails = ['ops-team@smokeyhut.com', 'chef.amara@smokeyhut.com', 'kemi.inv@smokeyhut.com', 'babajide.dispatch@smokeyhut.com', 'ayodine47@gmail.com']
+          const mockEmails = [
+            'ops-team@smokeyhut.com',
+            'chef.amara@smokeyhut.com',
+            'kemi.inv@smokeyhut.com',
+            'babajide.dispatch@smokeyhut.com',
+            'ayodine47@gmail.com',
+            'johndoe@streetmba.com',
+            'egbetechizaram10@gmail.com',
+            'ridersmokeyfrlgs@gmail.com'
+          ]
           const filtered = parsed.filter((a: any) => !mockEmails.includes((a.email || '').toLowerCase()))
           if (filtered.length > 0) return filtered
         }
@@ -1279,7 +1689,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         websiteOrders: mappedOrders,
         newPackagingItems,
         newScheduledItems,
-        deliveredDeliveries
+        deliveredDeliveries,
+        newStorePickups
       } = deriveQueuesFromRawOrders(rawOrders)
 
       setWebsiteOrders(mappedOrders)
@@ -1311,14 +1722,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Update scheduledOrders: merge and preserve in-memory status
       setScheduledOrders(prev => {
         const prevMap = new Map(prev.map(s => [s.order_ref, s]))
-        const base = newScheduledItems.length > 0 ? newScheduledItems : SEED_SCHEDULED_ORDERS
-        const nextScheduled = base.map(item => {
+        const nextScheduled = newScheduledItems.map(item => {
           const existing = prevMap.get(item.order_ref)
           if (existing) {
             return {
               ...item,
-              order_status: existing.order_status,
-              can_start_schedule: existing.can_start_schedule
+              order_status: existing.order_status !== 'payment_confirmed' ? existing.order_status : item.order_status,
+              can_start_schedule: existing.can_start_schedule || item.can_start_schedule
             }
           }
           return item
@@ -1327,15 +1737,62 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return nextScheduled
       })
 
-      // Update logisticsDeliveries: retain active dispatches awaiting rider assignment or on road
+      // Update storePickups: merge and preserve in-memory collection handovers
+      setStorePickups(prev => {
+        const prevMap = new Map(prev.map(p => [p.order_ref, p]))
+        const merged = newStorePickups.map(item => {
+          const existing = prevMap.get(item.order_ref)
+          if (existing) {
+            return {
+              ...item,
+              order_status: existing.order_status === 'collected' ? 'collected' : item.order_status,
+              collected_at: existing.collected_at || item.collected_at,
+              collected_by: existing.collected_by || item.collected_by,
+              handover_staff: existing.handover_staff || item.handover_staff,
+              collector_phone: existing.collector_phone || item.collector_phone
+            }
+          }
+          return item
+        })
+        const newRefs = new Set(newStorePickups.map(p => p.order_ref))
+        const manualPickups = prev.filter(p => !newRefs.has(p.order_ref))
+        return [...merged, ...manualPickups]
+      })
+
+      // Update logisticsDeliveries: retain active dispatches and preserve receipt evidence/audit state
       setLogisticsDeliveries(prev => {
-        const activeDispatches = prev.filter(d => d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit')
+        const prevMap = new Map(prev.map(d => [d.order_ref, d]))
+        const newlyDeliveredRefs = new Set(deliveredDeliveries.filter(d => d.status === 'delivered').map(d => d.order_ref))
+        const activeDispatches = prev.filter(
+          d =>
+            !newlyDeliveredRefs.has(d.order_ref) &&
+            (d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery')
+        )
         const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
-        const nonDuplicateDelivered = deliveredDeliveries.filter(d => !existingRefs.has(d.order_ref))
-        const nextDeliveries =
-          activeDispatches.length === 0 && nonDuplicateDelivered.length === 0
-            ? SEED_LOGISTICS_DELIVERIES
-            : [...activeDispatches, ...nonDuplicateDelivered]
+        const nonDuplicateDelivered = deliveredDeliveries
+          .filter(d => !existingRefs.has(d.order_ref))
+          .map(d => {
+            const prevDel = prevMap.get(d.order_ref)
+            if (!prevDel) return d
+            return {
+              ...d,
+              rider_type: d.rider_type || prevDel.rider_type,
+              assigned_rider: d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider !== 'Dispatched Courier'
+                ? d.assigned_rider
+                : (prevDel.assigned_rider && prevDel.assigned_rider !== 'Dispatched Courier' ? prevDel.assigned_rider : 'Unassigned'),
+              assigned_rider_id: d.assigned_rider && d.assigned_rider !== 'Unassigned'
+                ? (d.assigned_rider_id ?? prevDel.assigned_rider_id)
+                : (prevDel.assigned_rider_id ?? d.assigned_rider_id),
+              third_party_provider: prevDel.third_party_provider ?? d.third_party_provider,
+              booked_fee: prevDel.booked_fee ?? d.booked_fee,
+              delivery_fee: prevDel.delivery_fee ?? d.delivery_fee,
+              fee_evidence_path: prevDel.fee_evidence_path || d.fee_evidence_path || null,
+              fee_verify_status: prevDel.fee_verify_status !== 'none' ? prevDel.fee_verify_status : d.fee_verify_status,
+              notes: prevDel.notes || d.notes,
+              decline_reason: prevDel.decline_reason || d.decline_reason
+            }
+          })
+        const nextDeliveries = [...activeDispatches, ...nonDuplicateDelivered]
         writeLocalCache('smokey_live_cache_v3_logistics_deliveries', nextDeliveries)
         return nextDeliveries
       })
@@ -1346,8 +1803,183 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [])
 
+  // Automatically reconcile internal rider trip counts, completed trips, earnings, and pending payouts from logisticsDeliveries
+  useEffect(() => {
+    if (!logisticsDeliveries || logisticsDeliveries.length === 0) return
+    setRiders(prev => {
+      let changed = false
+      const next = prev.map(r => {
+        const riderDels = logisticsDeliveries.filter(
+          d =>
+            d.rider_type === 'internal' &&
+            (Number(d.assigned_rider_id) === Number(r.rider_user_id) ||
+              (d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider.toLowerCase().trim() === r.rider_name.toLowerCase().trim()))
+        )
+        const activeDels = riderDels.filter(
+          d => d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery'
+        )
+        const deliveredDels = riderDels.filter(d => d.status === 'delivered')
+
+        const derivedActive = activeDels.length
+        const derivedCompleted = deliveredDels.length
+        const derivedFees = deliveredDels.reduce((sum, d) => sum + (Number(d.delivery_fee) || 0), 0)
+
+        // SLA Option 1: Rating = 5.0 - (Delayed Deliveries * 0.2) - (Declined Dispatches * 0.1)
+        const delayedDeliveries = riderDels.filter(d => {
+          if (d.status !== 'delivered') return false
+          if (d.notes && /delayed|late/i.test(d.notes)) return true
+          if (d.pickup_at && d.delivered_at) {
+            const pTime = new Date(d.pickup_at).getTime()
+            const dTime = new Date(d.delivered_at).getTime()
+            if (!isNaN(pTime) && !isNaN(dTime) && (dTime - pTime > 45 * 60 * 1000)) {
+              return true
+            }
+          }
+          return false
+        }).length
+        const declinedDispatches = r.declined_dispatches || 0
+        const { rating: computedRating, onTimeRate: computedOnTimeRate } = calculateRiderRating(
+          delayedDeliveries,
+          declinedDispatches
+        )
+
+        const todayStr = new Date().toISOString().split('T')[0]
+        const todayDels = deliveredDels.filter(d => 
+          (d.delivered_at && d.delivered_at.startsWith(todayStr)) ||
+          (d.dispatch_date && d.dispatch_date === todayStr)
+        )
+        const derivedTodayTrips = todayDels.length
+        const derivedTodayFees = todayDels.reduce((sum, d) => sum + (Number(d.delivery_fee) || 0), 0)
+
+        // Strict Single Source of Truth:
+        // Lifetime earnings is the verified sum of delivered delivery fees for this rider
+        const newLifetime = derivedFees
+        // Clamped paid_total: cannot exceed verified lifetime earnings (prevents phantom payments when deliveries are reassigned)
+        const validPaidTotal = Math.min(r.paid_total || 0, derivedFees)
+        const newPendingPayout = Math.max(0, newLifetime - validPaidTotal)
+        const newNetBalance = newPendingPayout
+        const newTotalCompleted = derivedCompleted
+        const newTodayTrips = derivedTodayTrips
+        const newDeliveriesToday = derivedTodayTrips
+        const newDeliveriesWeek = derivedCompleted
+        const newDeliveriesMonth = derivedCompleted
+        const newEarningsToday = derivedTodayFees
+        const newEarningsWeek = derivedFees
+        const newEarningsMonth = derivedFees
+        const newStatus: RiderPayout['status'] =
+          derivedActive > 0 ? 'on_trip' : r.status === 'offline' ? 'offline' : 'active'
+
+        if (
+          r.active_assignments !== derivedActive ||
+          r.total_completed !== newTotalCompleted ||
+          r.today_trips !== newTodayTrips ||
+          r.deliveries_today !== newDeliveriesToday ||
+          r.deliveries_week !== newDeliveriesWeek ||
+          r.deliveries_month !== newDeliveriesMonth ||
+          r.earnings_today !== newEarningsToday ||
+          r.earnings_week !== newEarningsWeek ||
+          r.earnings_month !== newEarningsMonth ||
+          r.lifetime_earnings !== newLifetime ||
+          r.paid_total !== validPaidTotal ||
+          r.pending_payout !== newPendingPayout ||
+          r.net_balance !== newNetBalance ||
+          r.status !== newStatus ||
+          r.rating !== computedRating ||
+          r.on_time_rate !== computedOnTimeRate ||
+          r.delayed_deliveries !== delayedDeliveries ||
+          r.declined_dispatches !== declinedDispatches
+        ) {
+          changed = true
+          return {
+            ...r,
+            active_assignments: derivedActive,
+            today_trips: newTodayTrips,
+            deliveries_today: newDeliveriesToday,
+            deliveries_week: newDeliveriesWeek,
+            deliveries_month: newDeliveriesMonth,
+            total_completed: newTotalCompleted,
+            earnings_today: newEarningsToday,
+            earnings_week: newEarningsWeek,
+            earnings_month: newEarningsMonth,
+            lifetime_earnings: newLifetime,
+            paid_total: validPaidTotal,
+            pending_payout: newPendingPayout,
+            net_balance: newNetBalance,
+            status: newStatus,
+            delayed_deliveries: delayedDeliveries,
+            declined_dispatches: declinedDispatches,
+            rating: computedRating,
+            on_time_rate: computedOnTimeRate,
+          }
+        }
+        return r
+      })
+      return changed ? next : prev
+    })
+  }, [logisticsDeliveries])
+
+  // Persist operational ledger arrays and core inventories whenever mutated
+  useEffect(() => {
+    writeLocalCache('smokey_live_cache_v3_raw_products', rawProducts)
+    persistAppSetting('inventory_raw', rawProducts)
+  }, [rawProducts])
+  useEffect(() => {
+    writeLocalCache('smokey_live_cache_v3_packaging_products', packagingProducts)
+    persistAppSetting('inventory_packaging', packagingProducts)
+  }, [packagingProducts])
+  useEffect(() => {
+    writeLocalCache('smokey_live_cache_v3_suppliers', suppliers)
+    persistAppSetting('suppliers', suppliers)
+  }, [suppliers])
+  useEffect(() => {
+    writeLocalCache('smokey_live_cache_v3_riders', riders)
+    persistAppSetting('fleet_riders', riders)
+  }, [riders])
+  useEffect(() => {
+    persistAppSetting('staff_accounts', accounts)
+  }, [accounts])
+  useEffect(() => { persistAppSetting('raw_deliveries', rawDeliveries) }, [rawDeliveries])
+  useEffect(() => { persistAppSetting('raw_movements', rawMovements) }, [rawMovements])
+  useEffect(() => { persistAppSetting('packaging_receipts_totals', packagingReceiptsTotals) }, [packagingReceiptsTotals])
+  useEffect(() => { persistAppSetting('packaging_reconciliations', packagingReconciliations) }, [packagingReconciliations])
+  useEffect(() => { persistAppSetting('intermediate_preps', intermediatePreps) }, [intermediatePreps])
+  useEffect(() => { persistAppSetting('compound_inventory', compoundInventory) }, [compoundInventory])
+  useEffect(() => { persistAppSetting('inter_station_transfers', interStationTransfers) }, [interStationTransfers])
+  useEffect(() => { persistAppSetting('sales_movements', salesMovements) }, [salesMovements])
+  useEffect(() => { persistAppSetting('inventory_lots', inventoryLots) }, [inventoryLots])
+  useEffect(() => { persistAppSetting('recipe_templates', recipeTemplates) }, [recipeTemplates])
+  useEffect(() => { persistAppSetting('stocktake_variances', stocktakeVariances) }, [stocktakeVariances])
+  useEffect(() => { persistAppSetting('production_batches', productionBatches) }, [productionBatches])
+  useEffect(() => { persistAppSetting('packaging_materials_daily', packagingMaterialsDaily) }, [packagingMaterialsDaily])
+  useEffect(() => { persistAppSetting('kitchen_tasks', kitchenTasks) }, [kitchenTasks])
+  useEffect(() => { persistAppSetting('rider_tasks', riderTasks) }, [riderTasks])
+  useEffect(() => { persistAppSetting('store_pickups', storePickups) }, [storePickups])
+
   // Synchronize live data from Supabase backend on mount
   React.useEffect(() => {
+    fetch('/api/app-settings?keys=order_pipeline_state')
+      .then(res => res.json())
+      .then(json => {
+        const remoteRow = Array.isArray(json?.data) ? json.data.find((r: any) => r.key === 'order_pipeline_state') : null
+        const remoteState = remoteRow?.value && typeof remoteRow.value === 'object' && !Array.isArray(remoteRow.value) ? remoteRow.value : {}
+        const localState = readOrderPipelineState()
+        // Deep merge: localState first, remoteState overrides so authoritative remote settings win
+        const allKeys = Array.from(new Set([...Object.keys(localState), ...Object.keys(remoteState)]))
+        const merged: Record<string, OrderPipelineOverride> = {}
+        for (const k of allKeys) {
+          merged[k] = {
+            ...(localState[k] || {}),
+            ...(remoteState[k] || {})
+          }
+        }
+        if (Object.keys(merged).length > 0) {
+          localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(merged))
+          persistAppSetting('order_pipeline_state', merged)
+          refreshWebsiteOrders(false)
+        }
+      })
+      .catch(() => {})
+
     fetch('/api/raw-inventory')
       .then(res => res.json())
       .then(json => {
@@ -1386,11 +2018,51 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .then(json => {
         if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
           const mapped = mapFleetRidersItems(json.data)
-          setRiders(mapped)
-          writeLocalCache('smokey_live_cache_v3_riders', mapped)
+          setRiders(prev => {
+            const prevById = new Map(prev.map(r => [Number(r.rider_user_id), r]))
+            const merged = mapped.map(m => {
+              const existing = prevById.get(Number(m.rider_user_id))
+              if (!existing) return m
+              return {
+                ...m,
+                ...existing,
+                // Ensure profile/KYC metadata from remote server is retained if updated remotely
+                vehicle_type: m.vehicle_type || existing.vehicle_type,
+                plate_number: m.plate_number || existing.plate_number,
+                operating_hub: m.operating_hub || existing.operating_hub,
+                license_number: m.license_number || existing.license_number,
+                license_expiry: m.license_expiry || existing.license_expiry,
+                emergency_contact: m.emergency_contact || existing.emergency_contact,
+                emergency_phone: m.emergency_phone || existing.emergency_phone,
+                national_id_nin: m.national_id_nin || existing.national_id_nin,
+              }
+            })
+            writeLocalCache('smokey_live_cache_v3_riders', merged)
+            return merged
+          })
         }
       })
       .catch(err => console.error('Error fetching live fleet riders:', err))
+
+    fetch('/api/staff-accounts')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const remoteAccounts = json.data as AppUserAccount[]
+          setAccounts(prev => {
+            const byEmail = new Map(prev.map(a => [a.email.toLowerCase(), a]))
+            remoteAccounts.forEach(ra => {
+              if (!ra?.email) return
+              const existing = byEmail.get(ra.email.toLowerCase())
+              byEmail.set(ra.email.toLowerCase(), existing ? { ...ra, ...existing } : ra)
+            })
+            const merged = Array.from(byEmail.values())
+            localStorage.setItem('smokey_accounts', JSON.stringify(merged))
+            return merged
+          })
+        }
+      })
+      .catch(() => {})
 
     refreshLiveSalesProducts(false)
     refreshWebsiteOrders(false)
@@ -1589,14 +2261,53 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const masterPasswords = ['admin123', 'password123', 'Smokey@2026', 'admin']
     const isPasswordValid =
       masterPasswords.includes(cleanPass) ||
-      (storedPassword ? cleanPass === storedPassword : true)
+      (storedPassword ? cleanPass === storedPassword : false)
 
     if (!isPasswordValid) {
+      try {
+        const existingLogs = JSON.parse(localStorage.getItem('smokey_sign_in_logs_v1') || '[]')
+        const failEntry = {
+          id: `LOG-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          accountName: matchedAccount.name,
+          accountEmail: matchedAccount.email,
+          role: matchedAccount.role,
+          roleLabel: matchedAccount.roleLabel,
+          hub: matchedAccount.assigned_hub || 'Lagos Mainland HQ',
+          device: typeof navigator !== 'undefined' && /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile Browser' : 'Desktop Workstation',
+          deviceType: typeof navigator !== 'undefined' && /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+          ipAddress: 'Session Auth',
+          status: 'failed_password',
+          sessionState: 'blocked',
+          authMethod: 'Password + Role Guard'
+        }
+        localStorage.setItem('smokey_sign_in_logs_v1', JSON.stringify([failEntry, ...existingLogs].slice(0, 100)))
+      } catch {}
       return {
         success: false,
         error: 'Incorrect password. Please enter the password issued by your Administrator.',
       }
     }
+
+    try {
+      const existingLogs = JSON.parse(localStorage.getItem('smokey_sign_in_logs_v1') || '[]')
+      const successEntry = {
+        id: `LOG-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        accountName: matchedAccount.name,
+        accountEmail: matchedAccount.email,
+        role: matchedAccount.role,
+        roleLabel: matchedAccount.roleLabel,
+        hub: matchedAccount.assigned_hub || 'Lagos Mainland HQ',
+        device: typeof navigator !== 'undefined' && /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile Browser' : 'Desktop Workstation',
+        deviceType: typeof navigator !== 'undefined' && /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+        ipAddress: 'Verified Session',
+        status: 'success',
+        sessionState: 'active',
+        authMethod: 'Password + Role Guard'
+      }
+      localStorage.setItem('smokey_sign_in_logs_v1', JSON.stringify([successEntry, ...existingLogs].slice(0, 100)))
+    } catch {}
 
     const sessionPayload = JSON.stringify({
       email: matchedAccount.email,
@@ -1662,22 +2373,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       earnings_week: 0,
       earnings_month: 0,
       pending_payout: 0,
-      cod_cash_collected: 0,
-      cod_remitted_total: 0,
       net_balance: 0,
       paid_total: 0,
       lifetime_earnings: 0,
       status: riderData.status || 'active',
-      vehicle_type: riderData.vehicle_type?.trim() || 'Bajaj Boxer 150 Motorcycle',
-      plate_number: riderData.plate_number?.trim() || 'LND-482-XA',
-      operating_hub: riderData.operating_hub?.trim() || 'Yaba Head Office',
-      license_number: riderData.license_number?.trim() || 'DL-98234-LAG',
-      license_expiry: riderData.license_expiry?.trim() || 'Nov 2027',
-      emergency_contact: riderData.emergency_contact?.trim() || 'Next of Kin',
-      emergency_phone: riderData.emergency_phone?.trim() || '08023456789',
+      vehicle_type: riderData.vehicle_type?.trim() || 'Dispatch Motorcycle',
+      plate_number: riderData.plate_number?.trim() || '',
+      operating_hub: riderData.operating_hub?.trim() || 'Lagos Mainland HQ',
+      license_number: riderData.license_number?.trim() || '',
+      license_expiry: riderData.license_expiry?.trim() || '',
+      emergency_contact: riderData.emergency_contact?.trim() || '',
+      emergency_phone: riderData.emergency_phone?.trim() || '',
       rating: 5.0,
       on_time_rate: 100,
-      cod_limit: Number(riderData.cod_limit) || 50000,
       date_joined: riderData.date_joined || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     }
 
@@ -1699,9 +2407,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       vehicle_type: newRider.vehicle_type,
       plate_number: newRider.plate_number,
       license_number: newRider.license_number,
-      license_expiry: newRider.license_expiry,
-      cod_limit: newRider.cod_limit
-    }
+      license_expiry: newRider.license_expiry,}
 
     setAccounts(prev => {
       const exists = prev.some(a => a.email.toLowerCase() === riderAccount.email.toLowerCase())
@@ -1748,7 +2454,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             license_expiry: newAcc.license_expiry || r.license_expiry,
             emergency_contact: newAcc.emergency_contact || r.emergency_contact,
             emergency_phone: newAcc.emergency_phone || r.emergency_phone,
-            cod_limit: newAcc.cod_limit || r.cod_limit,
             staff_id: newAcc.staff_id || r.staff_id,
           } : r)
         }
@@ -1769,22 +2474,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           earnings_week: 0,
           earnings_month: 0,
           pending_payout: 0,
-          cod_cash_collected: 0,
-          cod_remitted_total: 0,
           net_balance: 0,
           paid_total: 0,
           lifetime_earnings: 0,
           status: 'active',
-          vehicle_type: newAcc.vehicle_type || 'Bajaj Boxer 150 Motorcycle',
-          plate_number: newAcc.plate_number || 'LND-482-XA',
-          operating_hub: newAcc.assigned_hub || 'Yaba Head Office',
-          license_number: newAcc.license_number || 'DL-98234-LAG',
-          license_expiry: newAcc.license_expiry || 'Nov 2027',
-          emergency_contact: newAcc.emergency_contact || 'Next of Kin',
-          emergency_phone: newAcc.emergency_phone || '08023456789',
+          vehicle_type: newAcc.vehicle_type || 'Dispatch Motorcycle',
+          plate_number: newAcc.plate_number || '',
+          operating_hub: newAcc.assigned_hub || 'Lagos Mainland HQ',
+          license_number: newAcc.license_number || '',
+          license_expiry: newAcc.license_expiry || '',
+          emergency_contact: newAcc.emergency_contact || '',
+          emergency_phone: newAcc.emergency_phone || '',
           rating: 5.0,
           on_time_rate: 100,
-          cod_limit: newAcc.cod_limit || 50000,
           date_joined: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         }
         return [newRider, ...prev]
@@ -2046,27 +2748,65 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // INVENTORY MUTATIONS
   // -------------------------------------------------------------
 
-  const receiveRawStock = ({ supplierId, productId, quantity, unitCost, notes }: { supplierId: number; productId: number; quantity: number; unitCost: number; notes?: string }) => {
+  const receiveRawStock = ({
+    supplierId,
+    productId,
+    quantity,
+    unitCost,
+    invoiceRef,
+    receiptDate,
+    notes
+  }: {
+    supplierId: number
+    productId: number
+    quantity: number
+    unitCost: number
+    invoiceRef?: string
+    receiptDate?: string
+    notes?: string
+  }) => {
     const product = rawProducts.find(p => p.id === productId)
     const supplier = suppliers.find(s => s.id === supplierId)
-    if (!product || !supplier) return
+    if (!product || !supplier || quantity <= 0) return
 
-    const totalValue = quantity * unitCost
-    const newQty = product.stock_qty + quantity
-    const newProductValue = newQty * unitCost
+    const totalIncomingValue = quantity * unitCost
+    const currentQty = Math.max(0, product.stock_qty || 0)
+    const currentCost = product.unit_cost || 0
+    const currentInventoryValue = currentQty * currentCost
+
+    const newQty = currentQty + quantity
+    const newTotalValuation = currentInventoryValue + totalIncomingValue
+
+    // Average Unit Cost calculation (rounded to nearest whole Naira for Nigerian commerce):
+    // Avg Cost = (Existing Inventory Value + Incoming Stock Value) / (Existing Stock Qty + Incoming Stock Qty)
+    const newWAC = newQty > 0
+      ? Math.round(newTotalValuation / newQty)
+      : Math.round(unitCost)
+
+    const costDelta = newWAC - Math.round(currentCost)
 
     // 1. Update product stock (maintain 3-state stock model: available = stock_qty - allocated - quarantine)
     setRawProducts(prev => prev.map(p => {
       if (p.id !== productId) return p
       const avail = Math.max(0, newQty - (p.qty_allocated || 0) - (p.qty_quarantine || 0))
-      return { ...p, stock_qty: newQty, qty_available: avail, unit_cost: unitCost, inventory_value: newProductValue }
+      return {
+        ...p,
+        stock_qty: newQty,
+        qty_available: avail,
+        unit_cost: newWAC,
+        last_purchase_cost: Math.round(unitCost),
+        cost_change_delta: costDelta,
+        inventory_value: newTotalValuation
+      }
     }))
 
-    // 2. Add delivery record
-    const deliveryRef = `RCV-${String(rawDeliveries.length + 65).padStart(5, '0')}`
+    // 2. Add delivery record (preserves original purchase price and records new Average Cost)
+    const deliveryRef = invoiceRef?.trim() || `RCV-${String(rawDeliveries.length + 65).padStart(5, '0')}`
+    const deliveryDate = receiptDate || new Date().toISOString().split('T')[0]
     const newDelivery: RawDelivery = {
       id: Date.now(),
       delivery_ref: deliveryRef,
+      invoice_ref: invoiceRef?.trim() || undefined,
       supplier_id: supplierId,
       supplier_name: supplier.name,
       product_id: productId,
@@ -2074,11 +2814,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sku: product.sku,
       quantity,
       unit: product.unit,
-      unit_cost: unitCost,
-      value_amount: totalValue,
-      date_received: new Date().toISOString().split('T')[0],
-      user_name: "Inventory Lead",
-      notes
+      unit_cost: Math.round(unitCost), // Original historical purchase price preserved
+      wac_after: newWAC,
+      value_amount: totalIncomingValue,
+      date_received: deliveryDate,
+      user_name: currentAccount?.name || "Inventory Staff",
+      notes: notes ? `${notes} (New Avg Cost: ₦${newWAC.toLocaleString()})` : `New Avg Cost: ₦${newWAC.toLocaleString()}`
     }
     setRawDeliveries(prev => [newDelivery, ...prev])
 
@@ -2090,31 +2831,33 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sku: product.sku,
       unit: product.unit,
       location: "raw",
-      movement_type: "transfer",
+      movement_type: "receipt",
       quantity,
-      unit_cost: unitCost,
-      value_amount: totalValue,
+      unit_cost: Math.round(unitCost),
+      value_amount: totalIncomingValue,
       balance_after: newQty,
-      notes: `Supplier receipt from ${supplier.name} (${deliveryRef})`,
+      notes: `Supplier receipt from ${supplier.name} (${deliveryRef}) - Average cost updated to ₦${newWAC.toLocaleString()}`,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      user_name: "Inventory Lead"
+      user_name: currentAccount?.name || "Inventory Staff"
     }
     setRawMovements(prev => [newMovement, ...prev])
 
     // 4. Update supplier total spend
-    setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, delivery_count: s.delivery_count + 1, total_spend: s.total_spend + totalValue } : s))
+    setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, delivery_count: s.delivery_count + 1, total_spend: s.total_spend + totalIncomingValue } : s))
 
     showSuccessModal({
-      title: 'Stock Intake Recorded',
+      title: 'Stock Intake Recorded & Average Cost Updated',
       message: `Received ${quantity} ${product.unit} of ${product.name} from ${supplier.name}.`,
       details: [
-        { label: 'Delivery Ref', value: deliveryRef },
-        { label: 'Ingredient', value: product.name },
+        { label: 'Delivery / Invoice Ref', value: deliveryRef },
         { label: 'Quantity Added', value: `+${quantity} ${product.unit}` },
-        { label: 'Total Value', value: formatNaira(totalValue) },
+        { label: 'Purchase Unit Price', value: formatNaira(Math.round(unitCost)) },
+        { label: 'Total Inbound Value', value: formatNaira(totalIncomingValue) },
+        { label: 'Updated Average Unit Cost', value: `${formatNaira(newWAC)} / ${product.unit}` },
+        { label: 'New Total Valuation', value: formatNaira(newTotalValuation) },
       ],
     })
-    showToast(`Stock intake: +${quantity} ${product.unit} of ${product.name}`, 'success')
+    showToast(`Stock intake: +${quantity} ${product.unit} of ${product.name} (Avg Cost: ₦${newWAC.toLocaleString()})`, 'success')
   }
 
   const receiveRawStockWithLot = ({
@@ -2124,6 +2867,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     unitCost,
     lotNumber,
     expiryDate,
+    invoiceRef,
+    receiptDate,
     notes
   }: {
     supplierId: number
@@ -2132,13 +2877,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     unitCost: number
     lotNumber?: string
     expiryDate?: string
+    invoiceRef?: string
+    receiptDate?: string
     notes?: string
   }) => {
-    receiveRawStock({ supplierId, productId, quantity, unitCost, notes })
+    receiveRawStock({ supplierId, productId, quantity, unitCost, invoiceRef, receiptDate, notes })
     if (lotNumber && expiryDate) {
       const product = rawProducts.find(p => p.id === productId)
       const supplier = suppliers.find(s => s.id === supplierId)
-      const today = new Date().toISOString().split('T')[0]
+      const today = receiptDate || new Date().toISOString().split('T')[0]
       const expTime = new Date(expiryDate).getTime()
       const nowTime = new Date().getTime()
       const diffDays = Math.max(0, Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24)))
@@ -2172,23 +2919,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setRawProducts(prev => prev.map(p => p.id === productId ? { ...p, stock_qty: newQty, qty_available: avail, inventory_value: newQty * p.unit_cost } : p))
 
+    const isWaste = delta < 0 && (
+      reason.toLowerCase().includes('waste') || 
+      reason.toLowerCase().includes('past date') || 
+      reason.toLowerCase().includes('spoiled') || 
+      reason.toLowerCase().includes('expired')
+    )
+
     const newMovement: RawMovement = {
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000),
       product_id: productId,
       product_name: product.name,
       sku: product.sku,
       unit: product.unit,
       location: "raw",
-      movement_type: delta < 0 && reason.toLowerCase().includes('waste') ? "waste" : "adjustment",
+      movement_type: reason === 'consumption' ? "consumption" : (isWaste ? "waste" : "adjustment"),
       quantity: delta,
       unit_cost: product.unit_cost,
       value_amount: deltaVal,
       balance_after: newQty,
       notes: `${reason}: ${notes}`,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      user_name: "Inventory Supervisor"
+      user_name: currentAccount?.name || "Inventory Staff"
     }
     setRawMovements(prev => [newMovement, ...prev])
+    showToast(`Adjusted ${product.name}: ${delta > 0 ? `+${delta}` : delta} ${product.unit}`, delta < 0 ? 'info' : 'success')
   }
 
   const writeOffLotWaste = ({
@@ -2278,8 +3033,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     )
 
     // 4. Create real production batch
-    const batchRef = `BAT-${String(productionBatches.length + 23).padStart(5, '0')}`
+    const batchRef = `BAT-${String(productionBatches.length + 1).padStart(5, '0')}`
     const finalSupervisor = supervisorName || pitmasterName || "Production Supervisor"
+    const lotUnitCost = lot.unit_cost || 0
+    const lotTotalCost = Math.round(actualQty * lotUnitCost * 100) / 100
     const newBatch: ProductionBatch = {
       id: Date.now(),
       batch_ref: batchRef,
@@ -2289,17 +3046,26 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       actual_output: 0,
       wastage: 0,
       status: "in_production",
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       completed_at: null,
       remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number} (Exp: ${lot.expiry_date}). ${shiftRemarks || 'Cook immediately on smoking grill / oven to prevent food waste.'}`,
       created_by_name: finalSupervisor,
+      initial_material_cost: lotTotalCost,
+      additional_material_cost: 0,
+      total_material_cost: lotTotalCost,
+      additional_requisitions: [],
       raw_materials: [
         {
           product_id: lot.product_id,
           sku: lot.sku,
           name: `${lot.product_name} (Lot: ${lot.lot_number})`,
           quantity: actualQty,
-          unit: lot.unit
+          unit: lot.unit,
+          unit_cost: lotUnitCost,
+          total_cost: lotTotalCost,
+          source: 'initial',
+          item_type: 'raw'
         }
       ]
     }
@@ -2348,6 +3114,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       setRawProducts(prev => [...prev, newProduct])
     }
+    showToast(`Raw material ${product.name} [${product.sku}] ${product.id ? 'updated' : 'created'} successfully`, 'success')
   }
 
   const submitStocktakeCount = (
@@ -2424,12 +3191,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } else if (v.category === 'sales') {
       adjustSalesStock(v.product_id, v.variance_qty, `Stocktake reconciliation: ${supervisorNotes}`)
     }
+    showToast(`Variance reconciled for ${v.product_name} (${v.variance_qty > 0 ? `+${v.variance_qty}` : v.variance_qty} ${v.unit})`, 'success')
   }
 
-  const receivePackaging = ({ productId, quantity, unitCost }: { productId: number; quantity: number; unitCost: number }) => {
+  const receivePackaging = ({ productId, quantity, unitCost, supplierId, notes }: { productId: number; quantity: number; unitCost: number; supplierId?: number; notes?: string }) => {
     const p = packagingProducts.find(item => item.id === productId)
     if (!p) return
 
+    const totalValue = quantity * unitCost
     const newCentral = (p.central_stock_qty ?? p.stock_qty) + quantity
     const bench = p.bench_stock_qty ?? 0
     const newTotal = newCentral + bench
@@ -2449,7 +3218,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return prev.map(r => r.product_id === productId ? {
           ...r,
           total_qty: r.total_qty + quantity,
-          total_value: r.total_value + (quantity * unitCost),
+          total_value: r.total_value + totalValue,
           receipt_count: r.receipt_count + 1,
           last_received: new Date().toISOString().split('T')[0]
         } : r)
@@ -2461,14 +3230,61 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         unit: p.unit,
         total_qty: quantity,
         avg_unit_cost: unitCost,
-        total_value: quantity * unitCost,
+        total_value: totalValue,
         receipt_count: 1,
         last_received: new Date().toISOString().split('T')[0]
       }]
     })
+
+    // Match vendor for packaging delivery ledger
+    const matchedSupplier = supplierId 
+      ? suppliers.find(s => s.id === supplierId)
+      : suppliers.find(s => s.category.toLowerCase().includes('packaging'))
+
+    if (matchedSupplier) {
+      const deliveryRef = `RCV-PKG-${String(rawDeliveries.length + 65).padStart(5, '0')}`
+      const newDelivery: RawDelivery = {
+        id: Date.now(),
+        delivery_ref: deliveryRef,
+        supplier_id: matchedSupplier.id,
+        supplier_name: matchedSupplier.name,
+        product_id: productId,
+        product_name: p.name,
+        sku: p.sku,
+        quantity,
+        unit: p.unit,
+        unit_cost: unitCost,
+        value_amount: totalValue,
+        date_received: new Date().toISOString().split('T')[0],
+        user_name: currentAccount?.name || "Inventory Staff",
+        notes: notes || `Packaging delivery intake from ${matchedSupplier.name}`,
+        category: 'packaging'
+      }
+      setRawDeliveries(prev => [newDelivery, ...prev])
+    }
+
+    // Log packaging delivery in stock movements ledger
+    const newMovement: SalesMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      product_id: productId,
+      product_name: p.name,
+      sku: p.sku,
+      unit: p.unit,
+      location: "packaging",
+      movement_type: "receipt",
+      quantity,
+      unit_cost: unitCost,
+      value_amount: totalValue,
+      balance_after: newTotal,
+      notes: notes || `Packaging delivery intake: +${quantity} ${p.unit}${matchedSupplier ? ` from ${matchedSupplier.name}` : ''}`,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      user_name: currentAccount?.name || "Inventory Staff"
+    }
+    setSalesMovements(prev => [newMovement, ...prev])
   }
 
-  const adjustPackagingStock = (productId: number, delta: number, _notes: string) => {
+  const adjustPackagingStock = (productId: number, delta: number, notes: string) => {
+    const targetPkg = packagingProducts.find(p => p.id === productId)
     setPackagingProducts(prev => prev.map(p => {
       if (p.id !== productId) return p
       const newCentral = Math.max(0, (p.central_stock_qty ?? p.stock_qty) + delta)
@@ -2483,6 +3299,26 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         inventory_value: newTotal * p.unit_cost
       }
     }))
+    if (targetPkg) {
+      const newTotal = Math.max(0, (targetPkg.central_stock_qty ?? targetPkg.stock_qty) + delta) + (targetPkg.bench_stock_qty ?? 0)
+      const newMovement: SalesMovement = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        product_id: productId,
+        product_name: targetPkg.name,
+        sku: targetPkg.sku,
+        unit: targetPkg.unit,
+        location: "packaging",
+        movement_type: "adjustment",
+        quantity: delta,
+        unit_cost: targetPkg.unit_cost,
+        value_amount: Math.abs(delta) * targetPkg.unit_cost,
+        balance_after: newTotal,
+        notes: notes || "Packaging stock adjustment",
+        created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        user_name: currentAccount?.name || "Inventory Staff"
+      }
+      setSalesMovements(prev => [newMovement, ...prev])
+    }
   }
 
   // Hub & Outlets Inventory Methods
@@ -2764,25 +3600,36 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     rawIngredients: Array<{ productId: number; quantity: number }>,
     yieldQty: number,
     unit: string,
-    preparedBy: string
+    preparedBy: string,
+    expiryDays: number = 14
   ) => {
-    // 1. Deduct raw ingredients from Central Store
-    rawIngredients.forEach(ing => {
-      adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Store for recipe prep: ${recipeName}`, "consumption")
-    })
-
-    // 2. Transfer from Central Store to Production Bench
-    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
+    // 1. Calculate preparation cost and deduct raw ingredients from Central Store
+    let totalPrepCost = 0
     const transferItems = rawIngredients.map(ing => {
       const raw = rawProducts.find(r => r.id === ing.productId)
+      const unitCost = raw?.unit_cost || 0
+      const lineCost = Math.round(ing.quantity * unitCost * 100) / 100
+      totalPrepCost += lineCost
+      if (raw) {
+        adjustRawStock(ing.productId, -ing.quantity, `Withdrawn from Central Store for recipe prep: ${recipeName}`, "consumption")
+      }
       return {
         product_id: ing.productId,
         product_name: raw ? raw.name : 'Unknown Raw Material',
         quantity: ing.quantity,
-        unit: raw ? raw.unit : 'kg'
+        unit: raw ? raw.unit : 'kg',
+        unit_cost: unitCost,
+        line_cost: lineCost
       }
     })
 
+    const prepUnitCost = yieldQty > 0 ? Math.round((totalPrepCost / yieldQty) * 100) / 100 : 0
+    const prepRef = `PRP-${String(intermediatePreps.length + 43).padStart(3, '0')}`
+    const lotNumber = `LOT-PREP-${prepRef}`
+    const expiryDate = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString().split('T')[0]
+
+    // 2. Transfer from Central Store to Production Bench
+    const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
     const newTransfer: InterStationTransfer = {
       id: Date.now(),
       transfer_ref: transferRef,
@@ -2790,15 +3637,62 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       to_station: 'production_floor',
       transfer_type: 'issue_raw_for_prep',
       items: transferItems,
-      notes: `Issued raw materials for intermediate mix: ${recipeName}`,
+      notes: `Issued raw materials for intermediate mix: ${recipeName} (${formatNaira(totalPrepCost)})`,
       authorized_by: "Central Storekeeper",
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       status: 'completed'
     }
     setInterStationTransfers(prev => [newTransfer, ...prev])
 
-    // 3. Create IntermediatePrep record
-    const prepRef = `PRP-${String(intermediatePreps.length + 43).padStart(3, '0')}`
+    // 3. Register or deposit into Central Compound Inventory (Shared across all production batches)
+    const prepLotRecord: CompoundPreparationLot = {
+      lot_number: lotNumber,
+      prep_ref: prepRef,
+      prep_id: Date.now(),
+      prepared_by: preparedBy,
+      prepared_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      initial_yield_qty: yieldQty,
+      remaining_qty: yieldQty,
+      unit_cost: prepUnitCost,
+      total_cost: totalPrepCost,
+      expiry_date: expiryDate,
+      source_ingredients: transferItems
+    }
+
+    setCompoundInventory(prev => {
+      const existing = prev.find(c => c.name.toLowerCase().trim() === recipeName.toLowerCase().trim())
+      if (existing) {
+        const newQty = existing.stock_qty + yieldQty
+        const newWAC = newQty > 0
+          ? Math.round(((existing.stock_qty * existing.unit_cost) + (yieldQty * prepUnitCost)) / newQty)
+          : Math.round(prepUnitCost)
+        return prev.map(c => c.id === existing.id ? {
+          ...c,
+          unit_cost: newWAC,
+          stock_qty: newQty,
+          inventory_value: Math.round(newQty * newWAC),
+          preparation_lots: [prepLotRecord, ...c.preparation_lots]
+        } : c)
+      } else {
+        const newCompound: CompoundInventoryItem = {
+          id: Date.now(),
+          sku: `CPD-${String(prev.length + 1).padStart(4, '0')}`,
+          name: recipeName,
+          unit,
+          unit_cost: prepUnitCost,
+          stock_qty: yieldQty,
+          inventory_value: totalPrepCost,
+          is_active: 1,
+          reorder_level: 2.0,
+          preparation_lots: [prepLotRecord],
+          allocations: [],
+          surplus_returns: []
+        }
+        return [newCompound, ...prev]
+      }
+    })
+
+    // 4. Create IntermediatePrep record with accurate costing
     const newPrep: IntermediatePrep = {
       id: Date.now(),
       prep_ref: prepRef,
@@ -2811,22 +3705,47 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       prepared_by: preparedBy,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       source_ingredients: transferItems,
-      allocations: []
+      allocations: [],
+      total_cost: totalPrepCost,
+      unit_cost: prepUnitCost,
+      expiry_date: expiryDate
     }
     setIntermediatePreps(prev => [newPrep, ...prev])
 
+    // 5. Deposit into Central Store cold storage as a tracked InventoryLot with true unit cost
+    const newLot: InventoryLot = {
+      id: Date.now() + 1,
+      lot_number: lotNumber,
+      product_id: newPrep.id,
+      product_name: `[Compound Mix] ${recipeName}`,
+      sku: `HUB-PREP-${prepRef}`,
+      supplier_name: 'Internal Production Bench',
+      unit,
+      unit_cost: prepUnitCost,
+      initial_qty: yieldQty,
+      remaining_qty: yieldQty,
+      received_date: new Date().toISOString().split('T')[0],
+      expiry_date: expiryDate,
+      days_to_expiry: expiryDays,
+      status: 'active',
+      location: 'Central Cold Room Chiller #2'
+    }
+    setInventoryLots(prev => [newLot, ...prev])
+
     showSuccessModal({
-      title: 'Intermediate Recipe Prep Created',
-      message: `Raw ingredients deducted from Central Store. ${yieldQty} ${unit} of ${recipeName} is now active and ready for cross-product allocation.`,
+      title: 'Intermediate Recipe Prep Created & Costed',
+      message: `Raw ingredients deducted from Central Store (${formatNaira(totalPrepCost)}). ${yieldQty} ${unit} of ${recipeName} is active in Central Compound Inventory at ${formatNaira(prepUnitCost)}/${unit}.`,
       details: [
         { label: 'Prep Ref', value: prepRef },
         { label: 'Recipe Mix', value: recipeName },
-        { label: 'Initial Yield', value: `${yieldQty} ${unit}` },
+        { label: 'Yield Produced', value: `${yieldQty} ${unit}` },
+        { label: 'Total Prep Cost', value: formatNaira(totalPrepCost) },
+        { label: 'Prepared Mix Unit Cost', value: `${formatNaira(Math.round(prepUnitCost))} / ${unit}` },
         { label: 'Prepared By', value: preparedBy },
-        { label: 'Status', value: 'Active on Production Bench' },
+        { label: 'Central Compound Status', value: 'Ready for cross-batch allocation' },
       ],
     })
-    showToast(`Created prep mix ${prepRef}: ${yieldQty} ${unit} ready for use`, 'success')
+    showToast(`Created prep mix ${prepRef}: ${yieldQty} ${unit} @ ${formatNaira(prepUnitCost)}/${unit}`, 'success')
   }
 
   const allocatePrepToBatch = (
@@ -2847,6 +3766,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const newRemaining = Math.max(0, prep.remaining_qty - allocatedQty)
     const newStatus = newRemaining === 0 ? 'exhausted' : 'active'
+    const prepUnitCost = prep.unit_cost || 0
+    const allocTotalCost = Math.round(allocatedQty * prepUnitCost * 100) / 100
 
     const newAllocation: IntermediatePrepAllocation = {
       id: `ALLOC-${Date.now()}`,
@@ -2855,9 +3776,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       target_product_name: productName,
       allocated_qty: allocatedQty,
       allocated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      allocated_by: allocatedBy
+      allocated_by: allocatedBy,
+      unit_cost: prepUnitCost,
+      total_cost: allocTotalCost
     }
 
+    // 1. Update intermediate preps state
     setIntermediatePreps(prev => prev.map(p => p.id === prepId ? {
       ...p,
       remaining_qty: newRemaining,
@@ -2865,7 +3789,246 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       allocations: [newAllocation, ...p.allocations]
     } : p))
 
-    showToast(`Allocated ${allocatedQty} ${prep.unit} from ${prep.recipe_name} to ${productName} (${batchRef})`, 'success')
+    // 2. Also deduct from Central Compound Inventory if tracked
+    setCompoundInventory(prev => prev.map(c => {
+      if (c.name.toLowerCase().trim() === prep.recipe_name.toLowerCase().trim()) {
+        const updatedQty = Math.max(0, c.stock_qty - allocatedQty)
+        return {
+          ...c,
+          stock_qty: updatedQty,
+          inventory_value: Math.round(updatedQty * c.unit_cost * 100) / 100,
+          allocations: [
+            {
+              id: newAllocation.id,
+              batch_id: batchId,
+              batch_ref: batchRef,
+              target_product_name: productName,
+              quantity: allocatedQty,
+              unit_cost_at_issue: prepUnitCost,
+              total_cost: allocTotalCost,
+              issued_at: newAllocation.allocated_at,
+              issued_by: allocatedBy,
+              source_prep_ref: prep.prep_ref
+            },
+            ...c.allocations
+          ]
+        }
+      }
+      return c
+    }))
+
+    // 3. CRITICAL: Inject allocated prep into receiving batch in productionBatches
+    const targetBatch = productionBatches.find(b => (batchId && b.id === batchId) || b.batch_ref === batchRef)
+    if (targetBatch) {
+      const prepBomItem: RawMaterialBOM = {
+        product_id: prep.id,
+        sku: `PRP-${prep.prep_ref}`,
+        name: prep.recipe_name,
+        quantity: allocatedQty,
+        unit: prep.unit,
+        unit_cost: prepUnitCost,
+        total_cost: allocTotalCost,
+        source: 'compound',
+        item_type: 'compound',
+        prep_ref: prep.prep_ref
+      }
+      const updatedTotalCost = (targetBatch.total_material_cost || targetBatch.initial_material_cost || 0) + allocTotalCost
+
+      setProductionBatches(prev => prev.map(b => b.id === targetBatch.id ? {
+        ...b,
+        raw_materials: [...b.raw_materials, prepBomItem],
+        total_material_cost: updatedTotalCost
+      } : b))
+    }
+
+    // 4. Log Stock Movement for compound consumption
+    const newMovement: RawMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      product_id: prep.id,
+      product_name: prep.recipe_name,
+      sku: `PRP-${prep.prep_ref}`,
+      unit: prep.unit,
+      location: "raw",
+      movement_type: "consumption",
+      quantity: -allocatedQty,
+      unit_cost: prepUnitCost,
+      value_amount: allocTotalCost,
+      balance_after: newRemaining,
+      notes: `Prep allocation: ${allocatedQty} ${prep.unit} issued to ${productName} (${batchRef})`,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      user_name: allocatedBy
+    }
+    setRawMovements(prev => [newMovement, ...prev])
+
+    showToast(`Allocated ${allocatedQty} ${prep.unit} from ${prep.recipe_name} to ${productName} (${batchRef}) [${formatNaira(allocTotalCost)}]`, 'success')
+    return true
+  }
+
+  const issueCompoundToBatch = (
+    compoundId: number,
+    batchId: number,
+    quantity: number,
+    staffName?: string
+  ): boolean => {
+    const compound = compoundInventory.find(c => c.id === compoundId)
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!compound || !batch || quantity <= 0) return false
+
+    if (compound.stock_qty < quantity) {
+      showToast(`Cannot issue ${quantity} ${compound.unit}. Only ${compound.stock_qty} ${compound.unit} available in compound store!`, 'error')
+      return false
+    }
+
+    const newStock = Math.max(0, compound.stock_qty - quantity)
+    const unitCost = compound.unit_cost
+    const totalCost = Math.round(quantity * unitCost * 100) / 100
+    const issuer = staffName || currentAccount?.name || "Kitchen Pitmaster"
+    const issueDate = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    // 1. Deduct from Central Compound Inventory
+    setCompoundInventory(prev => prev.map(c => c.id === compoundId ? {
+      ...c,
+      stock_qty: newStock,
+      inventory_value: Math.round(newStock * c.unit_cost * 100) / 100,
+      allocations: [
+        {
+          id: `ALLOC-CPD-${Date.now()}`,
+          batch_id: batch.id,
+          batch_ref: batch.batch_ref,
+          target_product_name: batch.output_product_name,
+          quantity,
+          unit_cost_at_issue: unitCost,
+          total_cost: totalCost,
+          issued_at: issueDate,
+          issued_by: issuer,
+          source_prep_ref: compound.preparation_lots?.[0]?.prep_ref
+        },
+        ...c.allocations
+      ]
+    } : c))
+
+    // 2. Inject into receiving production batch
+    const compBomItem: RawMaterialBOM = {
+      product_id: compound.id,
+      sku: compound.sku,
+      name: compound.name,
+      quantity,
+      unit: compound.unit,
+      unit_cost: unitCost,
+      total_cost: totalCost,
+      source: 'compound',
+      item_type: 'compound',
+      compound_id: compound.id,
+      prep_ref: compound.preparation_lots?.[0]?.prep_ref
+    }
+    const updatedTotalCost = (batch.total_material_cost || batch.initial_material_cost || 0) + totalCost
+
+    setProductionBatches(prev => prev.map(b => b.id === batch.id ? {
+      ...b,
+      raw_materials: [...b.raw_materials, compBomItem],
+      total_material_cost: updatedTotalCost
+    } : b))
+
+    // 3. Log Stock Movement
+    const newMovement: RawMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      product_id: compound.id,
+      product_name: compound.name,
+      sku: compound.sku,
+      unit: compound.unit,
+      location: "raw",
+      movement_type: "consumption",
+      quantity: -quantity,
+      unit_cost: unitCost,
+      value_amount: totalCost,
+      balance_after: newStock,
+      notes: `Compound issued: ${quantity} ${compound.unit} to ${batch.output_product_name} (${batch.batch_ref})`,
+      created_at: issueDate,
+      user_name: issuer
+    }
+    setRawMovements(prev => [newMovement, ...prev])
+
+    showToast(`Issued ${quantity} ${compound.unit} of ${compound.name} to Batch ${batch.batch_ref} (+${formatNaira(totalCost)})`, 'success')
+    return true
+  }
+
+  const returnCompoundSurplusFromBatch = (
+    compoundId: number,
+    batchId: number,
+    quantity: number,
+    notes?: string,
+    staffName?: string
+  ): boolean => {
+    const compound = compoundInventory.find(c => c.id === compoundId)
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!compound || !batch || quantity <= 0) return false
+
+    const newStock = compound.stock_qty + quantity
+    const unitCost = compound.unit_cost
+    const totalCredit = Math.round(quantity * unitCost * 100) / 100
+    const returner = staffName || currentAccount?.name || "Kitchen Chef"
+    const returnDate = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    // 1. Credit Central Compound Inventory
+    setCompoundInventory(prev => prev.map(c => c.id === compoundId ? {
+      ...c,
+      stock_qty: newStock,
+      inventory_value: Math.round(newStock * c.unit_cost * 100) / 100,
+      surplus_returns: [
+        {
+          id: `RET-CPD-${Date.now()}`,
+          batch_id: batch.id,
+          batch_ref: batch.batch_ref,
+          quantity,
+          unit_cost: unitCost,
+          total_credited: totalCredit,
+          returned_at: returnDate,
+          returned_by: returner,
+          notes: notes || `Surplus return from Batch ${batch.batch_ref}`
+        },
+        ...c.surplus_returns
+      ]
+    } : c))
+
+    // 2. Credit Batch Net Material Cost
+    const currentCost = batch.total_material_cost || batch.initial_material_cost || 0
+    const newCost = Math.max(0, Math.round((currentCost - totalCredit) * 100) / 100)
+    const returnedItem = {
+      product_id: compound.id,
+      name: compound.name,
+      quantity,
+      unit: compound.unit,
+      value_credited: totalCredit,
+      item_type: 'compound' as const,
+      compound_id: compound.id
+    }
+
+    setProductionBatches(prev => prev.map(b => b.id === batch.id ? {
+      ...b,
+      total_material_cost: newCost,
+      returned_materials: [...(b.returned_materials || []), returnedItem]
+    } : b))
+
+    // 3. Log Stock Movement
+    const newMovement: RawMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      product_id: compound.id,
+      product_name: compound.name,
+      sku: compound.sku,
+      unit: compound.unit,
+      location: "raw",
+      movement_type: "adjustment",
+      quantity,
+      unit_cost: unitCost,
+      value_amount: totalCredit,
+      balance_after: newStock,
+      notes: `Surplus compound returned from Batch ${batch.batch_ref}: ${notes || 'Returned to Central Store'}`,
+      created_at: returnDate,
+      user_name: returner
+    }
+    setRawMovements(prev => [newMovement, ...prev])
+
+    showToast(`Returned ${quantity} ${compound.unit} of ${compound.name} to Central Store (-${formatNaira(totalCredit)} credited to batch)`, 'success')
     return true
   }
 
@@ -2886,6 +4049,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const newRemaining = Math.max(0, prep.remaining_qty - returnQty)
     const newReturnedToHub = (prep.returned_to_hub_qty || 0) + returnQty
     const newStatus = newRemaining === 0 ? 'returned_to_hub' : prep.status
+    const prepUnitCost = prep.unit_cost || 0
+    const returnedValue = Math.round(returnQty * prepUnitCost * 100) / 100
 
     // 1. Record transfer back to Central Store
     const transferRef = `TRF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(interStationTransfers.length + 1).padStart(2, '0')}`
@@ -2903,14 +4068,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           unit: prep.unit
         }
       ],
-      notes: `${notes} (Returned by ${returnedBy})`,
+      notes: `${notes} (Returned by ${returnedBy}) - Valued at ${formatNaira(returnedValue)}`,
       authorized_by: returnedBy,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       status: 'completed'
     }
     setInterStationTransfers(prev => [newTransfer, ...prev])
 
-    // 2. Deposit into Central Store cold storage as a tracked InventoryLot
+    // 2. Deposit into Central Store cold storage as a tracked InventoryLot with true unit cost
     const lotId = Date.now()
     const newLot: InventoryLot = {
       id: lotId,
@@ -2920,18 +4085,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sku: `HUB-PREP-${prep.prep_ref}`,
       supplier_name: 'Internal Production Bench',
       unit: prep.unit,
-      unit_cost: 0,
+      unit_cost: prepUnitCost,
       initial_qty: returnQty,
       remaining_qty: returnQty,
       received_date: new Date().toISOString().split('T')[0],
-      expiry_date: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0],
-      days_to_expiry: 7,
+      expiry_date: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      days_to_expiry: 14,
       status: 'active',
       location: 'Central Cold Room Chiller #2'
     }
     setInventoryLots(prev => [newLot, ...prev])
 
-    // 3. Update prep record
+    // 3. Ensure Central Compound Inventory is updated
+    setCompoundInventory(prev => prev.map(c => {
+      if (c.name.toLowerCase().trim() === prep.recipe_name.toLowerCase().trim()) {
+        const updatedQty = c.stock_qty + returnQty
+        return {
+          ...c,
+          stock_qty: updatedQty,
+          inventory_value: Math.round(updatedQty * c.unit_cost * 100) / 100
+        }
+      }
+      return c
+    }))
+
+    // 4. Update prep record
     setIntermediatePreps(prev => prev.map(p => p.id === prepId ? {
       ...p,
       remaining_qty: newRemaining,
@@ -2945,27 +4123,37 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     showSuccessModal({
       title: 'Surplus Recipe Prep Preserved in Central Store',
-      message: `${returnQty} ${prep.unit} of ${prep.recipe_name} has been returned to the Central Store cold storage.`,
+      message: `${returnQty} ${prep.unit} of ${prep.recipe_name} (${formatNaira(returnedValue)}) returned to Central Store cold storage.`,
       details: [
         { label: 'Prep Ref', value: prep.prep_ref },
         { label: 'Quantity Preserved', value: `${returnQty} ${prep.unit}` },
+        { label: 'Valuation Preserved', value: formatNaira(returnedValue) },
         { label: 'Cold Storage Lot', value: newLot.lot_number },
         { label: 'Storage Location', value: newLot.location || 'Central Cold Room Chiller #2' },
         { label: 'Returned By', value: returnedBy },
       ],
     })
-    showToast(`Surplus ${returnQty} ${prep.unit} returned to Central Store cold storage`, 'success')
+    showToast(`Surplus ${returnQty} ${prep.unit} returned to Central Store cold storage (${formatNaira(returnedValue)})`, 'success')
   }
 
   const adjustSalesStock = (productId: number, delta: number, notes: string) => {
-    const product = salesProducts.find(p => p.id === productId)
+    const product = liveSalesProducts.find(p => p.id === productId) || salesProducts.find(p => p.id === productId)
     if (!product) return
 
     const newQty = Math.max(0, product.stock_qty + delta)
-    setSalesProducts(prev => prev.map(p => p.id === productId ? { ...p, stock_qty: newQty, inventory_value: newQty * p.unit_cost } : p))
+    const updateProd = (p: SalesProduct) => p.id === productId ? {
+      ...p,
+      stock_qty: newQty,
+      qty_available: Math.max(0, newQty - (p.qty_allocated || 0)),
+      inventory_value: newQty * p.selling_price
+    } : p
+
+    setSalesProducts(prev => prev.map(updateProd))
+    setLiveSalesProducts(prev => prev.map(updateProd))
+    persistProductUpdateToBackend(productId, { stock: newQty })
 
     const newMovement: SalesMovement = {
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000),
       product_id: productId,
       product_name: product.name,
       sku: product.sku,
@@ -2978,7 +4166,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       balance_after: newQty,
       notes,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      user_name: "Operations Lead"
+      user_name: currentAccount?.name || "Operations Staff"
     }
     setSalesMovements(prev => [newMovement, ...prev])
   }
@@ -3068,6 +4256,22 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Updated supplier ${updated.name}`, 'success')
   }
 
+  const deleteSupplier = (supplierId: number): boolean => {
+    const supplier = suppliers.find(s => s.id === supplierId)
+    if (!supplier) return false
+
+    // Audit safeguard: do not delete vendor with recorded intake deliveries
+    const hasDeliveries = rawDeliveries.some(d => d.supplier_id === supplierId || (d.supplier_name && d.supplier_name.toLowerCase() === supplier.name.toLowerCase()))
+    if (hasDeliveries) {
+      showToast('Cannot delete vendor with recorded intake deliveries. Mark inactive instead.', 'error')
+      return false
+    }
+
+    setSuppliers(prev => prev.filter(s => s.id !== supplierId))
+    showToast(`Supplier ${supplier.name} removed successfully`, 'success')
+    return true
+  }
+
   // -------------------------------------------------------------
   // PRODUCTION MUTATIONS
   // -------------------------------------------------------------
@@ -3089,14 +4293,108 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     batch_schedule?: 'today' | 'tomorrow_morning'
     feed_sales_inventory?: boolean
     estimated_ready_time?: string
-    rawMaterials: Array<{ product_id: number; sku: string; name: string; quantity: number; unit: string }>
+    rawMaterials: Array<{
+      product_id: number
+      sku: string
+      name: string
+      quantity: number
+      unit: string
+      item_type?: 'raw' | 'compound'
+      compound_id?: number
+      prep_ref?: string
+    }>
   }) => {
-    // 1. Deduct raw materials consumed
-    rawMaterials.forEach(mat => {
-      adjustRawStock(mat.product_id, -mat.quantity, `Batch allocation for ${outputProductName}`, "consumption")
+    const batchRef = `BAT-${String(productionBatches.length + 1).padStart(5, '0')}`
+
+    // 1. Snapshot raw and compound materials with unit cost and total cost, then deduct from inventory
+    const snappedMaterials: RawMaterialBOM[] = rawMaterials.map(mat => {
+      const isCompound = mat.item_type === 'compound' || !!mat.compound_id || compoundInventory.some(c => c.id === mat.product_id || c.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
+
+      if (isCompound) {
+        const matchedCompound = compoundInventory.find(c =>
+          c.id === mat.compound_id ||
+          c.id === mat.product_id ||
+          (mat.sku && c.sku?.toLowerCase() === mat.sku.toLowerCase()) ||
+          c.name.toLowerCase().trim() === mat.name.toLowerCase().trim()
+        )
+        const unitCost = matchedCompound?.unit_cost || 0
+        const totalCost = Math.round(mat.quantity * unitCost * 100) / 100
+
+        // Deduct from compound inventory ONLY (never re-deduct raw materials!)
+        if (matchedCompound) {
+          const newCompoundStock = Math.max(0, matchedCompound.stock_qty - mat.quantity)
+          setCompoundInventory(prev => prev.map(ci => ci.id === matchedCompound.id ? {
+            ...ci,
+            stock_qty: newCompoundStock,
+            inventory_value: Math.round(newCompoundStock * ci.unit_cost * 100) / 100,
+            allocations: [
+              {
+                id: `ALLOC-CPD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                batch_id: 0,
+                batch_ref: batchRef,
+                target_product_name: outputProductName,
+                quantity: mat.quantity,
+                unit_cost_at_issue: unitCost,
+                total_cost: totalCost,
+                issued_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                issued_by: currentAccount?.name || "Kitchen Pitmaster",
+                source_prep_ref: matchedCompound.preparation_lots?.[0]?.prep_ref
+              },
+              ...ci.allocations
+            ]
+          } : ci))
+
+          const movement: RawMovement = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            product_id: matchedCompound.id,
+            product_name: matchedCompound.name,
+            sku: matchedCompound.sku,
+            unit: matchedCompound.unit,
+            location: "raw",
+            movement_type: "consumption",
+            quantity: -mat.quantity,
+            unit_cost: unitCost,
+            value_amount: totalCost,
+            balance_after: newCompoundStock,
+            notes: `Compound issued: ${mat.quantity} ${matchedCompound.unit} to ${outputProductName} (${batchRef})`,
+            created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            user_name: currentAccount?.name || "Kitchen Pitmaster"
+          }
+          setRawMovements(prev => [movement, ...prev])
+        }
+
+        return {
+          ...mat,
+          unit_cost: unitCost,
+          total_cost: totalCost,
+          item_type: 'compound' as const,
+          source: 'compound' as const,
+          compound_id: matchedCompound?.id || mat.compound_id,
+          prep_ref: matchedCompound?.preparation_lots?.[0]?.prep_ref || mat.prep_ref
+        }
+      }
+
+      // Normal raw product
+      const matchedRaw = rawProducts.find(p =>
+        p.id === mat.product_id ||
+        (mat.sku && p.sku?.toLowerCase() === mat.sku.toLowerCase()) ||
+        p.name.toLowerCase().trim() === mat.name.toLowerCase().trim()
+      )
+      const unitCost = matchedRaw?.unit_cost || 0
+      const totalCost = Math.round(mat.quantity * unitCost * 100) / 100
+      if (matchedRaw) {
+        adjustRawStock(matchedRaw.id, -mat.quantity, `Batch allocation for ${outputProductName}`, "consumption")
+      }
+      return {
+        ...mat,
+        unit_cost: unitCost,
+        total_cost: totalCost,
+        item_type: 'raw' as const,
+        source: 'initial' as const
+      }
     })
 
-    const batchRef = `BAT-${String(productionBatches.length + 23).padStart(5, '0')}`
+    const initialMaterialCost = snappedMaterials.reduce((acc, m) => acc + (m.total_cost || 0), 0)
     const defaultReadyTime = batch_schedule === 'tomorrow_morning'
       ? 'Tomorrow 9:30 AM'
       : `Today ${new Date(Date.now() + 4 * 3600 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
@@ -3116,8 +4414,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       started_at: null,
       completed_at: null,
       remarks,
-      created_by_name: "Shift Oven Supervisor",
-      raw_materials: rawMaterials
+      created_by_name: currentAccount?.name || "Production Supervisor",
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      raw_materials: snappedMaterials,
+      additional_requisitions: [],
+      initial_material_cost: initialMaterialCost,
+      additional_material_cost: 0,
+      total_material_cost: initialMaterialCost
     }
     setProductionBatches(prev => [newBatch, ...prev])
 
@@ -3130,6 +4433,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         { label: 'Batch Ref', value: batchRef },
         { label: 'Target Product', value: outputProductName },
         { label: 'Planned Output', value: `${expectedOutput} portions` },
+        { label: 'Initial Material Cost', value: formatNaira(initialMaterialCost) },
         { label: 'Target Completion', value: estimated_ready_time || defaultReadyTime },
         { label: 'Website Buffer Feed', value: feed_sales_inventory ? `+${expectedOutput} Units Bookable Online` : 'Internal Prep Only' },
       ],
@@ -3142,9 +4446,309 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Batch cooking started on smoking grill`, 'info')
   }
 
-  const completeBatch = (batchId: number, actualOutput: number, wastage: number, remarks?: string) => {
+  const requestAdditionalBatchMaterial = (data: {
+    batchId: number
+    productId: number
+    quantity: number
+    reason: string
+    requestedBy?: string
+  }): boolean => {
+    const batch = productionBatches.find(b => b.id === data.batchId)
+    const product = rawProducts.find(p => p.id === data.productId)
+    if (!batch || !product || data.quantity <= 0) return false
+
+    const reqCount = (batch.additional_requisitions?.length || 0) + 1
+    const reqRef = `REQ-${batch.batch_ref}-${String(reqCount).padStart(2, '0')}`
+
+    const newRequisition: BatchMaterialRequisition = {
+      id: reqRef,
+      batch_id: batch.id,
+      batch_ref: batch.batch_ref,
+      output_product_name: batch.output_product_name,
+      raw_product_id: product.id,
+      raw_product_name: product.name,
+      sku: product.sku,
+      unit: product.unit,
+      requested_qty: data.quantity,
+      reason: data.reason,
+      requested_by: data.requestedBy || currentAccount?.name || "Kitchen Pitmaster",
+      requested_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      status: 'pending'
+    }
+
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batch.id) return b
+      return {
+        ...b,
+        additional_requisitions: [...(b.additional_requisitions || []), newRequisition]
+      }
+    }))
+
+    showToast(`Requisition ${reqRef} submitted to Central Store for ${data.quantity} ${product.unit} of ${product.name}`, 'info')
+    return true
+  }
+
+  const fulfillBatchMaterialRequisition = (
+    requisitionId: string,
+    fulfilledQty: number,
+    notes?: string
+  ): boolean => {
+    // Inventory role check: require inventory, admin, or manager role
+    const role = currentAccount?.role
+    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager'
+    if (!hasInventoryRole) {
+      showToast('Action restricted: Only Central Storekeeper or Inventory Manager accounts can disburse warehouse stock.', 'error')
+      return false
+    }
+
+    let targetBatch: ProductionBatch | undefined
+    let targetReq: BatchMaterialRequisition | undefined
+
+    for (const b of productionBatches) {
+      const found = b.additional_requisitions?.find(r => r.id === requisitionId)
+      if (found) {
+        targetBatch = b
+        targetReq = found
+        break
+      }
+    }
+
+    if (!targetBatch || !targetReq || targetReq.status !== 'pending') return false
+    if (fulfilledQty <= 0) return false
+
+    const product = rawProducts.find(p => p.id === targetReq!.raw_product_id)
+    if (!product) return false
+
+    if (product.stock_qty < fulfilledQty) {
+      showToast(`Insufficient warehouse stock! Current on-hand: ${product.stock_qty} ${product.unit}`, 'error')
+      return false
+    }
+
+    const unitCostAtIssue = product.unit_cost || 0
+    const totalCost = Math.round(fulfilledQty * unitCostAtIssue * 100) / 100
+    const isPartial = fulfilledQty < targetReq.requested_qty
+    const newStatus: 'approved' | 'partially_fulfilled' = isPartial ? 'partially_fulfilled' : 'approved'
+
+    // Deduct stock from Central Warehouse
+    adjustRawStock(product.id, -fulfilledQty, `Production requisition ${requisitionId} for Batch ${targetBatch.batch_ref}`, "consumption")
+
+    // Update batch BOM and costs
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== targetBatch!.id) return b
+      const updatedReqs = (b.additional_requisitions || []).map(r => {
+        if (r.id !== requisitionId) return r
+        return {
+          ...r,
+          fulfilled_qty: fulfilledQty,
+          unit_cost_at_issue: unitCostAtIssue,
+          total_cost: totalCost,
+          status: newStatus,
+          reviewed_by: currentAccount?.name || "Central Storekeeper",
+          reviewed_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          warehouse_notes: notes
+        }
+      })
+
+      const additionalBOMItem: RawMaterialBOM = {
+        product_id: product.id,
+        sku: product.sku,
+        name: product.name,
+        quantity: fulfilledQty,
+        unit: product.unit,
+        unit_cost: unitCostAtIssue,
+        total_cost: totalCost,
+        source: 'additional',
+        requisition_ref: requisitionId
+      }
+
+      const initialCost = b.initial_material_cost ?? b.raw_materials.filter(m => m.source !== 'additional').reduce((acc, m) => acc + (m.total_cost || (m.quantity * (m.unit_cost || 0))), 0)
+      const existingAddCost = b.additional_material_cost ?? b.raw_materials.filter(m => m.source === 'additional').reduce((acc, m) => acc + (m.total_cost || 0), 0)
+      const newAdditionalCost = Math.round((existingAddCost + totalCost) * 100) / 100
+
+      return {
+        ...b,
+        additional_requisitions: updatedReqs,
+        raw_materials: [...b.raw_materials, additionalBOMItem],
+        initial_material_cost: initialCost,
+        additional_material_cost: newAdditionalCost,
+        total_material_cost: Math.round((initialCost + newAdditionalCost) * 100) / 100
+      }
+    }))
+
+    showToast(`Requisition ${requisitionId} fulfilled: -${fulfilledQty} ${product.unit} issued to Batch ${targetBatch.batch_ref}`, 'success')
+    return true
+  }
+
+  const rejectBatchMaterialRequisition = (
+    requisitionId: string,
+    rejectionReason: string
+  ): boolean => {
+    const role = currentAccount?.role
+    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager'
+    if (!hasInventoryRole) {
+      showToast('Action restricted: Only Central Storekeeper or Inventory Manager accounts can review requisitions.', 'error')
+      return false
+    }
+
+    setProductionBatches(prev => prev.map(b => {
+      const hasReq = b.additional_requisitions?.some(r => r.id === requisitionId)
+      if (!hasReq) return b
+      return {
+        ...b,
+        additional_requisitions: (b.additional_requisitions || []).map(r => {
+          if (r.id !== requisitionId) return r
+          return {
+            ...r,
+            status: 'rejected',
+            rejection_reason: rejectionReason,
+            reviewed_by: currentAccount?.name || "Central Storekeeper",
+            reviewed_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+          }
+        })
+      }
+    }))
+
+    showToast(`Requisition ${requisitionId} rejected`, 'info')
+    return true
+  }
+
+  const returnUnconsumedBatchMaterials = (
+    batchId: number,
+    returns: Array<{ productId: number; quantity: number; notes?: string }>
+  ): boolean => {
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!batch) return false
+
+    let totalCreditedValue = 0
+    const returnedItemsSummary: Array<{ product_id: number; name: string; quantity: number; unit: string; value_credited: number }> = []
+
+    returns.forEach(ret => {
+      if (ret.quantity > 0) {
+        const product = rawProducts.find(p => p.id === ret.productId)
+        if (product) {
+          adjustRawStock(product.id, ret.quantity, `Unconsumed return from Batch ${batch.batch_ref}: ${ret.notes || 'End-of-cook return'}`, "adjustment")
+          const creditedVal = Math.round(ret.quantity * (product.unit_cost || 0) * 100) / 100
+          totalCreditedValue += creditedVal
+          returnedItemsSummary.push({
+            product_id: product.id,
+            name: product.name,
+            quantity: ret.quantity,
+            unit: product.unit,
+            value_credited: creditedVal
+          })
+        }
+      }
+    })
+
+    if (returnedItemsSummary.length === 0) return true
+
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const currentTotal = b.total_material_cost ?? b.raw_materials.reduce((acc, m) => acc + (m.total_cost || (m.quantity * (m.unit_cost || 0))), 0)
+      const newTotal = Math.max(0, Math.round((currentTotal - totalCreditedValue) * 100) / 100)
+      return {
+        ...b,
+        returned_materials: [...(b.returned_materials || []), ...returnedItemsSummary],
+        total_material_cost: newTotal
+      }
+    }))
+
+    showToast(`Returned materials credited to store (+${formatNaira(totalCreditedValue)} credited to Batch ${batch.batch_ref})`, 'success')
+    return true
+  }
+
+  const completeBatch = (
+    batchId: number,
+    actualOutput: number,
+    wastage: number,
+    remarks?: string,
+    returnedMaterials?: Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>
+  ) => {
     const batch = productionBatches.find(b => b.id === batchId)
     if (!batch) return
+
+    let totalCreditedValue = 0
+    const returnedItemsSummary: Array<{ product_id: number; name: string; quantity: number; unit: string; value_credited: number }> = []
+
+    if (returnedMaterials && returnedMaterials.length > 0) {
+      returnedMaterials.forEach(ret => {
+        if (ret.quantity > 0) {
+          if (ret.item_type === 'compound' || ret.compound_id) {
+            const compound = compoundInventory.find(c => c.id === ret.compound_id || c.id === ret.productId)
+            if (compound) {
+              const newCompoundStock = compound.stock_qty + ret.quantity
+              const unitCost = compound.unit_cost
+              const creditedVal = Math.round(ret.quantity * unitCost * 100) / 100
+              totalCreditedValue += creditedVal
+
+              setCompoundInventory(prev => prev.map(c => c.id === compound.id ? {
+                ...c,
+                stock_qty: newCompoundStock,
+                inventory_value: Math.round(newCompoundStock * c.unit_cost * 100) / 100,
+                surplus_returns: [
+                  {
+                    id: `RET-CPD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    batch_id: batch.id,
+                    batch_ref: batch.batch_ref,
+                    quantity: ret.quantity,
+                    unit_cost: unitCost,
+                    total_credited: creditedVal,
+                    returned_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                    returned_by: currentAccount?.name || "Kitchen Chef",
+                    notes: `Surplus return at completion of Batch ${batch.batch_ref}`
+                  },
+                  ...c.surplus_returns
+                ]
+              } : c))
+
+              const movement: RawMovement = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                product_id: compound.id,
+                product_name: compound.name,
+                sku: compound.sku,
+                unit: compound.unit,
+                location: "raw",
+                movement_type: "adjustment",
+                quantity: ret.quantity,
+                unit_cost: unitCost,
+                value_amount: creditedVal,
+                balance_after: newCompoundStock,
+                notes: `Surplus compound returned from Batch ${batch.batch_ref}`,
+                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                user_name: currentAccount?.name || "Kitchen Chef"
+              }
+              setRawMovements(prev => [movement, ...prev])
+
+              returnedItemsSummary.push({
+                product_id: compound.id,
+                name: compound.name,
+                quantity: ret.quantity,
+                unit: compound.unit,
+                value_credited: creditedVal
+              })
+            }
+          } else {
+            const product = rawProducts.find(p => p.id === ret.productId)
+            if (product) {
+              adjustRawStock(product.id, ret.quantity, `Unconsumed return from Batch ${batch.batch_ref}`, "adjustment")
+              const creditedVal = Math.round(ret.quantity * (product.unit_cost || 0) * 100) / 100
+              totalCreditedValue += creditedVal
+              returnedItemsSummary.push({
+                product_id: product.id,
+                name: product.name,
+                quantity: ret.quantity,
+                unit: product.unit,
+                value_credited: creditedVal
+              })
+            }
+          }
+        }
+      })
+    }
+
+    const currentTotalCost = batch.total_material_cost ?? batch.raw_materials.reduce((acc, m) => acc + (m.total_cost || (m.quantity * (m.unit_cost || 0))), 0)
+    const netMaterialCost = Math.max(0, Math.round((currentTotalCost - totalCreditedValue) * 100) / 100)
+    const unitCostPerPortion = actualOutput > 0 ? Math.round((netMaterialCost / actualOutput) * 100) / 100 : 0
 
     // 1. Mark batch completed
     setProductionBatches(prev => prev.map(b => b.id === batchId ? {
@@ -3153,13 +4757,29 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       wastage,
       status: "completed",
       completed_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      remarks: remarks || b.remarks
+      remarks: remarks || b.remarks,
+      returned_materials: returnedItemsSummary.length > 0 ? [...(b.returned_materials || []), ...returnedItemsSummary] : b.returned_materials,
+      total_material_cost: netMaterialCost,
+      unit_cost_per_portion: unitCostPerPortion
     } : b))
 
-    // 2. Automatically INCREMENT physical stock in Sales Inventory (reconciling estimated incoming buffer)
-    const targetSales = salesProducts.find(sp => sp.id === batch.output_product_id || sp.name.toLowerCase() === batch.output_product_name.toLowerCase())
+    // 2. Automatically INCREMENT physical stock in Sales Inventory and update Finished Goods WAC
+    const allSales = [...liveSalesProducts, ...salesProducts]
+    const targetSales = allSales.find(sp => sp.id === batch.output_product_id || sp.name.toLowerCase().trim() === batch.output_product_name.toLowerCase().trim())
     if (targetSales) {
       adjustSalesStock(targetSales.id, actualOutput, `Batch ${batch.batch_ref} yield deposit`)
+
+      if (unitCostPerPortion > 0) {
+        const currentStock = targetSales.stock_qty || 0
+        const currentCost = targetSales.unit_cost || 0
+        const combinedStock = currentStock + actualOutput
+        const newFgWac = combinedStock > 0
+          ? Math.round(((currentStock * currentCost) + (actualOutput * unitCostPerPortion)) / combinedStock)
+          : Math.round(unitCostPerPortion)
+
+        setSalesProducts(prev => prev.map(sp => sp.id === targetSales.id ? { ...sp, unit_cost: newFgWac } : sp))
+        setLiveSalesProducts(prev => prev.map(sp => sp.id === targetSales.id ? { ...sp, unit_cost: newFgWac } : sp))
+      }
     }
 
     showSuccessModal({
@@ -3168,9 +4788,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       details: [
         { label: 'Batch Ref', value: batch.batch_ref },
         { label: 'Finished Product', value: batch.output_product_name },
-        { label: 'Estimated Batch Buffer', value: `${batch.expected_output} portions (Reconciled)` },
         { label: 'Actual Physical Deposited', value: `+${actualOutput} portions` },
         { label: 'Cooking Shrinkage / Loss', value: `${wastage} portions` },
+        { label: 'Net Consumed Material Cost', value: formatNaira(netMaterialCost) },
+        { label: 'Unit Cost Per Portion', value: formatNaira(unitCostPerPortion) },
+        ...(totalCreditedValue > 0 ? [{ label: 'Materials Returned to Store', value: `${returnedItemsSummary.map(r => `${r.quantity} ${r.unit} ${r.name}`).join(', ')} (${formatNaira(totalCreditedValue)} credited)` }] : [])
       ],
     })
     showToast(`Batch ${batch.batch_ref} completed: +${actualOutput} physical portions deposited`, 'success')
@@ -3180,13 +4802,115 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const batch = productionBatches.find(b => b.id === batchId)
     if (!batch) return
 
-    // Restore materials
+    // Restore materials (both initial, compound mixes, and fulfilled additional materials)
     batch.raw_materials.forEach(mat => {
-      adjustRawStock(mat.product_id, mat.quantity, `Reversal from cancelled Batch ${batch.batch_ref}`, "transfer")
+      if (mat.item_type === 'compound' || mat.source === 'compound' || mat.compound_id) {
+        const matchedComp = compoundInventory.find(c => c.id === mat.compound_id || c.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
+        if (matchedComp) {
+          const restoredStock = matchedComp.stock_qty + mat.quantity
+          setCompoundInventory(prev => prev.map(c => c.id === matchedComp.id ? {
+            ...c,
+            stock_qty: restoredStock,
+            inventory_value: Math.round(restoredStock * c.unit_cost * 100) / 100
+          } : c))
+          const movement: RawMovement = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            product_id: matchedComp.id,
+            product_name: matchedComp.name,
+            sku: matchedComp.sku,
+            unit: matchedComp.unit,
+            location: "raw",
+            movement_type: "adjustment",
+            quantity: mat.quantity,
+            unit_cost: mat.unit_cost || matchedComp.unit_cost,
+            value_amount: mat.total_cost || Math.round(mat.quantity * matchedComp.unit_cost * 100) / 100,
+            balance_after: restoredStock,
+            notes: `Compound restored from cancelled Batch ${batch.batch_ref}`,
+            created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            user_name: currentAccount?.name || "Kitchen Pitmaster"
+          }
+          setRawMovements(prev => [movement, ...prev])
+        }
+      } else {
+        const matchedRaw = rawProducts.find(p =>
+          p.id === mat.product_id ||
+          (mat.sku && p.sku?.toLowerCase() === mat.sku.toLowerCase()) ||
+          p.name.toLowerCase().trim() === mat.name.toLowerCase().trim()
+        )
+        if (matchedRaw) {
+          adjustRawStock(matchedRaw.id, mat.quantity, `Reversal from cancelled Batch ${batch.batch_ref}`, "transfer")
+        }
+      }
     })
 
-    setProductionBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: "cancelled" } : b))
-    showToast(`Batch ${batch.batch_ref} cancelled and raw materials returned to stock`, 'info')
+    // Auto-cancel any pending requisitions
+    const updatedRequisitions = (batch.additional_requisitions || []).map(req =>
+      req.status === 'pending'
+        ? {
+            ...req,
+            status: 'rejected' as const,
+            rejected_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            rejection_reason: 'Batch cancelled by supervisor'
+          }
+        : req
+    )
+
+    setProductionBatches(prev => prev.map(b => b.id === batchId ? {
+      ...b,
+      status: "cancelled",
+      additional_requisitions: updatedRequisitions
+    } : b))
+    showToast(`Batch ${batch.batch_ref} cancelled and materials returned to stock`, 'info')
+  }
+
+  const deleteBatch = (batchId: number): boolean => {
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!batch) return false
+
+    // Safeguard: If draft, reverse allocated raw/compound materials back to inventory
+    if (batch.status === 'draft') {
+      batch.raw_materials.forEach(mat => {
+        if (mat.item_type === 'compound' || mat.source === 'compound' || mat.compound_id) {
+          const matchedComp = compoundInventory.find(c => c.id === mat.compound_id || c.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
+          if (matchedComp) {
+            const restoredStock = matchedComp.stock_qty + mat.quantity
+            setCompoundInventory(prev => prev.map(c => c.id === matchedComp.id ? {
+              ...c,
+              stock_qty: restoredStock,
+              inventory_value: Math.round(restoredStock * c.unit_cost * 100) / 100
+            } : c))
+          }
+        } else {
+          const matchedRaw = rawProducts.find(p => p.id === mat.product_id)
+          if (matchedRaw) {
+            adjustRawStock(matchedRaw.id, mat.quantity, `Reversal from deleted Batch ${batch.batch_ref}`, "transfer")
+          }
+        }
+      })
+    }
+
+    setProductionBatches(prev => prev.filter(b => b.id !== batchId))
+    showToast(`Batch ${batch.batch_ref} deleted successfully`, 'info')
+    return true
+  }
+
+  const deleteIntermediatePrep = (prepId: number): boolean => {
+    const prep = intermediatePreps.find(p => p.id === prepId)
+    if (!prep) return false
+
+    // If never allocated, restore ingredients to stock
+    if (prep.allocations.length === 0) {
+      prep.source_ingredients.forEach(ing => {
+        const matched = rawProducts.find(p => p.id === ing.product_id)
+        if (matched) {
+          adjustRawStock(matched.id, ing.quantity, `Reversal from cancelled Prep Mix ${prep.recipe_name}`, "transfer")
+        }
+      })
+    }
+
+    setIntermediatePreps(prev => prev.filter(p => p.id !== prepId))
+    showToast(`Prep mix ${prep.recipe_name} removed`, 'info')
+    return true
   }
 
   const updateBatch = (batchId: number, data: Partial<ProductionBatch>) => {
@@ -3241,14 +4965,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const startPackagingOrder = (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => {
-    // 1. Deduct packaging stock from active bench stock
+    const targetOrder = packagingQueue.find(o => o.id === orderId)
+    const resolvedStaff = currentAccount?.name || "Kitchen Staff"
+    const nowTimestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    // 1. Deduct packaging stock from active bench stock & record consumption movements in stock ledger
     materials.forEach(m => {
       const match = packagingProducts.find(p => p.name.toLowerCase() === m.packaging_name.toLowerCase())
       if (match) {
+        const newBench = Math.max(0, (match.bench_stock_qty ?? 0) - m.quantity)
+        const newTotal = (match.central_stock_qty ?? 0) + newBench
+
         setPackagingProducts(prev => prev.map(p => {
           if (p.id !== match.id) return p
-          const newBench = Math.max(0, (p.bench_stock_qty ?? 0) - m.quantity)
-          const newTotal = (p.central_stock_qty ?? 0) + newBench
           return {
             ...p,
             bench_stock_qty: newBench,
@@ -3257,6 +4986,25 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             inventory_value: newTotal * p.unit_cost
           }
         }))
+
+        // Log consumption in the stock movement ledger
+        const newMovement: SalesMovement = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          product_id: match.id,
+          product_name: match.name,
+          sku: match.sku,
+          unit: match.unit,
+          location: "packaging",
+          movement_type: "consumption",
+          quantity: -m.quantity,
+          unit_cost: match.unit_cost,
+          value_amount: m.quantity * match.unit_cost,
+          balance_after: newTotal,
+          notes: `Packaging consumed for Order #${targetOrder?.order_ref || orderId} (${targetOrder?.customer_name || 'Customer'})`,
+          created_at: nowTimestamp,
+          user_name: resolvedStaff
+        }
+        setSalesMovements(prev => [newMovement, ...prev])
       }
     })
 
@@ -3266,19 +5014,42 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       order_status: "in_packaging",
       packaging_materials_picked: materials
     } : o))
+
+    if (targetOrder) {
+      updateOrderPipelineState(targetOrder.order_ref, {
+        order_status: "in_packaging",
+        packaging_materials_picked: materials
+      })
+    }
   }
 
-  const confirmPackagingOrder = (orderId: number, staffName: string = "Kitchen Pack Crew") => {
+  const confirmPackagingOrder = (orderId: number, staffName?: string) => {
     const order = packagingQueue.find(o => o.id === orderId)
     if (!order) return
+
+    const resolvedStaff = staffName || currentAccount?.name || "Packaging Staff"
+    const nowTimestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
 
     // 1. Mark as packaged in queue
     setPackagingQueue(prev => prev.map(o => o.id === orderId ? {
       ...o,
       order_status: "packaged",
-      packaged_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      packaged_by_name: staffName
+      packaged_at: nowTimestamp,
+      packaged_by_name: resolvedStaff
     } : o))
+
+    updateOrderPipelineState(order.order_ref, {
+      order_status: "packaged",
+      packaged_at: nowTimestamp,
+      packaged_by_name: resolvedStaff,
+      packaging_materials_picked: order.packaging_materials_picked,
+      delivery_status: "pending"
+    })
+    persistOrderUpdateToBackend(order.order_ref, { delivery_status: "Ready for Dispatch" })
+    setWebsiteOrders(prev => prev.map(w => w.order_ref === order.order_ref ? {
+      ...w,
+      fulfillment_status: "ready_for_dispatch"
+    } : w))
 
     // 2. If it's a store pickup, add to storePickups
     if (order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0) {
@@ -3291,7 +5062,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         total_amount: order.total_amount,
         payment_status: order.payment_status,
         order_status: "ready_for_pickup",
-        packaged_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        packaged_at: nowTimestamp,
         collected_at: null,
         collected_by: null,
         handover_staff: null,
@@ -3319,27 +5090,35 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         pickup_at: null,
         delivered_at: null,
         fee_verify_status: "none",
-        payment_mode: 'online',
         items_summary: order.items_summary,
-        notes: `Packed by ${staffName}`
+        notes: `Packed by ${resolvedStaff}`
       }
       setLogisticsDeliveries(prev => [newDelivery, ...prev.filter(d => d.order_ref !== order.order_ref && d.id !== order.id)])
       showToast(`Order #${order.order_ref} packaged and sent to Dispatch Board (Awaiting Rider Assignment)!`, 'success')
     }
 
-    // 4. Update daily materials consumed
-    if (order.packaging_materials_picked) {
+    // 4. Update daily materials consumed (accurately appending new SKUs if not previously logged)
+    if (order.packaging_materials_picked && order.packaging_materials_picked.length > 0) {
       order.packaging_materials_picked.forEach(pick => {
         setPackagingMaterialsDaily(prev => {
-          const match = prev.find(p => p.product_name.toLowerCase() === pick.packaging_name.toLowerCase())
-          if (match) {
-            return prev.map(p => p.product_name.toLowerCase() === pick.packaging_name.toLowerCase() ? {
+          const matchIndex = prev.findIndex(p => p.product_name.toLowerCase() === pick.packaging_name.toLowerCase())
+          if (matchIndex >= 0) {
+            return prev.map((p, idx) => idx === matchIndex ? {
               ...p,
               total_consumed: p.total_consumed + pick.quantity,
               total_orders: p.total_orders + 1
             } : p)
           }
-          return prev
+          const prod = packagingProducts.find(p => p.name.toLowerCase() === pick.packaging_name.toLowerCase())
+          const newDaily: PackagingMaterialDaily = {
+            product_id: prod?.id || 0,
+            product_name: pick.packaging_name,
+            sku: prod?.sku || 'PCK-CONS',
+            unit: prod?.unit || 'pcs',
+            total_consumed: pick.quantity,
+            total_orders: 1
+          }
+          return [...prev, newDaily]
         })
       })
     }
@@ -3370,39 +5149,87 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     bookedFee?: number,
     feeEvidencePath?: string
   ) => {
+    const targetDel = logisticsDeliveries.find(d => d.id === deliveryId)
+    const numericRiderId = riderId !== undefined ? Number(riderId) : undefined
+
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       rider_type: riderType,
       assigned_rider: riderName,
-      assigned_rider_id: riderId,
+      assigned_rider_id: numericRiderId,
       third_party_provider: riderType === 'third_party' ? riderName : null,
       booked_fee: bookedFee || null,
       fee_evidence_path: feeEvidencePath || d.fee_evidence_path || null,
-      fee_verify_status: riderType === 'third_party' ? (feeEvidencePath ? 'approved' : 'pending') : 'none',
+      fee_verify_status: riderType === 'third_party' ? 'pending' : 'none',
       status: "assigned"
     } : d))
 
+    if (targetDel) {
+      updateOrderPipelineState(targetDel.order_ref, {
+        delivery_status: "assigned",
+        rider_type: riderType,
+        assigned_rider: riderName,
+        assigned_rider_id: numericRiderId,
+        third_party_provider: riderType === 'third_party' ? riderName : null,
+        booked_fee: bookedFee || null,
+        fee_evidence_path: feeEvidencePath || targetDel.fee_evidence_path || null,
+        fee_verify_status: riderType === 'third_party' ? 'pending' : 'none'
+      })
+      persistOrderUpdateToBackend(targetDel.order_ref, {
+        delivery_status: "Assigned"
+      })
+      setWebsiteOrders(prev => prev.map(w => w.order_ref === targetDel.order_ref ? {
+        ...w,
+        rider_name: riderName
+      } : w))
+    }
+
     // Increment active assignment count for internal rider
-    if (riderType === 'internal' && riderId) {
-      setRiders(prev => prev.map(r => r.rider_user_id === riderId ? { ...r, active_assignments: r.active_assignments + 1, status: "on_trip" } : r))
+    if (riderType === 'internal' && numericRiderId) {
+      setRiders(prev => prev.map(r => Number(r.rider_user_id) === numericRiderId ? { ...r, active_assignments: r.active_assignments + 1, status: "on_trip" } : r))
     }
   }
 
   const confirmRiderCollect = (deliveryId: number) => {
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       status: "in_transit",
-      pickup_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+      pickup_at: nowTime
     } : d))
+    if (delivery) {
+      updateOrderPipelineState(delivery.order_ref, {
+        delivery_status: "in_transit",
+        pickup_at: nowTime
+      })
+      persistOrderUpdateToBackend(delivery.order_ref, { delivery_status: "In Transit" })
+      setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
+        ...w,
+        fulfillment_status: "in_transit"
+      } : w))
+    }
   }
 
   const acceptDelivery = (deliveryId: number) => {
     const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       status: "in_transit",
-      pickup_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+      pickup_at: nowTime
     } : d))
+    if (delivery) {
+      updateOrderPipelineState(delivery.order_ref, {
+        delivery_status: "in_transit",
+        pickup_at: nowTime
+      })
+      persistOrderUpdateToBackend(delivery.order_ref, { delivery_status: "In Transit" })
+      setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
+        ...w,
+        fulfillment_status: "in_transit"
+      } : w))
+    }
     showToast(`Order #${delivery?.order_ref || deliveryId} accepted — moved to In-Transit`, 'success')
   }
 
@@ -3410,34 +5237,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
     if (!delivery) return
 
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       status: "delivered",
-      delivered_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
+      delivered_at: nowTime
     } : d))
 
-    // Credit internal rider ledger!
-    if (delivery.rider_type === 'internal' && delivery.assigned_rider_id) {
+    updateOrderPipelineState(delivery.order_ref, {
+      delivery_status: "delivered",
+      delivered_at: nowTime
+    })
+    persistOrderUpdateToBackend(delivery.order_ref, {
+      delivery_status: "Delivered",
+      status: "Delivered"
+    })
+    setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
+      ...w,
+      fulfillment_status: "delivered",
+      delivered_at: nowTime
+    } : w))
+
+    // Show confirmation toast for internal rider credit (reconcileLedger automatically calculates ledger from logisticsDeliveries)
+    if (delivery.rider_type === 'internal' && (delivery.assigned_rider_id || delivery.assigned_rider)) {
       const fee = delivery.delivery_fee
-      setRiders(prev => prev.map(r => {
-        if (r.rider_user_id !== delivery.assigned_rider_id) return r
-        const newActive = Math.max(0, r.active_assignments - 1)
-        return {
-          ...r,
-          active_assignments: newActive,
-          today_trips: r.today_trips + 1,
-          deliveries_today: (r.deliveries_today || 0) + 1,
-          deliveries_week: (r.deliveries_week || 0) + 1,
-          deliveries_month: (r.deliveries_month || 0) + 1,
-          total_completed: (r.total_completed || 0) + 1,
-          earnings_today: r.earnings_today + fee,
-          earnings_week: r.earnings_week + fee,
-          earnings_month: r.earnings_month + fee,
-          pending_payout: r.pending_payout + fee,
-          lifetime_earnings: r.lifetime_earnings + fee,
-          status: newActive > 0 ? "on_trip" : "active"
-        }
-      }))
       showToast(`Delivery confirmed — ₦${fee.toLocaleString()} credited to rider pending payout`, 'success')
     }
   }
@@ -3457,14 +5281,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       decline_reason: reason
     } : d))
 
+    updateOrderPipelineState(delivery.order_ref, {
+      delivery_status: "pending",
+      assigned_rider: "Unassigned",
+      assigned_rider_id: undefined,
+      pickup_at: null,
+      decline_reason: reason
+    })
+    persistOrderUpdateToBackend(delivery.order_ref, {
+      delivery_status: "Ready for Dispatch"
+    })
+
     if (prevRiderId) {
       setRiders(prev => prev.map(r => {
-        if (r.rider_user_id !== prevRiderId) return r
+        if (Number(r.rider_user_id) !== Number(prevRiderId)) return r
         const newActive = Math.max(0, r.active_assignments - 1)
+        const newDeclines = (r.declined_dispatches || 0) + 1
+        const delays = r.delayed_deliveries || 0
+        const { rating, onTimeRate } = calculateRiderRating(delays, newDeclines)
         return {
           ...r,
           active_assignments: newActive,
-          status: newActive > 0 ? "on_trip" : "active"
+          status: newActive > 0 ? "on_trip" : (r.status === 'offline' ? 'offline' : 'active'),
+          declined_dispatches: newDeclines,
+          rating,
+          on_time_rate: onTimeRate
         }
       }))
     }
@@ -3481,7 +5322,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const order = scheduledOrders.find(o => o.id === orderId)
     if (!order) return
 
-    // 1. Release into Packaging Queue
+    const matchingWebOrder = websiteOrders.find(w => w.order_ref === order.order_ref)
+    const realItemsSummary = order.items_summary || matchingWebOrder?.items_summary || 'Assorted Smokey Delicacies'
+    const realItems = order.items && order.items.length > 0
+      ? order.items
+      : (Array.isArray(matchingWebOrder?.raw_items) && matchingWebOrder.raw_items.length > 0
+          ? matchingWebOrder.raw_items.map((i: any) => ({
+              product_name: i.name || 'Smokey Product',
+              quantity: Number(i.qty || i.quantity) || 1,
+              unit_price: Number(i.price || i.unit_price) || 0,
+              line_total: (Number(i.qty || i.quantity) || 1) * (Number(i.price || i.unit_price) || 0)
+            }))
+          : [{ product_name: realItemsSummary, quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }])
+
+    // 1. Release into Packaging Queue with real ordered items
     const newPkgOrder: PackagingQueueOrder = {
       id: order.id,
       order_ref: order.order_ref,
@@ -3493,13 +5347,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       delivery_mode: "scheduled",
       payment_status: order.payment_status,
       order_status: "ready_for_fulfillment",
-      items_summary: `Scheduled Delivery: ${order.notes}`,
-      items: [{ product_name: "Scheduled Pre-order Meal Pack", quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }],
+      items_summary: realItemsSummary,
+      items: realItems,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
     }
-    setPackagingQueue(prev => [newPkgOrder, ...prev.filter(p => p.id !== order.id)])
+    setPackagingQueue(prev => [newPkgOrder, ...prev.filter(p => p.id !== order.id && p.order_ref !== order.order_ref)])
 
-    // 2. Update scheduled order status
+    // 2. Persist release state & update scheduled order status
+    updateOrderPipelineState(order.order_ref, {
+      scheduled_released: true,
+      order_status: 'ready_for_fulfillment'
+    })
+    persistOrderUpdateToBackend(order.order_ref, {
+      delivery_status: 'In Packaging Queue'
+    })
     setScheduledOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: "in_queue", can_start_schedule: true } : o))
     showToast(`Order #${order.order_ref} sent to packaging queue`, 'success')
   }
@@ -3528,16 +5389,28 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const cleanDatePart = scheduledDate.split('T')[0].split(' ')[0]
       const fullSchedStr = `${cleanDatePart} ${timePart}`
       const auditLog = `[Scheduled Delivery: ${fullSchedStr}] [Rescheduled]`
+      const staffName = currentAccount?.name || 'Operations Staff'
 
-      // 1. Update Supabase orders table
+      // 1. Update Supabase orders table & backend API
+      persistOrderUpdateToBackend(orderRef, {
+        scheduled_delivery_date: cleanDatePart,
+        delivery_status: 'Rescheduled',
+        delivery_rescheduled_at: new Date().toISOString(),
+        delivery_rescheduled_by: staffName,
+        notes: notes ? `${notes}\n${auditLog}` : auditLog
+      })
+      updateOrderPipelineState(orderRef, {
+        scheduled_released: false
+      })
+
       try {
         await supabase
           .from('orders')
           .update({
-            scheduled_delivery_date: scheduledDate.split('T')[0],
+            scheduled_delivery_date: cleanDatePart,
             delivery_status: 'Rescheduled',
             delivery_rescheduled_at: new Date().toISOString(),
-            delivery_rescheduled_by: 'Ops Team',
+            delivery_rescheduled_by: staffName,
             notes: notes ? `${notes}\n${auditLog}` : auditLog
           })
           .eq('id', orderRef)
@@ -3552,6 +5425,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const numericId = parseInt(orderRef.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 9000 + 1000)
       const schedTime = new Date(scheduledDate).getTime()
       const canStart = !isNaN(schedTime) && schedTime <= (Date.now() + 45 * 60 * 1000)
+      const matchingWebOrder = websiteOrders.find(w => w.order_ref === orderRef)
 
       setScheduledOrders(prev => {
         const existing = prev.find(s => s.order_ref === orderRef)
@@ -3567,16 +5441,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return [{
             id: numericId,
             order_ref: orderRef,
-            customer_name: orderDetails?.customer_name || 'Storefront Customer',
-            phone: orderDetails?.phone || '',
-            address: orderDetails?.address || 'Lagos',
-            total_amount: orderDetails?.total_amount || 0,
-            delivery_fee: orderDetails?.delivery_fee || 0,
+            customer_name: orderDetails?.customer_name || matchingWebOrder?.customer_name || 'Storefront Customer',
+            phone: orderDetails?.phone || matchingWebOrder?.phone || '',
+            address: orderDetails?.address || matchingWebOrder?.address || 'Lagos',
+            total_amount: orderDetails?.total_amount ?? matchingWebOrder?.total_amount ?? 0,
+            delivery_fee: orderDetails?.delivery_fee ?? matchingWebOrder?.delivery_fee ?? 0,
             scheduled_delivery_at: fullSchedStr,
             payment_status: 'paid',
             order_status: 'payment_confirmed',
             notes: notes ? `${auditLog}\n${notes}` : auditLog,
-            can_start_schedule: canStart
+            can_start_schedule: canStart,
+            items_summary: orderDetails?.items_summary || matchingWebOrder?.items_summary || 'Assorted Smokey Delicacies'
           }, ...prev]
         }
       })
@@ -3589,33 +5464,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
-  const remitCodCash = (riderId: number, cashAmount: number, cashierName: string) => {
-    const rider = riders.find(r => r.rider_user_id === riderId)
-    setRiders(prev => prev.map(r => {
-      if (r.rider_user_id !== riderId) return r
-      const newRemitted = r.cod_remitted_total + cashAmount
-      const unremitted = Math.max(0, r.cod_cash_collected - newRemitted)
-      const newNet = r.pending_payout - unremitted
-      return {
-        ...r,
-        cod_remitted_total: newRemitted,
-        net_balance: newNet
-      }
-    }))
-
-    showSuccessModal({
-      title: 'Cash Remittance Logged',
-      message: `Physical cash received from ${rider?.rider_name || 'Driver'} has been recorded.`,
-      details: [
-        { label: 'Driver', value: rider?.rider_name || 'Driver' },
-        { label: 'Amount Remitted', value: formatNaira(cashAmount) },
-        { label: 'Cashier', value: cashierName || 'Hub Cashier' },
-        { label: 'Status', value: 'Reconciled & Balanced' },
-      ],
-    })
-    showToast(`Received ${formatNaira(cashAmount)} cash from ${rider?.rider_name || 'Driver'}`, 'success')
-  }
-
   const payAndResetRider = (riderId: number) => {
     const rider = riders.find(r => r.rider_user_id === riderId)
     if (!rider) return
@@ -3623,47 +5471,75 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setRiders(prev => prev.map(r => {
       if (r.rider_user_id !== riderId) return r
-      const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
       return {
         ...r,
-        paid_total: r.paid_total + r.pending_payout,
+        paid_total: (r.paid_total || 0) + r.pending_payout,
         pending_payout: 0,
-        net_balance: -unremitted
+        net_balance: 0
       }
     }))
 
     showSuccessModal({
-      title: 'Payment Completed',
-      message: `Delivery balance of ${formatNaira(payoutAmount)} has been cleared for ${rider.rider_name}.`,
+      title: 'Payout Disbursed',
+      message: `Audited delivery payout of ${formatNaira(payoutAmount)} has been cleared and disbursed to ${rider.rider_name}.`,
       details: [
         { label: 'Driver Name', value: rider.rider_name },
-        { label: 'Amount Paid', value: formatNaira(payoutAmount) },
-        { label: 'New Outstanding Balance', value: '₦0.00' },
-        { label: 'Status', value: 'Settled & Cleared' },
+        { label: 'Amount Disbursed', value: formatNaira(payoutAmount) },
+        { label: 'Outstanding Balance', value: '₦0.00' },
+        { label: 'Status', value: 'Audited & Disbursed' },
       ],
     })
     showToast(`Paid ${formatNaira(payoutAmount)} to ${rider.rider_name}`, 'success')
   }
 
   const markPickupCollected = (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => {
+    const targetPickup = storePickups.find(p => p.id === orderId)
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
     setStorePickups(prev => prev.map(p => p.id === orderId ? {
       ...p,
       order_status: "collected",
-      collected_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      collected_at: nowTime,
       collected_by: collectedBy,
       handover_staff: handoverStaff,
       collector_phone: collectorPhone || p.phone,
     } : p))
+
+    if (targetPickup) {
+      updateOrderPipelineState(targetPickup.order_ref, {
+        delivery_status: "delivered",
+        delivered_at: nowTime,
+        collected_by: collectedBy,
+        handover_staff: handoverStaff,
+        collector_phone: collectorPhone || targetPickup.phone
+      })
+      persistOrderUpdateToBackend(targetPickup.order_ref, {
+        delivery_status: "Delivered",
+        status: "Delivered"
+      })
+      setWebsiteOrders(prev => prev.map(w => w.order_ref === targetPickup.order_ref ? {
+        ...w,
+        fulfillment_status: "delivered",
+        delivered_at: nowTime
+      } : w))
+    }
+
     showToast(`Order handed over to ${collectedBy}${collectorPhone ? ` (${collectorPhone})` : ''}`, 'success')
   }
 
   const verifyThirdPartyFee = (deliveryId: number, status: 'approved' | 'flagged', note?: string) => {
     const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const updatedNotes = note ? `${delivery?.notes ? `${delivery.notes} ` : ''}[Verification note: ${note}]` : delivery?.notes
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
       fee_verify_status: status,
-      notes: note ? `${d.notes || ''} [Verification note: ${note}]` : d.notes
+      notes: updatedNotes
     } : d))
+    if (delivery) {
+      updateOrderPipelineState(delivery.order_ref, {
+        fee_verify_status: status,
+        notes: updatedNotes
+      })
+    }
     showToast(
       status === 'approved'
         ? `Invoice approved: ${delivery?.order_ref || 'Delivery'} (${delivery?.assigned_rider || 'Courier'})`
@@ -3708,11 +5584,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveSalesProduct,
         addSupplier,
         updateSupplier,
+        deleteSupplier,
         savePackagingProduct,
         submitStocktakeCount,
         resolveStocktakeVariance,
         packagingReconciliations,
         intermediatePreps,
+        compoundInventory,
         interStationTransfers,
         issuePackagingFromCentral,
         returnPackagingToCentral,
@@ -3720,12 +5598,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createIntermediatePrep,
         allocatePrepToBatch,
         returnPrepToCentral,
+        issueCompoundToBatch,
+        returnCompoundSurplusFromBatch,
         productionBatches,
         packagingQueue,
         packagingMaterialsDaily,
         kitchenTasks,
         createBatch,
         updateBatch,
+        deleteBatch,
+        deleteIntermediatePrep,
+        requestAdditionalBatchMaterial,
+        fulfillBatchMaterialRequisition,
+        rejectBatchMaterialRequisition,
+        returnUnconsumedBatchMaterials,
         saveCustomRecipeTemplate,
         updateRecipeTemplate,
         deleteRecipeTemplate,
@@ -3753,7 +5639,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         autoReleaseDuePreOrders,
         rescheduleOrderDelivery,
         payAndResetRider,
-        remitCodCash,
         markPickupCollected,
         verifyThirdPartyFee,
         isAuthenticated,

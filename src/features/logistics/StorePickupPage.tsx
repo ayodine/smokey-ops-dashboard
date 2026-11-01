@@ -31,7 +31,7 @@ export const StorePickupPage: React.FC = () => {
   const [selectedDetailsPickup, setSelectedDetailsPickup] = useState<StorePickupOrder | null>(null)
   const [collectedByName, setCollectedByName] = useState('')
   const [collectorPhone, setCollectorPhone] = useState('')
-  const [handoverStaff, setHandoverStaff] = useState('Tunde Bakare (Front Counter)')
+  const [handoverStaff, setHandoverStaff] = useState('')
 
   const handleOpenDetails = (p: StorePickupOrder) => {
     setSelectedDetailsPickup(p)
@@ -50,15 +50,22 @@ export const StorePickupPage: React.FC = () => {
 
   const handleOpenCollect = (p: StorePickupOrder) => {
     setSelectedPickup(p)
-    setCollectedByName(p.customer_name)
-    setCollectorPhone(p.phone || '')
+    setCollectedByName('')
+    setCollectorPhone('')
+    setHandoverStaff('')
     setIsCollectModalOpen(true)
   }
 
   const handleConfirmCollect = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPickup) return
-    markPickupCollected(selectedPickup.id, collectedByName, handoverStaff, collectorPhone)
+    const cleanCollectorName = collectedByName.trim()
+    const cleanCollectorPhone = collectorPhone.trim()
+    const cleanStaff = handoverStaff.trim()
+
+    if (!cleanCollectorName || !cleanCollectorPhone || !cleanStaff) return
+
+    markPickupCollected(selectedPickup.id, cleanCollectorName, cleanStaff, cleanCollectorPhone)
     setIsCollectModalOpen(false)
   }
 
@@ -78,10 +85,19 @@ export const StorePickupPage: React.FC = () => {
           <div className="text-xs text-kumo-subtle flex items-center gap-1 font-sans">
             <Phone className="w-3 h-3" /> {p.phone}
           </div>
-          {p.order_status === 'collected' && p.collected_by && (
-            <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-sans mt-0.5 flex items-center gap-1">
-              <UserCheck className="w-3 h-3 shrink-0" />
-              <span>Collected by: <strong className="font-semibold">{p.collected_by}</strong> ({p.collector_phone || p.phone})</span>
+          {p.order_status === 'collected' && (
+            <div className="text-[11px] text-kumo-subtle font-sans mt-0.5 space-y-0.5">
+              {p.collected_by && (
+                <div className="flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>Collected by: <strong className="font-semibold text-kumo-strong">{p.collected_by}</strong> ({p.collector_phone || p.phone})</span>
+                </div>
+              )}
+              {p.handover_staff && (
+                <div className="text-zinc-500 dark:text-zinc-400 pl-4 text-[10.5px]">
+                  Handed over by: <span className="font-medium text-kumo-strong">{p.handover_staff}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -112,7 +128,7 @@ export const StorePickupPage: React.FC = () => {
         return (
           <StatusBadge
             status={p.order_status === 'collected' ? 'active' : 'pending'}
-            label={p.order_status === 'collected' ? 'COLLECTED' : 'WAITING PICKUP'}
+            label={p.order_status === 'collected' ? 'collected' : 'waiting pickup'}
           />
         )
       },
@@ -134,9 +150,14 @@ export const StorePickupPage: React.FC = () => {
               Hand Over
             </TableActionButton>
           ) : (
-            <div className="text-xs text-kumo-subtle whitespace-nowrap shrink-0">
-              Handed by <span className="text-kumo-strong font-medium">{p.handover_staff || 'Staff'}</span>
-            </div>
+            <TableActionButton
+              variant="secondary"
+              icon={<Eye />}
+              iconStrokeWidth={2}
+              onClick={() => handleOpenDetails(p)}
+            >
+              View Details
+            </TableActionButton>
           )}
         </div>
       ),
@@ -156,19 +177,19 @@ export const StorePickupPage: React.FC = () => {
           title="Total Pickups"
           value={totalPickups}
           description="Walk-in counter collections"
-          icon={<Store className="w-4 h-4 text-primary" />}
+          icon={<Store className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Ready for Pickup"
           value={readyCount}
           description="Waiting pickup"
-          icon={<Clock className="w-4 h-4 text-amber-500" />}
+          icon={<Clock className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Collected Today"
           value={collectedCount}
           description="Handed over to customer"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
         />
       </div>
 
@@ -204,17 +225,23 @@ export const StorePickupPage: React.FC = () => {
         description="Verify identity of customer collecting meal package at the central store."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsCollectModalOpen(false)}>
               Close
             </Button>
-            <Button variant="primary" size="md" type="submit" form="confirm-handover-form">
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="confirm-handover-form"
+              disabled={!collectedByName.trim() || !collectorPhone.trim() || !handoverStaff.trim()}
+            >
               Confirm Handover
             </Button>
           </div>
         }
       >
-        <form id="confirm-handover-form" onSubmit={handleConfirmCollect} className="space-y-4">
+        <form id="confirm-handover-form" onSubmit={handleConfirmCollect} className="space-y-4" autoComplete="off">
           {/* Master Divided Card Container (stacked label and value) */}
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
             <div className="p-3.5 space-y-1">
@@ -225,31 +252,45 @@ export const StorePickupPage: React.FC = () => {
               <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Amount Paid</span>
               <span className="block text-zinc-900 dark:text-zinc-100 font-mono font-semibold text-sm">{formatNaira(selectedPickup?.total_amount || 0)}</span>
             </div>
+            <div className="p-3.5 space-y-1">
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Registered Checkout Customer</span>
+              <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px]">{selectedPickup?.customer_name} ({selectedPickup?.phone})</span>
+            </div>
           </div>
 
           <Input
+            id="pickup-collector-name"
+            name="collector_name"
             label="Name of Person Collecting"
-            placeholder="e.g. Tolu Adeyemi"
+            placeholder="Enter full name of person picking up..."
             value={collectedByName}
             onChange={(e) => setCollectedByName(e.target.value)}
             required
+            autoComplete="off"
             autoFocus
           />
 
           <Input
+            id="pickup-collector-phone"
+            name="collector_phone"
             label="Phone Number of Person Collecting"
             type="tel"
-            placeholder="e.g. 0801 234 5678"
+            placeholder="Enter active phone number..."
             value={collectorPhone}
             onChange={(e) => setCollectorPhone(e.target.value)}
             required
+            autoComplete="off"
           />
 
           <Input
+            id="pickup-handover-staff"
+            name="handover_counter_staff"
             label="Handover Counter Staff"
+            placeholder="Enter your staff name..."
             value={handoverStaff}
             onChange={(e) => setHandoverStaff(e.target.value)}
             required
+            autoComplete="off"
           />
         </form>
       </Dialog>
@@ -280,7 +321,7 @@ export const StorePickupPage: React.FC = () => {
                     handleOpenCollect(selectedDetailsPickup)
                   }}
                 >
-                  Hand Over Meal
+                  Confirm Handover
                 </Button>
               )}
             </div>

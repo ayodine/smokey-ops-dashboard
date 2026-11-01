@@ -204,14 +204,26 @@ Every data table in the application must satisfy:
 2. **Viewport Responsiveness**:
    - Maximum height: `max-h-[85vh]` with internal smooth scrolling (`overflow-y-auto`).
    - Standard modal widths: `max-w-xl` (forms), `max-w-3xl` (complex recipes, ledgers), `max-w-5xl` (multi-step production flows).
-3. **Form Fields & Custom Select Dropdowns**:
+3. **Form Fields Layout & Vertical Stacking (Strict Single-Column Rule)**:
+   - **MANDATORY**: Form fields inside modals must **NEVER** be placed side-by-side (strictly NO `grid-cols-2`, `sm:grid-cols-2`, or horizontal field pairings).
+   - Every input, select, unit input, date picker, and textarea must span full width (`w-full`) and stack on top of each other in a clean, single-column vertical flow with uniform spacing (`space-y-4`).
+   - Grouped sub-sections (e.g. FEFO lot tracking, financial breakdowns) must maintain this same single-column vertical stacking inside their bounding box.
+   - **Rationale**: Eliminates horizontal visual scanning strain, guarantees touch-target ergonomics, avoids text truncations, and ensures 100% responsiveness across all screen sizes.
+4. **Form Fields & Custom Select Dropdowns**:
    - Uniform height: Inputs and select triggers use `h-9 px-3 text-xs rounded-md border border-zinc-300 focus:border-[#c0201f] focus:ring-1 focus:ring-[#c0201f]`.
    - **Units Display**: Never capitalize units in all-caps (use `kg`, `g`, `pcs`, `crates`, not `KG`, `PCS`).
    - **Dropdown Viewports**: Dropdown select popovers must display a generous scrollable viewport (`max-h-60`) to avoid cramped lists.
-4. **Action Footer**:
-   - Right-aligned buttons with generous padding (`px-4 py-2 text-xs font-medium`).
-   - Primary action in `#c0201f` (`bg-[#c0201f] hover:bg-[#a01a19] text-white rounded-md`).
-   - Secondary cancel action in `bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50 rounded-md`.
+5. **Action Footer Layout (Strict Spread-Even Left/Right Rule)**:
+   - **MANDATORY**: Modal action buttons must **NEVER** be clustered together on one side (strictly NO right-clustering with `justify-end`).
+   - Modal action footers must use `flex items-center justify-between w-full`.
+   - **Left-Aligned Action**: The dismiss/secondary action (`Cancel` or `Close`) is strictly placed on the far **LEFT** (`variant="secondary"` or `variant="outline"`).
+   - **Right-Aligned Action**: The primary action (`Save Changes`, `Confirm Stock Intake`, `Apply Stock Adjustment`, `Start Batch`, etc.) is strictly placed on the far **RIGHT** in `#c0201f` (`variant="primary"`). If there are multiple affirmative actions, they sit grouped on the right while `Close`/`Cancel` remains pinned to the left.
+   - **Rationale**: Clean visual boundaries, prevents accidental mis-clicks between Cancel and Submit, and provides intuitive ergonomics matching standard desktop dialog design.
+6. **Fixed Modal Footer Architecture (Pinned Bottom Action Bar)**:
+   - **MANDATORY**: Action footers must ALWAYS be fixed/pinned to the bottom of the modal card via `<Dialog footer={...}>` (rendered with `shrink-0 border-t border-kumo-line bg-kumo-base`).
+   - Action buttons must **NEVER** be placed inside `{children}` or inside a `<form>` where they scroll with modal content.
+   - For form submissions where the submit button lives in the fixed `footer`, use the HTML5 standard `<form id="unique-form-id">` and `<Button type="submit" form="unique-form-id">`.
+   - The body area (`overflow-y-auto flex-1 min-h-0`) is the only scrollable region of the modal, ensuring action buttons are visible at all times regardless of modal scroll position.
 
 ---
 
@@ -326,6 +338,9 @@ Before shipping or opening a pull request for a new page or component, verify th
 - [ ] **Status Badges**: Critical shortages use the exact red pill specification (`#FCE8EC` bg, `#F3B0BB` border, `#C8102E` text, `rounded-full`).
 - [ ] **Modals**:
   - [ ] Header title is `16px font-semibold font-display`.
+  - [ ] Strict single-column vertical stacking: form fields must **never** be placed side-by-side (`grid-cols-2` is strictly prohibited).
+  - [ ] Fixed modal footer: action footer must use `<Dialog footer={...}>` pinned to the bottom (never scrolling inside the dialog body).
+  - [ ] Spread-even action footer (`justify-between w-full`): dismiss/secondary (`Cancel`/`Close`) on far left, primary action on far right (never clustered on one side).
   - [ ] Dropdowns and select lists expand smoothly (`max-h-60`) without cramped scroll areas.
   - [ ] Units are lowercase (`kg`, `pcs`, `g`).
 - [ ] **Buttons & Interactive Elements**:

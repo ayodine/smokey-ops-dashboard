@@ -41,7 +41,8 @@ export const PackagingInventoryPage: React.FC = () => {
     savePackagingProduct,
     issuePackagingFromCentral,
     returnPackagingToCentral,
-    performDailyPackagingReconciliation
+    performDailyPackagingReconciliation,
+    currentAccount
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'materials' | 'reconciliation' | 'transfers' | 'totals'>('materials')
@@ -90,7 +91,7 @@ export const PackagingInventoryPage: React.FC = () => {
   const [issueNotes, setIssueNotes] = useState<string>('Stock drawn from Central Store for daily order packing')
 
   // Return to Central Form State
-  const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>('Supervisor Ayo')
+  const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>(currentAccount?.name || 'Shift Supervisor')
   const [returnNotes, setReturnNotes] = useState<string>('EOD shift balance: unused packaging materials returned to Central Store')
   const [returnItemEntries, setReturnItemEntries] = useState<Array<{ productId: number; returnQty: number; damagedQty: number }>>([])
 
@@ -307,16 +308,6 @@ export const PackagingInventoryPage: React.FC = () => {
       sortValue: (p) => p.stock_qty,
     },
     {
-      key: 'qty_available',
-      header: 'Available',
-      accessor: (p) => (
-        <span className="font-medium text-emerald-700 text-xs font-sans">
-          {formatQuantity(p.qty_available ?? p.stock_qty)} {p.unit}
-        </span>
-      ),
-      sortValue: (p) => p.qty_available ?? p.stock_qty,
-    },
-    {
       key: 'inventory_value',
       header: 'Total Value',
       accessor: (p) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(p.inventory_value)}</span>,
@@ -328,11 +319,11 @@ export const PackagingInventoryPage: React.FC = () => {
       defaultWidth: 170,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Issue material from Central Hub to Packaging Bench">
+          <Tooltip content="Issue material from Central Store to Packaging Bench">
             <TableActionButton
               variant="outline"
               onClick={() => handleOpenIssueModal(p)}
-              leftIcon={<ArrowRightLeft className="w-3.5 h-3.5 text-blue-600" />}
+              leftIcon={<ArrowRightLeft className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />}
             >
               Issue
             </TableActionButton>
@@ -702,7 +693,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Withdraw packaging materials from the Central Store and transfer them to the Packaging Execution Bench."
         maxWidth={issueMode === 'multiple' ? '2xl' : 'lg'}
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsIssueModalOpen(false)}>
               Close
             </Button>
@@ -882,7 +873,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Return unused packaging materials from the packaging bench back to Central Store reserve and account for damages."
         maxWidth="2xl"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsReturnModalOpen(false)}>
               Close
             </Button>
@@ -984,7 +975,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Record incoming shipment of packaging items into Central Store stock."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
               Close
             </Button>
@@ -1047,7 +1038,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Manually correct stock count for damaged, scrap, or miscounted packaging units."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
               Close
             </Button>
@@ -1095,7 +1086,7 @@ export const PackagingInventoryPage: React.FC = () => {
         description="Add a new consumable container, bag, food bowl, or label SKU to the packaging inventory."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsNewMaterialModalOpen(false)}>
               Close
             </Button>

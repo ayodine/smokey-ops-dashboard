@@ -55,23 +55,22 @@ export const LogisticsBoardPage: React.FC = () => {
 
   // Assign Form State
   const [riderType, setRiderType] = useState<'internal' | 'third_party'>('internal')
-  const [internalRiderId, setInternalRiderId] = useState<number>(riders[0]?.rider_user_id || 453)
+  const [internalRiderId, setInternalRiderId] = useState<number>(riders[0]?.rider_user_id || 513)
   const [thirdPartyName, setThirdPartyName] = useState<string>('Uber Connect')
   const [bookedFee, setBookedFee] = useState<number>(3500)
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
-  const [receiptFileName, setReceiptFileName] = useState<string>('')
   const [receiptUploadError, setReceiptUploadError] = useState<string | null>(null)
 
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
-  // Dynamic KPIs reflecting custom date range
+  // Dynamic KPIs and Tables reflecting custom date range
   const activeDeliveriesForKPI = useMemo(() => {
     if (!dateRange) return logisticsDeliveries
     return logisticsDeliveries.filter(d => isWithinDateRange(d.dispatch_date || d.pickup_at || d.delivered_at, dateRange))
   }, [logisticsDeliveries, dateRange])
 
-  const unassignedDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status === 'pending'), [logisticsDeliveries])
-  const activeDeliveries = useMemo(() => logisticsDeliveries.filter(d => d.status !== 'pending'), [logisticsDeliveries])
+  const unassignedDeliveries = useMemo(() => activeDeliveriesForKPI.filter(d => d.status === 'pending'), [activeDeliveriesForKPI])
+  const activeDeliveries = useMemo(() => activeDeliveriesForKPI.filter(d => d.status !== 'pending'), [activeDeliveriesForKPI])
   const inTransitCount = useMemo(
     () => activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery').length,
     [activeDeliveries]
@@ -93,33 +92,14 @@ export const LogisticsBoardPage: React.FC = () => {
 
   const handleOpenAssign = (delivery: LogisticsDelivery) => {
     setSelectedDelivery(delivery)
+    setRiderType('internal')
+    if (riders.length > 0) {
+      setInternalRiderId(riders[0].rider_user_id)
+    }
     setBookedFee(delivery.delivery_fee)
     setReceiptImage(null)
-    setReceiptFileName('')
     setReceiptUploadError(null)
     setIsAssignModalOpen(true)
-  }
-
-  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setReceiptUploadError('Please select a valid image file (.jpg, .png, .webp).')
-      return
-    }
-    setReceiptUploadError(null)
-    setReceiptFileName(file.name)
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      setReceiptImage(event.target?.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleRemoveReceipt = () => {
-    setReceiptImage(null)
-    setReceiptFileName('')
-    setReceiptUploadError(null)
   }
 
   const handleConfirmAssign = (e: React.FormEvent) => {
@@ -132,8 +112,13 @@ export const LogisticsBoardPage: React.FC = () => {
     }
 
     if (riderType === 'internal') {
-      const match = riders.find(r => r.rider_user_id === Number(internalRiderId))
-      assignRider(selectedDelivery.id, 'internal', match?.rider_name || 'Internal Rider', Number(internalRiderId))
+      const match = riders.find(r => Number(r.rider_user_id) === Number(internalRiderId))
+      assignRider(
+        selectedDelivery.id,
+        'internal',
+        match?.rider_name || 'Internal Rider',
+        Number(internalRiderId)
+      )
     } else {
       assignRider(
         selectedDelivery.id,
@@ -151,8 +136,17 @@ export const LogisticsBoardPage: React.FC = () => {
   const unassignedColumns: ColumnDef<LogisticsDelivery>[] = [
     {
       key: 'order_ref',
-      header: 'Delivery Ref',
-      accessor: (d) => <span className="font-medium text-xs text-kumo-strong font-sans">{d.order_ref}</span>,
+      header: 'Order Ref',
+      accessor: (d) => (
+        <div>
+          <span className="font-medium text-xs text-kumo-strong font-sans">{d.order_ref}</span>
+          {d.decline_reason && (
+            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate max-w-[180px]" title={`Declined: ${d.decline_reason}`}>
+              Returned: {d.decline_reason}
+            </div>
+          )}
+        </div>
+      ),
       sortValue: (d) => d.order_ref,
     },
     {
@@ -185,7 +179,7 @@ export const LogisticsBoardPage: React.FC = () => {
     {
       key: 'delivery_fee',
       header: 'Customer Fee',
-      accessor: (d) => <span className="font-medium text-emerald-600 font-sans">{formatNaira(d.delivery_fee)}</span>,
+      accessor: (d) => <span className="font-medium text-kumo-strong font-mono">{formatNaira(d.delivery_fee)}</span>,
       sortValue: (d) => d.delivery_fee,
     },
     {
@@ -225,7 +219,7 @@ export const LogisticsBoardPage: React.FC = () => {
             {d.assigned_rider}
           </div>
           <div className="text-[10px] text-kumo-subtle uppercase">
-            {d.rider_type === 'internal' ? 'In-House Rider' : `Third-Party Rider: ${d.third_party_provider}`}
+            {d.rider_type === 'internal' ? 'In-House Rider' : 'Third-Party Courier'}
           </div>
         </div>
       ),
@@ -268,7 +262,7 @@ export const LogisticsBoardPage: React.FC = () => {
       accessor: (d) => (
         <div className="text-[11px] text-kumo-subtle space-y-0.5">
           {d.pickup_at && <div>Picked: {formatDate(d.pickup_at)}</div>}
-          {d.delivered_at && <div className="text-emerald-600 font-medium">Delivered: {formatDate(d.delivered_at)}</div>}
+          {d.delivered_at && <div className="text-kumo-strong font-medium">Delivered: {formatDate(d.delivered_at)}</div>}
         </div>
       ),
     },
@@ -281,7 +275,7 @@ export const LogisticsBoardPage: React.FC = () => {
           {d.status === 'assigned' && (
             <Tooltip content="Confirm driver collected food from kitchen">
               <TableActionButton
-                variant="blue"
+                variant="outline"
                 onClick={() => confirmRiderCollect(d.id)}
               >
                 Driver Collect
@@ -292,7 +286,7 @@ export const LogisticsBoardPage: React.FC = () => {
           {(d.status === 'in_transit' || d.status === 'out_for_delivery') && (
             <Tooltip content="Confirm order delivered to customer">
               <TableActionButton
-                variant="success"
+                variant="primary"
                 icon={<CheckCircle2 />}
                 iconStrokeWidth={2}
                 onClick={() => markDelivered(d.id)}
@@ -303,8 +297,8 @@ export const LogisticsBoardPage: React.FC = () => {
           )}
 
           {d.status === 'delivered' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 whitespace-nowrap shrink-0 px-2 font-sans">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Reconciled
+            <span className="text-xs text-kumo-subtle font-medium flex items-center gap-1 whitespace-nowrap shrink-0 px-2 font-sans">
+              <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500" /> Completed
             </span>
           )}
         </div>
@@ -325,25 +319,25 @@ export const LogisticsBoardPage: React.FC = () => {
           title="Awaiting Assignment"
           value={unassignedDeliveries.length}
           description="Packed & ready for pickup"
-          icon={<Clock className="w-4 h-4 text-primary" />}
+          icon={<Clock className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Active on Delivery Trip"
           value={activeDeliveries.filter(d => d.status !== 'delivered').length}
           description="Currently in transit across Lagos"
-          icon={<Navigation className="w-4 h-4 text-amber-500" />}
+          icon={<Navigation className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Delivered Today"
           value={deliveredTodayCount}
           description="Trip fees credited to riders"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Total Delivery Fees"
           value={formatNaira(totalFeesCollected)}
           description="Gross delivery fee pool"
-          icon={<DollarSign className="w-4 h-4 text-blue-500" />}
+          icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
         />
       </div>
 
@@ -413,20 +407,30 @@ export const LogisticsBoardPage: React.FC = () => {
         title={`Assign Rider: Order ${selectedDelivery?.order_ref}`}
         description="Choose between in-house rider dispatch or third-party rider service."
         maxWidth="xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsAssignModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="assign-rider-form">
+              Confirm Assignment
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmAssign} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-baseline text-xs">
-              <span className="text-kumo-subtle">Customer:</span>
-              <span className="font-semibold text-kumo-strong text-xs sm:text-sm">{selectedDelivery?.customer_name}</span>
+        <form id="assign-rider-form" onSubmit={handleConfirmAssign} className="space-y-4">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans text-xs">
+            <div className="p-3.5 flex justify-between items-baseline">
+              <span className="text-zinc-500 dark:text-zinc-400">Customer</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedDelivery?.customer_name} ({selectedDelivery?.phone})</span>
             </div>
-            <div className="flex justify-between items-baseline text-xs">
-              <span className="text-kumo-subtle">Delivery Address:</span>
-              <span className="text-kumo-strong font-medium truncate max-w-xs text-xs">{selectedDelivery?.address}</span>
+            <div className="p-3.5 flex justify-between items-baseline gap-4">
+              <span className="text-zinc-500 dark:text-zinc-400 shrink-0">Delivery Address</span>
+              <span className="text-zinc-900 dark:text-zinc-100 font-medium text-right truncate max-w-xs">{selectedDelivery?.address}</span>
             </div>
-            <div className="flex justify-between items-center text-xs font-sans">
-              <span className="text-kumo-subtle font-medium">Customer Paid Fee:</span>
-              <span className="font-semibold text-emerald-600 font-sans text-xs sm:text-sm">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
+            <div className="p-3.5 flex justify-between items-center">
+              <span className="text-zinc-500 dark:text-zinc-400">Customer Paid Fee</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{formatNaira(selectedDelivery?.delivery_fee || 0)}</span>
             </div>
           </div>
 
@@ -452,6 +456,7 @@ export const LogisticsBoardPage: React.FC = () => {
               label="Select In-House Rider"
               value={internalRiderId}
               onChange={(e) => setInternalRiderId(Number(e.target.value))}
+              onValueChange={(val) => setInternalRiderId(Number(val))}
               options={riders.map(r => ({
                 value: r.rider_user_id,
                 label: `${r.rider_name} (${r.active_assignments} active trips • ${r.status.toUpperCase()})`
@@ -481,9 +486,9 @@ export const LogisticsBoardPage: React.FC = () => {
                 required
               />
               {bookedFee > (selectedDelivery?.delivery_fee || 0) && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded text-sm text-amber-900 dark:text-amber-200 font-sans flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span><strong>Subsidy Deficit Warning:</strong> Third-party rider charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-800 dark:text-zinc-200 font-sans flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span><strong>Subsidy Deficit Notice:</strong> Third-party rider charges {formatNaira(bookedFee - (selectedDelivery?.delivery_fee || 0))} more than customer paid. Management fee subsidy will be logged.</span>
                 </div>
               )}
 
@@ -492,10 +497,10 @@ export const LogisticsBoardPage: React.FC = () => {
                 <div className="flex items-center justify-between gap-3">
                   <label className="text-sm font-semibold text-kumo-strong leading-tight">
                     Waybill Proof of Delivery Slip / Rider Fare Receipt
-                    <span className="text-rose-500 font-bold ml-1 inline-block">*</span>
+                    <span className="text-[#c0201f] font-bold ml-1 inline-block">*</span>
                   </label>
-                  <span className="shrink-0 text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    Compulsory
+                  <span className="shrink-0 text-[10px] font-semibold text-zinc-700 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 dark:text-zinc-300 px-2.5 py-0.5 rounded-lg uppercase tracking-wider">
+                    Required
                   </span>
                 </div>
                 <p className="text-xs text-kumo-subtle leading-relaxed">
@@ -512,7 +517,6 @@ export const LogisticsBoardPage: React.FC = () => {
                   }}
                   onFilesAccepted={(files) => {
                     if (files[0]) {
-                      setReceiptFileName(files[0].name)
                       setReceiptUploadError(null)
                     }
                   }}
@@ -527,7 +531,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 />
 
                 {receiptUploadError && (
-                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-[#c0201f] font-medium mt-1">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{receiptUploadError}</span>
                   </div>
@@ -535,15 +539,6 @@ export const LogisticsBoardPage: React.FC = () => {
               </div>
             </div>
           )}
-
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line font-sans">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsAssignModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm Assignment
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -553,7 +548,7 @@ export const LogisticsBoardPage: React.FC = () => {
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           title={`Delivery Dispatch: ${selectedDetailsDelivery.order_ref}`}
-          description={`Customer delivery manifest, assigned rider, and trip routing`}
+          description="Customer delivery manifest, assigned rider, and trip routing"
           maxWidth="2xl"
           footer={
             <div className="flex items-center justify-between w-full">
@@ -564,60 +559,81 @@ export const LogisticsBoardPage: React.FC = () => {
               >
                 Close
               </Button>
-              <div className="flex items-center gap-2">
-                {selectedDetailsDelivery.status === 'pending' && (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      setIsDetailsModalOpen(false)
-                      handleOpenAssign(selectedDetailsDelivery)
-                    }}
-                  >
-                    Assign Driver
-                  </Button>
-                )}
-                {selectedDetailsDelivery.status === 'assigned' && (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      confirmRiderCollect(selectedDetailsDelivery.id)
-                      setIsDetailsModalOpen(false)
-                    }}
-                  >
-                    Confirm Food Pickup
-                  </Button>
-                )}
-                {selectedDetailsDelivery.status === 'in_transit' && (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      markDelivered(selectedDetailsDelivery.id)
-                      setIsDetailsModalOpen(false)
-                    }}
-                  >
-                    Mark Delivered
-                  </Button>
-                )}
-              </div>
+              {selectedDetailsDelivery.status !== 'delivered' && (
+                <div className="flex items-center gap-2">
+                  {selectedDetailsDelivery.status === 'pending' && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        setIsDetailsModalOpen(false)
+                        handleOpenAssign(selectedDetailsDelivery)
+                      }}
+                    >
+                      Assign Driver
+                    </Button>
+                  )}
+                  {selectedDetailsDelivery.status === 'assigned' && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        confirmRiderCollect(selectedDetailsDelivery.id)
+                        setIsDetailsModalOpen(false)
+                      }}
+                    >
+                      Driver Collect
+                    </Button>
+                  )}
+                  {(selectedDetailsDelivery.status === 'in_transit' || selectedDetailsDelivery.status === 'out_for_delivery') && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        markDelivered(selectedDetailsDelivery.id)
+                        setIsDetailsModalOpen(false)
+                      }}
+                    >
+                      Delivered
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           }
         >
           <div className="space-y-4">
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
               <div className="p-4 space-y-3">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
-                  Delivery Destination
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Delivery Destination &amp; Order Contents
+                  </span>
+                  {selectedDetailsDelivery.phone && (
+                    <a
+                      href={`tel:${selectedDetailsDelivery.phone}`}
+                      className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium underline underline-offset-2"
+                    >
+                      <Phone className="w-3 h-3" />
+                      <span>Call Customer</span>
+                    </a>
+                  )}
+                </div>
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Name</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsDelivery.customer_name}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Phone Number</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsDelivery.phone}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.address}</span>
+                </div>
+                <div className="flex items-start text-[13px]">
+                  <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Meal Pack</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.items_summary}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Customer Paid Fee</span>
@@ -631,12 +647,18 @@ export const LogisticsBoardPage: React.FC = () => {
                 </span>
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Current Status</span>
-                  <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedDetailsDelivery.status.replace('_', ' ')}</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedDetailsDelivery.status.replace(/_/g, ' ')}</span>
                 </div>
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Rider</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedDetailsDelivery.assigned_rider || 'Unassigned'}</span>
                 </div>
+                {selectedDetailsDelivery.decline_reason && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Previous Decline Reason</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.decline_reason}</span>
+                  </div>
+                )}
                 {selectedDetailsDelivery.booked_fee && (
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Rider Booked Fee</span>
@@ -649,10 +671,28 @@ export const LogisticsBoardPage: React.FC = () => {
                     <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsDelivery.dispatch_date}</span>
                   </div>
                 )}
+                {selectedDetailsDelivery.pickup_at && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Food Pickup Time</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{formatDate(selectedDetailsDelivery.pickup_at)}</span>
+                  </div>
+                )}
                 {selectedDetailsDelivery.delivered_at && (
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivered Timestamp</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{selectedDetailsDelivery.delivered_at}</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono">{formatDate(selectedDetailsDelivery.delivered_at)}</span>
+                  </div>
+                )}
+                {selectedDetailsDelivery.fee_evidence_path && (
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1.5">
+                    <span className="text-zinc-500 dark:text-zinc-400 text-xs block">Attached Waybill / Fare Receipt</span>
+                    <div className="max-w-xs rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+                      <img
+                        src={selectedDetailsDelivery.fee_evidence_path}
+                        alt="Waybill Fare Proof"
+                        className="w-full h-auto max-h-48 object-contain"
+                      />
+                    </div>
                   </div>
                 )}
               </div>

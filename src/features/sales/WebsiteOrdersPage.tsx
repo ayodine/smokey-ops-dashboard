@@ -593,8 +593,9 @@ export const WebsiteOrdersPage: React.FC = () => {
               onClick={() => navigate('/overview')}
               leftIcon={<ExternalLink className="w-4 h-4 text-blue-600" />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
+              title="View the live interactive Order Tracking Diagram on Overview"
             >
-              Order Flow Canvas
+              Order Flow Diagram
             </Button>
             <Button
               variant="primary"

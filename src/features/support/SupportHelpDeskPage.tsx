@@ -53,47 +53,8 @@ export interface SupportTicket {
   isAnonymous?: boolean
 }
 
-const INITIAL_TICKETS: SupportTicket[] = [
-  {
-    id: 'TKT-2026-104',
-    type: 'Support',
-    category: 'Weighing Scales & Kitchen Tools',
-    subject: 'Portioning digital scale tare drift in meat prep station',
-    facility: 'Yaba Central Kitchen',
-    priority: 'Moderate',
-    createdAt: '2026-10-31 16:20',
-    status: 'In Progress',
-    description: 'Digital scale in the raw chicken marination section drifts by +15g when tared. Needs recalibration or replacement with backup unit.',
-    reporter: 'tunde@smokeyhutdelight.com',
-    filesCount: 1
-  },
-  {
-    id: 'BUG-2026-088',
-    type: 'Bug',
-    category: 'Logistics & Rider Board',
-    subject: 'Waybill upload preview thumbnail slow to render on mobile browser',
-    facility: 'All Facilities',
-    priority: 'Low',
-    createdAt: '2026-10-31 14:05',
-    status: 'Resolved',
-    description: 'When dispatchers take a live camera photo of the delivery slip on iPhone, image preview took 3 seconds to appear before confirming assignment.',
-    reporter: 'dispatcher@smokeyhutdelight.com',
-    filesCount: 0
-  },
-  {
-    id: 'ABU-2026-019',
-    type: 'Abuse',
-    category: 'Rider Cash Collection Diversion',
-    subject: 'Discrepancy in customer cash on delivery remittance',
-    facility: 'Ikeja Outlet',
-    priority: 'High',
-    createdAt: '2026-10-30 19:40',
-    status: 'Under Review',
-    description: 'Order #SH-4091 marked as paid via cash handover, but rider remitted ₦5,000 less than invoice total at close of shift.',
-    isAnonymous: true,
-    filesCount: 2
-  }
-]
+const INITIAL_TICKETS: SupportTicket[] = []
+const LEGACY_MOCK_TICKET_IDS = new Set(['TKT-2026-104', 'BUG-2026-088', 'ABU-2026-019'])
 
 interface FaqItem {
   id: string
@@ -119,13 +80,13 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 'faq-3',
     category: 'Inventory & Cooking',
     question: 'When are raw ingredients automatically deducted from inventory?',
-    answer: 'When a smoking production run is launched in Cooking Batches, recipe ingredients (e.g. fresh chicken, dry pepper, cloves, cinnamon sticks, firewood) are automatically deducted from Raw Inventory based on the batch size and recipe ratio.'
+    answer: 'When a smoking production run is launched in Production Batches, recipe ingredients (e.g. fresh chicken, dry pepper, cloves, cinnamon sticks, firewood) are automatically deducted from Raw Inventory based on the batch size and recipe ratio.'
   },
   {
     id: 'faq-4',
     category: 'Inventory & Cooking',
     question: 'How do we log physical inventory counts and count variances?',
-    answer: 'Navigate to Raw Ingredients and click "Physical Stock Count". Enter the physical counts for each SKU. The system computes discrepancies between system stock and physical count, logging an auditable stock adjustment.'
+    answer: 'Navigate to Raw Inventory and click "Record Stock Count". Enter the physical counts for each SKU. The system computes discrepancies between system stock and physical count, logging an auditable stock adjustment.'
   },
   {
     id: 'faq-5',
@@ -161,11 +122,16 @@ export const SupportHelpDeskPage: React.FC = () => {
   const [faqCategoryFilter, setFaqCategoryFilter] = useState<string>('All')
   const [faqOpenMap, setFaqOpenMap] = useState<Record<string, boolean>>({ 'faq-1': true })
 
-  // Stored tickets in local storage
+  // Stored tickets in local storage + Supabase app_settings
   const [tickets, setTickets] = useState<SupportTicket[]>(() => {
     try {
       const saved = localStorage.getItem('smokey_support_tickets')
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t: SupportTicket) => !LEGACY_MOCK_TICKET_IDS.has(t.id))
+        }
+      }
     } catch {
       // fallback
     }
@@ -173,8 +139,27 @@ export const SupportHelpDeskPage: React.FC = () => {
   })
 
   useEffect(() => {
+    let cancelled = false
+    fetch('/api/app-settings?key=support_tickets')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!cancelled && data && Array.isArray(data.value)) {
+          const clean = (data.value as SupportTicket[]).filter(t => !LEGACY_MOCK_TICKET_IDS.has(t.id))
+          setTickets(clean)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
     try {
       localStorage.setItem('smokey_support_tickets', JSON.stringify(tickets))
+      fetch('/api/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'support_tickets', value: tickets }),
+      }).catch(() => {})
     } catch {
       // ignore
     }
@@ -211,7 +196,7 @@ export const SupportHelpDeskPage: React.FC = () => {
 
   const [abuseForm, setAbuseForm] = useState({
     category: 'Inventory / Raw Meat Theft',
-    dateTime: '2026-10-31 19:30',
+    dateTime: new Date().toISOString().replace('T', ' ').slice(0, 16),
     facility: selectedWarehouse?.name || 'Yaba Central Kitchen',
     statement: '',
     isAnonymous: true,

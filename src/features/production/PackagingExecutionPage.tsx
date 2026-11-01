@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, cn } from '@/lib/utils'
 import { 
   Package, 
   ShoppingBag, 
@@ -37,7 +37,8 @@ export const PackagingExecutionPage: React.FC = () => {
     startPackagingOrder,
     confirmPackagingOrder,
     addPackagingQueueOrder,
-    issuePackagingFromCentral
+    issuePackagingFromCentral,
+    currentAccount
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'ready' | 'in_packaging' | 'daily' | 'history'>('ready')
@@ -164,12 +165,35 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'destination',
       header: 'Delivery Zone / Type',
-      accessor: (o) => (
-        <div>
-          <span className="text-xs text-kumo-strong block truncate max-w-xs">{o.address}</span>
-          <span className="text-[10px] text-primary uppercase font-semibold">{o.delivery_mode} mode</span>
-        </div>
-      ),
+      accessor: (o) => {
+        const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider",
+                isPickup 
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+              )}>
+                {isPickup ? (
+                  <>
+                    <ShoppingBag className="w-2.5 h-2.5" />
+                    Store Pickup
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-2.5 h-2.5" />
+                    Door Delivery
+                  </>
+                )}
+              </span>
+              <span className="text-[10px] text-zinc-500 uppercase font-medium">{o.delivery_mode} mode</span>
+            </div>
+            <span className="text-xs text-kumo-strong block truncate max-w-xs">{o.address}</span>
+          </div>
+        )
+      },
     },
     {
       key: 'total_amount',
@@ -232,26 +256,29 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'status',
       header: 'Pack Status',
-      defaultWidth: 180,
-      accessor: (o) => <StatusBadge status="in-progress" label="in-progress" />,
+      defaultWidth: 150,
+      accessor: () => <StatusBadge status="in-progress" label="in-progress" />,
     },
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 170,
-      accessor: (o) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Hand over packed meal to dispatch board">
-            <TableActionButton
-              variant="primary"
-              onClick={() => confirmPackagingOrder(o.id, 'Shift Packing Lead')}
-              leftIcon={<Send className="w-3.5 h-3.5" strokeWidth={2} />}
-            >
-              Send to Dispatch
-            </TableActionButton>
-          </Tooltip>
-        </div>
-      ),
+      defaultWidth: 190,
+      accessor: (o) => {
+        const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
+        return (
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+            <Tooltip content={isPickup ? "Hand over to Store Pickup Counter" : "Hand over packed meal to dispatch board"}>
+              <TableActionButton
+                variant="primary"
+                onClick={() => confirmPackagingOrder(o.id, currentAccount?.name || 'Packaging Staff')}
+                leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+              >
+                {isPickup ? 'Send to Pickup' : 'Send to Dispatch'}
+              </TableActionButton>
+            </Tooltip>
+          </div>
+        )
+      },
     },
   ]
 
@@ -272,7 +299,7 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'total_consumed',
       header: 'Units Deducted (Today)',
-      accessor: (m) => <span className="font-medium text-red-600 font-sans">-{m.total_consumed} {m.unit}</span>,
+      accessor: (m) => <span className="font-semibold text-red-600 dark:text-red-400 font-sans">-{m.total_consumed} {m.unit}</span>,
       sortValue: (m) => m.total_consumed,
     },
     {
@@ -280,6 +307,18 @@ export const PackagingExecutionPage: React.FC = () => {
       header: 'Orders Sealed',
       accessor: (m) => <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-kumo-surface text-kumo-default border border-kumo-line font-sans">{m.total_orders} orders</span>,
       sortValue: (m) => m.total_orders,
+    },
+    {
+      key: 'current_stock',
+      header: 'Available Stock (Bench / Central)',
+      accessor: (m) => {
+        const prod = packagingProducts.find(p => p.name.toLowerCase() === m.product_name.toLowerCase())
+        return (
+          <span className="font-mono text-xs text-kumo-default font-medium">
+            {prod ? `${prod.bench_stock_qty ?? 0} bench • ${prod.central_stock_qty ?? 0} central` : '—'}
+          </span>
+        )
+      },
     },
   ]
 
@@ -311,11 +350,37 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'status',
       header: 'Logistics Routing',
+      accessor: (o) => {
+        const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
+        return isPickup ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800">
+            <ShoppingBag className="w-3 h-3" />
+            Store Pickup Counter
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+            <Send className="w-3 h-3" />
+            Dispatch Board
+          </span>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      defaultWidth: 180,
       accessor: (o) => (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
-          <Send className="w-3 h-3" />
-          Transferred to Dispatch
-        </span>
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <Tooltip content="View packed meal items and consumable packaging manifest">
+            <TableActionButton
+              variant="secondary"
+              onClick={() => handleOpenDetails(o)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
+            >
+              View Pack Manifest
+            </TableActionButton>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -331,19 +396,10 @@ export const PackagingExecutionPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => setIsRequisitionModalOpen(true)}
-              leftIcon={<ArrowRightLeft className="w-4 h-4 text-blue-600" />}
+              leftIcon={<ArrowRightLeft className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
               className="h-10 px-3.5 text-xs font-medium"
             >
               Requisition from Central
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsManualOrderModalOpen(true)}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="h-10 px-4 text-sm font-medium shadow-xs shrink-0"
-            >
-              Assign Order for Packing
             </Button>
           </div>
         }
@@ -448,7 +504,7 @@ export const PackagingExecutionPage: React.FC = () => {
         description="Select the exact food packaging materials used for this order. Quantities will be deducted from Packaging Inventory."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
               Close
             </Button>
@@ -559,7 +615,7 @@ export const PackagingExecutionPage: React.FC = () => {
         description="Request stock replenishment from Central Store reserve directly to the Packaging Bench."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsRequisitionModalOpen(false)}>
               Close
             </Button>
@@ -662,24 +718,23 @@ export const PackagingExecutionPage: React.FC = () => {
             autoFocus
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Phone Number"
-              placeholder="0803..."
-              value={manualOrderForm.phone}
-              onChange={(e) => setManualOrderForm(prev => ({ ...prev, phone: e.target.value }))}
-              required
-            />
-            <Select
-              label="Payment Status"
-              value={manualOrderForm.payment_status}
-              onChange={(e) => setManualOrderForm(prev => ({ ...prev, payment_status: e.target.value as any }))}
-              options={[
-                { value: 'paid', label: 'PAID (Verified Online / Transfer)' },
-                { value: 'pending', label: 'PENDING (Pay on Delivery)' },
-              ]}
-            />
-          </div>
+          <Input
+            label="Phone Number"
+            placeholder="0803..."
+            value={manualOrderForm.phone}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, phone: e.target.value }))}
+            required
+          />
+
+          <Select
+            label="Payment Status"
+            value={manualOrderForm.payment_status}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, payment_status: e.target.value as any }))}
+            options={[
+              { value: 'paid', label: 'PAID (Verified Online / Transfer)' },
+              { value: 'pending', label: 'PENDING (Pay on Delivery)' },
+            ]}
+          />
 
           <Input
             label="Delivery Address / Mode"
@@ -698,24 +753,23 @@ export const PackagingExecutionPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Order Total Amount (₦)"
-              type="number"
-              min="500"
-              value={manualOrderForm.total_amount}
-              onChange={(e) => setManualOrderForm(prev => ({ ...prev, total_amount: Number(e.target.value) }))}
-              required
-            />
-            <Input
-              label="Delivery Fee (₦)"
-              type="number"
-              min="0"
-              value={manualOrderForm.delivery_fee}
-              onChange={(e) => setManualOrderForm(prev => ({ ...prev, delivery_fee: Number(e.target.value) }))}
-              required
-            />
-          </div>
+          <Input
+            label="Order Total Amount (₦)"
+            type="number"
+            min="500"
+            value={manualOrderForm.total_amount}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, total_amount: Number(e.target.value) }))}
+            required
+          />
+
+          <Input
+            label="Delivery Fee (₦)"
+            type="number"
+            min="0"
+            value={manualOrderForm.delivery_fee}
+            onChange={(e) => setManualOrderForm(prev => ({ ...prev, delivery_fee: Number(e.target.value) }))}
+            required
+          />
         </form>
       </Dialog>
 

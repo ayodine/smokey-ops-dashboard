@@ -119,7 +119,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
           >
             <Bell className="w-4 h-4 text-kumo-subtle" />
             {systemAlerts.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#f6821f] ring-2 ring-kumo-canvas animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c0201f] ring-2 ring-kumo-canvas animate-pulse" />
             )}
           </button>
 
@@ -378,8 +378,23 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
         onClose={() => setIsAddFacilityModalOpen(false)}
         title="Register New Office / Branch"
         description="Add a regional branch office, fulfillment depot, or dark kitchen."
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setIsAddFacilityModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="add-facility-form">
+              Save & Switch Branch/Office
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleAddFacilitySubmit} className="space-y-4">
+        <form id="add-facility-form" onSubmit={handleAddFacilitySubmit} className="space-y-4">
           <Input
             label="Branch / Office Name"
             placeholder="e.g. Lekki Branch Office"
@@ -388,22 +403,21 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Branch / Office Code"
-              placeholder="e.g. BR-LEKKI"
-              value={facilityForm.code}
-              onChange={(e) => setFacilityForm(prev => ({ ...prev, code: e.target.value }))}
-              required
-            />
-            <Input
-              label="City / Region"
-              placeholder="e.g. Lekki Phase 1, Lagos"
-              value={facilityForm.city}
-              onChange={(e) => setFacilityForm(prev => ({ ...prev, city: e.target.value }))}
-              required
-            />
-          </div>
+          <Input
+            label="Branch / Office Code"
+            placeholder="e.g. BR-LEKKI"
+            value={facilityForm.code}
+            onChange={(e) => setFacilityForm(prev => ({ ...prev, code: e.target.value }))}
+            required
+          />
+
+          <Input
+            label="City / Region"
+            placeholder="e.g. Lekki Phase 1, Lagos"
+            value={facilityForm.city}
+            onChange={(e) => setFacilityForm(prev => ({ ...prev, city: e.target.value }))}
+            required
+          />
 
           <Input
             label="Physical Street Address / Landmark"
@@ -411,20 +425,6 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenMobileSidebar, onOpenComma
             value={facilityForm.address}
             onChange={(e) => setFacilityForm(prev => ({ ...prev, address: e.target.value }))}
           />
-
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-kumo-line">
-            <Button
-              variant="outline"
-              size="md"
-              type="button"
-              onClick={() => setIsAddFacilityModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Save & Switch Branch/Office
-            </Button>
-          </div>
         </form>
       </Dialog>
     </header>

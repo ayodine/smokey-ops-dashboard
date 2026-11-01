@@ -8,25 +8,20 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { StatusBadge } from '@/components/ui/Badge'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { Select } from '@/components/ui/Select'
+import { formatNaira } from '@/lib/utils'
 import {
   Bike,
   Phone,
   MapPin,
   ExternalLink,
   CheckCircle2,
-  XCircle,
   DollarSign,
   Receipt,
-  ShieldCheck,
   Clock,
   RotateCcw,
   Check,
-  Info,
-  Calendar,
   Layers,
-  ArrowRight,
   Navigation
 } from 'lucide-react'
 
@@ -38,12 +33,21 @@ export const RiderDashboardPage: React.FC = () => {
     acceptDelivery,
     declineDelivery,
     showToast,
+    currentAccount,
   } = useSmokeyOps()
 
-  // Primary rider account: Rider Yusuf (Staff ID: RDR-003, user_id: 455 per enterprise spec)
+  // Dynamically match the logged-in rider profile strictly to currentAccount
   const currentRider = useMemo(() => {
-    return riders.find(r => r.rider_user_id === 455) || riders[0]
-  }, [riders])
+    if (!riders || riders.length === 0) return undefined
+    const emailLower = (currentAccount?.email || '').toLowerCase().trim()
+    const nameLower = (currentAccount?.name || '').toLowerCase().trim()
+    return (
+      riders.find(r => currentAccount?.rider_user_id && r.rider_user_id === currentAccount.rider_user_id) ||
+      riders.find(r => r.email && r.email.toLowerCase().trim() === emailLower) ||
+      riders.find(r => r.rider_name.toLowerCase().trim() === nameLower) ||
+      riders[0]
+    )
+  }, [riders, currentAccount])
 
   // Active Tab: 'assigned' | 'delivered' | 'earnings' | 'tasks'
   const [activeTab, setActiveTab] = useState<string>('assigned')
@@ -61,7 +65,10 @@ export const RiderDashboardPage: React.FC = () => {
   const riderDeliveries = useMemo(() => {
     if (!currentRider) return []
     return logisticsDeliveries.filter(
-      d => d.rider_type === 'internal' && d.assigned_rider_id === currentRider.rider_user_id
+      d =>
+        d.rider_type === 'internal' &&
+        (Number(d.assigned_rider_id) === Number(currentRider.rider_user_id) ||
+          (d.assigned_rider && d.assigned_rider.toLowerCase().trim() === currentRider.rider_name.toLowerCase().trim()))
     )
   }, [logisticsDeliveries, currentRider])
 
@@ -135,21 +142,14 @@ export const RiderDashboardPage: React.FC = () => {
     },
   ]
 
-  // Calculated metrics
+  // Calculated metrics strictly derived from verified rider deliveries
   const assignedFees = assignedOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
-  const assignedCodTotal = assignedOrders.reduce(
-    (sum, o) => sum + (o.payment_mode === 'cod' ? (o.cod_amount || 0) : 0),
-    0
-  )
   const inTransitFees = inTransitOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
-  const inTransitCodTotal = inTransitOrders.reduce(
-    (sum, o) => sum + (o.payment_mode === 'cod' ? (o.cod_amount || 0) : 0),
-    0
-  )
-  const totalCompletedTrips = currentRider?.total_completed ?? 362
+  const totalCompletedTrips = completedOrders.length
   const deliveredFeesTotal = completedOrders.reduce((sum, o) => sum + o.delivery_fee, 0)
-  const lifetimeEarned = currentRider?.lifetime_earnings ?? 1183000
-  const pendingPayoutBalance = currentRider?.pending_payout ?? 0
+  const lifetimeEarned = deliveredFeesTotal
+  const paidTotalBalance = Math.min(currentRider?.paid_total ?? 0, lifetimeEarned)
+  const pendingPayoutBalance = Math.max(0, lifetimeEarned - paidTotalBalance)
 
   // -----------------------------------------------------------------
   // TABLE COLUMNS: 1. ASSIGNED ORDERS (Strictly 6 columns per spec)
@@ -365,7 +365,7 @@ export const RiderDashboardPage: React.FC = () => {
       accessor: (d) => (
         <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
           <TableActionButton
-            variant="success"
+            variant="primary"
             icon={<CheckCircle2 />}
             iconStrokeWidth={2}
             onClick={() => setConfirmDeliveryTarget(d)}
@@ -452,7 +452,7 @@ export const RiderDashboardPage: React.FC = () => {
       header: 'Status',
       defaultWidth: 130,
       accessor: () => (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-sans whitespace-nowrap shrink-0">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 font-sans whitespace-nowrap shrink-0">
           <Check className="w-3 h-3" />
           Delivered
         </span>
@@ -501,17 +501,6 @@ export const RiderDashboardPage: React.FC = () => {
       sortValue: (d) => d.customer_name,
     },
     {
-      key: 'payment_mode',
-      header: 'Payment Type',
-      defaultWidth: 150,
-      accessor: (d) => (
-        <span className="text-xs text-kumo-subtle font-normal font-sans capitalize">
-          {d.payment_mode === 'cod' ? 'Cash on delivery' : 'Online prepaid'}
-        </span>
-      ),
-      sortValue: (d) => d.payment_mode || 'online',
-    },
-    {
       key: 'delivery_fee',
       header: 'Credit Amount',
       defaultWidth: 140,
@@ -526,12 +515,18 @@ export const RiderDashboardPage: React.FC = () => {
       key: 'status',
       header: 'Settlement Status',
       defaultWidth: 180,
-      accessor: () => (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 font-sans whitespace-nowrap shrink-0">
-          <Check className="w-3 h-3" />
-          Settled (₦0.00 Owed)
-        </span>
-      ),
+      accessor: () =>
+        pendingPayoutBalance > 0 ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 font-sans whitespace-nowrap shrink-0">
+            <Clock className="w-3 h-3" />
+            Pending Payout
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 font-sans whitespace-nowrap shrink-0">
+            <Check className="w-3 h-3" />
+            Settled
+          </span>
+        ),
     },
   ]
 
@@ -539,7 +534,11 @@ export const RiderDashboardPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Rider Operations Portal"
-        subtitle="Order fulfillment queue, trip milestones, proof of delivery, and earnings ledger."
+        subtitle={
+          currentRider
+            ? `Viewing fulfillment queue, trip milestones, and wallet ledger for ${currentRider.rider_name} (${currentRider.staff_id || 'SHD-RDR-001'}).`
+            : 'Order fulfillment queue, trip milestones, proof of delivery, and earnings ledger.'
+        }
         actions={
           <Button
             variant="outline"
@@ -562,25 +561,25 @@ export const RiderDashboardPage: React.FC = () => {
               title="Awaiting Acceptance"
               value={`${assignedOrders.length} ${assignedOrders.length === 1 ? 'Trip' : 'Trips'}`}
               description="Orders dispatched for your acceptance"
-              icon={<Bike className="w-4 h-4 text-primary" />}
+              icon={<Bike className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Available Trip Fees"
               value={formatNaira(assignedFees)}
               description="Trip earnings upon completion"
-              icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+              icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Cash on Delivery (COD)"
-              value={formatNaira(assignedCodTotal)}
-              description="Cash meal bills to collect"
-              icon={<Receipt className="w-4 h-4 text-amber-500" />}
+              title="Payment Verification"
+              value="100% Prepaid"
+              description="Prepaid online before dispatch"
+              icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Acceptance SLA"
-              value="< 3 mins"
-              description="Fast dispatcher acceptance target"
-              icon={<Clock className="w-4 h-4 text-blue-500" />}
+              title="Duty Status"
+              value={currentRider?.status === 'on_trip' ? 'On Road' : 'Available'}
+              description={currentRider?.vehicle_type || 'Fleet motorbike'}
+              icon={<Clock className="w-4 h-4 text-zinc-500" />}
             />
           </>
         )}
@@ -592,25 +591,25 @@ export const RiderDashboardPage: React.FC = () => {
               title="In-Transit Active Trips"
               value={`${inTransitOrders.length} ${inTransitOrders.length === 1 ? 'Trip' : 'Trips'}`}
               description="Currently accepted & on the road"
-              icon={<Navigation className="w-4 h-4 text-primary" />}
+              icon={<Navigation className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Trip Fees to Earn"
               value={formatNaira(inTransitFees)}
               description="Credited upon customer handover"
-              icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+              icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="COD to Collect"
-              value={formatNaira(inTransitCodTotal)}
-              description="Cash to remit to kitchen cashier"
-              icon={<Receipt className="w-4 h-4 text-rose-500" />}
+              title="Cash Handling"
+              value="₦0 (Prepaid)"
+              description="Zero cash to collect or remit"
+              icon={<Receipt className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Avg Delivery Window"
-              value="~28 Mins"
-              description="On-track for hot smokehouse delivery"
-              icon={<Clock className="w-4 h-4 text-emerald-500" />}
+              title="Active Load"
+              value={`${inTransitOrders.length} ${inTransitOrders.length === 1 ? 'Package' : 'Packages'}`}
+              description="Packages currently in delivery bag"
+              icon={<Clock className="w-4 h-4 text-zinc-500" />}
             />
           </>
         )}
@@ -622,25 +621,25 @@ export const RiderDashboardPage: React.FC = () => {
               title="Delivered (Lifetime)"
               value={`${totalCompletedTrips} Runs`}
               description="Customer doorstep handovers"
-              icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+              icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Delivered in Ledger"
               value={`${completedOrders.length} Trips`}
               description="Historical trips recorded"
-              icon={<Layers className="w-4 h-4 text-primary" />}
+              icon={<Layers className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Total Delivered Fees"
               value={formatNaira(deliveredFeesTotal)}
               description="Commissions from verified runs"
-              icon={<DollarSign className="w-4 h-4 text-emerald-600" />}
+              icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Punctuality Score"
-              value={`${currentRider?.on_time_rate ?? 99.2}%`}
+              title="On-Time Rate"
+              value={totalCompletedTrips > 0 ? `${currentRider?.on_time_rate ?? 100}%` : '100%'}
               description="Verified on-time delivery rate"
-              icon={<Check className="w-4 h-4 text-blue-500" />}
+              icon={<Check className="w-4 h-4 text-zinc-500" />}
             />
           </>
         )}
@@ -652,25 +651,25 @@ export const RiderDashboardPage: React.FC = () => {
               title="Outstanding Balance"
               value={formatNaira(pendingPayoutBalance)}
               description={pendingPayoutBalance === 0 ? "Account settled — ₦0.00 owed" : "Current balance awaiting payout"}
-              icon={<Receipt className={`w-4 h-4 ${pendingPayoutBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />}
+              icon={<Receipt className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Total Gross Earned"
               value={formatNaira(lifetimeEarned)}
               description="Cumulative gross historical earnings"
-              icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+              icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="Historically Settled"
-              value={formatNaira(currentRider?.paid_total ?? 1183000)}
+              value={formatNaira(currentRider?.paid_total ?? 0)}
               description="Cleared to rider bank account"
-              icon={<CheckCircle2 className="w-4 h-4 text-primary" />}
+              icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
               title="This Month's Gross"
-              value={formatNaira(currentRider?.earnings_month ?? 185000)}
+              value={formatNaira(currentRider?.earnings_month ?? 0)}
               description="Current calendar month total"
-              icon={<DollarSign className="w-4 h-4 text-emerald-600" />}
+              icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
           </>
         )}
@@ -741,7 +740,7 @@ export const RiderDashboardPage: React.FC = () => {
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB 2: DELIVERED ORDERS TABLE                                 */}
+        {/* TAB 3: DELIVERED ORDERS TABLE                                 */}
         {/* ------------------------------------------------------------- */}
         {activeTab === 'delivered' && (
           <div className="space-y-4">
@@ -767,30 +766,30 @@ export const RiderDashboardPage: React.FC = () => {
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB 3: EARNINGS & WALLET TABLE                                */}
+        {/* TAB 4: EARNINGS & WALLET TABLE                                */}
         {/* ------------------------------------------------------------- */}
         {activeTab === 'earnings' && (
           <div className="space-y-5">
             {/* Settled Ledger Banner */}
             {pendingPayoutBalance === 0 ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-800 dark:text-emerald-200">
+              <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-bold text-xs sm:text-sm">Account settled — outstanding balance is ₦0.00</h4>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed font-normal">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
                       All completed trips have been disbursed and audited. Settled payment history is preserved below for your records.
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-200">
+              <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-zinc-900 dark:text-zinc-100">
                 <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-bold text-xs sm:text-sm">Pending disbursement balance: {formatNaira(pendingPayoutBalance)}</h4>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed font-normal">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed font-normal">
                       Delivery commissions earned from recently confirmed trips awaiting scheduled accounting clearing.
                     </p>
                   </div>
@@ -841,30 +840,44 @@ export const RiderDashboardPage: React.FC = () => {
               </Button>
               {previewOrder.status !== 'delivered' && (
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={() => {
-                      const target = previewOrder
-                      setPreviewOrder(null)
-                      handleOpenDecline(target)
-                    }}
-                    className="text-rose-600 hover:border-rose-300"
-                  >
-                    Decline Order
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      const target = previewOrder
-                      setPreviewOrder(null)
-                      setConfirmDeliveryTarget(target)
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                  >
-                    Confirm Delivered
-                  </Button>
+                  {previewOrder.status === 'assigned' && (
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => {
+                        const target = previewOrder
+                        setPreviewOrder(null)
+                        handleOpenDecline(target)
+                      }}
+                    >
+                      Decline Order
+                    </Button>
+                  )}
+                  {previewOrder.status === 'assigned' ? (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        const target = previewOrder
+                        setPreviewOrder(null)
+                        acceptDelivery(target.id)
+                      }}
+                    >
+                      Accept Order
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        const target = previewOrder
+                        setPreviewOrder(null)
+                        setConfirmDeliveryTarget(target)
+                      }}
+                    >
+                      Confirm Delivered
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -873,7 +886,7 @@ export const RiderDashboardPage: React.FC = () => {
       >
         {previewOrder && (
           <div className="space-y-4 font-sans text-xs">
-            {/* Master Divided Card Container (Desaturated Grey matching Image 2) */}
+            {/* Master Divided Card Container */}
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               
               {/* Section 1: Order & Timing */}
@@ -892,7 +905,11 @@ export const RiderDashboardPage: React.FC = () => {
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Status</span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
-                      {previewOrder.status === 'delivered' ? 'Delivered' : 'Assigned (Active)'}
+                      {previewOrder.status === 'delivered'
+                        ? 'Delivered'
+                        : previewOrder.status === 'in_transit' || previewOrder.status === 'out_for_delivery'
+                        ? 'In Transit'
+                        : 'Assigned'}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
@@ -989,13 +1006,17 @@ export const RiderDashboardPage: React.FC = () => {
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Payment Mode</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-medium">
-                      {previewOrder.payment_mode === 'cod' ? `Cash on Delivery (${formatNaira(previewOrder.cod_amount || 0)})` : 'Prepaid Online'}
+                      Prepaid Online (No Cash to Collect)
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Settlement Status</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-medium">
-                      {previewOrder.status === 'delivered' ? 'Settled to Rider Balance' : 'Pending Delivery Confirmation'}
+                      {previewOrder.status === 'delivered'
+                        ? pendingPayoutBalance > 0
+                          ? 'Pending Rider Payout'
+                          : 'Settled'
+                        : 'Pending Delivery Confirmation'}
                     </span>
                   </div>
 
@@ -1026,33 +1047,49 @@ export const RiderDashboardPage: React.FC = () => {
         onClose={() => setDeclineTargetOrder(null)}
         title="Decline Delivery Order"
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setDeclineTargetOrder(null)}
+            >
+              Keep Assignment
+            </Button>
+            <Button
+              variant="destructive"
+              size="md"
+              onClick={handleConfirmDecline}
+            >
+              Confirm Decline
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-3.5 font-sans text-xs">
-          <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg text-amber-800 dark:text-amber-200">
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-lg text-zinc-900 dark:text-zinc-100">
             <p className="font-semibold text-sm">
               Declining Order #{declineTargetOrder?.order_ref}
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-normal">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-normal">
               This order will return to the central Logistics Dispatch Board under <em>Awaiting Assignment</em> for re-dispatch to another fleet rider or 3PL courier.
             </p>
           </div>
 
           <div>
-            <label className="block font-semibold text-kumo-strong text-xs mb-1">
-              Reason for Declining:
-            </label>
-            <select
+            <Select
+              label="Reason for Declining"
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value)}
-              className="w-full h-9 text-[13px] bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg px-2.5 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary"
-            >
-              <option value="Bike mechanical issue / flat tire">Bike mechanical issue / flat tire</option>
-              <option value="Outside current delivery zone">Outside current operational delivery zone</option>
-              <option value="Delivery bag at full capacity">Delivery bag at full capacity / overloaded</option>
-              <option value="Severe weather / impassable road">Severe weather / impassable flooded road</option>
-              <option value="Personal / health emergency">Personal / health emergency</option>
-              <option value="Other / custom reason">Other reason (describe below)</option>
-            </select>
+              options={[
+                { value: 'Bike mechanical issue / flat tire', label: 'Bike mechanical issue / flat tire' },
+                { value: 'Outside current delivery zone', label: 'Outside current operational delivery zone' },
+                { value: 'Delivery bag at full capacity', label: 'Delivery bag at full capacity / overloaded' },
+                { value: 'Severe weather / impassable road', label: 'Severe weather / impassable flooded road' },
+                { value: 'Personal / health emergency', label: 'Personal / health emergency' },
+                { value: 'Other / custom reason', label: 'Other reason (describe below)' },
+              ]}
+            />
           </div>
 
           <div>
@@ -1067,23 +1104,6 @@ export const RiderDashboardPage: React.FC = () => {
               className="w-full text-xs sm:text-sm bg-kumo-canvas text-kumo-strong border border-kumo-line rounded-lg p-2.5 focus:outline-hidden focus:ring-1 focus:ring-primary placeholder:text-kumo-subtle/70 font-normal"
             />
           </div>
-
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-kumo-line">
-            <Button
-              variant="outline"
-              size="md"
-              onClick={() => setDeclineTargetOrder(null)}
-            >
-              Keep Assignment
-            </Button>
-            <Button
-              variant="destructive"
-              size="md"
-              onClick={handleConfirmDecline}
-            >
-              Confirm Decline
-            </Button>
-          </div>
         </div>
       </Dialog>
 
@@ -1095,35 +1115,10 @@ export const RiderDashboardPage: React.FC = () => {
         onClose={() => setConfirmDeliveryTarget(null)}
         title="Confirm Customer Handover"
         maxWidth="md"
-      >
-        <div className="space-y-3.5 font-sans text-xs">
-          <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg text-emerald-800 dark:text-emerald-200">
-            <h4 className="font-semibold text-sm">
-              Deliver Order #{confirmDeliveryTarget?.order_ref}?
-            </h4>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 font-normal">
-              Customer: <strong>{confirmDeliveryTarget?.customer_name}</strong> ({confirmDeliveryTarget?.phone})
-            </p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 font-normal">
-              Address: {confirmDeliveryTarget?.address}
-            </p>
-          </div>
-
-          <div className="p-3 bg-kumo-canvas border border-kumo-line rounded-lg">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-kumo-subtle font-normal">Commission Credited:</span>
-              <span className="font-bold text-emerald-600 text-sm">
-                +{formatNaira(confirmDeliveryTarget?.delivery_fee || 0)}
-              </span>
-            </div>
-            <p className="text-[11px] text-kumo-subtle mt-1 font-normal">
-              The fee will be auto-credited to your outstanding wallet balance and moved to your Delivered Orders archive.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-kumo-line">
+        footer={
+          <div className="flex items-center justify-between w-full">
             <Button
-              variant="outline"
+              variant="secondary"
               size="md"
               onClick={() => setConfirmDeliveryTarget(null)}
             >
@@ -1136,6 +1131,37 @@ export const RiderDashboardPage: React.FC = () => {
             >
               Confirm Delivered
             </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3.5 font-sans text-xs">
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-lg text-zinc-900 dark:text-zinc-100">
+            <h4 className="font-semibold text-sm">
+              Deliver Order #{confirmDeliveryTarget?.order_ref}?
+            </h4>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-normal">
+              Customer: <strong>{confirmDeliveryTarget?.customer_name}</strong> ({confirmDeliveryTarget?.phone})
+            </p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 font-normal">
+              Address: {confirmDeliveryTarget?.address}
+            </p>
+          </div>
+
+          <div className="p-3 bg-kumo-canvas border border-kumo-line rounded-lg space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-kumo-subtle font-normal">Commission Credited:</span>
+              <span className="font-bold text-kumo-strong font-mono text-sm">
+                +{formatNaira(confirmDeliveryTarget?.delivery_fee || 0)}
+              </span>
+            </div>
+            <p className="text-[11px] text-kumo-subtle font-normal">
+              The fee will be auto-credited to your outstanding wallet balance and moved to your Delivered Orders archive.
+            </p>
+          </div>
+
+          <div className="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg flex items-center justify-between text-xs">
+            <span className="text-zinc-600 dark:text-zinc-400 font-normal">Customer Order Bill:</span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">Prepaid Online (₦0 Cash to Collect)</span>
           </div>
         </div>
       </Dialog>

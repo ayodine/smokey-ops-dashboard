@@ -85,40 +85,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 }) => {
   const effectiveSubtext = subtext || description
 
-  // Check if this card represents a "No data" state like Cloudflare's Errors: 0
-  const isZeroValue = value === 0 || value === '0' || value === '₦0.00' || value === '0.00'
-  const isExplicitNoData = noData || (isZeroValue && (!delta || delta.value === '0' || String(delta.value).includes('0%')))
+  // Check if this card represents a "No data" state
+  const isExplicitNoData = noData === true || value === undefined || value === null || value === ''
 
-  // Calculate deterministic Month-to-Date (MTD) comparison delta when not explicitly provided
-  const defaultMtdDelta = React.useMemo(() => {
-    if (isExplicitNoData) return undefined
-    const hash = (title + String(value)).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const lowerTitle = title.toLowerCase()
-    const isNegativeDirection =
-      lowerTitle.includes('pending') ||
-      lowerTitle.includes('held') ||
-      lowerTitle.includes('waste') ||
-      lowerTitle.includes('scrap') ||
-      lowerTitle.includes('defect') ||
-      lowerTitle.includes('spoilage') ||
-      lowerTitle.includes('error') ||
-      lowerTitle.includes('alert') ||
-      lowerTitle.includes('delay') ||
-      lowerTitle.includes('rma') ||
-      lowerTitle.includes('out of stock') ||
-      lowerTitle.includes('critical')
-
-    const percent = ((hash % 110) / 10 + 1.8).toFixed(1)
-    const isPositive = !isNegativeDirection
-
-    return {
-      value: `${isPositive ? '+' : '-'}${percent}%`,
-      isPositive,
-      period: 'vs last month (MTD)',
-    }
-  }, [title, value, isExplicitNoData])
-
-  const effectiveDelta = delta || (trend ? { value: `${trend.isPositive ? '+' : ''}${trend.value}%`, isPositive: trend.isPositive, period: 'vs last month (MTD)' } : defaultMtdDelta)
+  // Only display delta if explicitly provided via delta or trend props — no hallucinated fallback
+  const effectiveDelta = delta || (trend ? { value: `${trend.isPositive ? '+' : ''}${trend.value}%`, isPositive: trend.isPositive, period: 'vs last month' } : undefined)
 
   const accentBorders = {
     default: '',

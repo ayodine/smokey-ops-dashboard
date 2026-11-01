@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { ProductionBatch, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation } from '@/lib/smokeyData'
+import { ProductionBatch, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation, BatchMaterialRequisition } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -52,35 +52,75 @@ import {
   ArrowRightLeft,
   RotateCcw,
   Scale,
-  ChevronDown
+  ChevronDown,
+  ShieldAlert,
+  AlertTriangle,
+  X,
+  FileText,
+  Calculator
 } from 'lucide-react'
 
 export const ProductionBatchesPage: React.FC = () => {
   const {
     productionBatches,
     salesProducts,
+    liveSalesProducts,
     rawProducts,
     recipeTemplates,
     intermediatePreps,
+    compoundInventory,
     createBatch,
     startBatch,
     completeBatch,
     cancelBatch,
     updateBatch,
+    deleteBatch,
+    deleteIntermediatePrep,
+    requestAdditionalBatchMaterial,
+    fulfillBatchMaterialRequisition,
+    rejectBatchMaterialRequisition,
+    returnUnconsumedBatchMaterials,
     saveCustomRecipeTemplate,
     updateRecipeTemplate,
     deleteRecipeTemplate,
     createIntermediatePrep,
     allocatePrepToBatch,
-    returnPrepToCentral
+    returnPrepToCentral,
+    issueCompoundToBatch,
+    returnCompoundSurplusFromBatch,
+    currentAccount
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'completed' | 'intermediate_preps'>('active')
+  const activeSalesProducts = liveSalesProducts.length > 0 ? liveSalesProducts : salesProducts
+  const hasInventoryRole = currentAccount?.role === 'inventory' || currentAccount?.role === 'admin' || currentAccount?.role === 'manager'
+
+  const [activeTab, setActiveTab] = useState<'all' | 'prep_queued' | 'cooking' | 'completed' | 'intermediate_preps'>('all')
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null)
+
+  // Requisitions Form State
+  const [isRequisitionModalOpen, setIsRequisitionModalOpen] = useState(false)
+  const [requisitionBatch, setRequisitionBatch] = useState<ProductionBatch | null>(null)
+  const [reqProductId, setReqProductId] = useState<number>(rawProducts[0]?.id || 52)
+  const [reqQty, setReqQty] = useState<number>(2)
+  const [reqReason, setReqReason] = useState<string>('Firewood burned faster / heat efficiency drop')
+  const [reqCustomNotes, setReqCustomNotes] = useState<string>('')
+  const [reqStaff, setReqStaff] = useState<string>(currentAccount?.name || 'Kitchen Pitmaster')
+
+  // Fulfill Requisition Modal State
+  const [isFulfillModalOpen, setIsFulfillModalOpen] = useState(false)
+  const [selectedReqForFulfill, setSelectedReqForFulfill] = useState<BatchMaterialRequisition | null>(null)
+  const [fulfillQty, setFulfillQty] = useState<number>(1)
+  const [warehouseNotes, setWarehouseNotes] = useState<string>('')
+  const [rejectionReason, setRejectionReason] = useState<string>('')
+  const [isRejectMode, setIsRejectMode] = useState<boolean>(false)
+
+  // Expandable Return Materials State for Batch Completion
+  const [isReturnsExpanded, setIsReturnsExpanded] = useState<boolean>(false)
+  const [returnedMaterials, setReturnedMaterials] = useState<Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>>([])
 
   // Intermediate Preps State
   const [isCreatePrepModalOpen, setIsCreatePrepModalOpen] = useState(false)
@@ -93,23 +133,23 @@ export const ProductionBatchesPage: React.FC = () => {
   const [prepRecipeName, setPrepRecipeName] = useState('Signature Pepper Mix & Marinade')
   const [prepUnit, setPrepUnit] = useState<'kg' | 'L'>('kg')
   const [prepYieldQty, setPrepYieldQty] = useState<number>(20)
-  const [prepPreparedBy, setPrepPreparedBy] = useState('Chef Tunde')
+  const [prepPreparedBy, setPrepPreparedBy] = useState(currentAccount?.name || 'Kitchen Staff')
   const [prepIngredients, setPrepIngredients] = useState<Array<{ productId: number; quantity: number }>>([
-    { productId: 11, quantity: 12 }, // Scotch Bonnet Pepper
-    { productId: 12, quantity: 6 },  // Red Onions
-    { productId: 15, quantity: 2 },  // Spice Blend
+    { productId: 53, quantity: 12 }, // DRY PEPPER
+    { productId: 54, quantity: 2 },  // SPICIES
+    { productId: 55, quantity: 5 },  // VEGETABLE OIL
   ])
 
   // Allocate Prep to Batch Form State
-  const [allocTargetProduct, setAllocTargetProduct] = useState('Smoked Guinea Fowl')
-  const [allocBatchRef, setAllocBatchRef] = useState('BAT-20261030-01')
+  const [allocTargetProduct, setAllocTargetProduct] = useState('Full Smokey Guineafowl')
+  const [allocBatchRef, setAllocBatchRef] = useState('BAT-00001')
   const [allocQty, setAllocQty] = useState<number>(5)
-  const [allocBy, setAllocBy] = useState('Shift Chef')
+  const [allocBy, setAllocBy] = useState(currentAccount?.name || 'Kitchen Staff')
 
   // Return Prep to Central Hub Form State
   const [returnPrepQty, setReturnPrepQty] = useState<number>(2)
-  const [returnPrepNotes, setReturnPrepNotes] = useState('Sealed in food-grade container for Hub Cold Storage')
-  const [returnPrepBy, setReturnPrepBy] = useState('Shift Chef')
+  const [returnPrepNotes, setReturnPrepNotes] = useState('Sealed in food-grade container for Central Store cold storage')
+  const [returnPrepBy, setReturnPrepBy] = useState(currentAccount?.name || 'Kitchen Staff')
 
   // Manage & Edit Recipe Templates State
   const [isManageTemplatesModalOpen, setIsManageTemplatesModalOpen] = useState(false)
@@ -156,32 +196,62 @@ export const ProductionBatchesPage: React.FC = () => {
 
   // Batch Creation Form State
   const [selectedRecipeTemplateId, setSelectedRecipeTemplateId] = useState<number | 'custom'>(1)
-  const [selectedOutputProduct, setSelectedOutputProduct] = useState<number>(salesProducts[0]?.id || 38)
+  const [selectedOutputProduct, setSelectedOutputProduct] = useState<number>(7)
   const [expectedOutput, setExpectedOutput] = useState<number>(50)
   const [batchRemarks, setBatchRemarks] = useState<string>('Standard morning run on Smoking Grill #1')
   const [batchSchedule, setBatchSchedule] = useState<'today' | 'tomorrow_morning'>('today')
   const [estimatedReadyTime, setEstimatedReadyTime] = useState<string>('Today 1:30 PM')
   const [feedSalesInventory, setFeedSalesInventory] = useState<boolean>(true)
   const [bomRows, setBomRows] = useState<RawMaterialBOM[]>([
-    { product_id: 62, sku: 'SKU-00028', name: 'FRESH GUINEAFOWL', quantity: 50, unit: 'PIECES' },
-    { product_id: 53, sku: 'SKU-00019', name: 'DRY PEPPER', quantity: 2.5, unit: 'KG' },
-    { product_id: 54, sku: 'SKU-00020', name: 'SPICIES (SECRET BLEND)', quantity: 1.0, unit: 'PACK' },
-    { product_id: 52, sku: 'SKU-00018', name: 'FIREWOOD', quantity: 4.0, unit: 'BUNDLE' },
+    { product_id: 62, sku: 'SKU-00028', name: 'FRESH GUINEAFOWL', quantity: 50, unit: 'PCS', item_type: 'raw', source: 'initial' },
+    { product_id: 53, sku: 'SKU-00019', name: 'DRY PEPPER', quantity: 2.5, unit: 'KG', item_type: 'raw', source: 'initial' },
+    { product_id: 54, sku: 'SKU-00020', name: 'SPICIES', quantity: 1.0, unit: 'PACK', item_type: 'raw', source: 'initial' },
+    { product_id: 52, sku: 'SKU-00018', name: 'FIREWOOD', quantity: 4.0, unit: 'Bundle', item_type: 'raw', source: 'initial' },
   ])
 
   const handleOpenTodayBatch = () => {
+    setSelectedRecipeTemplateId(1)
+    const tmpl = recipeTemplates.find(t => t.id === 1)
+    if (tmpl) {
+      setSelectedOutputProduct(tmpl.output_product_id)
+      setExpectedOutput(tmpl.standard_batch_size)
+      setBomRows(tmpl.ingredients.map(ing => ({
+        product_id: ing.raw_product_id,
+        sku: ing.sku,
+        name: ing.name,
+        quantity: Number((ing.standard_qty_per_unit * tmpl.standard_batch_size).toFixed(3)),
+        unit: ing.unit,
+        item_type: 'raw',
+        source: 'initial'
+      })))
+      setBatchRemarks(`Standard Recipe Run: ${tmpl.version_name} (Yield Target: ${tmpl.standard_batch_size} units)`)
+    }
     setBatchSchedule('today')
     setEstimatedReadyTime('Today 1:30 PM')
     setFeedSalesInventory(true)
-    setBatchRemarks('Standard daytime smoke cycle')
     setIsCreateModalOpen(true)
   }
 
   const handleOpenTomorrowBatch = () => {
+    setSelectedRecipeTemplateId(1)
+    const tmpl = recipeTemplates.find(t => t.id === 1)
+    if (tmpl) {
+      setSelectedOutputProduct(tmpl.output_product_id)
+      setExpectedOutput(tmpl.standard_batch_size)
+      setBomRows(tmpl.ingredients.map(ing => ({
+        product_id: ing.raw_product_id,
+        sku: ing.sku,
+        name: ing.name,
+        quantity: Number((ing.standard_qty_per_unit * tmpl.standard_batch_size).toFixed(3)),
+        unit: ing.unit,
+        item_type: 'raw',
+        source: 'initial'
+      })))
+      setBatchRemarks(`Next-day morning smoke cycle: ${tmpl.version_name}. Feeds overnight website pre-orders.`)
+    }
     setBatchSchedule('tomorrow_morning')
     setEstimatedReadyTime('Tomorrow 9:30 AM')
     setFeedSalesInventory(true)
-    setBatchRemarks('Next-day morning smoke cycle. Feeds overnight website pre-orders.')
     setIsCreateModalOpen(true)
   }
 
@@ -203,10 +273,33 @@ export const ProductionBatchesPage: React.FC = () => {
       sku: ing.sku,
       name: ing.name,
       quantity: Number((ing.standard_qty_per_unit * tmpl.standard_batch_size).toFixed(3)),
-      unit: ing.unit
+      unit: ing.unit,
+      item_type: 'raw',
+      source: 'initial'
     }))
     setBomRows(calculated)
-    setBatchRemarks(`Standard BOM Run: ${tmpl.version_name} (Yield Target: ${tmpl.standard_batch_size} units)`)
+    setBatchRemarks(`Standard Recipe Run: ${tmpl.version_name} (Yield Target: ${tmpl.standard_batch_size} units)`)
+  }
+
+  const handleSelectOutputProduct = (prodId: number) => {
+    setSelectedOutputProduct(prodId)
+    const matchingTmpl = recipeTemplates.find(t => t.output_product_id === prodId)
+    if (matchingTmpl) {
+      setSelectedRecipeTemplateId(matchingTmpl.id)
+      setExpectedOutput(matchingTmpl.standard_batch_size)
+      setBomRows(matchingTmpl.ingredients.map(ing => ({
+        product_id: ing.raw_product_id,
+        sku: ing.sku,
+        name: ing.name,
+        quantity: Number((ing.standard_qty_per_unit * matchingTmpl.standard_batch_size).toFixed(3)),
+        unit: ing.unit,
+        item_type: 'raw',
+        source: 'initial'
+      })))
+      setBatchRemarks(`Standard Recipe Run: ${matchingTmpl.version_name} (Yield Target: ${matchingTmpl.standard_batch_size} units)`)
+    } else {
+      setSelectedRecipeTemplateId('custom')
+    }
   }
 
   const handleExpectedOutputChange = (newTarget: number) => {
@@ -219,40 +312,11 @@ export const ProductionBatchesPage: React.FC = () => {
           sku: ing.sku,
           name: ing.name,
           quantity: Number((ing.standard_qty_per_unit * newTarget).toFixed(3)),
-          unit: ing.unit
+          unit: ing.unit,
+          item_type: 'raw',
+          source: 'initial'
         })))
       }
-    }
-  }
-
-  // Presets / Recipe BOM Template helper
-  const applyPresetRecipe = (dishId: number) => {
-    setSelectedOutputProduct(dishId)
-    if (dishId === 38 || dishId === 39) {
-      // Full Smokey Guineafowl
-      setExpectedOutput(50)
-      setBomRows([
-        { product_id: 62, sku: 'SKU-00028', name: 'FRESH GUINEAFOWL', quantity: 50, unit: 'PIECES' },
-        { product_id: 53, sku: 'SKU-00019', name: 'DRY PEPPER', quantity: 2.5, unit: 'KG' },
-        { product_id: 54, sku: 'SKU-00020', name: 'SPICIES (SECRET BLEND)', quantity: 1.0, unit: 'PACK' },
-        { product_id: 52, sku: 'SKU-00018', name: 'FIREWOOD', quantity: 4.0, unit: 'BUNDLE' },
-      ])
-    } else if (dishId === 48) {
-      // Beef Jerkey / Kilishi
-      setExpectedOutput(30)
-      setBomRows([
-        { product_id: 63, sku: 'SKU-00029', name: 'FRESH CHICKEN', quantity: 15, unit: 'PIECES' },
-        { product_id: 53, sku: 'SKU-00019', name: 'DRY PEPPER', quantity: 2.0, unit: 'KG' },
-        { product_id: 54, sku: 'SKU-00020', name: 'SPICIES (SECRET BLEND)', quantity: 1.0, unit: 'PACK' },
-      ])
-    } else if (dishId === 44) {
-      // 1L Rice Bowl
-      setExpectedOutput(40)
-      setBomRows([
-        { product_id: 62, sku: 'SKU-00028', name: 'FRESH GUINEAFOWL', quantity: 20, unit: 'PIECES' },
-        { product_id: 55, sku: 'SKU-00021', name: 'VEGETABLE OIL', quantity: 3.0, unit: 'LITRE' },
-        { product_id: 54, sku: 'SKU-00020', name: 'SPICIES (SECRET BLEND)', quantity: 1.5, unit: 'PACK' },
-      ])
     }
   }
 
@@ -264,7 +328,11 @@ export const ProductionBatchesPage: React.FC = () => {
       sku: raw.sku,
       name: raw.name,
       quantity: 1,
-      unit: raw.unit
+      unit: raw.unit,
+      item_type: 'raw',
+      source: 'initial',
+      unit_cost: raw.unit_cost || 0,
+      total_cost: raw.unit_cost || 0
     }])
   }
 
@@ -367,13 +435,55 @@ export const ProductionBatchesPage: React.FC = () => {
     setBomRows(prev => prev.map((row, i) => {
       if (i !== index) return row
       if (field === 'product_id') {
+        const isCpdString = typeof val === 'string' && val.startsWith('cpd-')
+        const cpdId = isCpdString ? Number(val.replace('cpd-', '')) : undefined
+
+        const compound = cpdId !== undefined
+          ? compoundInventory.find(c => c.id === cpdId)
+          : compoundInventory.find(c => c.id === Number(val))
+
+        if (compound) {
+          const unitCost = compound.unit_cost || 0
+          return {
+            ...row,
+            product_id: compound.id,
+            name: compound.name,
+            sku: compound.sku,
+            unit: compound.unit,
+            item_type: 'compound' as const,
+            compound_id: compound.id,
+            prep_ref: compound.preparation_lots?.[0]?.prep_ref,
+            unit_cost: unitCost,
+            total_cost: Math.round(row.quantity * unitCost * 100) / 100
+          }
+        }
+
         const raw = rawProducts.find(p => p.id === Number(val))
+        const unitCost = raw?.unit_cost || 0
         return {
           ...row,
           product_id: Number(val),
           name: raw?.name || row.name,
           sku: raw?.sku || row.sku,
-          unit: raw?.unit || row.unit
+          unit: raw?.unit || row.unit,
+          item_type: 'raw' as const,
+          compound_id: undefined,
+          prep_ref: undefined,
+          unit_cost: unitCost,
+          total_cost: Math.round(row.quantity * unitCost * 100) / 100
+        }
+      }
+      if (field === 'quantity') {
+        const qty = Number(val) || 0
+        const isCpd = row.item_type === 'compound' || !!row.compound_id
+        const unitCost = row.unit_cost || (isCpd
+          ? compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id)?.unit_cost
+          : rawProducts.find(p => p.id === row.product_id)?.unit_cost) || 0
+        return {
+          ...row,
+          quantity: qty,
+          unit_cost: unitCost,
+          total_cost: Math.round(qty * unitCost * 100) / 100
         }
       }
       return { ...row, [field]: val }
@@ -382,21 +492,37 @@ export const ProductionBatchesPage: React.FC = () => {
 
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
-  // Dynamic KPIs reflecting custom date range
-  const activeBatchesForKPI = useMemo(() => {
-    if (!dateRange) return productionBatches
-    return productionBatches.filter(b => isWithinDateRange(b.started_at || b.completed_at, dateRange))
+  // Dynamic batch filtering with date range active synchronization
+  const isBatchWithinRange = (b: ProductionBatch) => {
+    if (!dateRange) return true
+    const dateStr = b.started_at || b.completed_at || b.created_at
+    if (!dateStr) return true
+    return isWithinDateRange(dateStr, dateRange)
+  }
+
+  const dateFilteredBatches = useMemo(() => {
+    return productionBatches.filter(isBatchWithinRange)
   }, [productionBatches, dateRange])
 
-  const totalBatches = activeBatchesForKPI.length
-  const prepQueuedBatches = useMemo(() => productionBatches.filter(b => b.status === 'draft'), [productionBatches])
-  const producingBatches = useMemo(() => productionBatches.filter(b => b.status === 'in_production'), [productionBatches])
-  const completedBatches = useMemo(() => productionBatches.filter(b => b.status === 'completed'), [productionBatches])
+  const dateFilteredPrepQueued = useMemo(() => {
+    return dateFilteredBatches.filter(b => b.status === 'draft')
+  }, [dateFilteredBatches])
 
-  const filteredPrepQueued = activeBatchesForKPI.filter(b => b.status === 'draft')
-  const filteredProducing = activeBatchesForKPI.filter(b => b.status === 'in_production')
-  const filteredCompleted = activeBatchesForKPI.filter(b => b.status === 'completed')
-  const totalProducedUnits = filteredCompleted.reduce((acc, b) => acc + b.actual_output, 0)
+  const dateFilteredProducing = useMemo(() => {
+    return dateFilteredBatches.filter(b => b.status === 'in_production')
+  }, [dateFilteredBatches])
+
+  const dateFilteredCompleted = useMemo(() => {
+    return dateFilteredBatches.filter(b => b.status === 'completed')
+  }, [dateFilteredBatches])
+
+  const dateFilteredIntermediatePreps = useMemo(() => {
+    if (!dateRange) return intermediatePreps
+    return intermediatePreps.filter(p => isWithinDateRange(p.created_at, dateRange))
+  }, [intermediatePreps, dateRange])
+
+  const totalBatches = dateFilteredBatches.length
+  const totalProducedUnits = dateFilteredCompleted.reduce((acc, b) => acc + b.actual_output, 0)
 
   // Actions
   const handleOpenComplete = (b: ProductionBatch) => {
@@ -404,12 +530,74 @@ export const ProductionBatchesPage: React.FC = () => {
     setActualOutput(b.expected_output)
     setWastage(0)
     setQcNotes('Smoking grill cycle completed. Core temp and doneness passed inspection.')
+    setIsReturnsExpanded(false)
+    setReturnedMaterials([])
     setIsCompleteModalOpen(true)
   }
 
   const handleOpenPreview = (b: ProductionBatch) => {
     setSelectedBatch(b)
     setIsPreviewModalOpen(true)
+  }
+
+  const handleOpenRequisitionModal = (b: ProductionBatch) => {
+    setRequisitionBatch(b)
+    if (rawProducts.length > 0) {
+      setReqProductId(rawProducts[0].id)
+    }
+    setReqQty(1)
+    setReqReason('Firewood burned faster / heat efficiency drop')
+    setReqCustomNotes('')
+    setReqStaff(currentAccount?.name || 'Kitchen Pitmaster')
+    setIsRequisitionModalOpen(true)
+  }
+
+  const handleConfirmSubmitRequisition = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!requisitionBatch) return
+    const reasonText = reqCustomNotes.trim() ? `${reqReason} - ${reqCustomNotes.trim()}` : reqReason
+    requestAdditionalBatchMaterial({
+      batchId: requisitionBatch.id,
+      productId: Number(reqProductId),
+      quantity: Number(reqQty),
+      reason: reasonText,
+      requestedBy: reqStaff.trim() || undefined
+    })
+    setIsRequisitionModalOpen(false)
+  }
+
+  const handleOpenFulfillModal = (req: BatchMaterialRequisition) => {
+    setSelectedReqForFulfill(req)
+    setFulfillQty(req.requested_qty)
+    setWarehouseNotes('')
+    setRejectionReason('')
+    setIsRejectMode(false)
+    setIsFulfillModalOpen(true)
+  }
+
+  const handleConfirmFulfillReq = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedReqForFulfill) return
+    const success = fulfillBatchMaterialRequisition(
+      selectedReqForFulfill.id,
+      Number(fulfillQty),
+      warehouseNotes
+    )
+    if (success) {
+      setIsFulfillModalOpen(false)
+    }
+  }
+
+  const handleConfirmRejectReq = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedReqForFulfill || !rejectionReason.trim()) return
+    const success = rejectBatchMaterialRequisition(
+      selectedReqForFulfill.id,
+      rejectionReason.trim()
+    )
+    if (success) {
+      setIsFulfillModalOpen(false)
+    }
   }
 
   const handleOpenEdit = (b: ProductionBatch) => {
@@ -478,7 +666,7 @@ export const ProductionBatchesPage: React.FC = () => {
 
   const handleConfirmCreate = (e: React.FormEvent) => {
     e.preventDefault()
-    const targetProduct = salesProducts.find(p => p.id === Number(selectedOutputProduct))
+    const targetProduct = activeSalesProducts.find(p => p.id === Number(selectedOutputProduct)) || salesProducts.find(p => p.id === Number(selectedOutputProduct))
     if (!targetProduct) return
 
     createBatch({
@@ -497,9 +685,194 @@ export const ProductionBatchesPage: React.FC = () => {
   const handleConfirmComplete = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedBatch) return
-    completeBatch(selectedBatch.id, Number(actualOutput), Number(wastage), qcNotes)
+    completeBatch(
+      selectedBatch.id,
+      Number(actualOutput),
+      Number(wastage),
+      qcNotes,
+      returnedMaterials.length > 0 ? returnedMaterials : undefined
+    )
     setIsCompleteModalOpen(false)
   }
+
+  // Columns for All Batches
+  const allColumns: ColumnDef<ProductionBatch>[] = [
+    {
+      key: 'batch_ref',
+      header: 'Batch Ref',
+      accessor: (b) => (
+        <Tooltip content="Click to view recipe, requisitions & costing breakdown">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleOpenPreview(b)
+            }}
+            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
+          >
+            <span>{b.batch_ref}</span>
+          </button>
+        </Tooltip>
+      ),
+      sortValue: (b) => b.batch_ref,
+    },
+    {
+      key: 'output_product_name',
+      header: 'Dish / Finished Product',
+      accessor: (b) => (
+        <div>
+          <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
+          <div className="text-xs text-kumo-subtle font-sans">
+            {b.raw_materials.length} formulated ingredients
+            {b.additional_requisitions && b.additional_requisitions.length > 0 && (
+              <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">
+                (+{b.additional_requisitions.length} requisitions)
+              </span>
+            )}
+          </div>
+        </div>
+      ),
+      sortValue: (b) => b.output_product_name,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      accessor: (b) => {
+        if (b.status === 'draft') return <StatusBadge status="draft" label="prep queued" />
+        if (b.status === 'in_production') return <StatusBadge status="in-progress" label="on smoking grill" />
+        if (b.status === 'completed') return <StatusBadge status="completed" label="finished" />
+        return <StatusBadge status="inactive" label="cancelled" />
+      },
+      sortValue: (b) => b.status,
+    },
+    {
+      key: 'yield',
+      header: 'Output / Yield',
+      accessor: (b) => (
+        <div className="font-sans text-xs">
+          {b.status === 'completed' ? (
+            <div>
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-mono">
+                {b.actual_output} portions
+              </span>
+              <span className="text-kumo-subtle text-[11px] block">
+                Target: {b.expected_output} {b.wastage > 0 ? `(${b.wastage} loss)` : ''}
+              </span>
+            </div>
+          ) : (
+            <div>
+              <span className="font-semibold text-kumo-strong font-mono">{b.expected_output} portions planned</span>
+              {b.feed_sales_inventory !== false && (
+                <span className="text-amber-600 dark:text-amber-400 text-[11px] block">Buffered to storefront</span>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+      sortValue: (b) => b.status === 'completed' ? b.actual_output : b.expected_output,
+    },
+    {
+      key: 'material_cost',
+      header: 'Material Cost',
+      accessor: (b) => {
+        const cost = b.total_material_cost || b.initial_material_cost || 0
+        return (
+          <div className="font-sans text-xs">
+            <div className="font-semibold text-kumo-strong font-mono">
+              {cost > 0 ? formatNaira(cost) : '—'}
+            </div>
+            {b.unit_cost_per_portion && b.unit_cost_per_portion > 0 ? (
+              <div className="text-[11px] text-kumo-subtle font-mono">
+                {formatNaira(b.unit_cost_per_portion)} / unit
+              </div>
+            ) : null}
+          </div>
+        )
+      },
+      sortValue: (b) => b.total_material_cost || b.initial_material_cost || 0,
+    },
+    {
+      key: 'schedule',
+      header: 'Timeline & Supervisor',
+      accessor: (b) => (
+        <div className="font-sans text-xs">
+          <div className="text-kumo-strong font-medium">
+            {b.status === 'completed' && b.completed_at ? formatDate(b.completed_at) : (b.started_at ? formatDate(b.started_at) : (b.created_at ? formatDate(b.created_at) : 'Queued'))}
+          </div>
+          <div className="text-[11px] text-kumo-subtle">
+            {b.created_by_name}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      defaultWidth: 220,
+      accessor: (b) => (
+        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          {b.status === 'draft' && (
+            <Tooltip content="Begin cooking this batch on smoking grill">
+              <TableActionButton
+                variant="primary"
+                onClick={() => startBatch(b.id)}
+                leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
+              >
+                Start Cooking
+              </TableActionButton>
+            </Tooltip>
+          )}
+          {b.status === 'in_production' && (
+            <>
+              <Tooltip content="Record QC yield and complete cooking">
+                <TableActionButton
+                  variant="success"
+                  onClick={() => handleOpenComplete(b)}
+                  leftIcon={<CheckSquare className="w-3.5 h-3.5" />}
+                >
+                  Complete
+                </TableActionButton>
+              </Tooltip>
+              <Tooltip content="Request extra firewood, spices, or ingredients from Central Store">
+                <TableActionButton
+                  variant="outline"
+                  onClick={() => handleOpenRequisitionModal(b)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  + Stock
+                </TableActionButton>
+              </Tooltip>
+            </>
+          )}
+          {b.status === 'completed' && (
+            <Tooltip content="View full recipe and batch breakdown">
+              <TableActionButton
+                variant="outline"
+                onClick={() => handleOpenPreview(b)}
+                leftIcon={<Eye className="w-3.5 h-3.5" />}
+              >
+                Recipe
+              </TableActionButton>
+            </Tooltip>
+          )}
+          {b.status === 'cancelled' && (
+            <span className="text-xs text-red-500 font-medium px-2 py-0.5 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              Cancelled
+            </span>
+          )}
+          <Tooltip content="Edit batch parameters">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(b)}
+              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
+      ),
+    },
+  ]
 
   // Columns for Active / Prep Queued Batches (Needing Action to Start Cooking)
   const activeColumns: ColumnDef<ProductionBatch>[] = [
@@ -554,7 +927,7 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'status',
       header: 'Cooking Status',
-      accessor: () => <StatusBadge status="draft" label="no-action" />,
+      accessor: () => <StatusBadge status="draft" label="prep queued" />,
       sortValue: (b) => b.status,
     },
     {
@@ -608,6 +981,20 @@ export const ProductionBatchesPage: React.FC = () => {
               className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
             >
               <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Cancel batch & restore reserved ingredients to Central Store">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Cancel draft batch ${b.batch_ref}? All reserved ingredients will be restored to store.`)) {
+                  cancelBatch(b.id)
+                }
+              }}
+              className="p-1.5 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </Tooltip>
         </div>
@@ -666,7 +1053,19 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'status',
       header: 'Cooking Status',
-      accessor: () => <StatusBadge status="in-progress" label="in-progress" />,
+      accessor: (b) => {
+        const pendingCount = b.additional_requisitions?.filter(r => r.status === 'pending').length || 0
+        return (
+          <div>
+            <StatusBadge status="in-progress" label="on smoking grill" />
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 mt-1 border border-amber-300 dark:border-amber-700 animate-pulse">
+                {pendingCount} Requisition{pendingCount > 1 ? 's' : ''} Pending
+              </span>
+            )}
+          </div>
+        )
+      },
       sortValue: (b) => b.status,
     },
     {
@@ -692,7 +1091,7 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 210,
+      defaultWidth: 240,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record QC yield and complete cooking">
@@ -702,6 +1101,16 @@ export const ProductionBatchesPage: React.FC = () => {
               leftIcon={<CheckSquare className="w-3.5 h-3.5" />}
             >
               Complete Cooking
+            </TableActionButton>
+          </Tooltip>
+
+          <Tooltip content="Request extra firewood, seasonings, or ingredients without cancelling batch">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenRequisitionModal(b)}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+            >
+              Request Stock
             </TableActionButton>
           </Tooltip>
 
@@ -724,7 +1133,20 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'batch_ref',
       header: 'Batch Ref',
-      accessor: (b) => <span className="font-medium text-xs text-kumo-strong font-sans">{b.batch_ref}</span>,
+      accessor: (b) => (
+        <Tooltip content="Click to view recipe, requisitions & costing breakdown">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleOpenPreview(b)
+            }}
+            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
+          >
+            <span>{b.batch_ref}</span>
+          </button>
+        </Tooltip>
+      ),
       sortValue: (b) => b.batch_ref,
     },
     {
@@ -750,6 +1172,23 @@ export const ProductionBatchesPage: React.FC = () => {
       sortValue: (b) => b.actual_output,
     },
     {
+      key: 'costing',
+      header: 'Batch Cost & Portion Cost',
+      accessor: (b) => (
+        <div className="font-sans text-xs">
+          <div className="font-semibold text-kumo-strong font-mono">
+            {b.total_material_cost ? formatNaira(b.total_material_cost) : '—'}
+          </div>
+          {b.unit_cost_per_portion && b.unit_cost_per_portion > 0 ? (
+            <div className="text-[11px] text-kumo-subtle font-mono mt-0.5">
+              {formatNaira(b.unit_cost_per_portion)} / portion
+            </div>
+          ) : null}
+        </div>
+      ),
+      sortValue: (b) => b.total_material_cost || 0,
+    },
+    {
       key: 'wastage',
       header: 'Cooking Loss / Wastage',
       accessor: (b) => (
@@ -768,7 +1207,7 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'status',
       header: 'QC Result',
-      defaultWidth: 190,
+      defaultWidth: 160,
       accessor: (b) => <StatusBadge status="completed" label="completed" />,
     },
     {
@@ -833,6 +1272,25 @@ export const ProductionBatchesPage: React.FC = () => {
         )
       },
       sortValue: (p) => p.remaining_qty,
+    },
+    {
+      key: 'unit_cost',
+      header: 'Unit Cost & Valuation',
+      accessor: (p) => {
+        const uCost = p.unit_cost || 0
+        const totalVal = Math.round(p.remaining_qty * uCost * 100) / 100
+        return (
+          <div>
+            <div className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 text-xs">
+              {formatNaira(uCost)} / {p.unit}
+            </div>
+            <div className="text-[11px] text-zinc-500 font-mono">
+              Valuation: <strong className="text-emerald-600 dark:text-emerald-400">{formatNaira(totalVal)}</strong>
+            </div>
+          </div>
+        )
+      },
+      sortValue: (p) => p.unit_cost || 0,
     },
     {
       key: 'allocations',
@@ -917,9 +1375,24 @@ export const ProductionBatchesPage: React.FC = () => {
                   Return Hub
                 </TableActionButton>
               </Tooltip>
+              {p.allocations.length === 0 && (
+                <Tooltip content="Delete unused prep mix & restore raw ingredients">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Delete intermediate prep ${p.prep_ref} and restore raw ingredients to Central Store?`)) {
+                        deleteIntermediatePrep(p.id)
+                      }
+                    }}
+                    className="p-1.5 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors border border-kumo-line"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </Tooltip>
+              )}
             </>
           ) : (
-            <span className="text-xs text-kumo-subtle font-sans px-1">Completed</span>
+            <span className="text-xs text-kumo-subtle font-sans px-1">Exhausted</span>
           )}
         </div>
       ),
@@ -968,7 +1441,7 @@ export const ProductionBatchesPage: React.FC = () => {
                           Start Cooking Batch (Today)
                         </div>
                         <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                          Active daytime smoke run with live BOM inventory deduction
+                          Active daytime smoke run with automatic recipe ingredient deduction
                         </div>
                       </div>
                     </button>
@@ -1031,30 +1504,35 @@ export const ProductionBatchesPage: React.FC = () => {
           value={totalBatches}
           description={dateRange ? "In selected date range" : "All batches recorded"}
           icon={<Factory className="w-4 h-4 text-primary" />}
+          noData={false}
         />
         <MetricCard
           title="Prep Queued"
-          value={filteredPrepQueued.length}
+          value={dateFilteredPrepQueued.length}
           description="Awaiting grill ignition"
           icon={<Clock className="w-4 h-4 text-amber-500" />}
+          noData={false}
         />
         <MetricCard
           title="On Smoking Grills"
-          value={filteredProducing.length}
+          value={dateFilteredProducing.length}
           description="Cooking in chambers"
           icon={<Flame className="w-4 h-4 text-rose-500" />}
+          noData={false}
         />
         <MetricCard
           title="Recipe Preps Ready"
           value={`${intermediatePreps.filter(p => p.status === 'active').reduce((acc, p) => acc + p.remaining_qty, 0)} kg/L`}
           description={`${intermediatePreps.filter(p => p.status === 'active').length} active intermediate mixes`}
           icon={<Layers className="w-4 h-4 text-blue-600" />}
+          noData={false}
         />
         <MetricCard
           title="Finished Batches"
-          value={filteredCompleted.length}
+          value={dateFilteredCompleted.length}
           description="QC inspected & finalized"
           icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          noData={false}
         />
       </div>
 
@@ -1064,35 +1542,48 @@ export const ProductionBatchesPage: React.FC = () => {
           activeTab={activeTab}
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
-            { id: 'active', label: 'Active Batches', badge: prepQueuedBatches.length },
-            { id: 'ongoing', label: 'On-going Batches', badge: producingBatches.length },
-            { id: 'completed', label: 'Finished Batches', badge: completedBatches.length },
-            { id: 'intermediate_preps', label: 'Recipe Preps & Mixes', badge: intermediatePreps.filter(p => p.status === 'active').length },
+            { id: 'all', label: 'All Batches', badge: dateFilteredBatches.length },
+            { id: 'prep_queued', label: 'Prep Queued', badge: dateFilteredPrepQueued.length },
+            { id: 'cooking', label: 'On Smoking Grills', badge: dateFilteredProducing.length },
+            { id: 'completed', label: 'Finished Batches', badge: dateFilteredCompleted.length },
+            { id: 'intermediate_preps', label: 'Recipe Preps & Mixes', badge: dateFilteredIntermediatePreps.filter(p => p.status === 'active').length },
           ]}
         />
       </div>
 
       {/* Tables */}
       <div>
-        {activeTab === 'active' && (
+        {activeTab === 'all' && (
           <DataTable
-            data={prepQueuedBatches}
+            data={dateFilteredBatches}
+            columns={allColumns}
+            searchable={true}
+            searchPlaceholder="Search all production batches..."
+            title="All Production Batches"
+            exportFilename="smokey-all-production-batches"
+            onRowClick={(b) => handleOpenPreview(b)}
+            onDateRangeChange={setDateRange}
+          />
+        )}
+        {activeTab === 'prep_queued' && (
+          <DataTable
+            data={dateFilteredPrepQueued}
             columns={activeColumns}
             searchable={true}
-            searchPlaceholder="Search active prep batches..."
+            searchPlaceholder="Search prep queued batches..."
             title="Active Prep Queued Batch"
             exportFilename="smokey-active-prep-batches"
             onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
           />
         )}
-        {activeTab === 'ongoing' && (
+        {activeTab === 'cooking' && (
           <DataTable
-            data={producingBatches}
+            data={dateFilteredProducing}
             columns={ongoingColumns}
             searchable={true}
             searchPlaceholder="Search on-going producing runs..."
-            title="On-going Producing Batch"
+            title="On Smoking Grills Batches"
             exportFilename="smokey-producing-batches"
             onRowClick={(b) => handleOpenPreview(b)}
             onDateRangeChange={setDateRange}
@@ -1100,7 +1591,7 @@ export const ProductionBatchesPage: React.FC = () => {
         )}
         {activeTab === 'completed' && (
           <DataTable
-            data={completedBatches}
+            data={dateFilteredCompleted}
             columns={completedColumns}
             searchable={true}
             searchPlaceholder="Search finished cooking runs..."
@@ -1112,7 +1603,7 @@ export const ProductionBatchesPage: React.FC = () => {
         )}
         {activeTab === 'intermediate_preps' && (
           <DataTable
-            data={intermediatePreps}
+            data={dateFilteredIntermediatePreps}
             columns={intermediateColumns}
             searchable={true}
             searchPlaceholder="Search recipe preps, mixes..."
@@ -1122,6 +1613,7 @@ export const ProductionBatchesPage: React.FC = () => {
               setSelectedPrep(p)
               setIsPrepProvenanceModalOpen(true)
             }}
+            onDateRangeChange={setDateRange}
           />
         )}
       </div>
@@ -1267,11 +1759,8 @@ export const ProductionBatchesPage: React.FC = () => {
             <Select
               label="Output Finished Product"
               value={selectedOutputProduct}
-              onChange={(e) => {
-                setSelectedOutputProduct(Number(e.target.value))
-                setSelectedRecipeTemplateId('custom')
-              }}
-              options={salesProducts.map(p => ({ value: p.id, label: p.name }))}
+              onChange={(e) => handleSelectOutputProduct(Number(e.target.value))}
+              options={activeSalesProducts.map(p => ({ value: p.id, label: p.name }))}
               size="md"
             />
 
@@ -1285,15 +1774,70 @@ export const ProductionBatchesPage: React.FC = () => {
             />
           </div>
 
+          {/* Interactive Live Batch Cost & Margin Benchmark Card */}
+          {(() => {
+            const totalBomCost = bomRows.reduce((acc, row) => {
+              const unitCost = row.unit_cost || (row.item_type === 'compound'
+                ? compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id)?.unit_cost
+                : rawProducts.find(p => p.id === row.product_id)?.unit_cost) || 0
+              return acc + (row.quantity * unitCost)
+            }, 0)
+            const costPerPortion = expectedOutput > 0 ? totalBomCost / expectedOutput : 0
+            const hasDeficit = bomRows.some(row => {
+              const available = row.item_type === 'compound'
+                ? (compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id)?.stock_qty || 0)
+                : (rawProducts.find(p => p.id === row.product_id)?.stock_qty || 0)
+              return row.quantity > available
+            })
+
+            return (
+              <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 space-y-2.5 font-sans">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calculator className="w-4 h-4 text-primary" />
+                    Live Batch Cost & Margin Benchmark
+                  </span>
+                  {hasDeficit && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      Stock Deficit Detected
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Initial BOM Cost</span>
+                    <span className="text-sm font-bold font-mono text-zinc-900 dark:text-zinc-100">
+                      {formatNaira(totalBomCost)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Est. Portion Cost</span>
+                    <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                      {formatNaira(costPerPortion)} / portion
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 col-span-2 sm:col-span-1">
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Ingredients Included</span>
+                    <span className="text-sm font-bold font-mono text-zinc-800 dark:text-zinc-200">
+                      {bomRows.length} items ({bomRows.filter(r => r.item_type === 'compound').length} compound)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* SECTION 2: BOM Ingredients List with Generous Spacing */}
           <div className="pt-6 mt-6 border-t border-kumo-line space-y-3.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider font-sans block">
-                  Raw Ingredients to Use (Recipe List)
+                  Ingredients to Allocate (Raw Materials & Compound Mixes)
                 </span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
-                  Allocate ingredient quantities to deduct from inventory for this batch
+                  Allocate raw ingredients or surplus compound mixes from Central Store
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -1321,54 +1865,102 @@ export const ProductionBatchesPage: React.FC = () => {
 
             {/* Sub-header labels for alignment */}
             <div className="grid grid-cols-12 gap-3 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
-              <div className="col-span-8">Raw Material</div>
-              <div className="col-span-3">Batch Allocation</div>
+              <div className="col-span-7">Ingredient / Mix</div>
+              <div className="col-span-4">Batch Allocation</div>
               <div className="col-span-1 text-center">Remove</div>
             </div>
 
-            <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
-              {bomRows.map((row, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-3 items-center text-xs font-sans">
-                  <div className="col-span-8">
-                    <Select
-                      value={row.product_id}
-                      onChange={(e) => handleUpdateBomRow(idx, 'product_id', e.target.value)}
-                      options={rawProducts.map(rp => ({
-                        value: rp.id,
-                        label: `${rp.name} (${rp.stock_qty} ${formatUnit(rp.unit)} on-hand)`
-                      }))}
-                      size="md"
-                      buttonClassName="h-10 text-[13px] font-normal"
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
-                      <input
-                        type="number"
-                        step="any"
-                        min="0.1"
-                        value={row.quantity}
-                        onChange={(e) => handleUpdateBomRow(idx, 'quantity', Number(e.target.value))}
-                        className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
-                        placeholder="0.0"
-                      />
-                      <span className="w-20 shrink-0 h-full flex items-center justify-center text-center px-2 text-[12px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
-                        {formatUnit(row.unit)}
-                      </span>
+            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              {bomRows.map((row, idx) => {
+                const isCpd = row.item_type === 'compound' || !!row.compound_id
+                const matchedCpd = isCpd ? compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id) : undefined
+                const matchedRaw = !isCpd ? rawProducts.find(p => p.id === row.product_id) : undefined
+                const availableStock = isCpd ? (matchedCpd?.stock_qty || 0) : (matchedRaw?.stock_qty || 0)
+                const unitCost = isCpd ? (matchedCpd?.unit_cost || 0) : (matchedRaw?.unit_cost || 0)
+                const lineTotalCost = Math.round(row.quantity * unitCost * 100) / 100
+                const isDeficit = row.quantity > availableStock
+
+                const selectOptions = [
+                  ...rawProducts.map(rp => ({
+                    value: rp.id,
+                    label: `[Raw] ${rp.name} (${rp.stock_qty} ${formatUnit(rp.unit)} on-hand @ ${formatNaira(rp.unit_cost || 0)})`
+                  })),
+                  ...compoundInventory.map(ci => ({
+                    value: `cpd-${ci.id}`,
+                    label: `[Compound Mix] ${ci.name} (${ci.stock_qty} ${formatUnit(ci.unit)} on-hand @ ${formatNaira(ci.unit_cost)})`
+                  }))
+                ]
+
+                return (
+                  <div key={idx} className={`p-2.5 rounded-lg border transition-colors ${
+                    isDeficit 
+                      ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' 
+                      : 'border-kumo-line bg-kumo-base'
+                  }`}>
+                    <div className="grid grid-cols-12 gap-3 items-center text-xs font-sans">
+                      <div className="col-span-7">
+                        <Select
+                          value={isCpd ? `cpd-${row.compound_id || row.product_id}` : row.product_id}
+                          onChange={(e) => handleUpdateBomRow(idx, 'product_id', e.target.value)}
+                          options={selectOptions}
+                          size="md"
+                          buttonClassName="h-10 text-[13px] font-normal"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.1"
+                            value={row.quantity}
+                            onChange={(e) => handleUpdateBomRow(idx, 'quantity', Number(e.target.value))}
+                            className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
+                            placeholder="0.0"
+                          />
+                          <span className="w-16 shrink-0 h-full flex items-center justify-center text-center px-1 text-[11px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
+                            {formatUnit(row.unit)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBomRow(idx)}
+                          className="p-2 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
+                          title="Remove ingredient"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Sub-line: Stock feasibility indicator & financial valuation */}
+                    <div className="flex items-center justify-between text-[11px] pt-2 px-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isDeficit ? (
+                          <span className="text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            Deficit: -{(row.quantity - availableStock).toFixed(1)} {formatUnit(row.unit)} (Store has {availableStock})
+                          </span>
+                        ) : (
+                          <span className="text-zinc-500 dark:text-zinc-400">
+                            Available in Store: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{availableStock} {formatUnit(row.unit)}</strong>
+                          </span>
+                        )}
+                        {isCpd && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                            Compound Mix ({matchedCpd?.active_lot_ref || 'Central Mix'})
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-mono text-zinc-700 dark:text-zinc-300 text-right">
+                        @ {formatNaira(unitCost)}/{formatUnit(row.unit)} = <strong className="text-zinc-900 dark:text-zinc-100">{formatNaira(lineTotalCost)}</strong>
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-1 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBomRow(idx)}
-                      className="p-2 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
-                      title="Remove ingredient"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -1469,6 +2061,80 @@ export const ProductionBatchesPage: React.FC = () => {
             )
           })()}
 
+          {/* Expandable Section: Return Unconsumed Materials & Surplus Compounds (Section 9.1 Cross-Batch Reuse) */}
+          <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsReturnsExpanded(!isReturnsExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-kumo-tint/50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-semibold text-kumo-strong">
+                  Return Unconsumed Raw Materials & Surplus Compound Mixes (Optional)
+                </span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 text-kumo-subtle transition-transform duration-200", isReturnsExpanded && "rotate-180")} />
+            </button>
+            {isReturnsExpanded && (
+              <div className="p-4 pt-1 border-t border-kumo-line space-y-3 bg-kumo-surface/30">
+                <p className="text-[11px] text-kumo-subtle leading-relaxed">
+                  If any ingredients (firewood, seasoning blends, compound mixes) were not fully consumed, enter the returned quantities below. Unused compound seasoning blends are credited and deposited back to the Central Store for reuse by subsequent batches (Section 9 Cross-Batch Reuse).
+                </p>
+                <div className="space-y-2.5 divide-y divide-kumo-line/60">
+                  {selectedBatch?.raw_materials.map((m, idx) => {
+                    const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
+                    const currentReturn = returnedMaterials.find(r => r.productId === m.product_id)?.quantity || 0
+                    return (
+                      <div key={idx} className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 text-xs font-sans">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-kumo-strong truncate flex items-center gap-1.5">
+                            <span>{m.name}</span>
+                            {isCpd && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                Compound Mix
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-kumo-subtle">
+                            Issued: <strong className="font-mono">{m.quantity} {formatUnit(m.unit)}</strong>
+                            {m.unit_cost ? ` @ ${formatNaira(m.unit_cost)}/${formatUnit(m.unit)}` : ''}
+                            {isCpd && <span className="text-emerald-600 dark:text-emerald-400 ml-1.5">&bull; Returns to Central Compound Store</span>}
+                          </div>
+                        </div>
+                        <div className="w-32 shrink-0">
+                          <UnitInput
+                            value={currentReturn}
+                            onChangeValue={(v) => {
+                              const val = Number(v) || 0
+                              setReturnedMaterials(prev => {
+                                const filtered = prev.filter(p => p.productId !== m.product_id)
+                                if (val > 0) return [
+                                  ...filtered, 
+                                  { 
+                                    productId: m.product_id, 
+                                    quantity: Math.min(val, m.quantity),
+                                    item_type: isCpd ? 'compound' : 'raw',
+                                    compound_id: m.compound_id
+                                  }
+                                ]
+                                return filtered
+                              })
+                            }}
+                            unit={formatUnit(m.unit)}
+                            min={0}
+                            max={m.quantity}
+                            step={0.1}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           <Input
             label="Quality Control & Inspection Notes"
             value={qcNotes}
@@ -1482,12 +2148,12 @@ export const ProductionBatchesPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* MODAL 3: Preview BOM Details — Adopting Image 2 Structured Divided Sections */}
+      {/* MODAL 3: Preview BOM Details — Comprehensive Recipe, Requisitions & Batch Costing */}
       <Dialog
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}
-        title={`Cooking Recipe: ${selectedBatch?.batch_ref}`}
-        description={`Recipe specifications and formulated raw ingredients for ${selectedBatch?.output_product_name}`}
+        title={`Cooking Recipe & Costing: ${selectedBatch?.batch_ref}`}
+        description={`Recipe specifications, formulated ingredients, additional warehouse requisitions, and costing breakdown for ${selectedBatch?.output_product_name}`}
         maxWidth="2xl"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -1508,7 +2174,7 @@ export const ProductionBatchesPage: React.FC = () => {
                     Cancel Batch
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="outline"
                     size="md"
                     onClick={() => {
                       setIsPreviewModalOpen(false)
@@ -1516,13 +2182,24 @@ export const ProductionBatchesPage: React.FC = () => {
                     }}
                   >
                     Edit Batch
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    leftIcon={<Play className="w-4 h-4 fill-current" />}
+                    onClick={() => {
+                      startBatch(selectedBatch.id)
+                      setIsPreviewModalOpen(false)
+                    }}
+                  >
+                    Start Cooking
                   </Button>
                 </>
               )}
               {selectedBatch && selectedBatch.status === 'in_production' && (
                 <>
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="md"
                     onClick={() => {
                       setIsPreviewModalOpen(false)
@@ -1532,8 +2209,20 @@ export const ProductionBatchesPage: React.FC = () => {
                     Edit Batch
                   </Button>
                   <Button
+                    variant="outline"
+                    size="md"
+                    leftIcon={<Plus className="w-4 h-4" />}
+                    onClick={() => {
+                      setIsPreviewModalOpen(false)
+                      handleOpenRequisitionModal(selectedBatch)
+                    }}
+                  >
+                    + Request Materials
+                  </Button>
+                  <Button
                     variant="primary"
                     size="md"
+                    leftIcon={<CheckSquare className="w-4 h-4" />}
                     onClick={() => {
                       setIsPreviewModalOpen(false)
                       handleOpenComplete(selectedBatch)
@@ -1578,9 +2267,17 @@ export const ProductionBatchesPage: React.FC = () => {
                   <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Planned Output</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium font-mono">{selectedBatch?.expected_output} portions</span>
                 </div>
+                {selectedBatch?.status === 'completed' && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Actual Reconciled</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium font-mono">
+                      {selectedBatch.actual_output} portions ({selectedBatch.wastage} loss / wastage)
+                    </span>
+                  </div>
+                )}
                 {selectedBatch?.remarks && (
                   <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Production supervisor remarks</span>
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Supervisor Remarks</span>
                     <span className="text-zinc-700 dark:text-zinc-300 font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
                   </div>
                 )}
@@ -1591,27 +2288,223 @@ export const ProductionBatchesPage: React.FC = () => {
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Formulated Ingredients (BOM)
+                  Initial Formulated Ingredients (BOM)
                 </span>
                 <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
-                  {selectedBatch?.raw_materials.length || 0} Ingredients
+                  {selectedBatch?.raw_materials.filter(m => m.source !== 'additional').length || 0} Ingredients
                 </span>
               </div>
 
               <div className="pt-1 divide-y divide-zinc-200 dark:divide-zinc-800">
-                {selectedBatch?.raw_materials.map((m, idx) => (
-                  <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
-                    <div>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{m.name}</span>
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2 font-mono">[{m.sku}]</span>
+                {selectedBatch?.raw_materials.filter(m => m.source !== 'additional').map((m, idx) => {
+                  const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
+                  const fallbackUnitCost = isCpd
+                    ? compoundInventory.find(c => c.id === m.compound_id || c.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost || 0
+                    : rawProducts.find(p => p.id === m.product_id || p.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost || 0
+                  const displayUnitCost = m.unit_cost && m.unit_cost > 0 ? m.unit_cost : fallbackUnitCost
+                  const displayTotalCost = m.total_cost && m.total_cost > 0 ? m.total_cost : Math.round(m.quantity * displayUnitCost * 100) / 100
+
+                  return (
+                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{m.name}</span>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">[{m.sku}]</span>
+                          {isCpd && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                              Compound Mix ({m.prep_ref || 'Central Store'})
+                            </span>
+                          )}
+                        </div>
+                        {displayUnitCost > 0 ? (
+                          <div className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                            @ {formatNaira(displayUnitCost)} / {formatUnit(m.unit)}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200 text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                          {m.quantity} {formatUnit(m.unit)}
+                        </span>
+                        {displayTotalCost > 0 ? (
+                          <div className="text-[11px] text-zinc-700 dark:text-zinc-300 font-mono font-semibold mt-1">
+                            {formatNaira(displayTotalCost)}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                    <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200 text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                      {m.quantity} {m.unit}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
+
+            {/* Section 3: Additional Material Requisitions */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Additional Material Requisitions
+                </span>
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                  {selectedBatch?.additional_requisitions?.length || 0} Requests
+                </span>
+              </div>
+
+              {selectedBatch?.additional_requisitions && selectedBatch.additional_requisitions.length > 0 ? (
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
+                  {selectedBatch.additional_requisitions.map((req, idx) => (
+                    <div key={idx} className="py-3 first:pt-0 last:pb-0 space-y-2 text-[13px]">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <span>{req.raw_product_name}</span>
+                            <span className="text-xs text-zinc-500 font-mono">[{req.sku}]</span>
+                          </div>
+                          <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                            Reason: <span className="italic">{req.reason}</span>
+                          </div>
+                          <div className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                            Req: {req.requested_qty} {formatUnit(req.unit)} &bull; Requested by {req.requested_by} at {formatDate(req.requested_at)}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {req.status === 'pending' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 animate-pulse">
+                              Pending Review
+                            </span>
+                          )}
+                          {req.status === 'approved' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                              Fulfilled (+{req.fulfilled_qty} {formatUnit(req.unit)})
+                            </span>
+                          )}
+                          {req.status === 'partially_fulfilled' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                              Partial (+{req.fulfilled_qty}/{req.requested_qty} {formatUnit(req.unit)})
+                            </span>
+                          )}
+                          {req.status === 'rejected' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-300 dark:border-red-700">
+                              Rejected
+                            </span>
+                          )}
+                          {req.total_cost && req.total_cost > 0 ? (
+                            <div className="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 mt-1">
+                              +{formatNaira(req.total_cost)}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {req.status === 'pending' && hasInventoryRole && (
+                        <div className="pt-1 flex items-center justify-end">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                              setIsPreviewModalOpen(false)
+                              handleOpenFulfillModal(req)
+                            }}
+                          >
+                            Review & Issue Stock
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-zinc-500 text-xs py-1">No additional materials requested during this cooking run.</div>
+              )}
+            </div>
+
+            {/* Section 4: Returned Unconsumed Materials (if any) */}
+            {selectedBatch?.returned_materials && selectedBatch.returned_materials.length > 0 && (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                    Unconsumed Materials Returned to Store
+                  </span>
+                </div>
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
+                  {selectedBatch.returned_materials.map((ret, idx) => (
+                    <div key={idx} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{ret.name}</span>
+                      <span className="font-mono font-semibold text-emerald-600">
+                        -{ret.quantity} {formatUnit(ret.unit)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section 5: Batch Run Financial Cost Summary */}
+            {(() => {
+              const initialCostComputed = (selectedBatch?.initial_material_cost && selectedBatch.initial_material_cost > 0)
+                ? selectedBatch.initial_material_cost
+                : (selectedBatch?.raw_materials || []).filter(m => m.source !== 'additional').reduce((acc, m) => {
+                    const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
+                    const unitCost = m.unit_cost || (isCpd
+                      ? compoundInventory.find(c => c.id === m.compound_id || c.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost
+                      : rawProducts.find(p => p.id === m.product_id || p.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost) || 0
+                    return acc + (m.total_cost || (m.quantity * unitCost))
+                  }, 0)
+
+              const additionalCostComputed = (selectedBatch?.additional_material_cost && selectedBatch.additional_material_cost > 0)
+                ? selectedBatch.additional_material_cost
+                : (selectedBatch?.additional_requisitions || []).filter(r => r.status === 'approved' || r.status === 'partially_fulfilled').reduce((acc, r) => acc + (r.total_cost || 0), 0)
+
+              const totalNetCost = selectedBatch?.total_material_cost && selectedBatch.total_material_cost > 0
+                ? selectedBatch.total_material_cost
+                : Math.round((initialCostComputed + additionalCostComputed) * 100) / 100
+
+              const portionDivisor = (selectedBatch?.status === 'completed' && selectedBatch?.actual_output && selectedBatch.actual_output > 0)
+                ? selectedBatch.actual_output
+                : (selectedBatch?.expected_output || 1)
+
+              const unitCostPerPortionComputed = selectedBatch?.unit_cost_per_portion && selectedBatch.unit_cost_per_portion > 0
+                ? selectedBatch.unit_cost_per_portion
+                : Math.round((totalNetCost / portionDivisor) * 100) / 100
+
+              return (
+                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/40 space-y-2">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
+                    Production Batch Financial Costing
+                  </span>
+                  <div className="space-y-1.5 text-xs pt-1 font-sans">
+                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                      <span>Initial Material Allocation Cost:</span>
+                      <span className="font-mono font-medium text-zinc-900 dark:text-zinc-100">
+                        {formatNaira(initialCostComputed)}
+                      </span>
+                    </div>
+                    {additionalCostComputed > 0 && (
+                      <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                        <span>Fulfilled Additional Requisitions Cost:</span>
+                        <span className="font-mono font-medium text-amber-600">
+                          +{formatNaira(additionalCostComputed)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-700 font-semibold text-[13px]">
+                      <span className="text-zinc-900 dark:text-zinc-100">Total Net Material Cost:</span>
+                      <span className="font-mono text-primary font-bold">
+                        {formatNaira(totalNetCost)}
+                      </span>
+                    </div>
+                    {unitCostPerPortionComputed > 0 && (
+                      <div className="flex justify-between items-center text-xs text-zinc-500">
+                        <span>Net Material Cost per {selectedBatch?.status === 'completed' ? 'Finished' : 'Planned'} Portion:</span>
+                        <span className="font-mono font-semibold text-emerald-600">
+                          {formatNaira(unitCostPerPortionComputed)} / unit
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
       </Dialog>
@@ -1687,9 +2580,26 @@ export const ProductionBatchesPage: React.FC = () => {
           maxWidth="lg"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button variant="secondary" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
-                Close
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
+                  Close
+                </Button>
+                {(batchToEdit.status === 'draft' || batchToEdit.status === 'cancelled') && (
+                  <Button
+                    variant="destructive"
+                    size="md"
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Permanently delete batch ${batchToEdit.batch_ref}? This cannot be undone.`)) {
+                        deleteBatch(batchToEdit.id)
+                        setIsEditModalOpen(false)
+                      }
+                    }}
+                  >
+                    Delete Batch
+                  </Button>
+                )}
+              </div>
               <Button variant="primary" size="md" type="submit" form="edit-batch-form">
                 Save Corrections
               </Button>
@@ -1752,6 +2662,264 @@ export const ProductionBatchesPage: React.FC = () => {
               placeholder="e.g. Quality checks, temperature profile, shift directives"
             />
           </form>
+        </Dialog>
+      )}
+
+      {/* MODAL: Request Additional Materials Against Active Batch */}
+      {requisitionBatch && (
+        <Dialog
+          isOpen={isRequisitionModalOpen}
+          onClose={() => setIsRequisitionModalOpen(false)}
+          title={`Request Additional Materials: ${requisitionBatch.batch_ref}`}
+          description={`Raise an operational requisition for additional firewood, spices, or ingredients while cooking ${requisitionBatch.output_product_name}. Production continues without interruption.`}
+          maxWidth="lg"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsRequisitionModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="md" type="submit" form="request-materials-form">
+                Submit Requisition to Store
+              </Button>
+            </div>
+          }
+        >
+          <form id="request-materials-form" onSubmit={handleConfirmSubmitRequisition} className="space-y-4 font-sans text-xs">
+            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Target Cooking Dish:</span>
+                <span className="font-semibold text-kumo-strong">{requisitionBatch.output_product_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Batch Reference:</span>
+                <span className="font-mono font-medium text-kumo-strong">{requisitionBatch.batch_ref}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Current Status:</span>
+                <span className="font-medium text-amber-600 dark:text-amber-400">On Smoking Grills (Active)</span>
+              </div>
+            </div>
+
+            <Select
+              label="Select Material or Ingredient Needed"
+              value={reqProductId}
+              onChange={(e) => setReqProductId(Number(e.target.value))}
+              options={rawProducts.map(rp => ({
+                value: rp.id,
+                label: `${rp.name} (${rp.sku}) — ${rp.stock_qty} ${formatUnit(rp.unit)} available in Central Store`
+              }))}
+              size="md"
+            />
+
+            <UnitInput
+              label="Additional Quantity Required"
+              value={reqQty}
+              onChangeValue={(v) => setReqQty(Number(v) || 1)}
+              unit={formatUnit(rawProducts.find(r => r.id === reqProductId)?.unit)}
+              min={0.1}
+              step={0.1}
+              required
+            />
+
+            {(() => {
+              const selectedProd = rawProducts.find(r => r.id === reqProductId)
+              const unitCost = selectedProd?.unit_cost || 0
+              const estimatedImpact = Math.round(reqQty * unitCost * 100) / 100
+              return (
+                <div className="p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs font-mono">
+                  <span className="text-zinc-500 font-sans">Estimated Cost Impact:</span>
+                  <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                    {reqQty} {formatUnit(selectedProd?.unit)} @ {formatNaira(unitCost)} = <strong className="text-primary font-bold">{formatNaira(estimatedImpact)}</strong>
+                  </span>
+                </div>
+              )
+            })()}
+
+            <Select
+              label="Operational Reason for Additional Request"
+              value={reqReason}
+              onChange={(e) => setReqReason(e.target.value)}
+              options={[
+                { value: 'Firewood burned faster / heat efficiency drop', label: 'Firewood burned faster / heat efficiency drop' },
+                { value: 'Recipe flavor adjustment / additional seasoning needed', label: 'Recipe flavor adjustment / additional seasoning needed' },
+                { value: 'Defective or damaged raw stock replaced', label: 'Defective or damaged raw stock replaced' },
+                { value: 'High ambient humidity / extended smoking duration', label: 'High ambient humidity / extended smoking duration' },
+                { value: 'Unplanned yield expansion / portion buffer boost', label: 'Unplanned yield expansion / portion buffer boost' },
+                { value: 'Other operational reason', label: 'Other operational reason' },
+              ]}
+              size="md"
+            />
+
+            <Input
+              label="Additional Details & Notes (Optional)"
+              placeholder="e.g. Moisture in grill chamber required 2 extra bundles of firewood"
+              value={reqCustomNotes}
+              onChange={(e) => setReqCustomNotes(e.target.value)}
+            />
+
+            <Input
+              label="Requesting Staff Member"
+              value={reqStaff}
+              onChange={(e) => setReqStaff(e.target.value)}
+              placeholder="e.g. Kitchen Pitmaster"
+              required
+            />
+          </form>
+        </Dialog>
+      )}
+
+      {/* MODAL: Central Store Requisition Review & Fulfillment */}
+      {selectedReqForFulfill && (
+        <Dialog
+          isOpen={isFulfillModalOpen}
+          onClose={() => setIsFulfillModalOpen(false)}
+          title={`Review Material Requisition: ${selectedReqForFulfill.id || selectedReqForFulfill.batch_ref}`}
+          description={`Central Store inventory review for ${selectedReqForFulfill.raw_product_name} on batch ${selectedReqForFulfill.batch_ref}.`}
+          maxWidth="lg"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="secondary" size="md" type="button" onClick={() => setIsFulfillModalOpen(false)}>
+                Close
+              </Button>
+              {hasInventoryRole ? (
+                <div className="flex items-center gap-2">
+                  {!isRejectMode ? (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        type="button"
+                        onClick={() => setIsRejectMode(true)}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="md"
+                        type="submit"
+                        form="fulfill-requisition-form"
+                      >
+                        Fulfill & Issue Stock
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        type="button"
+                        onClick={() => setIsRejectMode(false)}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="md"
+                        type="button"
+                        onClick={handleConfirmRejectReq}
+                      >
+                        Confirm Rejection
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          }
+        >
+          <div className="space-y-4 font-sans text-xs">
+            {!hasInventoryRole && (
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs leading-relaxed">
+                  <strong>Approval Restricted:</strong> Fulfilling or rejecting material requisitions requires an <strong>Inventory</strong>, <strong>Storekeeper</strong>, or <strong>Manager</strong> account role. Your current account (<em>{currentAccount?.name} &bull; {currentAccount?.role}</em>) has read-only access.
+                </div>
+              </div>
+            )}
+
+            <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Production Batch:</span>
+                <span className="font-semibold text-kumo-strong">{selectedReqForFulfill.batch_ref} ({selectedReqForFulfill.output_product_name})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Material Requested:</span>
+                <span className="font-medium text-kumo-strong">{selectedReqForFulfill.raw_product_name} [{selectedReqForFulfill.sku}]</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Requested Quantity:</span>
+                <span className="font-mono font-bold text-kumo-strong">{selectedReqForFulfill.requested_qty} {formatUnit(selectedReqForFulfill.unit)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Reason:</span>
+                <span className="italic text-zinc-700 dark:text-zinc-300">{selectedReqForFulfill.reason}</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-kumo-line/60">
+                <span className="text-kumo-subtle">Central Store Available:</span>
+                <span className="font-mono font-semibold text-emerald-600">
+                  {rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.stock_qty || 0} {formatUnit(selectedReqForFulfill.unit)} on-hand
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Average Unit Cost:</span>
+                <span className="font-mono font-medium text-zinc-800 dark:text-zinc-200">
+                  {formatNaira(Math.round(rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.unit_cost || 0))} / {formatUnit(selectedReqForFulfill.unit)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-kumo-subtle">Dispatched Value Impact:</span>
+                <span className="font-mono font-bold text-primary">
+                  +{formatNaira(Math.round(fulfillQty * Math.round(rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.unit_cost || 0)))}
+                </span>
+              </div>
+            </div>
+
+            {hasInventoryRole && !isRejectMode && (
+              <form id="fulfill-requisition-form" onSubmit={handleConfirmFulfillReq} className="space-y-4">
+                <UnitInput
+                  label="Quantity to Issue (Supports Partial Fulfillment)"
+                  value={fulfillQty}
+                  onChangeValue={(v) => setFulfillQty(Number(v) || 0)}
+                  unit={formatUnit(selectedReqForFulfill.unit)}
+                  min={0.1}
+                  max={Math.min(
+                    selectedReqForFulfill.requested_qty,
+                    rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.stock_qty || selectedReqForFulfill.requested_qty
+                  )}
+                  step={0.1}
+                  helperText={
+                    fulfillQty < selectedReqForFulfill.requested_qty
+                      ? `Partial fulfillment: issuing ${fulfillQty} of ${selectedReqForFulfill.requested_qty} ${formatUnit(selectedReqForFulfill.unit)}`
+                      : 'Full requested quantity will be issued from Central Store'
+                  }
+                  required
+                />
+
+                <Input
+                  label="Warehouse / Storekeeper Notes"
+                  placeholder="e.g. Issued from Lot A-12 dry storage"
+                  value={warehouseNotes}
+                  onChange={(e) => setWarehouseNotes(e.target.value)}
+                />
+              </form>
+            )}
+
+            {hasInventoryRole && isRejectMode && (
+              <div className="space-y-3">
+                <Input
+                  label="Reason for Rejection"
+                  placeholder="e.g. Insufficient Central Store buffer, alternative recipe approved"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  required
+                  autoFocus
+                />
+                <p className="text-[11px] text-red-600 dark:text-red-400 leading-tight">
+                  Rejecting will update this requisition to Rejected without deducting store inventory. The batch will continue with its initial materials.
+                </p>
+              </div>
+            )}
+          </div>
         </Dialog>
       )}
       {/* MODAL: Manage Recipe Templates */}
@@ -2020,26 +3188,25 @@ export const ProductionBatchesPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <UnitInput
-              label="Expected Yield"
-              value={prepYieldQty}
-              onChangeValue={(v) => setPrepYieldQty(Number(v) || 0.5)}
-              unit={prepUnit}
-              min={0.5}
-              step={0.5}
-              required
-            />
-            <Select
-              label="Yield Unit"
-              value={prepUnit}
-              onChange={(e) => setPrepUnit(e.target.value as any)}
-              options={[
-                { value: 'kg', label: 'kg (Kilograms)' },
-                { value: 'L', label: 'L (Litres)' },
-              ]}
-            />
-          </div>
+          <UnitInput
+            label="Expected Yield"
+            value={prepYieldQty}
+            onChangeValue={(v) => setPrepYieldQty(Number(v) || 0.5)}
+            unit={prepUnit}
+            min={0.5}
+            step={0.5}
+            required
+          />
+
+          <Select
+            label="Yield Unit"
+            value={prepUnit}
+            onChange={(e) => setPrepUnit(e.target.value as any)}
+            options={[
+              { value: 'kg', label: 'kg (Kilograms)' },
+              { value: 'L', label: 'L (Litres)' },
+            ]}
+          />
 
           <Input
             label="Chef / Prepared By"
@@ -2048,6 +3215,27 @@ export const ProductionBatchesPage: React.FC = () => {
             placeholder="e.g. Chef Tunde"
             required
           />
+
+          {/* Live Compound Prep Mix Valuation Card */}
+          {(() => {
+            const totalCost = prepIngredients.reduce((acc, ing) => {
+              const p = rawProducts.find(r => r.id === ing.productId)
+              return acc + (ing.quantity * (p?.unit_cost || 0))
+            }, 0)
+            const unitCost = prepYieldQty > 0 ? Math.round(totalCost / prepYieldQty) : 0
+            return (
+              <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 space-y-1 text-xs font-sans">
+                <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                  <span>Total Raw Materials Valuation:</span>
+                  <span className="font-mono font-medium text-zinc-900 dark:text-zinc-100">{formatNaira(Math.round(totalCost))}</span>
+                </div>
+                <div className="flex justify-between items-center text-zinc-800 dark:text-zinc-200 font-semibold pt-1 border-t border-zinc-200 dark:border-zinc-700">
+                  <span>Compound Average Cost (per {prepUnit}):</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{formatNaira(unitCost)} / {prepUnit}</span>
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="space-y-2.5 pt-3 border-t border-kumo-line">
             <div className="flex items-center justify-between">
@@ -2179,23 +3367,35 @@ export const ProductionBatchesPage: React.FC = () => {
               label="Target Product"
               value={allocTargetProduct}
               onChange={(e) => setAllocTargetProduct(e.target.value)}
-              options={[
-                { value: 'Smoked Guinea Fowl', label: 'Smoked Guinea Fowl' },
-                { value: 'Roast Rabbit & Marinade', label: 'Roast Rabbit & Marinade' },
-                { value: 'Smoked Turkey Wings', label: 'Smoked Turkey Wings' },
-                { value: 'Smoked Catfish', label: 'Smoked Catfish' },
-                { value: 'Smokey Beef Jerky (Kilishi)', label: 'Smokey Beef Jerky (Kilishi)' },
-                { value: 'Jollof Rice with Guineafowl', label: 'Jollof Rice with Guineafowl' },
-              ]}
+              options={activeSalesProducts.map(p => ({ value: p.name, label: p.name }))}
             />
 
-            <Input
-              label="Batch Ref Number"
-              value={allocBatchRef}
-              onChange={(e) => setAllocBatchRef(e.target.value)}
-              placeholder="e.g. BAT-20261030-01"
-              required
-            />
+            {productionBatches.filter(b => b.status === 'draft' || b.status === 'in_production').length > 0 ? (
+              <Select
+                label="Target Cooking Batch"
+                value={allocBatchRef}
+                onChange={(e) => {
+                  setAllocBatchRef(e.target.value)
+                  const matchedBatch = productionBatches.find(b => b.batch_ref === e.target.value)
+                  if (matchedBatch) setAllocTargetProduct(matchedBatch.output_product_name)
+                }}
+                options={productionBatches
+                  .filter(b => b.status === 'draft' || b.status === 'in_production')
+                  .map(b => ({
+                    value: b.batch_ref,
+                    label: `${b.batch_ref} — ${b.output_product_name} (${b.status === 'in_production' ? 'Cooking' : 'Queued'})`
+                  }))
+                }
+              />
+            ) : (
+              <Input
+                label="Batch Ref Number"
+                value={allocBatchRef}
+                onChange={(e) => setAllocBatchRef(e.target.value)}
+                placeholder="e.g. BAT-20261030-01"
+                required
+              />
+            )}
 
             <UnitInput
               label="Quantity to Draw"

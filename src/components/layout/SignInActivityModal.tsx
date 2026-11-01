@@ -256,7 +256,20 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredLogs = SEED_SIGN_IN_LOGS.filter(log => {
+  const liveLogs: SignInLog[] = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('smokey_sign_in_logs_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {
+      // ignore
+    }
+    return [SEED_SIGN_IN_LOGS[0]]
+  }, [isOpen])
+
+  const filteredLogs = liveLogs.filter(log => {
     const q = searchQuery.toLowerCase().trim()
     return (
       !q ||
@@ -275,6 +288,16 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
       title="Sign-in Activity & Security Log"
       description="Recent account logins, device sessions, and authentication events across your team."
       maxWidth="5xl"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[13px] text-kumo-subtle">
+            Showing {filteredLogs.length} recent events
+          </span>
+          <Button variant="outline" size="md" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      }
     >
       <div className="space-y-4 font-sans">
         {/* Super Admin Notice Pill */}
@@ -372,16 +395,6 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Modal Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-kumo-line">
-          <span className="text-[13px] text-kumo-subtle">
-            Showing {filteredLogs.length} recent events
-          </span>
-          <Button variant="outline" size="md" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
     </Dialog>

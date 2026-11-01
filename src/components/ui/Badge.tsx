@@ -125,9 +125,25 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'VERIFIED':
     case 'RESOLVED':
       figmaState = 'completed'
-      displayLabel = cleanUserText && !['PASSED & DEPOSITED', 'PASSED'].includes(cleanUserText.toUpperCase())
-        ? cleanUserText
-        : 'completed'
+      if (cleanUserText && !['PASSED & DEPOSITED', 'PASSED'].includes(cleanUserText.toUpperCase())) {
+        displayLabel = cleanUserText
+      } else if (norm === 'ACTIVE') {
+        displayLabel = 'active'
+      } else if (norm === 'IN_STOCK') {
+        displayLabel = 'in-stock'
+      } else if (norm === 'PAID') {
+        displayLabel = 'paid'
+      } else if (norm === 'VERIFIED') {
+        displayLabel = 'verified'
+      } else if (norm === 'AVAILABLE') {
+        displayLabel = 'available'
+      } else if (norm === 'DELIVERED') {
+        displayLabel = 'delivered'
+      } else if (norm === 'RELEASED') {
+        displayLabel = 'released'
+      } else {
+        displayLabel = 'completed'
+      }
       break
 
     case 'IN_PROGRESS':

@@ -166,7 +166,6 @@ export const CreateAccountPage: React.FC = () => {
   const [assignedZone, setAssignedZone] = useState('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
   const [licenseNumber, setLicenseNumber] = useState('')
   const [licenseExpiry, setLicenseExpiry] = useState('')
-  const [codLimit, setCodLimit] = useState(50000)
 
   // 5. Emergency Contact & Guarantor
   const [emergencyName, setEmergencyName] = useState('')
@@ -227,13 +226,13 @@ export const CreateAccountPage: React.FC = () => {
       name: accName,
       role,
       roleLabel: roleLabels[role],
-      phone: phone.trim() || '080' + Math.floor(10000000 + Math.random() * 90000000),
+      phone: phone.trim() || undefined,
       staff_id: generatedStaffId,
       assigned_hub: assignedHub,
       employment_status: employmentStatus,
       date_of_birth: dob.trim() || undefined,
       residential_address: address.trim() || undefined,
-      national_id_nin: nationalId.trim() || '7829-4821-9921',
+      national_id_nin: nationalId.trim() || undefined,
       bvn: bvn.trim() || undefined,
       emergency_contact: emergencyName.trim() || undefined,
       emergency_phone: emergencyPhone.trim() || undefined,
@@ -245,10 +244,9 @@ export const CreateAccountPage: React.FC = () => {
       bank_account_number: bankAccountNumber.trim() || undefined,
       bank_account_name: bankAccountName.trim() || accName,
       vehicle_type: role === 'rider' ? vehicleType : undefined,
-      plate_number: role === 'rider' ? (plateNumber.trim() || 'LND-482-XA') : undefined,
-      license_number: role === 'rider' ? (licenseNumber.trim() || 'DL-98234-LAG') : undefined,
-      license_expiry: role === 'rider' ? (licenseExpiry.trim() || '2028-12-31') : undefined,
-      cod_limit: role === 'rider' ? Number(codLimit) : undefined,
+      plate_number: role === 'rider' ? (plateNumber.trim() || undefined) : undefined,
+      license_number: role === 'rider' ? (licenseNumber.trim() || undefined) : undefined,
+      license_expiry: role === 'rider' ? (licenseExpiry.trim() || undefined) : undefined,
       password: finalPassword,
       temporary_password: finalPassword,
       status: 'active',
@@ -764,23 +762,6 @@ export const CreateAccountPage: React.FC = () => {
                     onChange={(date) => setLicenseExpiry(date)}
                     placeholder="Select expiry date"
                     className="w-full"
-                  />
-                </ProfileFieldRow>
-
-                <ProfileFieldRow
-                  label="Daily Cash-on-Delivery (COD) Limit"
-                  description="Maximum cash float held before mandatory drop-off"
-                >
-                  <Select
-                    value={String(codLimit)}
-                    onValueChange={(val) => setCodLimit(Number(val))}
-                    options={[
-                      { value: '30000', label: '₦30,000 - Entry Level Float' },
-                      { value: '50000', label: '₦50,000 - Standard Fleet Float' },
-                      { value: '75000', label: '₦75,000 - Senior Trusted Rider' },
-                      { value: '100000', label: '₦100,000 - High-Volume Dispatch' },
-                    ]}
-                    aria-label="Daily Cash-on-Delivery (COD) Limit"
                   />
                 </ProfileFieldRow>
               </div>

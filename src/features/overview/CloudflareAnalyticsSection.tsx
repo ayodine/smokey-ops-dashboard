@@ -309,6 +309,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
     packagingQueue,
     logisticsDeliveries,
     dailySales,
+    websiteOrders,
     riders
   } = useSmokeyOps()
 
@@ -323,19 +324,23 @@ export const CloudflareAnalyticsSection: React.FC = () => {
   const [resizingId, setResizingId] = useState<string | null>(null)
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Compute Live Operational Data from Dashboard Context
+  // Compute Live Operational Data from Dashboard Context (Zero Fake Additive Padding)
   const stats = useMemo(() => {
     // 1. Orders: Website Storefront and Ingestion
-    const totalOrderQty = dailySales.reduce((sum, item) => sum + (item.qty_sold || item.order_count || 1), 0) + 184
-    const totalRevenue = dailySales.reduce((sum, item) => sum + (item.total_value || 0), 0) + 420000
+    const totalOrderQty = websiteOrders.length
+    const totalRevenue = websiteOrders
+      .filter(o => o.payment_status === 'paid')
+      .reduce((sum, o) => sum + (o.total_amount || 0), 0)
 
-    // 2. Production: Total Kitchen Batch Output (in KG)
-    const totalBatchKg = productionBatches.reduce((sum, b) => sum + (b.actual_output || b.expected_output || 0), 0) + 240
-    const activeBatchesCount = productionBatches.filter(b => b.status === 'in_production' || b.status === 'draft').length || 4
+    // 2. Production: Total Kitchen Batch Output
+    const totalBatchKg = productionBatches.reduce((sum, b) => sum + (b.actual_output || b.expected_output || 0), 0)
+    const activeBatchesCount = productionBatches.filter(b => b.status === 'in_production' || b.status === 'draft').length
 
     // 3. Packaging: Orders Sealed & Queued
-    const queuedCount = packagingQueue.length + 28
-    const packagingRate = 96.8
+    const queuedCount = packagingQueue.length
+    const packagingRate = packagingQueue.length > 0
+      ? Math.round((packagingQueue.filter(q => q.order_status === 'packaged').length / packagingQueue.length) * 1000) / 10
+      : 100
 
     // 4. Sales Inventory Turnover Rate (%)
     const turnoverPercent = 94.2
@@ -344,7 +349,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
     const avgDeliveryTime = 24.8
 
     // 6. Rider Payouts: Settled Financial Clearance
-    const totalPayouts = riders.reduce((sum, r) => sum + (r.paid_total || 0), 0) + 148500
+    const totalPayouts = riders.reduce((sum, r) => sum + (r.paid_total || 0), 0)
 
     return {
       totalOrderQty,
@@ -357,7 +362,7 @@ export const CloudflareAnalyticsSection: React.FC = () => {
       avgDeliveryTime,
       totalPayouts
     }
-  }, [dailySales, productionBatches, packagingQueue, rawProducts, logisticsDeliveries, riders])
+  }, [websiteOrders, dailySales, productionBatches, packagingQueue, rawProducts, logisticsDeliveries, riders])
 
   // Native Pointer Drag to Resize handler with Pointer Capture & 60fps DOM tracking
   const handleResizeStart = (id: string, e: React.PointerEvent) => {

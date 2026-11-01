@@ -182,7 +182,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
       {
         id: 'page-riders',
         title: 'In-House Riders & Delivery Team',
-        subtitle: 'In-house riders, daily delivery payouts, and cash remittance check-in',
+        subtitle: 'In-house riders, trip completion audits, and delivery payout disbursements',
         category: 'Pages',
         href: '/logistics/riders',
         icon: Users,

@@ -13,16 +13,34 @@ export const AppShell: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // RBAC Route Guard: Sandboxes Rider to Logistics & Rider Portal (Spec Section 2.2)
+  // RBAC Route Guard: Sandboxes Rider to Logistics & Rider Portal, and restricts Admin routes
   useEffect(() => {
     if (!isAuthenticated) return
     if (currentAccount.role === 'rider') {
-      const allowedPaths = ['/logistics/rider-portal', '/rider']
+      const allowedPaths = ['/logistics/rider-portal', '/rider', '/support']
       const isAllowed = allowedPaths.some(
         p => location.pathname === p || location.pathname.startsWith(`${p}/`)
       )
       if (!isAllowed) {
         navigate('/logistics/rider-portal', { replace: true })
+      }
+      return
+    }
+
+    // Guard rider portal from non-rider office staff
+    const isRiderRoute = location.pathname === '/logistics/rider-portal' || location.pathname === '/rider' || location.pathname.startsWith('/logistics/rider-portal/')
+    if (isRiderRoute) {
+      navigate('/logistics/riders', { replace: true })
+      return
+    }
+
+    if (currentAccount.role !== 'admin') {
+      const adminOnlyPrefixes = ['/accounts', '/admin/accounts', '/offices', '/admin/offices']
+      const isAdminRoute = adminOnlyPrefixes.some(
+        p => location.pathname === p || location.pathname.startsWith(`${p}/`)
+      )
+      if (isAdminRoute) {
+        navigate('/overview', { replace: true })
       }
     }
   }, [isAuthenticated, currentAccount.role, location.pathname, navigate])

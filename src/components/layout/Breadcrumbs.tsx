@@ -37,7 +37,7 @@ export const Breadcrumbs: React.FC = () => {
     'third-party': '3PL logistics & fees',
     products: 'Products & SKUs',
     procurement: 'Procurement (POs)',
-    orders: 'Production orders',
+    orders: 'Website orders',
     quality: 'Quality control',
     dispatch: 'Dispatch queue',
     shipments: 'Shipment tracking',
@@ -79,6 +79,9 @@ export const Breadcrumbs: React.FC = () => {
         let displayLabel = labelMap[name]
         if (name === 'packaging' && pathnames[0] === 'production') {
           displayLabel = 'Packaging execution'
+        }
+        if (name === 'sales' && pathnames[1] === 'orders') {
+          displayLabel = 'Sales'
         }
         if (!displayLabel) {
           displayLabel = toSentenceCase(name)

@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 
 export const KitchenTasksPage: React.FC = () => {
-  const { kitchenTasks, updateTaskStatus, createKitchenTask } = useSmokeyOps()
+  const { kitchenTasks, updateTaskStatus, createKitchenTask, availableAccounts, currentAccount } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'ongoing' | 'completed'>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -34,8 +34,8 @@ export const KitchenTasksPage: React.FC = () => {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    assignee_name: "Babajide 'Oven Supervisor'",
-    due_date: '2026-09-26',
+    assignee_name: currentAccount?.name || 'Kitchen Staff',
+    due_date: new Date().toISOString().split('T')[0],
     priority: 'normal' as 'high' | 'normal' | 'low',
     status: 'pending' as const
   })
@@ -288,32 +288,31 @@ export const KitchenTasksPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Assigned Crew Member"
-              value={newTask.assignee_name}
-              onChange={(e) => setNewTask(prev => ({ ...prev, assignee_name: e.target.value }))}
-              options={[
-                { value: "Babajide (Production Supervisor)", label: "Babajide (Production Supervisor)" },
-                { value: "Folake Adebayo", label: "Folake Adebayo (HACCP / QC Lead)" },
-                { value: "Drinks & Bottling Assistant", label: "Drinks & Bottling Assistant (Palmwine & Zobo)" },
-                { value: "Chioma Okonkwo", label: "Chioma Okonkwo (Cold-chain Store)" },
-                { value: "Emeka Nwosu", label: "Emeka Nwosu (Prep Cook)" },
-                { value: "Admin", label: "Admin" },
-              ]}
-            />
+          <Select
+            label="Assigned Crew Member"
+            value={newTask.assignee_name}
+            onChange={(e) => setNewTask(prev => ({ ...prev, assignee_name: e.target.value }))}
+            options={
+              availableAccounts && availableAccounts.length > 0
+                ? availableAccounts
+                    .filter(a => a.role !== 'rider')
+                    .map(a => ({ value: a.name, label: `${a.name} (${a.roleLabel})` }))
+                : [
+                    { value: currentAccount?.name || 'Kitchen Staff', label: currentAccount?.name || 'Kitchen Staff' }
+                  ]
+            }
+          />
 
-            <Select
-              label="Priority Level"
-              value={newTask.priority}
-              onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as any }))}
-              options={[
-                { value: 'high', label: 'High Priority (Immediate)' },
-                { value: 'normal', label: 'Normal Priority' },
-                { value: 'low', label: 'Low / End of Shift' },
-              ]}
-            />
-          </div>
+          <Select
+            label="Priority Level"
+            value={newTask.priority}
+            onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as any }))}
+            options={[
+              { value: 'high', label: 'High Priority (Immediate)' },
+              { value: 'normal', label: 'Normal Priority' },
+              { value: 'low', label: 'Low / End of Shift' },
+            ]}
+          />
 
           <SingleDatePicker
             label="Target Due Date"

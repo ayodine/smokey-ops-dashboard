@@ -413,7 +413,7 @@ export const ManageAccountsPage: React.FC = () => {
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
     'Logistics & Fleet Dispatch': false,
-    'Finance & Cash Remittance': false,
+    'Finance & Payout Disbursements': false,
     'Administration & Security Controls': false,
   })
 
@@ -539,7 +539,6 @@ export const ManageAccountsPage: React.FC = () => {
   const [kycVehicleType, setKycVehicleType] = useState('Bajaj Boxer 150 Motorcycle')
   const [kycPlateNumber, setKycPlateNumber] = useState('')
   const [kycVehicleOwnership, setKycVehicleOwnership] = useState('Smokey Fleet Unit #04')
-  const [kycCodLimit, setKycCodLimit] = useState(50000)
   const [kycAssignedZone, setKycAssignedZone] = useState('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
   const [kycInspectionStatus, setKycInspectionStatus] = useState('Passed & Certified')
 
@@ -580,7 +579,6 @@ export const ManageAccountsPage: React.FC = () => {
       setKycVehicleType(data.vehicle_type || 'Bajaj Boxer 150 Motorcycle')
       setKycPlateNumber(data.plate_number || '')
       setKycVehicleOwnership(data.vehicle_ownership || 'Smokey Fleet Unit #04')
-      setKycCodLimit(data.cod_limit || 50000)
       setKycAssignedZone(data.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
       setKycInspectionStatus(data.inspection_status || 'Passed & Certified')
 
@@ -626,7 +624,6 @@ export const ManageAccountsPage: React.FC = () => {
       vehicle_type: kycVehicleType,
       plate_number: kycPlateNumber.trim().toUpperCase(),
       vehicle_ownership: kycVehicleOwnership,
-      cod_limit: Number(kycCodLimit) || 50000,
       assigned_zone: kycAssignedZone,
       inspection_status: kycInspectionStatus,
 
@@ -651,7 +648,7 @@ export const ManageAccountsPage: React.FC = () => {
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
     'Logistics & Fleet Dispatch': false,
-    'Finance & Cash Remittance': false,
+    'Finance & Payout Disbursements': false,
     'Administration & Security Controls': false,
   })
 
@@ -795,7 +792,7 @@ export const ManageAccountsPage: React.FC = () => {
       },
       {
         id: 'finance',
-        name: 'Finance & Cash Remittance',
+        name: 'Finance & Payout Disbursements',
         permissions: [
           {
             id: 'perm_finance',
@@ -810,16 +807,10 @@ export const ManageAccountsPage: React.FC = () => {
             description: 'Review purchase order billing, confirm line item unit costs, and approve inventory payments.'
           },
           {
-            id: 'perm_cod_checkin',
-            label: 'COD Cash Remittance Check-in',
+            id: 'perm_rider_payout',
+            label: 'Rider Payout Disbursement',
             category: 'Finance',
-            description: 'Verify and reconcile physical cash turned in by delivery couriers at dispatch hub counters.'
-          },
-          {
-            id: 'perm_cod_collect',
-            label: 'COD Cash Collection',
-            category: 'Finance',
-            description: 'Collect physical cash payment from customers upon arrival at delivery destinations.'
+            description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.'
           },
           {
             id: 'perm_wallet',
@@ -1588,22 +1579,6 @@ export const ManageAccountsPage: React.FC = () => {
                     onChange={(date) => setKycLicenseExpiry(date)}
                     placeholder="Select expiry date"
                     className="w-full"
-                  />
-                </ProfileFieldRow>
-                <ProfileFieldRow
-                  label="Daily Cash-on-Delivery (COD) Limit"
-                  description="Maximum cash float held before mandatory drop-off"
-                >
-                  <Select
-                    value={String(kycCodLimit)}
-                    onValueChange={(val) => setKycCodLimit(Number(val))}
-                    options={[
-                      { value: '30000', label: '₦30,000 - Entry Level Float' },
-                      { value: '50000', label: '₦50,000 - Standard Fleet Float' },
-                      { value: '75000', label: '₦75,000 - Senior Trusted Rider' },
-                      { value: '100000', label: '₦100,000 - High-Volume Dispatch' }
-                    ]}
-                    aria-label="Daily Cash-on-Delivery (COD) Limit"
                   />
                 </ProfileFieldRow>
               </div>
@@ -2653,7 +2628,7 @@ export const ManageAccountsPage: React.FC = () => {
         description={`Set a new secure access credential for ${accountToChangePassword?.name}.`}
         maxWidth="md"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               type="button"
@@ -2743,7 +2718,7 @@ export const ManageAccountsPage: React.FC = () => {
         description="Are you sure you want to permanently remove this operator account? Access privileges will be revoked immediately."
         maxWidth="sm"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button
               variant="secondary"
               type="button"

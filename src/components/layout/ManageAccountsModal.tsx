@@ -70,8 +70,7 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   // Finance
   { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
   { id: 'perm_invoices', label: 'Supplier Invoice Verification', category: 'Finance', description: 'Review purchase order billing, confirm line item unit costs, and approve credits.' },
-  { id: 'perm_cod_checkin', label: 'COD Cash Remittance Check-in', category: 'Finance', description: 'Verify physical cash turned in by delivery riders at dispatch stations.' },
-  { id: 'perm_cod_collect', label: 'COD Cash Collection', category: 'Finance', description: 'Collect physical cash payment at customer delivery destinations.' },
+  { id: 'perm_rider_payout', label: 'Rider Payout Disbursement', category: 'Finance', description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.' },
   { id: 'perm_wallet', label: 'Wallet & Payout History', category: 'Finance', description: 'Inspect individual courier earnings ledger, trip commissions, and deductions.' },
 
   // Production
@@ -153,13 +152,13 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
   {
     id: 'dispatcher',
     label: 'Logistics Coordinator',
-    description: 'Coordinates dispatch queue, assigns orders to couriers, monitors SLA transit times, and verifies COD cash.',
+    description: 'Coordinates dispatch queue, assigns orders to couriers, monitors SLA transit times, and audits completed trips.',
     badgeClass: 'bg-teal-500/10 text-teal-700 border-teal-500/20 dark:text-teal-400',
     permissions: [
       'Dispatch Queue Assignment',
       'Rider Location & Route Tracking',
       'Third-party Rider Bookings',
-      'COD Cash Remittance Check-in'
+      'Trip Audit & Payout Disbursement'
     ]
   },
   {
@@ -170,7 +169,6 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
     permissions: [
       'Accept & Transit Delivery',
       'Customer OTP Drop-off Sign-off',
-      'COD Cash Collection',
       'Wallet & Payout History'
     ]
   }
@@ -407,6 +405,17 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title="Manage Accounts"
         description="Super Admin view · Active operators, registered credentials, and role-based permissions"
         maxWidth="5xl"
+        footer={
+          <div className="flex items-center justify-between w-full text-[13px]">
+            <span className="text-kumo-subtle">
+              Total: <strong className="text-kumo-strong">{availableAccounts.length}</strong> operator accounts across <strong className="text-kumo-strong">{SYSTEM_ROLE_CONFIGS.length}</strong> system roles
+            </span>
+
+            <Button variant="outline" size="md" type="button" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-4 font-sans text-[13px]">
           {/* Top Tabs: Accounts List vs Roles & Permissions Matrix */}
@@ -915,17 +924,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               </div>
             </div>
           )}
-
-          {/* Modal Footer */}
-          <div className="flex items-center justify-between pt-2 border-t border-kumo-line text-[13px]">
-            <span className="text-kumo-subtle">
-              Total: <strong className="text-kumo-strong">{availableAccounts.length}</strong> operator accounts across <strong className="text-kumo-strong">{SYSTEM_ROLE_CONFIGS.length}</strong> system roles
-            </span>
-
-            <Button variant="outline" size="md" type="button" onClick={onClose}>
-              Close
-            </Button>
-          </div>
         </div>
       </Dialog>
 
@@ -938,9 +936,24 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title="Edit route & permissions"
         description="Modify operator access credentials, role designation, and assigned permissions."
         maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setAccountToEdit(null)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="edit-account-form" className="min-w-20">
+              Save
+            </Button>
+          </div>
+        }
       >
         {accountToEdit && (
-          <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans">
+          <form id="edit-account-form" onSubmit={handleSaveEdit} className="space-y-3.5 font-sans">
             {/* Field 1: Role / Zone Select Dropdown (Matching Screenshot 2) */}
             <div className="space-y-1 text-left">
               <div className="flex items-center justify-between">
@@ -1120,19 +1133,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               </div>
             </div>
 
-            {/* Footer matching Screenshot 2: Cancel on left, Save on right */}
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-              <button
-                type="button"
-                onClick={() => setAccountToEdit(null)}
-                className="text-[13px] font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-              <Button variant="primary" size="md" type="submit" className="min-w-20">
-                Save
-              </Button>
-            </div>
           </form>
         )}
       </Dialog>
@@ -1146,8 +1146,23 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title="Onboard New Account"
         description="Add a new operator to the operations dashboard with designated operational role and permissions."
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setIsOnboardOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="onboard-account-form">
+              Onboard Operator
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSaveOnboard} className="space-y-4 font-sans">
+        <form id="onboard-account-form" onSubmit={handleSaveOnboard} className="space-y-4 font-sans">
           {/* Role Dropdown */}
           <div className="space-y-1.5 text-left">
             <label className="text-[12px] font-semibold text-kumo-strong">
@@ -1344,19 +1359,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-            <button
-              type="button"
-              onClick={() => setIsOnboardOpen(false)}
-              className="text-[13px] font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
-            >
-              Cancel
-            </button>
-            <Button variant="primary" size="md" type="submit">
-              Onboard Operator
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -1369,9 +1371,24 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title={`Change Password: ${accountToChangePassword?.name || ''}`}
         description="Reset security credentials for this operator account."
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setAccountToChangePassword(null)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="change-password-form">
+              Update Password
+            </Button>
+          </div>
+        }
       >
         {accountToChangePassword && (
-          <form onSubmit={handleSavePassword} className="space-y-4 font-sans">
+          <form id="change-password-form" onSubmit={handleSavePassword} className="space-y-4 font-sans">
             <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-300 space-y-1">
               <p className="font-semibold text-[16px] flex items-center gap-1.5">
                 <Lock className="w-4 h-4" />
@@ -1436,18 +1453,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               </label>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-              <button
-                type="button"
-                onClick={() => setAccountToChangePassword(null)}
-                className="text-[13px] font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-              <Button variant="primary" size="md" type="submit">
-                Update Password
-              </Button>
-            </div>
           </form>
         )}
       </Dialog>
@@ -1463,6 +1468,14 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title="Manage System Roles & Permissions"
         description="Role-Based Access Control (RBAC) definitions and operational capability scopes."
         maxWidth="2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsManageRolesOpen(false)}>
+              Close
+            </Button>
+            <div />
+          </div>
+        }
       >
         <div className="space-y-4 font-sans">
           <div className="divide-y divide-kumo-line/80 border border-kumo-line rounded-xl bg-kumo-base overflow-hidden">
@@ -1504,12 +1517,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
               )
             })}
           </div>
-
-          <div className="flex justify-end pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsManageRolesOpen(false)}>
-              Close
-            </Button>
-          </div>
         </div>
       </Dialog>
 
@@ -1522,6 +1529,26 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
         title="Remove Account"
         description="Permanently revoke dashboard access for this operator."
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => setAccountToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="md"
+              type="button"
+              onClick={handleConfirmDelete}
+            >
+              Remove Account
+            </Button>
+          </div>
+        }
       >
         {accountToDelete && (
           <div className="space-y-4 font-sans">
@@ -1552,24 +1579,6 @@ export const ManageAccountsModal: React.FC<ManageAccountsModalProps> = ({
                 <span className="text-kumo-subtle">Assigned Hub:</span>
                 <span className="font-semibold text-kumo-strong">{accountToDelete.assigned_hub || facilities[0]?.name || 'Yaba Head Office'}</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
-              <button
-                type="button"
-                onClick={() => setAccountToDelete(null)}
-                className="text-[13px] font-semibold text-kumo-strong hover:text-kumo-default px-3 py-2 cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-              <Button
-                variant="destructive"
-                size="md"
-                type="button"
-                onClick={handleConfirmDelete}
-              >
-                Remove Account
-              </Button>
             </div>
           </div>
         )}

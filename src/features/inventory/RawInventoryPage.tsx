@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { RawProduct, RawDelivery, RawMovement, RawUsageItem, InventoryLot, StocktakeVariance, InterStationTransfer } from '@/lib/smokeyData'
+import { RawProduct, RawDelivery, RawMovement, RawUsageItem, InventoryLot, StocktakeVariance, InterStationTransfer, BatchMaterialRequisition } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
@@ -87,10 +87,14 @@ export const RawInventoryPage: React.FC = () => {
     prioritizeLotInKitchen,
     saveRawProduct,
     submitStocktakeCount,
-    resolveStocktakeVariance
+    resolveStocktakeVariance,
+    productionBatches,
+    fulfillBatchMaterialRequisition,
+    rejectBatchMaterialRequisition,
+    currentAccount
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'current' | 'fefo' | 'inbound' | 'outbound' | 'transfers' | 'usage' | 'escrow'>('current')
+  const [activeTab, setActiveTab] = useState<'current' | 'batches' | 'receipts' | 'requisitions' | 'variances'>('current')
 
   // Expiring Lots Workflow State
   const [isPrioritizeModalOpen, setIsPrioritizeModalOpen] = useState(false)
@@ -100,12 +104,12 @@ export const RawInventoryPage: React.FC = () => {
   // Prioritize in Kitchen Form State
   const [prioritizeQty, setPrioritizeQty] = useState<number>(1)
   const [prioritizeDish, setPrioritizeDish] = useState<string>('')
-  const [prioritizeSupervisor, setPrioritizeSupervisor] = useState('Babajide (Production Supervisor)')
+  const [prioritizeSupervisor, setPrioritizeSupervisor] = useState(currentAccount?.name || 'Production Supervisor')
   const [prioritizeRemarks, setPrioritizeRemarks] = useState('')
 
   // Spoilage / Waste Form State
   const [wasteQty, setWasteQty] = useState<number>(1)
-  const [wasteApprover, setWasteApprover] = useState('Babajide (Production Supervisor)')
+  const [wasteApprover, setWasteApprover] = useState(currentAccount?.name || 'Production Supervisor')
   const [wasteNotes, setWasteNotes] = useState('')
 
   // Modals state
@@ -124,17 +128,28 @@ export const RawInventoryPage: React.FC = () => {
   }
   const [selectedVariance, setSelectedVariance] = useState<StocktakeVariance | null>(null)
 
-  // Inbound Form State (with FEFO Lot support)
+  // Inbound Form State (with FEFO Lot support & WAC tracking)
   const [receiveSupplierId, setReceiveSupplierId] = useState<number>(suppliers[0]?.id || 2)
   const [receiveProductId, setReceiveProductId] = useState<number>(rawProducts[0]?.id || 62)
   const [receiveQty, setReceiveQty] = useState<number>(10)
   const [receiveUnitCost, setReceiveUnitCost] = useState<number>(rawProducts[0]?.unit_cost || 6500)
   const [receiveLotNumber, setReceiveLotNumber] = useState<string>('')
   const [receiveExpiryDate, setReceiveExpiryDate] = useState<string>('')
+  const [receiveInvoiceRef, setReceiveInvoiceRef] = useState<string>('')
+  const [receiveReceiptDate, setReceiveReceiptDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [receiveNotes, setReceiveNotes] = useState('')
 
-  // Adjust Form State
-  const [adjustDelta, setAdjustDelta] = useState<number>(-2)
+  // Production Floor Requisitions State
+  const [isRequisitionModalOpen, setIsRequisitionModalOpen] = useState(false)
+  const [selectedRequisition, setSelectedRequisition] = useState<BatchMaterialRequisition | null>(null)
+  const [requisitionIssueQty, setRequisitionIssueQty] = useState<number>(1)
+  const [requisitionNotes, setRequisitionNotes] = useState<string>('')
+  const [rejectionReason, setRejectionReason] = useState<string>('')
+  const [isRejectMode, setIsRejectMode] = useState<boolean>(false)
+
+  // Adjust Form State with Direction & Magnitude
+  const [adjustDirection, setAdjustDirection] = useState<'deduct' | 'add'>('deduct')
+  const [adjustMagnitude, setAdjustMagnitude] = useState<number>(1)
   const [adjustReason, setAdjustReason] = useState<string>('Kitchen Waste & Trimmings')
   const [adjustNotes, setAdjustNotes] = useState('')
 
@@ -151,26 +166,19 @@ export const RawInventoryPage: React.FC = () => {
   const [isCustomUnitMode, setIsCustomUnitMode] = useState(false)
   const [customUnitText, setCustomUnitText] = useState('')
 
-  // Blind Stocktake Form State (5 Random SKUs)
+  // Blind Stocktake Form State
+  const [stocktakeItems, setStocktakeItems] = useState<RawProduct[]>([])
   const [stocktakeCounts, setStocktakeCounts] = useState<{ [key: number]: number }>({})
-  const [stocktakeCountedBy, setStocktakeCountedBy] = useState('Shift Oven Supervisor')
-  const [stocktakeFeedback, setStocktakeFeedback] = useState<string | null>(null)
+  const [stocktakeCountedBy, setStocktakeCountedBy] = useState(currentAccount?.name || 'Inventory Staff')
 
   // Resolve Variance Form State
   const [supervisorResolutionNotes, setSupervisorResolutionNotes] = useState('')
 
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
-  // KPI Calculations - dynamic based on custom date range
-  const activeRawForKPI = useMemo(() => {
-    if (!dateRange) return rawProducts
-    return rawProducts.filter(p => isWithinDateRange(p.expiry_date || p.fefo_lot, dateRange))
-  }, [rawProducts, dateRange])
-
-  const totalSKUs = activeRawForKPI.length
-  const totalValuation = activeRawForKPI.reduce((acc, p) => acc + (p.inventory_value || (p.stock_qty * p.unit_cost)), 0)
-  const inboundCount = rawDeliveries.length
-  const outboundCount = rawMovements.length
+  // KPI Calculations - derived from authentic live inventory
+  const totalSKUs = rawProducts.length
+  const totalValuation = rawProducts.reduce((acc, p) => acc + (p.inventory_value || (p.stock_qty * p.unit_cost)), 0)
   const lowStockCount = rawProducts.filter(p => p.stock_qty <= p.reorder_level).length
   const pendingVariancesCount = stocktakeVariances.filter(v => v.status === 'pending_review').length
   const nearExpiryCount = inventoryLots.filter(l => l.days_to_expiry <= 4 && l.remaining_qty > 0).length
@@ -180,28 +188,76 @@ export const RawInventoryPage: React.FC = () => {
     return inventoryLots.filter(l => l.days_to_expiry <= 3 && l.remaining_qty > 0)
   }, [inventoryLots])
 
+  const pendingRequisitions = useMemo(() => {
+    return productionBatches.flatMap(b => b.additional_requisitions || []).filter(r => r.status === 'pending')
+  }, [productionBatches])
+
+  const allRequisitions = useMemo(() => {
+    return productionBatches.flatMap(b => b.additional_requisitions || [])
+  }, [productionBatches])
+
   // Handlers
   const handleOpenReceive = (product?: RawProduct) => {
     if (product) {
       setReceiveProductId(product.id)
-      setReceiveUnitCost(product.unit_cost)
+      const initialCost = product.last_purchase_cost ? Math.round(product.last_purchase_cost) : Math.round(product.unit_cost || 0)
+      setReceiveUnitCost(initialCost)
       setReceiveLotNumber(`LOT-${product.sku.replace('SKU-', '')}-${new Date().toISOString().slice(5, 10).replace('-', '')}`)
     } else {
       if (rawProducts.length > 0) {
         setReceiveProductId(rawProducts[0].id)
-        setReceiveUnitCost(rawProducts[0].unit_cost)
+        const defaultProd = rawProducts[0]
+        const initialCost = defaultProd.last_purchase_cost ? Math.round(defaultProd.last_purchase_cost) : Math.round(defaultProd.unit_cost || 0)
+        setReceiveUnitCost(initialCost)
         setReceiveLotNumber(`LOT-GNF-${new Date().toISOString().slice(5, 10).replace('-', '')}`)
       }
     }
     setReceiveQty(10)
+    setReceiveInvoiceRef(`INV-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`)
+    setReceiveReceiptDate(new Date().toISOString().split('T')[0])
     setReceiveExpiryDate('')
     setReceiveNotes('')
     setIsReceiveModalOpen(true)
   }
 
+  const handleOpenRequisitionModal = (req: BatchMaterialRequisition) => {
+    setSelectedRequisition(req)
+    setRequisitionIssueQty(req.requested_qty)
+    setRequisitionNotes('')
+    setRejectionReason('')
+    setIsRejectMode(false)
+    setIsRequisitionModalOpen(true)
+  }
+
+  const handleConfirmFulfillRequisition = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedRequisition) return
+    const success = fulfillBatchMaterialRequisition(
+      selectedRequisition.id,
+      Number(requisitionIssueQty),
+      requisitionNotes
+    )
+    if (success) {
+      setIsRequisitionModalOpen(false)
+    }
+  }
+
+  const handleConfirmRejectRequisition = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedRequisition || !rejectionReason.trim()) return
+    const success = rejectBatchMaterialRequisition(
+      selectedRequisition.id,
+      rejectionReason.trim()
+    )
+    if (success) {
+      setIsRequisitionModalOpen(false)
+    }
+  }
+
   const handleOpenAdjust = (product: RawProduct) => {
     setSelectedProduct(product)
-    setAdjustDelta(-1)
+    setAdjustDirection('deduct')
+    setAdjustMagnitude(1)
     setAdjustReason('Kitchen Waste & Trimmings')
     setAdjustNotes('')
     setIsAdjustModalOpen(true)
@@ -245,13 +301,11 @@ export const RawInventoryPage: React.FC = () => {
   }
 
   const handleOpenBlindStocktake = () => {
-    // Pick 5 SKUs (focusing on perishable / high-value items)
-    const initialCounts: { [key: number]: number } = {}
-    rawProducts.slice(0, 5).forEach(p => {
-      initialCounts[p.id] = p.stock_qty // pre-fill with blank or current on-hand for demonstration
-    })
-    setStocktakeCounts(initialCounts)
-    setStocktakeFeedback(null)
+    // Pick 5 diverse SKUs across the catalog (perishables & staples)
+    const shuffled = [...rawProducts].sort(() => 0.5 - Math.random())
+    const selected = shuffled.slice(0, 5)
+    setStocktakeItems(selected)
+    setStocktakeCounts({})
     setIsBlindStocktakeModalOpen(true)
   }
 
@@ -264,6 +318,8 @@ export const RawInventoryPage: React.FC = () => {
       unitCost: Number(receiveUnitCost),
       lotNumber: receiveLotNumber.trim() || undefined,
       expiryDate: receiveExpiryDate || undefined,
+      invoiceRef: receiveInvoiceRef.trim() || undefined,
+      receiptDate: receiveReceiptDate || undefined,
       notes: receiveNotes
     })
     setIsReceiveModalOpen(false)
@@ -272,7 +328,8 @@ export const RawInventoryPage: React.FC = () => {
   const handleSubmitAdjust = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return
-    adjustRawStock(selectedProduct.id, Number(adjustDelta), adjustNotes, adjustReason)
+    const signedDelta = adjustDirection === 'deduct' ? -Math.abs(adjustMagnitude) : Math.abs(adjustMagnitude)
+    adjustRawStock(selectedProduct.id, signedDelta, adjustNotes, adjustReason)
     setIsAdjustModalOpen(false)
   }
 
@@ -293,24 +350,16 @@ export const RawInventoryPage: React.FC = () => {
 
   const handleSubmitBlindStocktake = (e: React.FormEvent) => {
     e.preventDefault()
-    const countsPayload = Object.entries(stocktakeCounts).map(([prodId, count]) => ({
-      productId: Number(prodId),
-      physicalCount: Number(count),
+    const countsPayload = stocktakeItems.map(p => ({
+      productId: p.id,
+      physicalCount: Number(stocktakeCounts[p.id] ?? 0),
       category: 'raw' as const
     }))
 
+    setIsBlindStocktakeModalOpen(false)
     const variancesLogged = submitStocktakeCount(countsPayload, stocktakeCountedBy)
     if (variancesLogged > 0) {
-      setStocktakeFeedback(`${variancesLogged} discrepancy variance(s) detected and quarantined into Stocktake Escrow for supervisor review.`)
-      setTimeout(() => {
-        setIsBlindStocktakeModalOpen(false)
-        setActiveTab('escrow')
-      }, 1200)
-    } else {
-      setStocktakeFeedback("Audit Verified: 100% match! Physical counts perfectly match digital ledger records.")
-      setTimeout(() => {
-        setIsBlindStocktakeModalOpen(false)
-      }, 1200)
+      setActiveTab('variances')
     }
   }
 
@@ -352,7 +401,7 @@ export const RawInventoryPage: React.FC = () => {
     setSelectedLot(lot)
     setPrioritizeQty(lot.remaining_qty)
     setPrioritizeDish(getMatchingDishForProtein(lot.product_name))
-    setPrioritizeSupervisor('Babajide (Production Supervisor)')
+    setPrioritizeSupervisor(currentAccount?.name || 'Production Supervisor')
     setPrioritizeRemarks(`[URGENT EXPIRING BATCH] Lot ${lot.lot_number} allocated to smoking grill / oven. Best before: ${lot.expiry_date} (${lot.days_to_expiry} days left).`)
     setIsPrioritizeModalOpen(true)
   }
@@ -373,7 +422,7 @@ export const RawInventoryPage: React.FC = () => {
   const handleOpenWaste = (lot: InventoryLot) => {
     setSelectedLot(lot)
     setWasteQty(lot.remaining_qty)
-    setWasteApprover('Babajide (Oven Supervisor)')
+    setWasteApprover(currentAccount?.name || 'Production Supervisor')
     setWasteNotes('Expired / past optimal cold-storage freshness date. Written off according to food safety protocol.')
     setIsWasteModalOpen(true)
   }
@@ -390,51 +439,70 @@ export const RawInventoryPage: React.FC = () => {
     setIsWasteModalOpen(false)
   }
 
-  // Column definitions for Tab 1: Current Inventory (with Three-State Invariant & FEFO Lot tags)
+  // Column definitions for Tab 1: Current Inventory (In Stock)
   const currentColumns: ColumnDef<RawProduct>[] = [
     {
       key: 'sku',
       header: 'Item Code',
-      accessor: (p) => <span className="font-medium text-xs text-kumo-strong font-sans">{p.sku}</span>,
+      defaultWidth: 120,
+      accessor: (p) => <span className="font-semibold text-xs text-kumo-strong font-mono">{p.sku}</span>,
       sortValue: (p) => p.sku,
     },
     {
       key: 'name',
       header: 'Material',
-      accessor: (p) => (
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-xs text-kumo-strong font-sans">{p.name}</span>
-            {p.is_perishable && (
-              <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 rounded">
-                Expiring
-              </span>
-            )}
+      defaultWidth: 260,
+      accessor: (p) => {
+        const matchingLot = inventoryLots.find(l => l.product_id === p.id && l.remaining_qty > 0 && l.days_to_expiry <= 4)
+        return (
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-xs text-kumo-strong font-sans">{p.name}</span>
+              {matchingLot ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 rounded">
+                  Near Expiry ({matchingLot.days_to_expiry}d)
+                </span>
+              ) : p.is_perishable ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 rounded">
+                  Perishable
+                </span>
+              ) : null}
+            </div>
+            <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-sans">
+              {p.unit} {p.fefo_lot ? `• Lot: ${p.fefo_lot}` : ''}
+            </div>
           </div>
-          <div className="text-[11px] text-kumo-subtle uppercase tracking-wider font-sans">
-            {p.unit} {p.fefo_lot ? `• Lot: ${p.fefo_lot}` : ''}
-          </div>
-        </div>
-      ),
+        )
+      },
       sortValue: (p) => p.name,
     },
     {
       key: 'stock_qty',
       header: 'Stock Level',
+      defaultWidth: 180,
       accessor: (p) => {
-        const isLow = p.stock_qty <= p.reorder_level
+        const isOut = p.stock_qty <= 0
+        const isLow = !isOut && p.stock_qty <= p.reorder_level
+        const hasAllocated = (p.qty_allocated || 0) > 0
         return (
-          <div className="flex items-center gap-2 font-sans">
-            <span className="font-medium text-xs text-kumo-strong font-sans">
-              {formatQuantity(p.stock_qty)} {p.unit}
-            </span>
-            {isLow && (
-              <span
-                data-badge="critical-low"
-                className="badge-critical-low inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 whitespace-nowrap select-none"
-                style={{ backgroundColor: '#FCE8EC', borderColor: '#F3B0BB', color: '#C8102E' }}
-              >
-                Low
+          <div className="flex flex-col gap-0.5 font-sans">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-xs text-kumo-strong font-sans">
+                {formatQuantity(p.stock_qty)} {p.unit}
+              </span>
+              {isOut ? (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border shrink-0 whitespace-nowrap bg-zinc-100 text-zinc-700 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                  Out of Stock
+                </span>
+              ) : isLow ? (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border shrink-0 whitespace-nowrap bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                  Low Stock
+                </span>
+              ) : null}
+            </div>
+            {hasAllocated && (
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                ({formatQuantity(p.qty_allocated)} in kitchen prep)
               </span>
             )}
           </div>
@@ -443,41 +511,23 @@ export const RawInventoryPage: React.FC = () => {
       sortValue: (p) => p.stock_qty,
     },
     {
-      key: 'qty_available',
-      header: 'Available',
-      accessor: (p) => (
-        <span className="font-medium text-emerald-700 text-xs font-sans">
-          {formatQuantity(p.qty_available ?? p.stock_qty)} {p.unit}
-        </span>
-      ),
-      sortValue: (p) => p.qty_available ?? p.stock_qty,
-    },
-    {
-      key: 'qty_allocated',
-      header: 'Allocated (Batch)',
-      accessor: (p) => (
-        <span className="text-xs text-kumo-subtle font-sans">
-          {formatQuantity(p.qty_allocated ?? 0)} {p.unit}
-        </span>
-      ),
-      sortValue: (p) => p.qty_allocated ?? 0,
-    },
-    {
       key: 'unit_cost',
       header: 'Unit Cost',
+      defaultWidth: 130,
       accessor: (p) => <span className="text-xs text-kumo-default font-sans">{formatNaira(p.unit_cost)}</span>,
       sortValue: (p) => p.unit_cost,
     },
     {
       key: 'inventory_value',
       header: 'Total Value',
-      accessor: (p) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(p.inventory_value)}</span>,
-      sortValue: (p) => p.inventory_value,
+      defaultWidth: 140,
+      accessor: (p) => <span className="font-semibold text-kumo-strong font-sans">{formatNaira(p.inventory_value || (p.stock_qty * p.unit_cost))}</span>,
+      sortValue: (p) => p.inventory_value || (p.stock_qty * p.unit_cost),
     },
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 190,
+      defaultWidth: 180,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans flex-nowrap" onClick={e => e.stopPropagation()}>
           <Tooltip content="Record incoming stock from supplier">
@@ -606,7 +656,14 @@ export const RawInventoryPage: React.FC = () => {
     {
       key: 'delivery_ref',
       header: 'Receipt Ref',
-      accessor: (d) => <span className="font-medium text-xs text-kumo-strong font-sans">{d.delivery_ref}</span>,
+      accessor: (d) => (
+        <div>
+          <span className="font-medium text-xs text-kumo-strong font-sans">{d.delivery_ref}</span>
+          {d.invoice_ref && (
+            <div className="text-[10px] text-kumo-subtle font-mono">Inv: {d.invoice_ref}</div>
+          )}
+        </div>
+      ),
       sortValue: (d) => d.delivery_ref,
     },
     {
@@ -634,8 +691,15 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'unit_cost',
-      header: 'Cost / Unit',
-      accessor: (d) => <span className="text-xs text-kumo-default font-sans">{formatNaira(d.unit_cost)}</span>,
+      header: 'Purchase Price & Avg Cost',
+      accessor: (d) => (
+        <div>
+          <div className="text-xs font-semibold text-kumo-strong font-sans">{formatNaira(d.unit_cost)}</div>
+          {d.wac_after && (
+            <div className="text-[10px] text-kumo-subtle font-mono">Avg Cost: {formatNaira(d.wac_after)}</div>
+          )}
+        </div>
+      ),
       sortValue: (d) => d.unit_cost,
     },
     {
@@ -654,6 +718,109 @@ export const RawInventoryPage: React.FC = () => {
       key: 'user_name',
       header: 'Received By',
       accessor: (d) => <span className="text-xs text-kumo-subtle font-sans">{d.user_name}</span>,
+    },
+  ]
+
+  // Column definitions for Tab 4: Production Floor Requisitions
+  const requisitionColumns: ColumnDef<BatchMaterialRequisition>[] = [
+    {
+      key: 'id',
+      header: 'Requisition Ref',
+      accessor: (r) => (
+        <div>
+          <span className="font-semibold text-xs text-primary font-mono">{r.id}</span>
+          <div className="text-[11px] text-kumo-subtle font-sans">{r.requested_at}</div>
+        </div>
+      ),
+      sortValue: (r) => r.id,
+    },
+    {
+      key: 'batch_ref',
+      header: 'Production Run',
+      accessor: (r) => (
+        <div>
+          <span className="font-medium text-xs text-kumo-strong font-mono">{r.batch_ref}</span>
+          <div className="text-[11px] text-kumo-subtle font-sans">{r.output_product_name}</div>
+        </div>
+      ),
+      sortValue: (r) => r.batch_ref,
+    },
+    {
+      key: 'raw_product_name',
+      header: 'Material Requested',
+      accessor: (r) => (
+        <div>
+          <div className="font-medium text-kumo-strong font-sans">{r.raw_product_name}</div>
+          <div className="text-[11px] text-kumo-subtle font-sans">{r.sku}</div>
+        </div>
+      ),
+      sortValue: (r) => r.raw_product_name,
+    },
+    {
+      key: 'requested_qty',
+      header: 'Requisition Qty',
+      accessor: (r) => (
+        <div>
+          <span className="font-semibold text-xs text-kumo-strong font-sans">
+            {r.requested_qty} {r.unit}
+          </span>
+          {r.fulfilled_qty !== undefined && r.fulfilled_qty > 0 && (
+            <div className="text-[11px] text-emerald-700 font-medium">
+              Issued: {r.fulfilled_qty} {r.unit} ({formatNaira(r.total_cost || 0)})
+            </div>
+          )}
+        </div>
+      ),
+      sortValue: (r) => r.requested_qty,
+    },
+    {
+      key: 'reason',
+      header: 'Reason / Kitchen Notes',
+      accessor: (r) => (
+        <div className="max-w-xs">
+          <span className="text-xs text-kumo-default font-sans leading-tight block">{r.reason}</span>
+          <span className="text-[11px] text-kumo-subtle font-sans block mt-0.5">By {r.requested_by}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      accessor: (r) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border whitespace-nowrap shrink-0 ${
+          r.status === 'approved'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+            : r.status === 'partially_fulfilled'
+            ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800'
+            : r.status === 'rejected'
+            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
+            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+        }`}>
+          {r.status === 'approved' ? 'Fulfilled' : r.status === 'partially_fulfilled' ? 'Partial' : r.status === 'rejected' ? 'Rejected' : 'Pending Review'}
+        </span>
+      ),
+      sortValue: (r) => r.status,
+    },
+    {
+      key: 'actions',
+      header: 'Store Action',
+      defaultWidth: 140,
+      accessor: (r) => (
+        <div onClick={e => e.stopPropagation()} className="shrink-0">
+          {r.status === 'pending' ? (
+            <TableActionButton
+              variant="primary"
+              onClick={() => handleOpenRequisitionModal(r)}
+            >
+              Review & Issue
+            </TableActionButton>
+          ) : (
+            <span className="text-[11px] text-kumo-subtle italic whitespace-nowrap shrink-0">
+              {r.reviewed_by ? `Closed by ${r.reviewed_by}` : 'Closed'}
+            </span>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -872,7 +1039,7 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'actions',
-      header: 'Escrow Action',
+      header: 'Review Action',
       defaultWidth: 150,
       accessor: (v) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0">
@@ -903,10 +1070,10 @@ export const RawInventoryPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={handleOpenBlindStocktake}
-              leftIcon={<ClipboardCheck className="w-4 h-4 text-blue-600" />}
+              leftIcon={<ClipboardCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
               className="h-10 px-4 text-sm font-medium shadow-xs"
             >
-              Daily Stock Check
+              Record Stock Count
             </Button>
             <Button
               variant="outline"
@@ -930,6 +1097,33 @@ export const RawInventoryPage: React.FC = () => {
         }
       />
 
+      {/* Pending Production Requisitions Banner */}
+      {pendingRequisitions.length > 0 && (
+        <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs font-sans">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-amber-200 dark:bg-amber-900/60 flex items-center justify-center text-amber-900 dark:text-amber-200 font-bold text-sm shrink-0">
+              {pendingRequisitions.length}
+            </span>
+            <div>
+              <div className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                Production Floor Material Requisitions Pending Fulfillment
+              </div>
+              <div className="text-[11px] text-amber-700 dark:text-amber-400">
+                Active cooking batches require additional raw ingredients or fuel from the Central Store.
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => handleOpenRequisitionModal(pendingRequisitions[0])}
+            className="bg-amber-700 hover:bg-amber-800 text-white border-none shadow-xs text-xs whitespace-nowrap self-start sm:self-auto"
+          >
+            Review & Issue Stock ({pendingRequisitions.length})
+          </Button>
+        </div>
+      )}
+
       {/* KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
@@ -942,7 +1136,6 @@ export const RawInventoryPage: React.FC = () => {
           title="Total Inventory Value"
           value={formatNaira(totalValuation)}
           description="Working capital in livestock & ingredients"
-          trend={{ value: 4.8, isPositive: true }}
           icon={<BarChart3 className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
@@ -967,12 +1160,10 @@ export const RawInventoryPage: React.FC = () => {
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
             { id: 'current', label: 'In Stock', badge: rawProducts.length },
-            { id: 'fefo', label: 'Expiring Lots', badge: inventoryLots.length },
-            { id: 'transfers', label: 'Store Transfers', badge: interStationTransfers.length },
-            { id: 'inbound', label: 'Stock In', badge: rawDeliveries.length },
-            { id: 'outbound', label: 'Stock Out', badge: rawMovements.length },
-            { id: 'usage', label: 'Monthly Usage' },
-            { id: 'escrow', label: 'Stock Review', badge: pendingVariancesCount > 0 ? pendingVariancesCount : undefined },
+            { id: 'batches', label: 'Expiring Batches', badge: inventoryLots.length },
+            { id: 'receipts', label: 'Receipts & Stock In', badge: rawDeliveries.length },
+            { id: 'requisitions', label: 'Batch Requisitions', badge: pendingRequisitions.length > 0 ? pendingRequisitions.length : undefined },
+            { id: 'variances', label: 'Count Variances', badge: pendingVariancesCount > 0 ? pendingVariancesCount : undefined },
           ]}
         />
       </div>
@@ -991,73 +1182,58 @@ export const RawInventoryPage: React.FC = () => {
               p.unit.toLowerCase().includes(q)
             }
             title="Raw Materials"
-            exportFilename="smokey-raw-inventory"
+            exportFilename={`smokey-raw-inventory-${new Date().toISOString().slice(0, 10)}`}
             onRowClick={(p) => handleOpenDetails(p)}
-            onDateRangeChange={setDateRange}
           />
         )}
 
-        {activeTab === 'fefo' && (
+        {activeTab === 'batches' && (
           <DataTable
             data={inventoryLots}
             columns={fefoColumns}
             searchable={true}
             searchPlaceholder="Filter by batch lot number or item..."
             title="Expiring Raw Materials & Batches"
-            exportFilename="smokey-expiring-batches"
+            exportFilename={`smokey-expiring-batches-${new Date().toISOString().slice(0, 10)}`}
           />
         )}
 
-        {activeTab === 'transfers' && (
-          <DataTable
-            data={interStationTransfers}
-            columns={transferColumns}
-            searchable={true}
-            searchPlaceholder="Search transfer ref, items, or actor..."
-            title="Store Transfers"
-            exportFilename="smokey-raw-store-transfers"
-          />
-        )}
-
-        {activeTab === 'inbound' && (
+        {activeTab === 'receipts' && (
           <DataTable
             data={rawDeliveries}
             columns={inboundColumns}
             searchable={true}
             searchPlaceholder="Search delivery ref or supplier..."
-            title="Receipt"
-            exportFilename="smokey-raw-deliveries-log"
+            title="Receipts & Supplier Deliveries"
+            exportFilename={`smokey-supplier-receipts-${new Date().toISOString().slice(0, 10)}`}
           />
         )}
 
-        {activeTab === 'outbound' && (
+        {activeTab === 'requisitions' && (
           <DataTable
-            data={rawMovements}
-            columns={outboundColumns}
+            data={allRequisitions}
+            columns={requisitionColumns}
             searchable={true}
-            searchPlaceholder="Search consumption & waste audit..."
-            title="Movement"
-            exportFilename="smokey-raw-consumption-audit"
+            searchPlaceholder="Search requisitions by batch or material..."
+            searchFilter={(r, q) =>
+              r.batch_ref.toLowerCase().includes(q) ||
+              r.raw_product_name.toLowerCase().includes(q) ||
+              r.id.toLowerCase().includes(q) ||
+              r.reason.toLowerCase().includes(q)
+            }
+            title="Production Material Requisitions"
+            exportFilename={`smokey-material-requisitions-${new Date().toISOString().slice(0, 10)}`}
+            onRowClick={(r) => handleOpenRequisitionModal(r)}
           />
         )}
 
-        {activeTab === 'usage' && (
-          <DataTable
-            data={rawUsage}
-            columns={usageColumns}
-            searchable={false}
-            title="Usage Item"
-            exportFilename="smokey-raw-usage-september-2026"
-          />
-        )}
-
-        {activeTab === 'escrow' && (
+        {activeTab === 'variances' && (
           <DataTable
             data={stocktakeVariances}
             columns={escrowColumns}
             searchable={false}
-            title="Stocktake Variance"
-            exportFilename="smokey-stocktake-escrow"
+            title="Stock Count Variances"
+            exportFilename={`smokey-stocktake-variances-${new Date().toISOString().slice(0, 10)}`}
           />
         )}
       </div>
@@ -1068,8 +1244,19 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsReceiveModalOpen(false)}
         title="Receive Stock from Supplier"
         description="Record incoming meats, peppers, firewood, and cooking supplies."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="receive-stock-form">
+              Confirm Stock Intake
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitReceive} className="space-y-4">
+        <form id="receive-stock-form" onSubmit={handleSubmitReceive} className="space-y-4 font-sans">
           <Select
             label="Verified Supplier"
             value={receiveSupplierId}
@@ -1085,14 +1272,15 @@ export const RawInventoryPage: React.FC = () => {
               setReceiveProductId(pid)
               const match = rawProducts.find(p => p.id === pid)
               if (match) {
-                setReceiveUnitCost(match.unit_cost)
+                const initialCost = match.last_purchase_cost ? Math.round(match.last_purchase_cost) : Math.round(match.unit_cost || 0)
+                setReceiveUnitCost(initialCost)
                 setReceiveLotNumber(`LOT-${match.sku.replace('SKU-', '')}-${new Date().toISOString().slice(5, 10).replace('-', '')}`)
               }
             }}
-            options={rawProducts.map(p => ({ value: p.id, label: `${p.name} [${p.sku}] - Current: ${p.stock_qty} ${p.unit}` }))}
+            options={rawProducts.map(p => ({ value: p.id, label: `${p.name} [${p.sku}] - Current: ${p.stock_qty} ${p.unit} (Avg Cost: ${formatNaira(Math.round(p.unit_cost))})` }))}
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <UnitInput
               label="Quantity Received"
               value={receiveQty}
@@ -1102,18 +1290,39 @@ export const RawInventoryPage: React.FC = () => {
               step="any"
               required
             />
+
+            <div>
+              <Input
+                label="Agreed Purchase Price per Unit (₦)"
+                type="number"
+                step="any"
+                min="0.01"
+                value={receiveUnitCost}
+                onChange={(e) => setReceiveUnitCost(Number(e.target.value))}
+                required
+              />
+              <span className="text-[11px] text-kumo-subtle block mt-1">Invoice unit price agreed with supplier for this delivery</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
-              label="Agreed Unit Cost (₦)"
-              type="number"
-              min="1"
-              value={receiveUnitCost}
-              onChange={(e) => setReceiveUnitCost(Number(e.target.value))}
+              label="Supplier Invoice / Delivery Ref"
+              placeholder="e.g. INV-2026-0812 or WAYBILL-441"
+              value={receiveInvoiceRef}
+              onChange={(e) => setReceiveInvoiceRef(e.target.value)}
+            />
+
+            <SingleDatePicker
+              label="Purchase / Receipt Date"
+              value={receiveReceiptDate}
+              onChange={(d) => setReceiveReceiptDate(d)}
               required
             />
           </div>
 
           {/* FEFO Lot Tracking Fields */}
-          <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded">
+          <div className="space-y-3 p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-lg">
             <Input
               label="Batch / Lot Number"
               placeholder="e.g. LOT-GNF-0925A"
@@ -1121,17 +1330,70 @@ export const RawInventoryPage: React.FC = () => {
               onChange={(e) => setReceiveLotNumber(e.target.value)}
             />
             <SingleDatePicker
-              label="Expiration Date (First Expiring)"
+              label={rawProducts.find(p => p.id === receiveProductId)?.is_perishable ? "Expiration Date (Required for Perishables)" : "Expiration Date (Optional)"}
               value={receiveExpiryDate}
               onChange={(d) => setReceiveExpiryDate(d)}
-              required
+              required={rawProducts.find(p => p.id === receiveProductId)?.is_perishable || false}
             />
           </div>
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs flex justify-between items-center">
-            <span className="text-kumo-subtle">Total Procurement Value:</span>
-            <span className="font-bold text-emerald-700 text-sm">{formatNaira(receiveQty * receiveUnitCost)}</span>
-          </div>
+          {/* Live Average Cost Impact & Valuation Preview */}
+          {(() => {
+            const targetProduct = rawProducts.find(p => p.id === receiveProductId)
+            const currentStock = Math.max(0, targetProduct?.stock_qty || 0)
+            const currentCost = Math.round(targetProduct?.unit_cost || 0)
+            const currentValuation = Math.round(currentStock * currentCost)
+            const incomingValuation = Math.round((Number(receiveQty) || 0) * (Number(receiveUnitCost) || 0))
+            const projectedQty = currentStock + (Number(receiveQty) || 0)
+            const projectedValuation = currentValuation + incomingValuation
+            const projectedWAC = projectedQty > 0
+              ? Math.round(projectedValuation / projectedQty)
+              : Math.round(Number(receiveUnitCost) || 0)
+            const delta = projectedWAC - currentCost
+
+            return (
+              <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-2.5 font-sans">
+                <div className="flex justify-between items-center text-kumo-subtle border-b border-kumo-line pb-1.5">
+                  <span className="font-semibold text-kumo-strong">Average Cost Impact & Valuation Preview</span>
+                  <span className="text-[10px] text-kumo-subtle uppercase tracking-wider font-mono">Auto-Calculated Average</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-kumo-subtle block">Existing Stock On-Hand:</span>
+                    <span className="font-semibold text-kumo-strong">{currentStock} {targetProduct?.unit} @ {formatNaira(currentCost)}</span>
+                    <div className="text-[11px] text-kumo-subtle font-mono">Valuation: {formatNaira(currentValuation)}</div>
+                  </div>
+                  <div>
+                    <span className="text-kumo-subtle block">Incoming Procurement:</span>
+                    <span className="font-semibold text-kumo-strong">+{receiveQty} {targetProduct?.unit} @ {formatNaira(receiveUnitCost)}</span>
+                    <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">Value: +{formatNaira(incomingValuation)}</div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-kumo-line flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] text-kumo-subtle">Updated Average Unit Cost:</div>
+                    <div className="text-sm font-bold text-kumo-strong flex items-center gap-1.5 font-mono">
+                      {formatNaira(projectedWAC)} / {targetProduct?.unit}
+                      {delta !== 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                          delta > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        }`}>
+                          {delta > 0 ? `+${formatNaira(delta)}` : formatNaira(delta)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-kumo-subtle">New Total Inventory Valuation:</div>
+                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400 font-mono">{formatNaira(projectedValuation)}</div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-kumo-subtle bg-kumo-canvas/80 p-2 rounded border border-kumo-line/50 leading-relaxed">
+                  💡 <strong>How this works:</strong> When you purchase at a new price, the system blends your existing stock with this delivery so your recipe costs and profit margins reflect true average expenses.
+                </div>
+              </div>
+            )
+          })()}
 
           <Input
             label="Delivery Notes & Condition"
@@ -1139,16 +1401,164 @@ export const RawInventoryPage: React.FC = () => {
             value={receiveNotes}
             onChange={(e) => setReceiveNotes(e.target.value)}
           />
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsReceiveModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm Stock Intake
-            </Button>
-          </div>
         </form>
+      </Dialog>
+
+      {/* MODAL: Review & Fulfill Production Requisition */}
+      <Dialog
+        isOpen={isRequisitionModalOpen}
+        onClose={() => setIsRequisitionModalOpen(false)}
+        title={isRejectMode ? `Reject Requisition: ${selectedRequisition?.id}` : `Issue Material to Batch: ${selectedRequisition?.batch_ref}`}
+        description={isRejectMode ? "State the operational reason for rejecting this material request from production." : "Review requested ingredient quantities, confirm available warehouse balance, and issue stock directly to the cooking batch."}
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => {
+                if (isRejectMode) {
+                  setIsRejectMode(false)
+                } else {
+                  setIsRequisitionModalOpen(false)
+                }
+              }}
+            >
+              {isRejectMode ? 'Back' : 'Close'}
+            </Button>
+            {selectedRequisition?.status === 'pending' && (
+              isRejectMode ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  type="submit"
+                  form="reject-requisition-form"
+                  className="bg-rose-600 hover:bg-rose-700 text-white border-rose-700"
+                >
+                  Confirm Rejection
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    type="button"
+                    onClick={() => setIsRejectMode(true)}
+                    className="text-rose-600 border-rose-300 hover:bg-rose-50"
+                  >
+                    Reject Request
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    type="submit"
+                    form="fulfill-requisition-form"
+                    disabled={currentAccount?.role !== 'inventory' && currentAccount?.role !== 'admin' && currentAccount?.role !== 'manager'}
+                  >
+                    Fulfill & Issue Stock
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
+        }
+      >
+        {selectedRequisition && (
+          isRejectMode ? (
+            <form id="reject-requisition-form" onSubmit={handleConfirmRejectRequisition} className="space-y-4 font-sans">
+              <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs space-y-1">
+                <div className="font-semibold text-rose-800 dark:text-rose-300">
+                  Rejecting Requisition {selectedRequisition.id}
+                </div>
+                <div className="text-rose-700 dark:text-rose-400">
+                  Batch: {selectedRequisition.batch_ref} — {selectedRequisition.output_product_name}
+                </div>
+                <div className="text-rose-700 dark:text-rose-400">
+                  Material: {selectedRequisition.requested_qty} {selectedRequisition.unit} of {selectedRequisition.raw_product_name}
+                </div>
+              </div>
+
+              <Input
+                label="Rejection Reason"
+                placeholder="e.g. Exceeds shift budget; use reserve briquettes"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                required
+                autoFocus
+              />
+            </form>
+          ) : (
+            <form id="fulfill-requisition-form" onSubmit={handleConfirmFulfillRequisition} className="space-y-4 font-sans">
+              {/* Role Check Alert */}
+              {currentAccount?.role !== 'inventory' && currentAccount?.role !== 'admin' && currentAccount?.role !== 'manager' && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block">Inventory Account Role Required</span>
+                    <span>Only Central Storekeeper or Inventory Manager accounts have authorization to disburse warehouse stock. Switch to an inventory profile to issue this requisition.</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-2 font-sans">
+                <div className="flex justify-between items-center border-b border-kumo-line pb-2">
+                  <span className="text-kumo-subtle">Target Batch:</span>
+                  <span className="font-semibold text-kumo-strong font-mono">{selectedRequisition.batch_ref} ({selectedRequisition.output_product_name})</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-kumo-subtle">Material Requested:</span>
+                  <span className="font-semibold text-kumo-strong">{selectedRequisition.raw_product_name} [{selectedRequisition.sku}]</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-kumo-subtle">Requested Quantity:</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-400">{selectedRequisition.requested_qty} {selectedRequisition.unit}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-kumo-subtle">Central Store On-Hand:</span>
+                  <span className="font-semibold text-kumo-strong font-mono">
+                    {rawProducts.find(p => p.id === selectedRequisition.raw_product_id)?.stock_qty || 0} {selectedRequisition.unit}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-kumo-subtle">Kitchen Operational Reason:</span>
+                  <span className="font-medium text-kumo-default italic max-w-xs text-right">{selectedRequisition.reason}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-kumo-line">
+                  <span className="text-kumo-subtle">Requested By:</span>
+                  <span className="text-kumo-strong">{selectedRequisition.requested_by} at {selectedRequisition.requested_at}</span>
+                </div>
+              </div>
+
+              {selectedRequisition.status === 'pending' && (
+                <>
+                  <UnitInput
+                    label="Quantity to Issue (Support Partial Fulfillment)"
+                    value={requisitionIssueQty}
+                    onChangeValue={setRequisitionIssueQty}
+                    unit={selectedRequisition.unit}
+                    min={0.1}
+                    max={rawProducts.find(p => p.id === selectedRequisition.raw_product_id)?.stock_qty || selectedRequisition.requested_qty}
+                    step="any"
+                    required
+                    helperText={
+                      requisitionIssueQty < selectedRequisition.requested_qty
+                        ? `Partial fulfillment: issuing ${requisitionIssueQty} of ${selectedRequisition.requested_qty} ${selectedRequisition.unit}`
+                        : `Full fulfillment of requested quantity`
+                    }
+                  />
+
+                  <Input
+                    label="Warehouse Storekeeper Notes"
+                    placeholder="e.g. Inspected and weighed; dispatched to Pitmaster"
+                    value={requisitionNotes}
+                    onChange={(e) => setRequisitionNotes(e.target.value)}
+                  />
+                </>
+              )}
+            </form>
+          )
+        )}
       </Dialog>
 
       {/* MODAL 2: Stock Adjustment (fpStockAdjustModal) */}
@@ -1157,8 +1567,19 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsAdjustModalOpen(false)}
         title={`Adjust Raw Stock: ${selectedProduct?.name}`}
         description="Manual inventory reconciliation, kitchen wastage, or shrinkage recording."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="adjust-raw-stock-form">
+              Apply Stock Adjustment
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitAdjust} className="space-y-4">
+        <form id="adjust-raw-stock-form" onSubmit={handleSubmitAdjust} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Current On-Hand:</span>
@@ -1170,25 +1591,74 @@ export const RawInventoryPage: React.FC = () => {
             </div>
           </div>
 
+          <div className="space-y-1.5 font-sans">
+            <label className="block text-xs font-semibold text-kumo-strong">Adjustment Action</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdjustDirection('deduct')
+                  if (adjustReason === 'Audit Reconciliation Surplus' || adjustReason === 'Supplier Bonus / Extra Units') {
+                    setAdjustReason('Kitchen Waste & Trimmings')
+                  }
+                }}
+                className={`h-9 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustDirection === 'deduct'
+                    ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                    : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
+                }`}
+              >
+                <span>Deduct / Waste (-)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdjustDirection('add')
+                  setAdjustReason('Audit Reconciliation Surplus')
+                }}
+                className={`h-9 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustDirection === 'add'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                    : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
+                }`}
+              >
+                <span>Add / Stock Surplus (+)</span>
+              </button>
+            </div>
+          </div>
+
           <Select
             label="Adjustment Reason"
             value={adjustReason}
             onChange={(e) => setAdjustReason(e.target.value)}
-            options={[
-              { value: 'Kitchen Waste & Trimmings', label: 'Kitchen Waste & Trimmings' },
-              { value: 'Physical Count Discrepancy', label: 'Physical Count Discrepancy' },
-              { value: 'Defrosting Shrinkage', label: 'Defrosting Shrinkage' },
-              { value: 'Quality Rejection / Spoiled', label: 'Quality Rejection / Spoiled' },
-              { value: 'Audit Reconciliation Surplus', label: 'Audit Reconciliation Surplus' }
-            ]}
+            options={
+              adjustDirection === 'deduct'
+                ? [
+                    { value: 'Kitchen Waste & Trimmings', label: 'Kitchen Waste & Trimmings' },
+                    { value: 'Physical Count Discrepancy', label: 'Physical Count Discrepancy' },
+                    { value: 'Defrosting Shrinkage', label: 'Defrosting Shrinkage' },
+                    { value: 'Quality Rejection / Spoiled', label: 'Quality Rejection / Spoiled' },
+                    { value: 'Expired / Past Date', label: 'Expired / Past Date' }
+                  ]
+                : [
+                    { value: 'Audit Reconciliation Surplus', label: 'Audit Reconciliation Surplus' },
+                    { value: 'Supplier Bonus / Extra Units', label: 'Supplier Bonus / Extra Units' },
+                    { value: 'Physical Count Correction', label: 'Physical Count Correction' }
+                  ]
+            }
           />
 
           <UnitInput
-            label="Quantity Change (Negative for Deductions / Waste)"
-            value={adjustDelta}
-            onChangeValue={setAdjustDelta}
+            label={`Quantity to ${adjustDirection === 'deduct' ? 'Deduct' : 'Add'}`}
+            value={adjustMagnitude}
+            onChangeValue={setAdjustMagnitude}
             unit={selectedProduct?.unit || 'units'}
-            helperText={`New Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit}`}
+            helperText={`Projected Balance: ${
+              adjustDirection === 'deduct'
+                ? Math.max(0, (selectedProduct?.stock_qty || 0) - Number(adjustMagnitude))
+                : (selectedProduct?.stock_qty || 0) + Number(adjustMagnitude)
+            } ${selectedProduct?.unit}`}
+            min={0.1}
             step="any"
             required
           />
@@ -1200,15 +1670,6 @@ export const RawInventoryPage: React.FC = () => {
             onChange={(e) => setAdjustNotes(e.target.value)}
             required
           />
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsAdjustModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Apply Stock Adjustment
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -1220,7 +1681,7 @@ export const RawInventoryPage: React.FC = () => {
         description="Configure unit of measure, unit cost, and reorder alert level."
         maxWidth="lg"
         footer={
-          <div className="flex items-center justify-end gap-2.5 w-full">
+          <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsProductModalOpen(false)}>
               Cancel
             </Button>
@@ -1316,6 +1777,7 @@ export const RawInventoryPage: React.FC = () => {
           <Input
             label="Standard Unit Cost (₦)"
             type="number"
+            step="any"
             min="0"
             value={productForm.unit_cost}
             onChange={(e) => setProductForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
@@ -1337,16 +1799,27 @@ export const RawInventoryPage: React.FC = () => {
       <Dialog
         isOpen={isBlindStocktakeModalOpen}
         onClose={() => setIsBlindStocktakeModalOpen(false)}
-        title="Daily Stock Check (5 Random Items)"
-        description="Counts are hidden during physical stock counting to prevent bias and ensure accuracy."
+        title="Daily Stock Check (5 Diverse Items)"
+        description="Enter verified shelf/chiller counts. Counts are blind to ensure unbiased verification."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsBlindStocktakeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="blind-stocktake-form">
+              Submit Stock Check
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitBlindStocktake} className="space-y-4">
+        <form id="blind-stocktake-form" onSubmit={handleSubmitBlindStocktake} className="space-y-4">
           <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg text-xs text-blue-800 dark:text-blue-300">
-            <strong>Counting Rule:</strong> Enter the actual physical count verified on the shelf or chiller. Any difference will be reviewed by a supervisor.
+            <strong>Counting Rule:</strong> Enter the actual physical count verified on the shelf or chiller. Any difference will be logged for supervisor sign-off.
           </div>
 
           <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
-            {rawProducts.slice(0, 5).map(prod => (
+            {stocktakeItems.map(prod => (
               <div key={prod.id} className="p-3 bg-kumo-surface border border-kumo-line rounded-lg flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-xs text-kumo-strong truncate">{prod.name}</div>
@@ -1357,9 +1830,12 @@ export const RawInventoryPage: React.FC = () => {
                     type="number"
                     step="any"
                     min="0"
-                    placeholder="Count..."
-                    value={stocktakeCounts[prod.id] ?? ''}
-                    onChange={(e) => setStocktakeCounts(prev => ({ ...prev, [prod.id]: Number(e.target.value) }))}
+                    placeholder="0"
+                    value={stocktakeCounts[prod.id] !== undefined ? stocktakeCounts[prod.id] : ''}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? ('' as any) : Number(e.target.value)
+                      setStocktakeCounts(prev => ({ ...prev, [prod.id]: val }))
+                    }}
                     required
                   />
                 </div>
@@ -1373,22 +1849,6 @@ export const RawInventoryPage: React.FC = () => {
             onChange={(e) => setStocktakeCountedBy(e.target.value)}
             required
           />
-
-          {stocktakeFeedback && (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>{stocktakeFeedback}</span>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsBlindStocktakeModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Submit Stock Check
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -1398,8 +1858,19 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsResolveModalOpen(false)}
         title={`Fix Stock Difference: ${selectedVariance?.product_name}`}
         description="Update inventory count to match what was counted and record supervisor approval."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsResolveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="resolve-variance-form">
+              Confirm Stock Update
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleConfirmResolve} className="space-y-4">
+        <form id="resolve-variance-form" onSubmit={handleConfirmResolve} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
             <div className="flex justify-between">
               <span className="text-kumo-subtle">Digital Count:</span>
@@ -1423,15 +1894,6 @@ export const RawInventoryPage: React.FC = () => {
             onChange={(e) => setSupervisorResolutionNotes(e.target.value)}
             required
           />
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsResolveModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit">
-              Confirm Stock Update
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -1441,8 +1903,26 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsPrioritizeModalOpen(false)}
         title={`Prioritize for Smoking Grill: ${selectedLot?.lot_number || ''}`}
         description="Allocate this perishable lot directly to a smoking grill run so it cooks first to prevent food waste."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsPrioritizeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="prioritize-lot-form"
+              leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-amber-700 shadow-xs"
+            >
+              Start Kitchen Batch
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitPrioritize} className="space-y-4">
+        <form id="prioritize-lot-form" onSubmit={handleSubmitPrioritize} className="space-y-4">
           <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-xs space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
@@ -1464,27 +1944,26 @@ export const RawInventoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <UnitInput
-              label="Quantity to Allocate to Smoking Grill"
-              value={prioritizeQty}
-              onChangeValue={(val) => setPrioritizeQty(Math.min(selectedLot?.remaining_qty || val, Math.max(1, val)))}
-              unit={selectedLot?.unit || 'units'}
-              min={1}
-              max={selectedLot?.remaining_qty}
-              step="any"
-              required
-            />
-            <Select
-              label="Target Finished Product"
-              value={prioritizeDish}
-              onChange={(e) => setPrioritizeDish(e.target.value)}
-              options={salesProducts.map(p => ({
-                value: p.name,
-                label: `${p.name} (${formatNaira(p.selling_price)})`
-              }))}
-            />
-          </div>
+          <UnitInput
+            label="Quantity to Allocate to Smoking Grill"
+            value={prioritizeQty}
+            onChangeValue={(val) => setPrioritizeQty(Math.min(selectedLot?.remaining_qty || val, Math.max(1, val)))}
+            unit={selectedLot?.unit || 'units'}
+            min={1}
+            max={selectedLot?.remaining_qty}
+            step="any"
+            required
+          />
+
+          <Select
+            label="Target Finished Product"
+            value={prioritizeDish}
+            onChange={(e) => setPrioritizeDish(e.target.value)}
+            options={salesProducts.map(p => ({
+              value: p.name,
+              label: `${p.name} (${formatNaira(p.selling_price)})`
+            }))}
+          />
 
           <Input
             label="Assigned Production Supervisor"
@@ -1507,21 +1986,6 @@ export const RawInventoryPage: React.FC = () => {
               required
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsPrioritizeModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              type="submit"
-              leftIcon={<Flame className="w-4 h-4 text-amber-300" />}
-              className="bg-amber-600 hover:bg-amber-700 text-white border-amber-700 shadow-xs"
-            >
-              Start Kitchen Batch
-            </Button>
-          </div>
         </form>
       </Dialog>
 
@@ -1531,8 +1995,26 @@ export const RawInventoryPage: React.FC = () => {
         onClose={() => setIsWasteModalOpen(false)}
         title={`Log Spoilage / Waste Write-Off: ${selectedLot?.lot_number || ''}`}
         description="Record shrinkage for expired or spoiled stock. This removes units from raw inventory and logs an audited write-off."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsWasteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="waste-writeoff-form"
+              leftIcon={<Trash2 className="w-4 h-4" />}
+              className="bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"
+            >
+              Confirm Spoilage Write-Off
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmitWaste} className="space-y-4">
+        <form id="waste-writeoff-form" onSubmit={handleSubmitWaste} className="space-y-4">
           <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle">Lot Identifier:</span>
@@ -1558,28 +2040,27 @@ export const RawInventoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <UnitInput
-              label="Quantity to Write Off"
-              value={wasteQty}
-              onChangeValue={(val) => setWasteQty(Math.min(selectedLot?.remaining_qty || val, Math.max(0.1, val)))}
-              unit={selectedLot?.unit || 'units'}
-              min={0.1}
-              max={selectedLot?.remaining_qty}
-              step="any"
-              required
+          <UnitInput
+            label="Quantity to Write Off"
+            value={wasteQty}
+            onChangeValue={(val) => setWasteQty(Math.min(selectedLot?.remaining_qty || val, Math.max(0.1, val)))}
+            unit={selectedLot?.unit || 'units'}
+            min={0.1}
+            max={selectedLot?.remaining_qty}
+            step="any"
+            required
+          />
+
+          <div>
+            <label className="block text-xs font-semibold text-kumo-default mb-1">
+              Reason for Write-Off
+            </label>
+            <input
+              type="text"
+              readOnly
+              value="Expired / Past Date"
+              className="w-full h-9 text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong px-2.5 py-1.5 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
             />
-            <div>
-              <label className="block text-xs font-semibold text-kumo-default mb-1">
-                Reason for Write-Off
-              </label>
-              <input
-                type="text"
-                readOnly
-                value="Expired / Past Date"
-                className="w-full h-9 text-xs sm:text-sm rounded-lg border border-kumo-line bg-kumo-surface text-kumo-strong px-2.5 py-1.5 cursor-not-allowed font-semibold text-rose-700 dark:text-rose-400"
-              />
-            </div>
           </div>
 
           <Input
@@ -1602,21 +2083,6 @@ export const RawInventoryPage: React.FC = () => {
               placeholder="e.g. Past shelf-life threshold. Cold chain storage inspected."
               required
             />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-kumo-line">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsWasteModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              type="submit"
-              leftIcon={<Trash2 className="w-4 h-4" />}
-              className="bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-xs"
-            >
-              Confirm Spoilage Write-Off
-            </Button>
           </div>
         </form>
       </Dialog>

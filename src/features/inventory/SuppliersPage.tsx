@@ -1,15 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { Supplier, RawDelivery } from '@/lib/smokeyData'
+import { Supplier, RawDelivery, CANONICAL_SUPPLIER_CATEGORIES } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
-import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { KumoTabs } from '@/components/ui/KumoTabs'
+import { StatusBadge } from '@/components/ui/Badge'
 import { formatNaira, formatDate } from '@/lib/utils'
 import { 
   Building2, 
@@ -23,32 +23,46 @@ import {
   Pencil,
   FileText,
   Boxes,
-  Calendar,
-  Layers,
   Save,
-  Check
+  Check,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 
-const STANDARD_SUPPLY_CATEGORIES = [
-  { value: 'Fresh Poultry & Proteins', label: 'Fresh Poultry & Proteins (Guinea Fowls, Chicken, Turkey)' },
-  { value: 'Spices & Dry Peppers', label: 'Spices & Dry Peppers' },
-  { value: 'Hardwood Firewood & Charcoal', label: 'Hardwood Firewood & Charcoal' },
-  { value: 'Food Grade Packaging & Bags', label: 'Food Grade Packaging & Bags' },
-  { value: 'Cooking Oils & Seasonings', label: 'Cooking Oils & Seasonings' },
-]
+const getCategoryBadgeClass = (category: string) => {
+  const cat = category.toLowerCase()
+  if (cat.includes('poultry') || cat.includes('meat') || cat.includes('live')) {
+    return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
+  }
+  if (cat.includes('spice') || cat.includes('market') || cat.includes('pepper')) {
+    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+  }
+  if (cat.includes('firewood') || cat.includes('charcoal')) {
+    return 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20'
+  }
+  if (cat.includes('packag') || cat.includes('print') || cat.includes('nylon')) {
+    return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20'
+  }
+  return 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-400 border-zinc-500/20'
+}
 
 export const SuppliersPage: React.FC = () => {
-  const { suppliers, addSupplier, updateSupplier, rawDeliveries } = useSmokeyOps()
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, rawDeliveries } = useSmokeyOps()
+  
+  // Tab & Filtering State
+  const [activeStatusTab, setActiveStatusTab] = useState<'all' | 'active' | 'inactive'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+
+  // Add Supplier Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isCustomCategoryMode, setIsCustomCategoryMode] = useState(false)
   const [customCategoryInput, setCustomCategoryInput] = useState('')
-
   const [newSupplier, setNewSupplier] = useState({
     name: '',
     phone: '',
     email: '',
     address: '',
-    category: 'Fresh Poultry & Proteins'
+    category: CANONICAL_SUPPLIER_CATEGORIES[0].value
   })
 
   // Manage Supplier State
@@ -57,17 +71,70 @@ export const SuppliersPage: React.FC = () => {
   const [editForm, setEditForm] = useState<Supplier | null>(null)
   const [manageTab, setManageTab] = useState<'profile' | 'supplies'>('profile')
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null)
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
 
+  // 1. Dynamic Ledger Mapping: Compute delivery counts and spend directly from rawDeliveries
+  const vendorDeliveryStats = useMemo(() => {
+    const statsMap = new Map<number, { count: number; spend: number; lastDelivery?: string; deliveries: RawDelivery[] }>()
+    suppliers.forEach(s => statsMap.set(s.id, { count: 0, spend: 0, deliveries: [] }))
+
+    rawDeliveries.forEach(d => {
+      const match = suppliers.find(s => 
+        s.id === d.supplier_id || 
+        (d.supplier_name && s.name && d.supplier_name.trim().toLowerCase() === s.name.trim().toLowerCase())
+      )
+      if (match) {
+        const curr = statsMap.get(match.id) || { count: 0, spend: 0, deliveries: [] }
+        const deliveryVal = d.value_amount || (d.quantity * d.unit_cost) || 0
+        statsMap.set(match.id, {
+          count: curr.count + 1,
+          spend: curr.spend + deliveryVal,
+          lastDelivery: curr.lastDelivery 
+            ? (new Date(d.date_received) > new Date(curr.lastDelivery) ? d.date_received : curr.lastDelivery) 
+            : d.date_received,
+          deliveries: [d, ...curr.deliveries]
+        })
+      }
+    })
+    return statsMap
+  }, [suppliers, rawDeliveries])
+
+  // 2. Tab Badge Counts
+  const activeCount = useMemo(() => suppliers.filter(s => s.is_active === 1).length, [suppliers])
+  const inactiveCount = useMemo(() => suppliers.filter(s => s.is_active === 0).length, [suppliers])
+
+  // 3. Filtered Suppliers by Tab and Category Dropdown
+  const filteredSuppliers = useMemo(() => {
+    let result = suppliers
+
+    // Status Tab Filter
+    if (activeStatusTab === 'active') {
+      result = result.filter(s => s.is_active === 1)
+    } else if (activeStatusTab === 'inactive') {
+      result = result.filter(s => s.is_active === 0)
+    }
+
+    // Category Dropdown Filter
+    if (categoryFilter !== 'all') {
+      result = result.filter(s => s.category.toLowerCase().includes(categoryFilter.toLowerCase()))
+    }
+
+    return result
+  }, [suppliers, activeStatusTab, categoryFilter])
+
+  // 4. Honest Dynamic KPI Metrics
   const totalSuppliers = suppliers.length
-  const activeSuppliers = suppliers.filter(s => s.is_active === 1).length
-  const totalDeliveries = suppliers.reduce((acc, s) => acc + s.delivery_count, 0)
-  const totalSpend = suppliers.reduce((acc, s) => acc + s.total_spend, 0)
+  const totalActiveVendors = activeCount
+  const totalDeliveries = rawDeliveries.length
+  const totalSpend = rawDeliveries.reduce((acc, d) => acc + (d.value_amount || (d.quantity * d.unit_cost) || 0), 0)
 
+  // 5. Handlers
   const handleOpenManage = (s: Supplier) => {
     setSelectedSupplier(s)
     setEditForm({ ...s })
     setManageTab('profile')
     setSaveSuccessMsg(null)
+    setIsConfirmingDelete(false)
     setIsManageModalOpen(true)
   }
 
@@ -87,10 +154,10 @@ export const SuppliersPage: React.FC = () => {
       : newSupplier.category
 
     addSupplier({
-      name: newSupplier.name,
-      phone: newSupplier.phone,
-      email: newSupplier.email,
-      address: newSupplier.address,
+      name: newSupplier.name.trim(),
+      phone: newSupplier.phone.trim(),
+      email: newSupplier.email.trim(),
+      address: newSupplier.address.trim(),
       category: finalCategory,
     })
     setNewSupplier({
@@ -98,37 +165,50 @@ export const SuppliersPage: React.FC = () => {
       phone: '',
       email: '',
       address: '',
-      category: 'Fresh Poultry & Proteins'
+      category: CANONICAL_SUPPLIER_CATEGORIES[0].value
     })
     setCustomCategoryInput('')
     setIsCustomCategoryMode(false)
     setIsAddModalOpen(false)
   }
 
-  // Supplies history for selected supplier
-  const supplierDeliveries = selectedSupplier
-    ? rawDeliveries.filter(d => 
-        (d.supplier_name && selectedSupplier.name && d.supplier_name.toLowerCase() === selectedSupplier.name.toLowerCase()) || 
-        d.supplier_id === selectedSupplier.id
-      )
-    : []
+  const handleDeleteVendor = () => {
+    if (!selectedSupplier) return
+    const success = deleteSupplier(selectedSupplier.id)
+    if (success) {
+      setIsManageModalOpen(false)
+      setSelectedSupplier(null)
+      setIsConfirmingDelete(false)
+    }
+  }
 
-  const supplierTotalDeliveriesSpend = supplierDeliveries.reduce((acc, d) => acc + d.value_amount, 0)
+  // Selected supplier deliveries
+  const selectedStats = selectedSupplier ? vendorDeliveryStats.get(selectedSupplier.id) : null
+  const selectedDeliveries = selectedStats?.deliveries || []
+  const selectedDeliveriesCount = selectedStats?.count || 0
+  const selectedDeliveriesSpend = selectedStats?.spend || 0
 
+  // 6. Master Columns
   const columns: ColumnDef<Supplier>[] = [
     {
       key: 'supplier_ref',
       header: 'Supplier Code',
-      accessor: (s) => <span className="font-medium text-xs text-kumo-strong font-sans">{s.supplier_ref}</span>,
+      accessor: (s) => (
+        <span className="font-mono font-semibold text-xs text-kumo-strong">
+          {s.supplier_ref}
+        </span>
+      ),
       sortValue: (s) => s.supplier_ref,
     },
     {
       key: 'name',
       header: 'Vendor Name & Category',
       accessor: (s) => (
-        <div>
+        <div className="space-y-1">
           <div className="font-semibold text-kumo-strong font-sans">{s.name}</div>
-          <div className="text-xs text-primary font-medium font-sans">{s.category}</div>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium border ${getCategoryBadgeClass(s.category)}`}>
+            {s.category}
+          </span>
         </div>
       ),
       sortValue: (s) => s.name,
@@ -137,17 +217,19 @@ export const SuppliersPage: React.FC = () => {
       key: 'contact',
       header: 'Contact Info',
       accessor: (s) => (
-        <div className="space-y-0.5 text-xs text-kumo-subtle font-sans">
-          {s.phone && (
-            <div className="flex items-center gap-1 font-sans">
-              <Phone className="w-3 h-3 text-kumo-subtle" />
+        <div className="space-y-1 text-xs font-sans">
+          {s.phone ? (
+            <div className="flex items-center gap-1.5 text-kumo-strong">
+              <Phone className="w-3.5 h-3.5 text-kumo-subtle shrink-0" />
               <span>{s.phone}</span>
             </div>
+          ) : (
+            <span className="text-kumo-subtle text-[11px] italic">No phone on file</span>
           )}
           {s.email && (
-            <div className="flex items-center gap-1 font-sans">
-              <Mail className="w-3 h-3 text-kumo-subtle" />
-              <span>{s.email}</span>
+            <div className="flex items-center gap-1.5 text-kumo-subtle text-[11px]">
+              <Mail className="w-3 h-3 text-kumo-subtle shrink-0" />
+              <span className="truncate max-w-[180px]">{s.email}</span>
             </div>
           )}
         </div>
@@ -157,26 +239,66 @@ export const SuppliersPage: React.FC = () => {
       key: 'address',
       header: 'Location / Address',
       accessor: (s) => (
-        <span className="text-xs text-kumo-default max-w-xs truncate font-sans">
-          {s.address || 'Lagos'}
+        <span className="text-xs text-kumo-default max-w-xs truncate font-sans block">
+          {s.address ? s.address : <span className="text-kumo-subtle italic">Not specified</span>}
         </span>
       ),
     },
     {
       key: 'delivery_count',
       header: 'Deliveries Fulfilled',
-      accessor: (s) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-kumo-surface text-kumo-default border border-kumo-line font-sans whitespace-nowrap shrink-0">
-          {s.delivery_count} shipments
-        </span>
-      ),
-      sortValue: (s) => s.delivery_count,
+      accessor: (s) => {
+        const count = vendorDeliveryStats.get(s.id)?.count || 0
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium border ${
+            count > 0 
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800' 
+              : 'bg-kumo-surface text-kumo-subtle border-kumo-line'
+          }`}>
+            {count} {count === 1 ? 'shipment' : 'shipments'}
+          </span>
+        )
+      },
+      sortValue: (s) => vendorDeliveryStats.get(s.id)?.count || 0,
     },
     {
       key: 'total_spend',
       header: 'Total Spend (YTD)',
-      accessor: (s) => <span className="font-medium text-kumo-strong font-sans">{formatNaira(s.total_spend)}</span>,
-      sortValue: (s) => s.total_spend,
+      accessor: (s) => {
+        const spend = vendorDeliveryStats.get(s.id)?.spend || 0
+        return (
+          <span className={`font-mono font-semibold text-xs ${spend > 0 ? 'text-kumo-strong' : 'text-kumo-subtle'}`}>
+            {formatNaira(spend)}
+          </span>
+        )
+      },
+      sortValue: (s) => vendorDeliveryStats.get(s.id)?.spend || 0,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      accessor: (s) => (
+        <StatusBadge status={s.is_active === 1 ? 'ACTIVE' : 'INACTIVE'} size="sm" />
+      ),
+      sortValue: (s) => s.is_active,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right',
+      accessor: (s) => (
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleOpenManage(s)}
+            leftIcon={<Pencil className="w-3.5 h-3.5" />}
+            className="h-8 px-2.5 text-xs font-medium cursor-pointer"
+          >
+            Manage
+          </Button>
+        </div>
+      ),
     },
   ]
 
@@ -195,24 +317,24 @@ export const SuppliersPage: React.FC = () => {
               setIsAddModalOpen(true)
             }}
             leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit"
+            className="h-10 px-4 text-sm font-medium shadow-xs shrink-0 whitespace-nowrap min-w-fit cursor-pointer"
           >
             Add New Vendor
           </Button>
         }
       />
 
-      {/* KPI Strip */}
+      {/* KPI Strip: Live Dynamically Computed Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
           title="Total Suppliers"
           value={totalSuppliers}
-          description="Registered vendors"
+          description="Registered vendor profiles"
           icon={<Building2 className="w-4 h-4 text-primary" />}
         />
         <MetricCard
           title="Active Vendors"
-          value={activeSuppliers}
+          value={totalActiveVendors}
           description="In good regulatory standing"
           icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
         />
@@ -230,17 +352,43 @@ export const SuppliersPage: React.FC = () => {
         />
       </div>
 
-      {/* Table */}
+      {/* Top-Level Status-Based Tabs */}
+      <div>
+        <KumoTabs
+          activeTab={activeStatusTab}
+          onChange={(val) => setActiveStatusTab(val as any)}
+          tabs={[
+            { id: 'all', label: 'All Vendors', badge: suppliers.length },
+            { id: 'active', label: 'Active Vendors', badge: activeCount },
+            { id: 'inactive', label: 'Suspended / Inactive', badge: inactiveCount },
+          ]}
+        />
+      </div>
+
+      {/* Directory Table with Category Dropdown Filter */}
       <DataTable
-        data={suppliers}
+        data={filteredSuppliers}
         columns={columns}
         searchable={true}
         searchPlaceholder="Search vendor name, contact, category..."
-        exportFilename="smokey-suppliers-directory"
+        exportFilename={`smokey-suppliers-directory-${new Date().toISOString().slice(0, 10)}`}
+        enableDateFilter={false}
+        filterCategories={[
+          {
+            name: 'Supply Category',
+            key: 'category',
+            options: [
+              { label: 'All Categories', value: 'all' },
+              ...CANONICAL_SUPPLIER_CATEGORIES.map(c => ({ label: c.label, value: c.value }))
+            ],
+            activeValue: categoryFilter,
+            onChange: (val) => setCategoryFilter(val),
+          }
+        ]}
         onRowClick={(s) => handleOpenManage(s)}
       />
 
-      {/* Add Modal */}
+      {/* MODAL 1: Register New Supplier (Strict Single-Column Vertical Stack) */}
       <Dialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -304,14 +452,14 @@ export const SuppliersPage: React.FC = () => {
               <Select
                 value={newSupplier.category}
                 onChange={(e) => setNewSupplier(prev => ({ ...prev, category: e.target.value }))}
-                options={STANDARD_SUPPLY_CATEGORIES}
+                options={CANONICAL_SUPPLIER_CATEGORIES.map(c => ({ value: c.value, label: c.label }))}
               />
             )}
           </div>
 
           <Input
             label="Phone Number"
-            placeholder="080..."
+            placeholder="08012345678"
             value={newSupplier.phone}
             onChange={(e) => setNewSupplier(prev => ({ ...prev, phone: e.target.value }))}
             required
@@ -335,7 +483,7 @@ export const SuppliersPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* Manage Supplier & Supplies Log Modal */}
+      {/* MODAL 2: Vendor Details & Supplies Log (Image 3 Spread-Even Standard) */}
       {selectedSupplier && editForm && (
         <Dialog
           isOpen={isManageModalOpen}
@@ -357,14 +505,17 @@ export const SuppliersPage: React.FC = () => {
           }
         >
           <div className="space-y-4 font-sans text-xs">
-            {/* Tabs */}
+            {/* Modal Internal Tabs */}
             <div>
               <KumoTabs
                 activeTab={manageTab}
-                onChange={(val) => setManageTab(val as any)}
+                onChange={(val) => {
+                  setManageTab(val as any)
+                  setIsConfirmingDelete(false)
+                }}
                 tabs={[
                   { id: 'profile', label: 'Vendor Profile & Contact' },
-                  { id: 'supplies', label: 'Supplies Log', badge: supplierDeliveries.length },
+                  { id: 'supplies', label: 'Supplies Log', badge: selectedDeliveriesCount },
                 ]}
               />
             </div>
@@ -385,12 +536,11 @@ export const SuppliersPage: React.FC = () => {
                   required
                 />
 
-                <Input
+                <Select
                   label="Supply Category"
                   value={editForm.category}
                   onChange={(e) => setEditForm(prev => prev ? ({ ...prev, category: e.target.value }) : null)}
-                  placeholder="e.g. Fresh Poultry & Proteins"
-                  required
+                  options={CANONICAL_SUPPLIER_CATEGORIES.map(c => ({ value: c.value, label: c.label }))}
                 />
 
                 <Input
@@ -414,10 +564,11 @@ export const SuppliersPage: React.FC = () => {
                   required
                 />
 
-                <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between">
+                {/* Partnership Status Toggle */}
+                <div className="p-3 rounded-lg border border-kumo-line bg-kumo-surface flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Vendor Partnership Status</div>
-                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    <div className="text-xs font-semibold text-kumo-strong">Vendor Partnership Status</div>
+                    <div className="text-[11px] text-kumo-subtle mt-0.5">
                       {editForm.is_active ? 'Active vendor eligible for purchase orders' : 'Suspended / Inactive'}
                     </div>
                   </div>
@@ -426,41 +577,96 @@ export const SuppliersPage: React.FC = () => {
                     onClick={() => setEditForm(prev => prev ? ({ ...prev, is_active: prev.is_active ? 0 : 1 }) : null)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                       editForm.is_active 
-                        ? 'bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700' 
-                        : 'bg-zinc-50 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                        : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
                     }`}
                   >
                     {editForm.is_active ? 'Active Vendor' : 'Mark Inactive'}
                   </button>
+                </div>
+
+                {/* Danger Zone: Audit-Guarded Vendor Deletion */}
+                <div className="p-3 rounded-lg border border-rose-200 dark:border-rose-950/50 bg-rose-50/40 dark:bg-rose-950/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold text-xs">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Delete Vendor Profile</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-kumo-subtle leading-relaxed">
+                    {selectedDeliveriesCount > 0
+                      ? `This vendor has ${selectedDeliveriesCount} fulfilled shipment${selectedDeliveriesCount === 1 ? '' : 's'} on record. Permanent deletion is locked to preserve ledger audit trail. Mark inactive instead.`
+                      : 'Permanently remove this vendor from the database. Allowed only because 0 shipments have been recorded.'}
+                  </p>
+                  {selectedDeliveriesCount === 0 && (
+                    <div className="pt-1">
+                      {!isConfirmingDelete ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsConfirmingDelete(true)}
+                          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                          className="h-8 px-3 text-xs cursor-pointer"
+                        >
+                          Delete Vendor
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setIsConfirmingDelete(false)}
+                            className="h-8 px-3 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeleteVendor}
+                            className="h-8 px-3 text-xs"
+                          >
+                            Confirm Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </form>
             )}
 
             {manageTab === 'supplies' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 text-xs">
+                {/* Supplies Overview Banner */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-kumo-surface border border-kumo-line text-xs font-sans">
                   <div>
-                    <span className="text-zinc-500 dark:text-zinc-400">Recorded Shipments:</span>{' '}
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{supplierDeliveries.length} orders</span>
+                    <span className="text-kumo-subtle">Recorded Shipments:</span>{' '}
+                    <span className="font-semibold text-kumo-strong font-mono">{selectedDeliveriesCount} orders</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 dark:text-zinc-400">Total Procurement Value:</span>{' '}
-                    <span className="font-semibold font-mono text-zinc-900 dark:text-zinc-100">{formatNaira(supplierTotalDeliveriesSpend || selectedSupplier.total_spend)}</span>
+                    <span className="text-kumo-subtle">Total Procurement Value:</span>{' '}
+                    <span className="font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+                      {formatNaira(selectedDeliveriesSpend)}
+                    </span>
                   </div>
                 </div>
 
-                {supplierDeliveries.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                    <Boxes className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2 opacity-50" />
-                    <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">No Inbound Shipments Logged Yet</p>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      Deliveries received from this vendor in Raw Material Inventory will automatically appear here.
+                {selectedDeliveries.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-kumo-line rounded-lg">
+                    <Boxes className="w-8 h-8 text-kumo-subtle mx-auto mb-2 opacity-50" />
+                    <p className="text-xs font-medium text-kumo-strong">No Inbound Shipments Logged Yet</p>
+                    <p className="text-[11px] text-kumo-subtle mt-0.5">
+                      Deliveries received from this vendor in Raw Material or Packaging Inventory will automatically appear here.
                     </p>
                   </div>
                 ) : (
-                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
+                  <div className="border border-kumo-line rounded-lg overflow-x-auto max-h-80 overflow-y-auto">
                     <table className="w-full text-left text-xs font-sans">
-                      <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 text-[11px] uppercase border-b border-zinc-200 dark:border-zinc-800">
+                      <thead className="bg-kumo-canvas text-kumo-subtle text-[11px] uppercase border-b border-kumo-line sticky top-0">
                         <tr>
                           <th className="px-3 py-2 font-medium whitespace-nowrap">Delivery Ref</th>
                           <th className="px-3 py-2 font-medium whitespace-nowrap">Date</th>
@@ -470,28 +676,28 @@ export const SuppliersPage: React.FC = () => {
                           <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Invoice Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                        {supplierDeliveries.map((delivery) => (
-                          <tr key={delivery.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
-                            <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                      <tbody className="divide-y divide-kumo-line">
+                        {selectedDeliveries.map((delivery) => (
+                          <tr key={delivery.id} className="hover:bg-kumo-surface/50 transition-colors">
+                            <td className="px-3 py-2.5 font-mono text-[11px] text-kumo-strong whitespace-nowrap">
                               {delivery.delivery_ref}
                             </td>
-                            <td className="px-3 py-2.5 text-zinc-500 dark:text-zinc-400 text-[11px] whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-kumo-subtle text-[11px] whitespace-nowrap">
                               {formatDate(delivery.date_received)}
                             </td>
                             <td className="px-3 py-2.5 whitespace-nowrap">
-                              <div className="font-medium text-zinc-900 dark:text-zinc-100">{delivery.product_name}</div>
+                              <div className="font-medium text-kumo-strong">{delivery.product_name}</div>
                               {delivery.lot_number && (
-                                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">Lot: {delivery.lot_number}</div>
+                                <div className="text-[10px] text-kumo-subtle font-mono">Lot: {delivery.lot_number}</div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-zinc-800 dark:text-zinc-200 font-medium whitespace-nowrap">
-                              {delivery.quantity} {delivery.unit}
+                            <td className="px-3 py-2.5 text-kumo-strong font-medium whitespace-nowrap font-mono">
+                              {delivery.quantity} {delivery.unit.toLowerCase()}
                             </td>
-                            <td className="px-3 py-2.5 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-kumo-subtle whitespace-nowrap font-mono">
                               {formatNaira(delivery.unit_cost)}
                             </td>
-                            <td className="px-3 py-2.5 text-right font-semibold font-mono text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-right font-semibold font-mono text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                               {formatNaira(delivery.value_amount)}
                             </td>
                           </tr>
@@ -508,4 +714,5 @@ export const SuppliersPage: React.FC = () => {
     </div>
   )
 }
+
 export default SuppliersPage

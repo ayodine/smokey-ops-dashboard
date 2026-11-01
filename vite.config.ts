@@ -116,7 +116,7 @@ export default defineConfig(({ mode }) => {
             suppliers: serverCache.suppliers || [],
             fleetRiders: serverCache.fleetRiders || [],
             staffAccounts: serverCache.staffAccounts || [],
-            facilities: serverCache.facilities || [],
+            facilities: serverCache.facilities || []
           }).replace(/</g, '\\u003c')
           return html.replace(
             '</head>',
@@ -415,6 +415,169 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Server error' }))
               }
+              return
+            }
+
+            if (req.url?.startsWith('/api/app-settings')) {
+              try {
+                if (req.method === 'POST' || req.method === 'PUT') {
+                  let body = ''
+                  req.on('data', chunk => {
+                    body += chunk.toString()
+                  })
+                  req.on('end', async () => {
+                    try {
+                      const parsed = JSON.parse(body)
+                      const { key, value } = parsed
+                      if (!key) {
+                        res.statusCode = 400
+                        res.setHeader('Content-Type', 'application/json')
+                        res.end(JSON.stringify({ error: 'Missing key' }))
+                        return
+                      }
+                      const { error } = await sb
+                        .from('app_settings')
+                        .upsert({ key, value }, { onConflict: 'key' })
+                      if (error) {
+                        res.statusCode = 500
+                        res.setHeader('Content-Type', 'application/json')
+                        res.end(JSON.stringify({ error: error.message }))
+                        return
+                      }
+                      if (key === 'inventory_raw') serverCache.rawInventory = value
+                      if (key === 'inventory_packaging') serverCache.packagingInventory = value
+                      if (key === 'suppliers') serverCache.suppliers = value
+                      if (key === 'fleet_riders') serverCache.fleetRiders = value
+                      if (key === 'staff_accounts') serverCache.staffAccounts = value
+                      if (key === 'facilities') serverCache.facilities = value
+                      res.statusCode = 200
+                      res.setHeader('Content-Type', 'application/json')
+                      res.end(JSON.stringify({ ok: true }))
+                    } catch (e: any) {
+                      res.statusCode = 500
+                      res.setHeader('Content-Type', 'application/json')
+                      res.end(JSON.stringify({ error: e?.message || 'Invalid JSON' }))
+                    }
+                  })
+                  return
+                }
+
+                const urlObj = new URL(req.url, 'http://localhost')
+                const keysParam = urlObj.searchParams.get('keys')
+                let query = sb.from('app_settings').select('key, value')
+                if (keysParam) {
+                  query = query.in('key', keysParam.split(',').map(k => k.trim()))
+                }
+                const { data, error } = await query
+                if (error) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
+            if (req.url?.startsWith('/api/update-order') && (req.method === 'POST' || req.method === 'PUT')) {
+              let body = ''
+              req.on('data', chunk => {
+                body += chunk.toString()
+              })
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(body)
+                  const { id, updates } = parsed
+                  if (!id || !updates) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: 'Missing id or updates' }))
+                    return
+                  }
+                  const { data, error } = await sb
+                    .from('orders')
+                    .update(updates)
+                    .eq('id', String(id))
+                    .select()
+                  if (error) {
+                    res.statusCode = 500
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: error.message }))
+                    return
+                  }
+                  serverCache.liveOrders = null
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ ok: true, data }))
+                } catch (e: any) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: e?.message || 'Invalid JSON' }))
+                }
+              })
+              return
+            }
+
+            if (req.url?.startsWith('/api/update-product') && (req.method === 'POST' || req.method === 'PUT')) {
+              let body = ''
+              req.on('data', chunk => {
+                body += chunk.toString()
+              })
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(body)
+                  const { id, updates, insert } = parsed
+                  if (insert && updates) {
+                    const { data, error } = await sb
+                      .from('products')
+                      .insert(updates)
+                      .select()
+                    if (error) {
+                      res.statusCode = 500
+                      res.setHeader('Content-Type', 'application/json')
+                      res.end(JSON.stringify({ error: error.message }))
+                      return
+                    }
+                    serverCache.products = null
+                    res.statusCode = 200
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ ok: true, data }))
+                    return
+                  }
+                  if (!id || !updates) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: 'Missing id or updates' }))
+                    return
+                  }
+                  const { data, error } = await sb
+                    .from('products')
+                    .update(updates)
+                    .eq('id', Number(id))
+                    .select()
+                  if (error) {
+                    res.statusCode = 500
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: error.message }))
+                    return
+                  }
+                  serverCache.products = null
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ ok: true, data }))
+                } catch (e: any) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: e?.message || 'Invalid JSON' }))
+                }
+              })
               return
             }
 

@@ -1061,6 +1061,28 @@ export const ManageOfficesPage: React.FC = () => {
         title="Remove Operating Office"
         description={`Are you sure you want to permanently remove "${facilityToDelete?.name}" (${facilityToDelete?.code})?`}
         maxWidth="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setFacilityToDelete(null)}
+              className="h-9 px-4 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDelete}
+              className="h-9 px-4 text-xs font-semibold"
+            >
+              Delete Office
+            </Button>
+          </div>
+        }
       >
         {facilityToDelete && (
           <div className="space-y-4 font-sans text-left text-xs">
@@ -1087,27 +1109,6 @@ export const ManageOfficesPage: React.FC = () => {
                 <span className="text-kumo-subtle">Location:</span>
                 <span className="text-kumo-strong">{facilityToDelete.city}</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setFacilityToDelete(null)}
-                className="h-9 px-4 text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleConfirmDelete}
-                className="h-9 px-4 text-xs font-semibold"
-              >
-                Delete Office
-              </Button>
             </div>
           </div>
         )}

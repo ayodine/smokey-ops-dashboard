@@ -63,9 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     rawProducts,
     packagingProducts,
     salesProducts,
+    liveSalesProducts,
     suppliers,
     riders,
     rawMovements,
+    salesMovements,
+    interStationTransfers,
     productionBatches,
     kitchenTasks,
     packagingQueue,
@@ -104,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       return [
         {
           id: 'logistic',
-          title: 'LOGISTIC',
+          title: 'LOGISTICS',
           icon: Truck,
           defaultHref: '/logistics/rider-portal',
           items: [
@@ -120,8 +123,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     const activeDispatchesCount = logisticsDeliveries.filter(d => ['pending', 'assigned', 'in_transit', 'out_for_delivery'].includes(d.status)).length
     const scheduledOrdersCount = scheduledOrders.filter(o => o.order_status !== 'dispatched').length
     const pendingPickupsCount = storePickups.filter(p => p.order_status === 'ready_for_pickup').length
+    const thirdPartyCount = logisticsDeliveries.filter(d => d.rider_type === 'third_party').length
+    const salesBadgeCount = liveSalesProducts.length || salesProducts.length
 
-    return [
+    const allSections: NavSection[] = [
       {
         id: 'sales',
         title: 'SALES',
@@ -129,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         defaultHref: '/sales/orders',
         items: [
           { label: 'Website Orders', href: '/sales/orders', badge: activeOrdersCount !== undefined ? activeOrdersCount : undefined },
-          { label: 'Sales Inventory', href: '/inventory/sales', badge: salesProducts.length },
+          { label: 'Sales Inventory', href: '/inventory/sales', badge: salesBadgeCount },
         ],
       },
       {
@@ -139,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         defaultHref: '/inventory/raw',
         items: [
           { label: 'Raw Inventory', href: '/inventory/raw', badge: rawProducts.length },
-          { label: 'Stock Movements', href: '/inventory/movements', badge: rawMovements.length > 0 ? rawMovements.length : undefined },
+          { label: 'Stock Movements', href: '/inventory/movements', badge: (rawMovements.length + salesMovements.length + interStationTransfers.length) > 0 ? (rawMovements.length + salesMovements.length + interStationTransfers.length) : undefined },
           { label: 'Suppliers & Vendors', href: '/inventory/suppliers', badge: suppliers.length },
         ],
       },
@@ -165,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       },
       {
         id: 'logistic',
-        title: 'LOGISTIC',
+        title: 'LOGISTICS',
         icon: Truck,
         defaultHref: '/logistics/board',
         items: [
@@ -173,16 +178,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           { label: 'Delivery Schedule', href: '/logistics/schedule', badge: scheduledOrdersCount > 0 ? scheduledOrdersCount : undefined },
           { label: 'In-House Riders', href: '/logistics/riders', badge: riders.length },
           { label: 'Store Pickup Counter', href: '/logistics/pickup', badge: pendingPickupsCount > 0 ? pendingPickupsCount : undefined },
-          { label: 'Third Party Delivery', href: '/logistics/third-party', badge: thirdPartySummaries.length > 0 ? thirdPartySummaries.length : undefined },
+          { label: 'Third Party Delivery', href: '/logistics/third-party', badge: thirdPartyCount > 0 ? thirdPartyCount : undefined },
         ],
       },
     ]
+
+    if (currentAccount.role === 'kitchen') {
+      return allSections.filter(s => ['production', 'packaging', 'inventory'].includes(s.id))
+    }
+    if (currentAccount.role === 'inventory') {
+      return allSections.filter(s => ['inventory', 'packaging', 'sales'].includes(s.id))
+    }
+    if (currentAccount.role === 'dispatcher') {
+      return allSections.filter(s => ['logistic', 'packaging', 'sales'].includes(s.id))
+    }
+
+    return allSections
   }, [
     currentAccount.role,
     activeOrdersCount,
     salesProducts.length,
+    liveSalesProducts.length,
     rawProducts.length,
     rawMovements.length,
+    salesMovements.length,
+    interStationTransfers.length,
     suppliers.length,
     facilities.length,
     productionBatches,
@@ -383,62 +403,75 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               {/* Pointer Arrow Notch */}
               <div className="absolute -top-[6px] left-[88px] w-3 h-3 bg-white dark:bg-zinc-900 border-t border-l border-zinc-200/90 dark:border-zinc-800 rotate-45 z-30" />
 
-              {/* Search accounts... */}
-              <div className="relative z-20 flex items-center gap-3 px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 rounded-t-2xl bg-white dark:bg-zinc-900">
-                <Search className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 stroke-[1.75]" />
-                <input
-                  type="text"
-                  value={accountSearchQuery}
-                  onChange={(e) => setAccountSearchQuery(e.target.value)}
-                  placeholder="Search accounts..."
-                  autoFocus
-                  className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none font-normal"
-                />
-              </div>
-
-              {/* Accounts list */}
-              <div className="relative z-20 p-2 space-y-1 max-h-64 overflow-y-auto bg-white dark:bg-zinc-900">
-                {filteredAccounts.map(acc => {
-                  const isSelected = activeAccountEmail.toLowerCase() === acc.email.toLowerCase()
-                  return (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      onClick={() => {
-                        switchAccount(acc.email)
-                        setIsAccountMenuOpen(false)
-                        if (acc.role === 'rider') {
-                          navigate('/logistics/rider-portal')
-                        } else if (location.pathname.startsWith('/logistics/rider-portal')) {
-                          navigate('/overview')
-                        }
-                      }}
-                      className={cn(
-                        "w-full px-3.5 py-2.5 rounded-xl text-left text-[13px] transition-colors cursor-pointer flex items-center justify-between",
-                        isSelected
-                          ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
-                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-normal"
-                      )}
-                    >
-                      <span className="truncate pr-2 font-sans">
-                        {acc.email}'s Account
-                      </span>
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 stroke-[2] shrink-0" />
-                      )}
-                    </button>
-                  )
-                })}
-                {filteredAccounts.length === 0 && (
-                  <div className="px-3 py-4 text-center text-[13px] text-zinc-400 dark:text-zinc-500">
-                    No accounts found
+            {/* Search accounts... (Admin only) */}
+              {currentAccount.role === 'admin' ? (
+                <>
+                  <div className="relative z-20 flex items-center gap-3 px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800 rounded-t-2xl bg-white dark:bg-zinc-900">
+                    <Search className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 stroke-[1.75]" />
+                    <input
+                      type="text"
+                      value={accountSearchQuery}
+                      onChange={(e) => setAccountSearchQuery(e.target.value)}
+                      placeholder="Search accounts..."
+                      autoFocus
+                      className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none font-normal"
+                    />
                   </div>
-                )}
-              </div>
 
-              {/* Action Footer: + Create Account (Super Admin only) & Manage Account */}
-              <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
-                {currentAccount.role === 'admin' && (
+                  {/* Accounts list */}
+                  <div className="relative z-20 p-2 space-y-1 max-h-64 overflow-y-auto bg-white dark:bg-zinc-900">
+                    {filteredAccounts.map(acc => {
+                      const isSelected = activeAccountEmail.toLowerCase() === acc.email.toLowerCase()
+                      return (
+                        <button
+                          key={acc.email}
+                          type="button"
+                          onClick={() => {
+                            switchAccount(acc.email)
+                            setIsAccountMenuOpen(false)
+                            if (acc.role === 'rider') {
+                              navigate('/logistics/rider-portal')
+                            } else if (location.pathname.startsWith('/logistics/rider-portal')) {
+                              navigate('/overview')
+                            }
+                          }}
+                          className={cn(
+                            "w-full px-3.5 py-2.5 rounded-xl text-left text-[13px] transition-colors cursor-pointer flex items-center justify-between",
+                            isSelected
+                              ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
+                              : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-normal"
+                          )}
+                        >
+                          <span className="truncate pr-2 font-sans">
+                            {acc.email}'s Account
+                          </span>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 stroke-[2] shrink-0" />
+                          )}
+                        </button>
+                      )
+                    })}
+                    {filteredAccounts.length === 0 && (
+                      <div className="px-3 py-4 text-center text-[13px] text-zinc-400 dark:text-zinc-500">
+                        No accounts found
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="relative z-20 px-4 py-3.5 border-b border-zinc-200/80 dark:border-zinc-800 rounded-t-2xl bg-white dark:bg-zinc-900">
+                  <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                    {currentAccount.name}
+                  </div>
+                  <div className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                    {currentAccount.email} • {currentAccount.roleLabel}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Footer: + Create Account, Manage Account & Manage Offices (Admin only) */}
+              {currentAccount.role === 'admin' && (
+                <div className="relative z-20 border-t border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl">
                   <button
                     type="button"
                     onClick={() => {
@@ -451,35 +484,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                     <Plus className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
                     <span>Create Account</span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAccountMenuOpen(false)
-                    navigate('/accounts')
-                    onCloseMobile()
-                  }}
-                  className={cn(
-                    "w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors",
-                    currentAccount.role === 'admin' && "border-t border-zinc-100 dark:border-zinc-800/80"
-                  )}
-                >
-                  <Settings className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                  <span>Manage Account</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAccountMenuOpen(false)
-                    navigate('/offices')
-                    onCloseMobile()
-                  }}
-                  className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80 rounded-b-2xl"
-                >
-                  <Building2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
-                  <span>Manage Offices</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAccountMenuOpen(false)
+                      navigate('/accounts')
+                      onCloseMobile()
+                    }}
+                    className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80"
+                  >
+                    <Settings className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
+                    <span>Manage Account</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAccountMenuOpen(false)
+                      navigate('/offices')
+                      onCloseMobile()
+                    }}
+                    className="w-full px-4 py-3 text-left text-[13px] font-normal text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 flex items-center gap-3 cursor-pointer transition-colors border-t border-zinc-100 dark:border-zinc-800/80 rounded-b-2xl"
+                  >
+                    <Building2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200 stroke-[1.75] shrink-0" />
+                    <span>Manage Offices</span>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

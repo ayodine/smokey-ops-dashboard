@@ -488,7 +488,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
       hasStock: true,
       currentStage,
       paymentRef: row.payment_reference || `pay_${orderRef.toLowerCase()}`,
-      riderName: matchedDelivery?.assigned_rider || row.rider_name || 'FRESH LOGISTICS',
+      riderName: matchedDelivery?.assigned_rider || row.rider_name || 'Unassigned',
       destinationAddress: row.address || row.delivery_address || 'Lagos, Nigeria',
       otpCode: '5842',
       deliveryFee: Number(row.delivery_fee) || 3000,
@@ -496,15 +496,12 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     }
   }
 
-  // Orders in pipeline state — pre-populated from context websiteOrders to prevent mount jump
+  // Orders in pipeline state — pre-populated from context websiteOrders without fake fallback orders
   const [orders, setOrders] = useState<PipelineOrder[]>(() => {
     if (websiteOrders && websiteOrders.length > 0) {
-      const mapped = websiteOrders.map(mapRowToPipelineOrder)
-      const ids = new Set(mapped.map((m) => m.id))
-      const remaining = SMOKEY_OPERATIONAL_ORDERS.filter((p) => !ids.has(p.id))
-      return [...mapped, ...remaining]
+      return websiteOrders.map(mapRowToPipelineOrder)
     }
-    return SMOKEY_OPERATIONAL_ORDERS
+    return []
   })
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [orderSearchInput, setOrderSearchInput] = useState<string>('')
@@ -526,11 +523,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   useEffect(() => {
     if (websiteOrders && websiteOrders.length > 0) {
       const mapped = websiteOrders.map(mapRowToPipelineOrder)
-      setOrders((prev) => {
-        const ids = new Set(mapped.map((m) => m.id))
-        const remaining = prev.filter((p) => !ids.has(p.id))
-        return [...mapped, ...remaining]
-      })
+      setOrders(mapped)
     }
   }, [websiteOrders, packagingQueue, logisticsDeliveries, scheduledOrders])
 

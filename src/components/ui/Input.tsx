@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className="block text-[12px] font-semibold text-kumo-strong leading-4"
           >
             {label}
-            {props.required && <span className="text-kumo-danger ml-0.5">*</span>}
+            {props.required && <span className="text-red-500 dark:text-red-400 font-bold ml-1">*</span>}
           </label>
         )}
         <div className="relative rounded-lg shadow-2xs">

@@ -100,7 +100,7 @@ export const Dialog: React.FC<DialogProps> = ({
 
         {/* Fixed Footer pinned to bottom */}
         {footer && (
-          <div className="px-6 py-3.5 bg-kumo-base border-t border-kumo-line flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 bg-kumo-base border-t border-kumo-line flex items-center justify-between gap-2.5 shrink-0 w-full">
             {footer}
           </div>
         )}

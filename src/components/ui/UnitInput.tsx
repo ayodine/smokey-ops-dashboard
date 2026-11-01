@@ -43,7 +43,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   unit,
   onChangeUnit,
   unitOptions = DEFAULT_UNITS,
-  min = 0,
+  min,
   max,
   step = 'any',
   placeholder = '0.0',
@@ -141,7 +141,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
           step={step}
           min={min}
           max={max}
-          value={value === 0 && placeholder ? '' : value}
+          value={value === undefined || value === null ? '' : value}
           onChange={(e) => {
             onChangeValue?.(Number(e.target.value))
             onChange?.(e)

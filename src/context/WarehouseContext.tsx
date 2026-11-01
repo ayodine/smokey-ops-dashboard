@@ -122,10 +122,34 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Ensure current selection is always valid among facilities
   useEffect(() => {
     localStorage.setItem('ops_facilities', JSON.stringify(facilities))
+    fetch('/api/app-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'facilities', value: facilities }),
+    }).catch(() => {})
     if (!facilities.some(f => f.id === selectedWarehouse.id)) {
       setSelectedWarehouseState(facilities[0] || INITIAL_FACILITY)
     }
   }, [facilities, selectedWarehouse.id])
+
+  // Hydrate facilities from backend /api/facilities on mount
+  useEffect(() => {
+    fetch('/api/facilities')
+      .then(res => res.ok ? res.json() : null)
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          const valid = json.data.filter((f: FacilityOption) => {
+            if (f.id === INITIAL_FACILITY.id || f.code === INITIAL_FACILITY.code) return true
+            const nameLower = (f.name || '').toLowerCase()
+            return !FAKE_BRANCH_KEYWORDS.some(k => nameLower.includes(k))
+          })
+          if (valid.length > 0) {
+            setFacilities(valid)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const setSelectedWarehouse = (facility: FacilityOption) => {
     setSelectedWarehouseState(facility)

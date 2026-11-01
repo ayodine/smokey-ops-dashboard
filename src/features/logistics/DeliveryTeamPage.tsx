@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { RiderPayout, LogisticsDelivery } from '@/lib/smokeyData'
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
+import { generateNextStaffId } from '@/lib/staffId'
 import { formatNaira, cn } from '@/lib/utils'
 import { 
   Users, 
@@ -43,13 +43,20 @@ import {
 
 export const DeliveryTeamPage: React.FC = () => {
   const navigate = useNavigate()
-  const { riders, payAndResetRider, remitCodCash, logisticsDeliveries, addRiderProfile } = useSmokeyOps()
+  const {
+    riders,
+    payAndResetRider,
+    logisticsDeliveries,
+    addRiderProfile,
+    currentAccount,
+    availableAccounts,
+    createAccount
+  } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
   const [selectedRider, setSelectedRider] = useState<RiderPayout | null>(null)
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
-  const [isRemitModalOpen, setIsRemitModalOpen] = useState(false)
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'on_trip' | 'active' | 'cash_held'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'on_trip' | 'active' | 'pending_payout'>('all')
   const [modalTab, setModalTab] = useState<'ledger' | 'trips'>('ledger')
 
   // Driver Onboarding KYC Form State
@@ -59,40 +66,37 @@ export const DeliveryTeamPage: React.FC = () => {
     email: '',
     vehicle_type: 'Bajaj Boxer 150 Motorcycle',
     plate_number: '',
-    operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
+    operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Lagos Mainland HQ',
     license_number: '',
-    license_expiry: 'Nov 2027',
-    emergency_contact: 'Next of Kin',
+    license_expiry: '',
+    emergency_contact: '',
     emergency_phone: '',
-    cod_limit: 50000,
     national_id_nin: '',
     status: 'active' as 'active' | 'on_trip' | 'offline'
   })
 
-  // Remittance form state
-  const [remitAmount, setRemitAmount] = useState<number>(0)
-  const [cashierName, setCashierName] = useState<string>('Hub Cashier')
+  const totalRiders = riders.length
+  const activeTripsCount = riders.reduce((acc, r) => acc + r.active_assignments, 0)
+  const totalPendingPayout = riders.reduce((acc, r) => acc + r.pending_payout, 0)
+  const totalCompletedTrips = riders.reduce((acc, r) => acc + (r.total_completed || 0), 0)
 
-  const [dateRange, setDateRange] = useState<DateRange | null>(null)
+  const onTripCount = riders.filter(r => r.status === 'on_trip' || r.active_assignments > 0).length
+  const availableCount = riders.filter(r => r.status === 'active' && r.active_assignments === 0).length
+  const pendingPayoutCount = riders.filter(r => r.pending_payout > 0).length
 
-  const activeRidersForKPI = useMemo(() => {
-    return riders
-  }, [riders, dateRange])
-
-  const totalRiders = activeRidersForKPI.length
-  const activeTripsCount = activeRidersForKPI.reduce((acc, r) => acc + r.active_assignments, 0)
-  const totalPendingPayout = activeRidersForKPI.reduce((acc, r) => acc + r.pending_payout, 0)
-  const totalCodCashHeld = activeRidersForKPI.reduce((acc, r) => acc + Math.max(0, r.cod_cash_collected - r.cod_remitted_total), 0)
-
-  const onTripCount = activeRidersForKPI.filter(r => r.status === 'on_trip').length
-  const availableCount = activeRidersForKPI.filter(r => r.status === 'active').length
-  const cashHeldCount = activeRidersForKPI.filter(r => Math.max(0, r.cod_cash_collected - r.cod_remitted_total) > 0).length
+  React.useEffect(() => {
+    if (!selectedRider) return
+    const updated = riders.find(r => Number(r.rider_user_id) === Number(selectedRider.rider_user_id))
+    if (updated) {
+      setSelectedRider(updated)
+    }
+  }, [riders, selectedRider?.rider_user_id])
 
   const filteredRiders = useMemo(() => {
     return riders.filter(r => {
-      if (activeTab === 'on_trip') return r.status === 'on_trip'
-      if (activeTab === 'active') return r.status === 'active'
-      if (activeTab === 'cash_held') return Math.max(0, r.cod_cash_collected - r.cod_remitted_total) > 0
+      if (activeTab === 'on_trip') return r.status === 'on_trip' || r.active_assignments > 0
+      if (activeTab === 'active') return r.status === 'active' && r.active_assignments === 0
+      if (activeTab === 'pending_payout') return r.pending_payout > 0
       return true
     })
   }, [riders, activeTab])
@@ -103,51 +107,43 @@ export const DeliveryTeamPage: React.FC = () => {
     setIsAccountModalOpen(true)
   }
 
-  const handleOpenRemitModal = (r: RiderPayout) => {
-    setSelectedRider(r)
-    const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
-    setRemitAmount(unremitted)
-    setIsRemitModalOpen(true)
-  }
-
-  const handleConfirmRemit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedRider) return
-    remitCodCash(selectedRider.rider_user_id, Number(remitAmount), cashierName)
-    setIsRemitModalOpen(false)
-    // Update active selectedRider in view
-    const newRemitted = selectedRider.cod_remitted_total + Number(remitAmount)
-    const unremitted = Math.max(0, selectedRider.cod_cash_collected - newRemitted)
-    setSelectedRider(prev => prev ? {
-      ...prev,
-      cod_remitted_total: newRemitted,
-      net_balance: prev.pending_payout - unremitted
-    } : null)
-  }
-
   const handlePayAndReset = () => {
     if (!selectedRider) return
     payAndResetRider(selectedRider.rider_user_id)
-    const unremitted = Math.max(0, selectedRider.cod_cash_collected - selectedRider.cod_remitted_total)
     setSelectedRider(prev => prev ? {
       ...prev,
       paid_total: prev.paid_total + prev.pending_payout,
       pending_payout: 0,
-      net_balance: -unremitted
+      net_balance: 0
     } : null)
   }
 
   const handleOnboardDriver = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newDriverForm.rider_name || !newDriverForm.phone) return
-    const riderUserId = Math.floor(100 + Math.random() * 900)
+    const nextStaffId = generateNextStaffId('rider', [
+      ...availableAccounts,
+      ...riders.map(r => ({
+        staff_id: r.staff_id || '',
+        name: r.rider_name,
+        email: r.email || '',
+        role: 'rider' as const,
+        roleLabel: 'Fleet Rider',
+      }))
+    ])
+    const numericSeq = parseInt(nextStaffId.replace(/\D/g, ''), 10)
+    const riderUserId = !isNaN(numericSeq) && numericSeq > 0 ? numericSeq : Math.floor(600 + Math.random() * 300)
+    const formattedName = newDriverForm.rider_name.toUpperCase().startsWith('RIDER ')
+      ? newDriverForm.rider_name.toUpperCase()
+      : `RIDER ${newDriverForm.rider_name.toUpperCase()}`
+    const resolvedEmail = (newDriverForm.email || `${formattedName.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`).trim().toLowerCase()
+
     addRiderProfile({
       ...newDriverForm,
+      email: resolvedEmail,
       rider_user_id: riderUserId,
-      rider_name: newDriverForm.rider_name.toUpperCase().startsWith('RIDER ')
-        ? newDriverForm.rider_name.toUpperCase()
-        : `RIDER ${newDriverForm.rider_name.toUpperCase()}`,
-      staff_id: `SHD-FLT-${Math.floor(10 + Math.random() * 90)}`,
+      rider_name: formattedName,
+      staff_id: nextStaffId,
       date_joined: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       rating: 5.0,
       on_time_rate: 100,
@@ -155,13 +151,33 @@ export const DeliveryTeamPage: React.FC = () => {
       today_trips: 0,
       pending_payout: 0,
       paid_total: 0,
-      cod_cash_collected: 0,
-      cod_remitted_total: 0,
       earnings_today: 0,
       earnings_week: 0,
       earnings_month: 0,
       net_balance: 0,
     })
+
+    createAccount({
+      email: resolvedEmail,
+      name: formattedName,
+      role: 'rider',
+      roleLabel: 'Delivery Fleet Rider',
+      rider_user_id: riderUserId,
+      staff_id: nextStaffId,
+      phone: newDriverForm.phone.trim(),
+      assigned_hub: newDriverForm.operating_hub,
+      department: 'Logistics',
+      vehicle_type: newDriverForm.vehicle_type,
+      plate_number: newDriverForm.plate_number || undefined,
+      license_number: newDriverForm.license_number || undefined,
+      license_expiry: newDriverForm.license_expiry || undefined,
+      national_id_nin: newDriverForm.national_id_nin || undefined,
+      emergency_contact: newDriverForm.emergency_contact || undefined,
+      emergency_phone: newDriverForm.emergency_phone || undefined,
+      status: 'active',
+      last_active: 'Account registered just now',
+    })
+
     setIsOnboardModalOpen(false)
     setNewDriverForm({
       rider_name: '',
@@ -169,34 +185,29 @@ export const DeliveryTeamPage: React.FC = () => {
       email: '',
       vehicle_type: 'Bajaj Boxer 150 Motorcycle',
       plate_number: '',
-      operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office',
+      operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Lagos Mainland HQ',
       license_number: '',
-      license_expiry: 'Nov 2027',
-      emergency_contact: 'Next of Kin',
+      license_expiry: '',
+      emergency_contact: '',
       emergency_phone: '',
-      cod_limit: 50000,
       national_id_nin: '',
       status: 'active'
     })
   }
 
   // Get rider's trip history from logistics deliveries
-  const riderTrips = logisticsDeliveries.filter(d => 
-    selectedRider && (d.assigned_rider_id === selectedRider.rider_user_id || d.assigned_rider === selectedRider.rider_name)
+  const riderTrips = logisticsDeliveries.filter(
+    d =>
+      selectedRider &&
+      (Number(d.assigned_rider_id) === Number(selectedRider.rider_user_id) ||
+        (d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider.toLowerCase().trim() === selectedRider.rider_name.toLowerCase().trim()))
   )
-
-  const [copiedField, setCopiedField] = useState<string | null>(null)
-  const handleCopyText = (field: string, text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
-  }
 
   const riderTripColumns: ColumnDef<LogisticsDelivery>[] = [
     {
       key: 'order_ref',
       header: 'Order Ref',
-      defaultWidth: 130,
+      defaultWidth: 120,
       accessor: (t) => (
         <span className="px-2 py-0.5 bg-kumo-tint text-kumo-strong font-sans font-semibold rounded text-xs border border-kumo-line">
           {t.order_ref}
@@ -206,7 +217,7 @@ export const DeliveryTeamPage: React.FC = () => {
     {
       key: 'customer',
       header: 'Customer & Address',
-      defaultWidth: 260,
+      defaultWidth: 240,
       accessor: (t) => (
         <div className="min-w-0">
           <div className="font-semibold text-kumo-strong text-xs truncate">{t.customer_name}</div>
@@ -215,31 +226,40 @@ export const DeliveryTeamPage: React.FC = () => {
       ),
     },
     {
-      key: 'payment_mode',
-      header: 'Payment Mode',
-      defaultWidth: 150,
-      accessor: (t) => (
-        t.payment_mode === 'cod' ? (
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 rounded">
-            COD Remittance
-          </span>
-        ) : (
-          <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 rounded">
-            Prepaid Online
-          </span>
-        )
-      ),
-    },
-    {
       key: 'delivery_fee',
-      header: 'Delivery Fee',
-      defaultWidth: 130,
+      header: 'Trip Fee',
+      defaultWidth: 120,
       align: 'right',
       accessor: (t) => (
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-sans text-xs">
+        <span className="font-semibold text-kumo-strong font-mono text-xs">
           +{formatNaira(t.delivery_fee)}
         </span>
       ),
+    },
+    {
+      key: 'sla_timing',
+      header: 'Delivery Time',
+      defaultWidth: 160,
+      accessor: (t) => {
+        const isLate = Boolean(
+          (t.notes && /delayed|late/i.test(t.notes)) ||
+          (t.pickup_at && t.delivered_at && (new Date(t.delivered_at).getTime() - new Date(t.pickup_at).getTime() > 45 * 60 * 1000))
+        )
+        return (
+          <div className="text-xs">
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+              isLate ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+            }`}>
+              {isLate ? 'Late (>45m)' : 'On-Time'}
+            </span>
+            {t.delivered_at && (
+              <div className="text-[11px] text-zinc-400 mt-0.5 font-mono">
+                {t.delivered_at.split(' ')[1] || t.delivered_at}
+              </div>
+            )}
+          </div>
+        )
+      }
     },
     {
       key: 'status',
@@ -261,7 +281,7 @@ export const DeliveryTeamPage: React.FC = () => {
       header: 'Driver',
       accessor: (r) => (
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0">
             {r.rider_name.replace('RIDER ', '').substring(0, 2).toUpperCase()}
           </div>
           <div>
@@ -306,7 +326,7 @@ export const DeliveryTeamPage: React.FC = () => {
             <span className="truncate max-w-[150px]">{r.vehicle_type || 'Motorcycle'}</span>
           </div>
           <div className="text-[11px] text-kumo-subtle font-mono mt-0.5">
-            {r.plate_number || 'REG-PENDING'}
+            {r.plate_number || 'Unregistered'}
           </div>
         </div>
       ),
@@ -317,7 +337,7 @@ export const DeliveryTeamPage: React.FC = () => {
       accessor: (r) => (
         <span className={`font-medium font-sans text-xs px-2.5 py-1 rounded-lg border ${
           r.active_assignments > 0 
-            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800' 
+            ? 'bg-zinc-100 text-zinc-900 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700' 
             : 'bg-kumo-surface text-kumo-subtle border-kumo-line'
         }`}>
           {r.active_assignments} {r.active_assignments === 1 ? 'trip' : 'trips'}
@@ -326,56 +346,52 @@ export const DeliveryTeamPage: React.FC = () => {
       sortValue: (r) => r.active_assignments,
     },
     {
+      key: 'total_completed',
+      header: 'Completed Trips',
+      accessor: (r) => (
+        <span className="font-medium font-sans text-xs px-2.5 py-1 rounded-lg border bg-kumo-surface text-kumo-strong border-kumo-line">
+          {r.total_completed || 0} {(r.total_completed || 0) === 1 ? 'trip' : 'trips'}
+        </span>
+      ),
+      sortValue: (r) => r.total_completed || 0,
+    },
+    {
       key: 'rating',
       header: 'Rating',
-      accessor: (r) => (
-        <div className="flex items-center gap-1 text-xs font-semibold text-kumo-strong">
-          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-          <span>{r.rating?.toFixed(1) || '5.0'}</span>
-        </div>
-      ),
+      accessor: (r) => {
+        const ratingVal = (r.rating !== undefined ? r.rating : 5.0).toFixed(1)
+        const delayed = r.delayed_deliveries || 0
+        const declined = r.declined_dispatches || 0
+        return (
+          <Tooltip content={`Performance Score: ${ratingVal}/5.0 (5.0 - ${delayed} late × 0.2 - ${declined} rejected × 0.1)`}>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-kumo-strong cursor-help">
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+              <span>{ratingVal}</span>
+            </div>
+          </Tooltip>
+        )
+      },
       sortValue: (r) => r.rating || 5.0,
     },
     {
       key: 'pending_payout',
-      header: 'Driver Earnings',
+      header: 'Pending Payout',
       accessor: (r) => (
-        <span className="font-semibold font-sans text-xs text-emerald-600 dark:text-emerald-400">
+        <span className="font-semibold font-mono text-xs text-kumo-strong">
           +{formatNaira(r.pending_payout)}
         </span>
       ),
       sortValue: (r) => r.pending_payout,
     },
     {
-      key: 'cod_cash_held',
-      header: 'Cash Held',
-      accessor: (r) => {
-        const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
-        return (
-          <span className={`font-semibold font-sans text-xs ${unremitted > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-kumo-subtle'}`}>
-            {unremitted > 0 ? formatNaira(unremitted) : '₦0.00'}
-          </span>
-        )
-      },
-      sortValue: (r) => Math.max(0, r.cod_cash_collected - r.cod_remitted_total),
-    },
-    {
       key: 'net_balance',
-      header: 'Net Balance',
-      defaultWidth: 200,
+      header: 'Settlement Status',
+      defaultWidth: 180,
       accessor: (r) => {
-        const net = r.net_balance
-        if (net < 0) {
+        if (r.pending_payout > 0) {
           return (
-            <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900 rounded-lg whitespace-nowrap shrink-0">
-              Driver Remits: {formatNaira(Math.abs(net))}
-            </span>
-          )
-        }
-        if (net > 0) {
-          return (
-            <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900 rounded-lg whitespace-nowrap shrink-0">
-              Pay Driver: {formatNaira(net)}
+            <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-zinc-100 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700 rounded-lg whitespace-nowrap shrink-0">
+              Pay Driver: {formatNaira(r.pending_payout)}
             </span>
           )
         }
@@ -385,27 +401,28 @@ export const DeliveryTeamPage: React.FC = () => {
           </span>
         )
       },
-      sortValue: (r) => r.net_balance,
+      sortValue: (r) => r.pending_payout,
     },
     {
       key: 'actions',
       header: 'Action',
       defaultWidth: 160,
       accessor: (r) => {
-        const unremitted = Math.max(0, r.cod_cash_collected - r.cod_remitted_total)
         return (
           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-            {unremitted > 0 ? (
-              <Tooltip content="Record cash collected by driver">
+            {r.pending_payout > 0 ? (
+              <Tooltip content="Audit completed trips and disburse payout">
                 <TableActionButton
-                  variant="success"
-                  onClick={() => handleOpenRemitModal(r)}
+                  variant="primary"
+                  onClick={() => handleOpenAccount(r, 'ledger')}
                 >
-                  Remit Cash
+                  Disburse Payout
                 </TableActionButton>
               </Tooltip>
             ) : (
-              <span className="text-xs text-kumo-subtle font-sans px-1">Up to date</span>
+              <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium text-kumo-subtle bg-kumo-surface border border-kumo-line rounded-md">
+                Settled
+              </span>
             )}
           </div>
         )
@@ -413,31 +430,20 @@ export const DeliveryTeamPage: React.FC = () => {
     },
   ]
 
-  const currentUnremitted = selectedRider ? Math.max(0, selectedRider.cod_cash_collected - selectedRider.cod_remitted_total) : 0
-
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
         title="In-House Delivery Riders"
-        subtitle="Manage in-house riders, active trip assignments, earnings, cash on delivery, and rider profiles."
+        subtitle="Manage in-house riders, active trip assignments, earnings audits, and payout disbursements."
         actions={
-          <>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsOnboardModalOpen(true)}
-              leftIcon={<UserPlus className="w-4 h-4" />}
-            >
-              Onboard In-House Rider
-            </Button>
-            <Link
-              to="/logistics/rider-portal"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition"
-            >
-              <Bike className="w-4 h-4" />
-              <span>Open Rider Portal (Rider Yusuf)</span>
-            </Link>
-          </>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsOnboardModalOpen(true)}
+            leftIcon={<UserPlus className="w-4 h-4" />}
+          >
+            Onboard In-House Rider
+          </Button>
         }
       />
 
@@ -447,25 +453,25 @@ export const DeliveryTeamPage: React.FC = () => {
           title="Active In-House Riders"
           value={`${totalRiders} Riders`}
           description="In-house active delivery staff"
-          icon={<Users className="w-4 h-4 text-primary" />}
+          icon={<Users className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
           title="Active Trips"
           value={`${activeTripsCount} on Road`}
           description="Assigned orders currently in transit"
-          icon={<Bike className="w-4 h-4 text-amber-500" />}
+          icon={<Bike className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
-          title="Pending Driver Balances"
+          title="Pending Driver Payouts"
           value={formatNaira(totalPendingPayout)}
-          description="Delivery fees owed to drivers"
-          icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+          description="Delivery fees owed for completed trips"
+          icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
         />
         <MetricCard
-          title="Cash Held by Drivers"
-          value={formatNaira(totalCodCashHeld)}
-          description="Meal cash awaiting hub remittance"
-          icon={<Wallet className="w-4 h-4 text-rose-500" />}
+          title="Audited Completed Trips"
+          value={`${totalCompletedTrips} Delivered`}
+          description="Total lifetime completed trips"
+          icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
         />
       </div>
 
@@ -478,7 +484,7 @@ export const DeliveryTeamPage: React.FC = () => {
             { id: 'all', label: 'All Drivers', badge: totalRiders },
             { id: 'on_trip', label: 'On Road', badge: onTripCount },
             { id: 'active', label: 'Available', badge: availableCount },
-            { id: 'cash_held', label: 'Cash Held', badge: cashHeldCount > 0 ? cashHeldCount : undefined },
+            { id: 'pending_payout', label: 'Pending Payout', badge: pendingPayoutCount > 0 ? pendingPayoutCount : undefined },
           ]}
         />
       </div>
@@ -492,7 +498,6 @@ export const DeliveryTeamPage: React.FC = () => {
         title="In-House Riders"
         exportFilename="smokey-inhouse-riders"
         onRowClick={(r) => handleOpenAccount(r, 'ledger')}
-        onDateRangeChange={setDateRange}
       />
 
       {/* DRIVER ACCOUNT & PROFILE DETAIL MODAL — Desaturated Grey Layout with Clean Aligned Rows */}
@@ -500,7 +505,7 @@ export const DeliveryTeamPage: React.FC = () => {
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
         title={`Driver Account: ${selectedRider?.rider_name || 'Driver'}`}
-        description="Comprehensive earnings analysis, cash-on-delivery settlement, and verified driver profile."
+        description="Comprehensive earnings audit, completed trip reconciliation, and verified driver profile."
         maxWidth="2xl"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -512,49 +517,15 @@ export const DeliveryTeamPage: React.FC = () => {
             >
               Close
             </Button>
-            {selectedRider && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="md"
-                  type="button"
-                  onClick={() => {
-                    setIsAccountModalOpen(false)
-                    const email = selectedRider.email || `${selectedRider.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`
-                    navigate(`/accounts/profile/${encodeURIComponent(email)}`)
-                  }}
-                >
-                  Edit Profile & KYC
-                </Button>
-                {currentUnremitted > 0 ? (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    type="button"
-                    onClick={() => handleOpenRemitModal(selectedRider)}
-                  >
-                    Remit Cash ({formatNaira(currentUnremitted)})
-                  </Button>
-                ) : (selectedRider.pending_payout || 0) > 0 ? (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    type="button"
-                    onClick={handlePayAndReset}
-                  >
-                    Pay Driver Balance ({formatNaira(selectedRider.pending_payout)})
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    type="button"
-                    onClick={() => setIsAccountModalOpen(false)}
-                  >
-                    Done
-                  </Button>
-                )}
-              </div>
+            {selectedRider && (selectedRider.pending_payout || 0) > 0 && (
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={handlePayAndReset}
+              >
+                Disburse Payout ({formatNaira(selectedRider.pending_payout)})
+              </Button>
             )}
           </div>
         }
@@ -567,13 +538,13 @@ export const DeliveryTeamPage: React.FC = () => {
               onChange={(val: string) => setModalTab(val as 'ledger' | 'trips')}
               size="sm"
               tabs={[
-                { id: 'ledger', label: 'Earnings & Cash Settlement' },
+                { id: 'ledger', label: 'Earnings & Payout Audit' },
                 { id: 'trips', label: 'Trip History', badge: riderTrips.length },
               ]}
             />
           </div>
 
-          {/* TAB 1: EARNINGS & CASH LEDGER */}
+          {/* TAB 1: EARNINGS & AUDIT LEDGER */}
           {modalTab === 'ledger' && selectedRider && (
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               {/* Section 1: Driver Profile & Fleet Assignment */}
@@ -610,7 +581,44 @@ export const DeliveryTeamPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section 2: Trip Earnings Breakdown */}
+              {/* Section 2: Performance Rating */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Performance Rating
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Rating Score</span>
+                    <span className="inline-flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100 font-bold">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                      {(selectedRider.rating !== undefined ? selectedRider.rating : 5.0).toFixed(1)} / 5.0
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">On-Time Deliveries</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold font-mono">
+                      {selectedRider.on_time_rate ?? 100}%
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Late Deliveries</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedRider.delayed_deliveries || 0} {selectedRider.delayed_deliveries === 1 ? 'order' : 'orders'}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Rejected Dispatches</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedRider.declined_dispatches || 0} {selectedRider.declined_dispatches === 1 ? 'dispatch' : 'dispatches'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Trip Earnings Breakdown */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
@@ -646,34 +654,38 @@ export const DeliveryTeamPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section 3: Cash on Delivery & Settlement */}
+              {/* Section 3: Settlement & Payout Audit */}
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                    Cash on Delivery & Settlement
+                    Payout Audit & Disbursement
                   </span>
                 </div>
 
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Driver Payout Owed</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
-                      +{formatNaira(selectedRider.pending_payout || 0)}
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Total Trips Completed</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-medium">
+                      {selectedRider.total_completed || 0} {selectedRider.total_completed === 1 ? 'trip' : 'trips'}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Order Cash Held by Driver</span>
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Accumulated Trip Earnings</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-mono font-semibold">
-                      -{formatNaira(currentUnremitted)}
+                      +{formatNaira(selectedRider.lifetime_earnings || 0)}
                     </span>
                   </div>
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Net Settlement Balance</span>
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Total Previously Disbursed</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-mono font-normal">
+                      {formatNaira(selectedRider.paid_total || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-start text-[13px] pt-1 border-t border-zinc-200 dark:border-zinc-800">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-900 dark:text-zinc-100 font-bold">Outstanding Payout Owed</span>
                     <span className="text-zinc-900 dark:text-zinc-100 font-mono font-bold">
-                      {(selectedRider.net_balance || 0) < 0
-                        ? `Driver Remits ${formatNaira(Math.abs(selectedRider.net_balance || 0))}`
-                        : (selectedRider.net_balance || 0) > 0
-                        ? `Pay Driver ${formatNaira(selectedRider.net_balance || 0)}`
+                      {(selectedRider.pending_payout || 0) > 0
+                        ? `Pay Driver ${formatNaira(selectedRider.pending_payout || 0)}`
                         : 'Settled (₦0.00)'}
                     </span>
                   </div>
@@ -688,62 +700,11 @@ export const DeliveryTeamPage: React.FC = () => {
               <DataTable
                 data={riderTrips}
                 columns={riderTripColumns}
+                emptyMessage="No completed delivery trips recorded for this rider yet."
               />
             </div>
           )}
         </div>
-      </Dialog>
-
-      {/* RECEIVE CASH FROM DRIVER MODAL */}
-      <Dialog
-        isOpen={isRemitModalOpen}
-        onClose={() => setIsRemitModalOpen(false)}
-        title={`Receive Cash: ${selectedRider?.rider_name || 'Driver'}`}
-        description="Record physical meal cash collected by driver from customers on delivery."
-        maxWidth="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsRemitModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit" form="remit-driver-cash-form">
-              Confirm Cash Received
-            </Button>
-          </div>
-        }
-      >
-        <form id="remit-driver-cash-form" onSubmit={handleConfirmRemit} className="space-y-4">
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle">Unremitted Cash Balance:</span>
-              <span className="font-bold text-rose-600 dark:text-rose-400 font-mono text-sm">
-                {formatNaira(currentUnremitted)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-kumo-subtle">Driver Delivery Earnings:</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-mono text-sm">
-                {formatNaira(selectedRider?.pending_payout || 0)}
-              </span>
-            </div>
-          </div>
-
-          <Input
-            label="Cash Amount Received (₦)"
-            type="number"
-            min="1"
-            value={remitAmount}
-            onChange={(e) => setRemitAmount(Number(e.target.value))}
-            required
-          />
-
-          <Input
-            label="Cashier / Receiver Name"
-            value={cashierName}
-            onChange={(e) => setCashierName(e.target.value)}
-            required
-          />
-        </form>
       </Dialog>
 
       {/* ONBOARD NEW FLEET DRIVER MODAL */}
@@ -759,7 +720,7 @@ export const DeliveryTeamPage: React.FC = () => {
               Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="onboard-driver-form">
-              Save & Onboard Driver
+              Save & Onboard Rider
             </Button>
           </div>
         }
@@ -773,73 +734,69 @@ export const DeliveryTeamPage: React.FC = () => {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Phone Number"
-              placeholder="08012345678"
-              value={newDriverForm.phone}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, phone: e.target.value })}
-              required
-            />
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="yusuf.courier@smokeyhut.com"
-              value={newDriverForm.email}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, email: e.target.value })}
-            />
-          </div>
+          <Input
+            label="Phone Number"
+            placeholder="08012345678"
+            value={newDriverForm.phone}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, phone: e.target.value })}
+            required
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Vehicle Model"
-              placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-              value={newDriverForm.vehicle_type}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
-              required
-            />
-            <Input
-              label="Vehicle Plate Number"
-              placeholder="e.g. LND-482-XA"
-              value={newDriverForm.plate_number}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
-              required
-            />
-          </div>
+          <Input
+            label="Email Address"
+            type="email"
+            placeholder="yusuf.courier@smokeyhut.com"
+            value={newDriverForm.email}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, email: e.target.value })}
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Driver's License Number"
-              placeholder="e.g. DL-98234-LAG"
-              value={newDriverForm.license_number}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
-              required
-            />
-            <Input
-              label="National ID / NIN"
-              placeholder="e.g. 7829-4821-9921"
-              value={newDriverForm.national_id_nin}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, national_id_nin: e.target.value })}
-              required
-            />
-          </div>
+          <Input
+            label="Vehicle Model"
+            placeholder="e.g. Bajaj Boxer 150 Motorcycle"
+            value={newDriverForm.vehicle_type}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
+            required
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Emergency Contact Name"
-              placeholder="e.g. Next of Kin / Brother"
-              value={newDriverForm.emergency_contact}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
-              required
-            />
-            <Input
-              label="Emergency Phone"
-              placeholder="08098765432"
-              value={newDriverForm.emergency_phone}
-              onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
-              required
-            />
-          </div>
+          <Input
+            label="Vehicle Plate Number"
+            placeholder="e.g. LND-482-XA"
+            value={newDriverForm.plate_number}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Driver's License Number"
+            placeholder="e.g. DL-98234-LAG"
+            value={newDriverForm.license_number}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
+            required
+          />
+
+          <Input
+            label="National ID / NIN"
+            placeholder="e.g. 7829-4821-9921"
+            value={newDriverForm.national_id_nin}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, national_id_nin: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Emergency Contact Name"
+            placeholder="e.g. Next of Kin / Brother"
+            value={newDriverForm.emergency_contact}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Emergency Phone"
+            placeholder="08098765432"
+            value={newDriverForm.emergency_phone}
+            onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
+            required
+          />
         </form>
       </Dialog>
     </div>
