@@ -2622,17 +2622,6 @@ export const ManageAccountsPage: React.FC = () => {
                                       <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                         {perm.label}
                                       </span>
-                                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                        {perm.pageRoute ? (
-                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
-                                            Page View: {perm.pageRoute}
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                            Action / Edit
-                                          </span>
-                                        )}
-                                      </div>
                                     </div>
 
                                     {/* Description (Center) */}
@@ -3083,17 +3072,6 @@ export const ManageAccountsPage: React.FC = () => {
                                   <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                     {perm.label}
                                   </span>
-                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    {perm.pageRoute ? (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
-                                        Page View: {perm.pageRoute}
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                        Action / Edit
-                                      </span>
-                                    )}
-                                  </div>
                                 </div>
 
                                 <div className="min-w-0 pr-3">
@@ -3390,17 +3368,6 @@ export const ManageAccountsPage: React.FC = () => {
                                     <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                       {perm.label}
                                     </span>
-                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                      {perm.pageRoute ? (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
-                                          Page View: {perm.pageRoute}
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                          Action / Edit
-                                        </span>
-                                      )}
-                                    </div>
                                   </div>
 
                                   <div className="min-w-0 pr-3">
