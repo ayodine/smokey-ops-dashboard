@@ -396,6 +396,75 @@ export interface CustomRoleScope {
   isCustom: boolean
 }
 
+export const INITIAL_CUSTOM_SCOPES: CustomRoleScope[] = [
+  {
+    id: 'scope_website_orders_only',
+    label: 'Website Orders Specialist (Orders Only)',
+    description: 'Restricted sales scope limited strictly to incoming website customer orders and delivery reschedule without catalog pricing access.',
+    baseRole: 'sales_manager',
+    defaultLandingPath: '/sales/orders',
+    permissions: [
+      'View Website Orders Page',
+      'Edit & Reschedule Website Orders',
+      'Export Website Order & Revenue Reports'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  },
+  {
+    id: 'scope_production_batches_only',
+    label: 'Grill & Smoker Cook (Batches Only)',
+    description: 'Kitchen production scope limited to executing smoking batches and cook yields without recipe deletion or shift checklist admin.',
+    baseRole: 'kitchen',
+    defaultLandingPath: '/production/batches',
+    permissions: [
+      'View Production Batches Page',
+      'Start, Update & Complete Cooking Batches'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  },
+  {
+    id: 'scope_packaging_execution_only',
+    label: 'Packaging Station Operator (Execution Only)',
+    description: 'Packaging room scope limited to order packout and dispatch handovers without inventory stock adjustments.',
+    baseRole: 'manager',
+    defaultLandingPath: '/production/packaging',
+    permissions: [
+      'View Packaging Execution Page',
+      'Execute Order Pack-out & Deduct Consumables'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  },
+  {
+    id: 'scope_raw_intake_only',
+    label: 'Dock Intake Clerk (Raw Intake Only)',
+    description: 'Warehouse scope limited strictly to raw meat & spices receiving and batch issues without vendor financial invoice access.',
+    baseRole: 'inventory',
+    defaultLandingPath: '/inventory/raw',
+    permissions: [
+      'View Raw Inventory Page',
+      'Record Raw Stock Intake & Issue Requisitions'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  },
+  {
+    id: 'scope_dispatch_board_only',
+    label: 'Dispatch Coordinator (Board Only)',
+    description: 'Logistics scope limited to the live dispatch queue and rider assignments without rider payout or fleet payroll access.',
+    baseRole: 'dispatcher',
+    defaultLandingPath: '/logistics/board',
+    permissions: [
+      'View Dispatch Board Page',
+      'Assign Riders & Control Dispatch Queue'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  }
+]
+
 export interface AppUserAccount {
   email: string
   username?: string
@@ -497,84 +566,127 @@ export type PermissionId =
   | 'perm_orders_view'
   | 'perm_orders_status'
   | 'perm_orders_export'
+  | 'perm_sales_inventory_view'
   | 'perm_sales_catalog'
-  // Production
-  | 'perm_batches'
-  | 'perm_cook'
-  | 'perm_raw_deplete'
+  // Packaging
+  | 'perm_packaging_exec_view'
   | 'perm_packout'
+  | 'perm_packaging_materials_view'
+  | 'perm_transfers'
+  // Production
+  | 'perm_batches_view'
+  | 'perm_cook'
+  | 'perm_batches'
+  | 'perm_tasks_view'
+  | 'perm_tasks_edit'
+  | 'perm_raw_deplete'
   | 'perm_spoilage'
   // Inventory
+  | 'perm_raw_view'
   | 'perm_intake'
   | 'perm_cycle_counts'
-  | 'perm_transfers'
+  | 'perm_movements_view'
+  | 'perm_movements_edit'
+  | 'perm_suppliers_view'
+  | 'perm_invoices'
   | 'perm_expiry'
   | 'perm_thresholds'
   // Logistics
-  | 'perm_dispatch_ctrl'
+  | 'perm_dispatch_view'
   | 'perm_queue_assign'
+  | 'perm_schedule_view'
+  | 'perm_schedule_edit'
   | 'perm_tracking'
+  | 'perm_rider_payout'
+  | 'perm_pickup_view'
+  | 'perm_pickup_edit'
+  | 'perm_3pl_view'
   | 'perm_3pl'
+  | 'perm_rider_portal_view'
   | 'perm_delivery_transit'
   | 'perm_otp_dropoff'
+  | 'perm_wallet'
+  | 'perm_dispatch_ctrl'
   | 'perm_shifts'
   // Finance
   | 'perm_finance'
-  | 'perm_invoices'
-  | 'perm_rider_payout'
-  | 'perm_wallet'
-  // Administration
+  // Overview & Administration
+  | 'perm_overview_view'
   | 'perm_records'
   | 'perm_users'
   | 'perm_rbac'
+  | 'perm_facility_config'
 
 export interface SystemPermissionDef {
   id: PermissionId
   label: string
-  category: 'Sales' | 'Production' | 'Inventory' | 'Logistics' | 'Finance' | 'Administration'
+  category: 'Sales' | 'Packaging' | 'Production' | 'Inventory' | 'Logistics' | 'Finance' | 'Administration'
   description: string
+  pageRoute?: string
+  isPageView?: boolean
 }
 
 export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> = {
   // Sales
-  perm_orders_view: { id: 'perm_orders_view', label: 'View Storefront & Website Orders', category: 'Sales', description: 'Access customer orders, Paystack verification, and kitchen handover status.' },
-  perm_orders_status: { id: 'perm_orders_status', label: 'Update Order Fulfillment Status', category: 'Sales', description: 'Advance order stages across Ready, In Packaging, Packaged, and Dispatched.' },
-  perm_orders_export: { id: 'perm_orders_export', label: 'Export Sales & Order Reports', category: 'Sales', description: 'Download CSV audit exports of customer transactions and delivery fees.' },
-  perm_sales_catalog: { id: 'perm_sales_catalog', label: 'Manage Sales Menu & Finished Pricing', category: 'Sales', description: 'Configure finished goods sales prices, combos, and oven buffer thresholds.' },
+  perm_orders_view: { id: 'perm_orders_view', label: 'View Website Orders Page', category: 'Sales', pageRoute: '/sales/orders', isPageView: true, description: 'Access /sales/orders to view incoming customer orders, payment status, and order details.' },
+  perm_orders_status: { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
+  perm_orders_export: { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
+  perm_sales_inventory_view: { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', isPageView: true, description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
+  perm_sales_catalog: { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
+
+  // Packaging
+  perm_packaging_exec_view: { id: 'perm_packaging_exec_view', label: 'View Packaging Execution Page', category: 'Packaging', pageRoute: '/production/packaging', isPageView: true, description: 'Access /production/packaging to view the order packaging queue, packing manifests, and history.' },
+  perm_packout: { id: 'perm_packout', label: 'Execute Order Pack-out & Deduct Consumables', category: 'Packaging', description: 'Start packaging orders, pick/deduct pouches & boxes, requisition materials, and send orders to Dispatch or Pickup.' },
+  perm_packaging_materials_view: { id: 'perm_packaging_materials_view', label: 'View Packaging Materials Page', category: 'Packaging', pageRoute: '/inventory/packaging', isPageView: true, description: 'Access /inventory/packaging to view central store and bench reserves of polybags, boxes, stickers, and sachets.' },
+  perm_transfers: { id: 'perm_transfers', label: 'Manage Packaging Stock, Receipts & Reconciliations', category: 'Packaging', description: 'Add/edit packaging materials, log supplier deliveries, transfer stock to bench, and perform daily reconciliations.' },
 
   // Production
-  perm_batches: { id: 'perm_batches', label: 'Batch Scheduling & Cook Approvals', category: 'Production', description: 'Schedule smoking grill cooks, modify recipes, and sign off completed runs.' },
-  perm_cook: { id: 'perm_cook', label: 'Start & Complete Batches', category: 'Production', description: 'Record real-time cook progress, internal meat temps, and yield outputs.' },
-  perm_raw_deplete: { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of livestock, seasoning packs, and marinades during runs.' },
-  perm_packout: { id: 'perm_packout', label: 'Portion Pack-out Logging', category: 'Production', description: 'Log sealed units into vacuum pouches and carton cases ready for sales inventory.' },
-  perm_spoilage: { id: 'perm_spoilage', label: 'Waste & Spoilage Incident Reports', category: 'Production', description: 'Submit and approve burned portions, expired cuts, or compromised batches.' },
+  perm_batches_view: { id: 'perm_batches_view', label: 'View Production Batches Page', category: 'Production', pageRoute: '/production/batches', isPageView: true, description: 'Access /production/batches to inspect active smoking runs, prep queues, completed yields, and recipe preps.' },
+  perm_cook: { id: 'perm_cook', label: 'Start, Update & Complete Cooking Batches', category: 'Production', description: 'Queue today/tomorrow cooking batches, start smoking grills, log actual meat yield & wastage, and mix spice rubs.' },
+  perm_batches: { id: 'perm_batches', label: 'Manage Master Recipes (BOMs) & Purge Batches', category: 'Production', description: 'Configure master recipe formulas (BOMs), edit batch parameters, and delete or clear batch cooking records.' },
+  perm_tasks_view: { id: 'perm_tasks_view', label: 'View Kitchen Shift Tasks Page', category: 'Production', pageRoute: '/production/tasks', isPageView: true, description: 'Access /production/tasks to view kitchen prep checklists, station hygiene schedules, and shift delegation.' },
+  perm_tasks_edit: { id: 'perm_tasks_edit', label: 'Create, Assign & Complete Kitchen Tasks', category: 'Production', description: 'Assign tasks to shift operators, update task completion status, and manage kitchen shift delegation.' },
+  perm_raw_deplete: { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of livestock, seasoning packs, and marinades during cooking runs.' },
+  perm_spoilage: { id: 'perm_spoilage', label: 'Waste & Spoilage Incident Reports', category: 'Production', description: 'Submit and approve burned portions, expired cuts, or compromised kitchen batches.' },
 
   // Inventory
-  perm_intake: { id: 'perm_intake', label: 'Stock Intake PO Receipts', category: 'Inventory', description: 'Receive vendor deliveries at loading dock, confirm item quantities, and verify lots.' },
-  perm_cycle_counts: { id: 'perm_cycle_counts', label: 'Periodic Cycle Counts', category: 'Inventory', description: 'Perform physical warehouse stock reconciliations and adjustments against system tallies.' },
-  perm_transfers: { id: 'perm_transfers', label: 'Packaging Unit Transfers', category: 'Inventory', description: 'Transfer foil trays, branded thermal bags, and boxes across kitchens, depots, and hubs.' },
-  perm_expiry: { id: 'perm_expiry', label: 'Lot Expiry Monitoring', category: 'Inventory', description: 'Track meat and spice freshness dates, send urgent reorder notifications, and quarantine aging lots.' },
+  perm_raw_view: { id: 'perm_raw_view', label: 'View Raw Inventory Page', category: 'Inventory', pageRoute: '/inventory/raw', isPageView: true, description: 'Access /inventory/raw to view raw meat cuts, spices, cooking oils, firewood stock levels, and safety thresholds.' },
+  perm_intake: { id: 'perm_intake', label: 'Record Raw Stock Intake & Issue Requisitions', category: 'Inventory', description: 'Receive vendor deliveries at loading dock, confirm item quantities, issue stock to kitchen, and fulfill requisitions.' },
+  perm_cycle_counts: { id: 'perm_cycle_counts', label: 'Physical Stocktake Adjustments & Edit Raw Items', category: 'Inventory', description: 'Perform physical warehouse stock reconciliations, add/edit raw items, and override safety reorder thresholds.' },
+  perm_movements_view: { id: 'perm_movements_view', label: 'View Stock Movements Ledger Page', category: 'Inventory', pageRoute: '/inventory/movements', isPageView: true, description: 'Access /inventory/movements to inspect the full audit trail of raw intakes, batch depletions, variances, and transfers.' },
+  perm_movements_edit: { id: 'perm_movements_edit', label: 'Record Manual Transfers & Export Movements', category: 'Inventory', description: 'Log manual inter-station stock transfers and export ledger audit reports.' },
+  perm_suppliers_view: { id: 'perm_suppliers_view', label: 'View Suppliers & Vendors Page', category: 'Inventory', pageRoute: '/inventory/suppliers', isPageView: true, description: 'Access /inventory/suppliers to view the vendor directory, supply categories, and delivery history.' },
+  perm_invoices: { id: 'perm_invoices', label: 'Manage Suppliers & Verify Vendor Invoices', category: 'Inventory', description: 'Onboard new suppliers, edit vendor profiles & bank details, verify supplier invoices, and delete vendors.' },
+  perm_expiry: { id: 'perm_expiry', label: 'Lot Expiry Monitoring', category: 'Inventory', description: 'Track freshness dates, send urgent reorder notifications, and quarantine aging lots.' },
   perm_thresholds: { id: 'perm_thresholds', label: 'Inventory Threshold Overrides', category: 'Inventory', description: 'Adjust safety stock minimums, maximum storage capacities, and critical reorder threshold parameters.' },
 
-  // Logistics
+  // Logistics & Riders
+  perm_dispatch_view: { id: 'perm_dispatch_view', label: 'View Dispatch Board Page', category: 'Logistics', pageRoute: '/logistics/board', isPageView: true, description: 'Access /logistics/board to view packaged orders awaiting dispatch, active in-transit deliveries, and courier assignments.' },
+  perm_queue_assign: { id: 'perm_queue_assign', label: 'Assign Riders & Control Dispatch Queue', category: 'Logistics', description: 'Assign packaged orders to in-house or 3PL riders, initiate transit, re-route trips, and mark deliveries completed.' },
+  perm_schedule_view: { id: 'perm_schedule_view', label: 'View Delivery Schedule Page', category: 'Logistics', pageRoute: '/logistics/schedule', isPageView: true, description: 'Access /logistics/schedule to monitor pre-scheduled customer orders, future delivery windows, and prep countdowns.' },
+  perm_schedule_edit: { id: 'perm_schedule_edit', label: 'Manage & Dispatch Scheduled Orders', category: 'Logistics', description: 'Update scheduled delivery windows and release scheduled orders into active dispatch.' },
+  perm_tracking: { id: 'perm_tracking', label: 'View In-House Riders Page', category: 'Logistics', pageRoute: '/logistics/riders', isPageView: true, description: 'Access /logistics/riders to view fleet roster, rider availability, active trip assignments, and performance ratings.' },
+  perm_rider_payout: { id: 'perm_rider_payout', label: 'Manage Rider Roster, Shifts & Payout Disbursements', category: 'Logistics', description: 'Onboard/edit riders, assign shift schedules & zones, and disburse rider delivery fee payouts.' },
+  perm_pickup_view: { id: 'perm_pickup_view', label: 'View Store Pickup Counter Page', category: 'Logistics', pageRoute: '/logistics/pickup', isPageView: true, description: 'Access /logistics/pickup to view customer walk-in / self-pickup orders waiting at the counter.' },
+  perm_pickup_edit: { id: 'perm_pickup_edit', label: 'Verify Collector & Complete Pickup Handover', category: 'Logistics', description: 'Record collector details and complete customer counter handover.' },
+  perm_3pl_view: { id: 'perm_3pl_view', label: 'View Third-Party Delivery Page', category: 'Logistics', pageRoute: '/logistics/third-party', isPageView: true, description: 'Access /logistics/third-party to monitor overflow dispatches via Uber Connect, Gokada, Bolt, and Kwik.' },
+  perm_3pl: { id: 'perm_3pl', label: 'Book 3PL Couriers & Verify Surge Fee Evidence', category: 'Logistics', description: 'Book 3PL riders, upload/verify booking fee screenshots, and approve/reject surge fee variances.' },
+  perm_rider_portal_view: { id: 'perm_rider_portal_view', label: 'Access Mobile Rider Portal (My Trips)', category: 'Logistics', pageRoute: '/logistics/rider-portal', isPageView: true, description: 'Access /logistics/rider-portal mobile app to view assigned trips, customer phone links, and Google Maps routes.' },
+  perm_delivery_transit: { id: 'perm_delivery_transit', label: 'Rider: Accept Dispatches & Start Transit', category: 'Logistics', description: 'Accept or decline assigned delivery trips and mark orders In-Transit.' },
+  perm_otp_dropoff: { id: 'perm_otp_dropoff', label: 'Rider: Confirm Customer Drop-off Handover', category: 'Logistics', description: 'Verify customer handover and mark trips Delivered.' },
+  perm_wallet: { id: 'perm_wallet', label: 'Rider: View Wallet & Earnings Ledger', category: 'Logistics', description: 'View the Rider Wallet tab, trip commissions, and payout history.' },
   perm_dispatch_ctrl: { id: 'perm_dispatch_ctrl', label: 'Logistics Dispatch Controls', category: 'Logistics', description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.' },
-  perm_queue_assign: { id: 'perm_queue_assign', label: 'Dispatch Queue Assignment', category: 'Logistics', description: 'Assign ready cooked orders to available couriers waiting at the dispatch staging dock.' },
-  perm_tracking: { id: 'perm_tracking', label: 'Rider Location & Route Tracking', category: 'Logistics', description: 'Live tracking of delivery couriers, ETA monitoring, and route compliance.' },
-  perm_3pl: { id: 'perm_3pl', label: 'Third-party Rider Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or third-party riders.' },
-  perm_delivery_transit: { id: 'perm_delivery_transit', label: 'Accept & Transit Delivery', category: 'Logistics', description: 'Rider mobile interface to accept assigned trips and initiate waypoint transit.' },
-  perm_otp_dropoff: { id: 'perm_otp_dropoff', label: 'Customer OTP Drop-off Sign-off', category: 'Logistics', description: 'Validate customer delivery OTP code or handover signature before drop-off handover.' },
-  perm_shifts: { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' },
+  perm_shifts: { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage courier shift rotas, check-in schedules, and dispatch station coverage plans.' },
 
   // Finance
   perm_finance: { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
-  perm_invoices: { id: 'perm_invoices', label: 'Supplier Invoice Verification', category: 'Finance', description: 'Review purchase order billing, confirm line item unit costs, and approve credits.' },
-  perm_rider_payout: { id: 'perm_rider_payout', label: 'Rider Payout Disbursement', category: 'Finance', description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.' },
-  perm_wallet: { id: 'perm_wallet', label: 'Wallet & Payout History', category: 'Finance', description: 'Inspect individual courier earnings ledger, trip commissions, and deductions.' },
 
-  // Administration
+  // Executive & Administration
+  perm_overview_view: { id: 'perm_overview_view', label: 'View Executive Operations Overview', category: 'Administration', pageRoute: '/overview', isPageView: true, description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.' },
   perm_records: { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Master database records and operational raw data access.' },
-  perm_users: { id: 'perm_users', label: 'User Onboarding & Deletion', category: 'Administration', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
-  perm_rbac: { id: 'perm_rbac', label: 'Role & Permission Management', category: 'Administration', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' }
+  perm_users: { id: 'perm_users', label: 'Manage Staff Accounts & KYC Onboarding', category: 'Administration', pageRoute: '/accounts', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
+  perm_rbac: { id: 'perm_rbac', label: 'Manage Role Scopes & Permission Policies', category: 'Administration', pageRoute: '/accounts/matrix', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
+  perm_facility_config: { id: 'perm_facility_config', label: 'Manage Operating Offices & Regional Hubs', category: 'Administration', pageRoute: '/offices', description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.' }
 }
 
 export const PERMISSION_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
@@ -585,98 +697,199 @@ export const PERMISSION_LABEL_TO_ID: Record<string, string> = Object.fromEntries
   Object.values(PERMISSION_DEFINITIONS).map(d => [d.label, d.id])
 )
 
+// Backward-compatible alias dictionary for legacy permission strings
+export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
+  // Sales
+  perm_orders_view: ['View Storefront & Website Orders', 'View Customer Orders', 'Orders:view', 'Customers:view'],
+  'View Website Orders Page': ['View Storefront & Website Orders', 'View Customer Orders', 'Orders:view', 'Customers:view'],
+  perm_orders_status: ['Update Order Fulfillment Status', 'Orders:manage', 'Customers:manage'],
+  'Edit & Reschedule Website Orders': ['Update Order Fulfillment Status', 'Orders:manage', 'Customers:manage'],
+  perm_orders_export: ['Export Sales & Order Reports', 'Export Sales & Revenue Reports'],
+  'Export Website Order & Revenue Reports': ['Export Sales & Order Reports', 'Export Sales & Revenue Reports'],
+  perm_sales_inventory_view: ['Sales Inventory & Menu Availability', 'Manage Sales Menu & Finished Pricing'],
+  'View Sales Inventory Page': ['Sales Inventory & Menu Availability', 'Manage Sales Menu & Finished Pricing'],
+  perm_sales_catalog: ['Manage Sales Menu & Finished Pricing', 'Sales Inventory & Menu Availability'],
+  'Edit Sales Inventory, Pricing & Menu Catalog': ['Manage Sales Menu & Finished Pricing', 'Sales Inventory & Menu Availability'],
+
+  // Packaging
+  perm_packaging_exec_view: ['Portion Pack-out Logging'],
+  'View Packaging Execution Page': ['Portion Pack-out Logging'],
+  perm_packout: ['Portion Pack-out Logging'],
+  'Execute Order Pack-out & Deduct Consumables': ['Portion Pack-out Logging'],
+  perm_packaging_materials_view: ['Packaging Unit Transfers'],
+  'View Packaging Materials Page': ['Packaging Unit Transfers'],
+  perm_transfers: ['Packaging Unit Transfers'],
+  'Manage Packaging Stock, Receipts & Reconciliations': ['Packaging Unit Transfers'],
+
+  // Production
+  perm_batches_view: ['Start & Complete Batches', 'Batch Scheduling & Cook Approvals'],
+  'View Production Batches Page': ['Start & Complete Batches', 'Batch Scheduling & Cook Approvals'],
+  perm_cook: ['Start & Complete Batches'],
+  'Start, Update & Complete Cooking Batches': ['Start & Complete Batches'],
+  perm_batches: ['Batch Scheduling & Cook Approvals'],
+  'Manage Master Recipes (BOMs) & Purge Batches': ['Batch Scheduling & Cook Approvals'],
+  perm_tasks_view: ['Start & Complete Batches', 'Kitchen Tasks'],
+  'View Kitchen Shift Tasks Page': ['Start & Complete Batches', 'Kitchen Tasks'],
+  perm_tasks_edit: ['Staff Shift Assignments'],
+  'Create, Assign & Complete Kitchen Tasks': ['Staff Shift Assignments'],
+
+  // Inventory
+  perm_raw_view: ['Stock Intake PO Receipts', 'Periodic Cycle Counts'],
+  'View Raw Inventory Page': ['Stock Intake PO Receipts', 'Periodic Cycle Counts'],
+  perm_intake: ['Stock Intake PO Receipts'],
+  'Record Raw Stock Intake & Issue Requisitions': ['Stock Intake PO Receipts'],
+  perm_cycle_counts: ['Periodic Cycle Counts'],
+  'Physical Stocktake Adjustments & Edit Raw Items': ['Periodic Cycle Counts'],
+  perm_movements_view: ['Periodic Cycle Counts', 'Stock Movements'],
+  'View Stock Movements Ledger Page': ['Periodic Cycle Counts', 'Stock Movements'],
+  perm_suppliers_view: ['Supplier Invoice Verification', 'Suppliers'],
+  'View Suppliers & Vendors Page': ['Supplier Invoice Verification', 'Suppliers'],
+  perm_invoices: ['Supplier Invoice Verification'],
+  'Manage Suppliers & Verify Vendor Invoices': ['Supplier Invoice Verification'],
+
+  // Logistics & Riders
+  perm_dispatch_view: ['Dispatch Queue Assignment', 'Logistics Dispatch Controls'],
+  'View Dispatch Board Page': ['Dispatch Queue Assignment', 'Logistics Dispatch Controls'],
+  perm_queue_assign: ['Dispatch Queue Assignment'],
+  'Assign Riders & Control Dispatch Queue': ['Dispatch Queue Assignment'],
+  perm_schedule_view: ['Dispatch Queue Assignment', 'Delivery Schedule'],
+  'View Delivery Schedule Page': ['Dispatch Queue Assignment', 'Delivery Schedule'],
+  perm_schedule_edit: ['Dispatch Queue Assignment'],
+  'Manage & Dispatch Scheduled Orders': ['Dispatch Queue Assignment'],
+  perm_tracking: ['Rider Location & Route Tracking'],
+  'View In-House Riders Page': ['Rider Location & Route Tracking'],
+  perm_rider_payout: ['Rider Payout Disbursement'],
+  'Manage Rider Roster, Shifts & Payout Disbursements': ['Rider Payout Disbursement'],
+  perm_pickup_view: ['Store Pickup Handover', 'Dispatch Queue Assignment'],
+  'View Store Pickup Counter Page': ['Store Pickup Handover', 'Dispatch Queue Assignment'],
+  perm_pickup_edit: ['Store Pickup Handover'],
+  'Verify Collector & Complete Pickup Handover': ['Store Pickup Handover'],
+  perm_3pl_view: ['Third-party Rider Bookings'],
+  'View Third-Party Delivery Page': ['Third-party Rider Bookings'],
+  perm_3pl: ['Third-party Rider Bookings'],
+  'Book 3PL Couriers & Verify Surge Fee Evidence': ['Third-party Rider Bookings'],
+  perm_rider_portal_view: ['Accept & Transit Delivery', 'Rider Portal'],
+  'Access Mobile Rider Portal (My Trips)': ['Accept & Transit Delivery', 'Rider Portal'],
+  perm_delivery_transit: ['Accept & Transit Delivery'],
+  'Rider: Accept Dispatches & Start Transit': ['Accept & Transit Delivery'],
+  perm_otp_dropoff: ['Customer OTP Drop-off Sign-off'],
+  'Rider: Confirm Customer Drop-off Handover': ['Customer OTP Drop-off Sign-off'],
+  perm_wallet: ['Wallet & Payout History'],
+  'Rider: View Wallet & Earnings Ledger': ['Wallet & Payout History'],
+
+  // Overview & Admin
+  perm_overview_view: ['Full Database & Records Access', 'Operations Overview'],
+  'View Executive Operations Overview': ['Full Database & Records Access', 'Operations Overview'],
+  perm_users: ['User Onboarding & Deletion'],
+  'Manage Staff Accounts & KYC Onboarding': ['User Onboarding & Deletion'],
+  perm_rbac: ['Role & Permission Management'],
+  'Manage Role Scopes & Permission Policies': ['Role & Permission Management'],
+  perm_facility_config: ['Office & Facility Settings'],
+  'Manage Operating Offices & Regional Hubs': ['Office & Facility Settings'],
+  perm_records: ['Full Database & Records Access'],
+  'Full Database & Records Access': ['Full Database & Records Access']
+}
+
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: [
-    'Full Database & Records Access',
-    'User Onboarding & Deletion',
-    'Role & Permission Management',
-    'Finance & Payout Remittances',
-    'Inventory Threshold Overrides',
-    'Logistics Dispatch Controls',
-    'View Storefront & Website Orders',
-    'Update Order Fulfillment Status',
-    'Export Sales & Order Reports',
-    'Manage Sales Menu & Finished Pricing',
-    'Batch Scheduling & Cook Approvals',
-    'Start & Complete Batches',
-    'Raw Materials Depletion',
-    'Portion Pack-out Logging',
-    'Waste & Spoilage Incident Reports',
-    'Stock Intake PO Receipts',
-    'Periodic Cycle Counts',
-    'Packaging Unit Transfers',
-    'Lot Expiry Monitoring',
-    'Dispatch Queue Assignment',
-    'Rider Location & Route Tracking',
-    'Third-party Rider Bookings',
-    'Rider Payout Disbursement',
-    'Supplier Invoice Verification',
-    'Staff Shift Assignments'
-  ],
+  admin: Object.values(PERMISSION_DEFINITIONS).map(d => d.label),
   manager: [
-    'View Storefront & Website Orders',
-    'Update Order Fulfillment Status',
-    'Export Sales & Order Reports',
-    'Batch Scheduling & Cook Approvals',
-    'Start & Complete Batches',
+    'View Executive Operations Overview',
+    'View Website Orders Page',
+    'Edit & Reschedule Website Orders',
+    'Export Website Order & Revenue Reports',
+    'View Sales Inventory Page',
+    'Edit Sales Inventory, Pricing & Menu Catalog',
+    'View Packaging Execution Page',
+    'Execute Order Pack-out & Deduct Consumables',
+    'View Packaging Materials Page',
+    'Manage Packaging Stock, Receipts & Reconciliations',
+    'View Production Batches Page',
+    'Start, Update & Complete Cooking Batches',
+    'Manage Master Recipes (BOMs) & Purge Batches',
+    'View Kitchen Shift Tasks Page',
+    'Create, Assign & Complete Kitchen Tasks',
     'Raw Materials Depletion',
-    'Portion Pack-out Logging',
     'Waste & Spoilage Incident Reports',
-    'Stock Intake PO Receipts',
-    'Periodic Cycle Counts',
-    'Packaging Unit Transfers',
+    'View Raw Inventory Page',
+    'Record Raw Stock Intake & Issue Requisitions',
+    'Physical Stocktake Adjustments & Edit Raw Items',
+    'View Stock Movements Ledger Page',
+    'Record Manual Transfers & Export Movements',
+    'View Suppliers & Vendors Page',
+    'Manage Suppliers & Verify Vendor Invoices',
     'Lot Expiry Monitoring',
     'Inventory Threshold Overrides',
+    'View Dispatch Board Page',
+    'Assign Riders & Control Dispatch Queue',
+    'View Delivery Schedule Page',
+    'Manage & Dispatch Scheduled Orders',
+    'View In-House Riders Page',
+    'Manage Rider Roster, Shifts & Payout Disbursements',
+    'View Store Pickup Counter Page',
+    'Verify Collector & Complete Pickup Handover',
+    'View Third-Party Delivery Page',
+    'Book 3PL Couriers & Verify Surge Fee Evidence',
     'Logistics Dispatch Controls',
-    'Dispatch Queue Assignment',
-    'Rider Location & Route Tracking',
-    'Third-party Rider Bookings',
     'Staff Shift Assignments',
-    'Supplier Invoice Verification',
-    'Rider Payout Disbursement',
     'Finance & Payout Remittances'
   ],
   kitchen: [
-    'Start & Complete Batches',
-    'Batch Scheduling & Cook Approvals',
+    'View Production Batches Page',
+    'Start, Update & Complete Cooking Batches',
+    'Manage Master Recipes (BOMs) & Purge Batches',
+    'View Kitchen Shift Tasks Page',
+    'Create, Assign & Complete Kitchen Tasks',
     'Raw Materials Depletion',
-    'Portion Pack-out Logging',
     'Waste & Spoilage Incident Reports',
-    'Packaging Unit Transfers'
+    'View Packaging Execution Page',
+    'Execute Order Pack-out & Deduct Consumables',
+    'View Raw Inventory Page'
   ],
   inventory: [
-    'Stock Intake PO Receipts',
-    'Periodic Cycle Counts',
-    'Packaging Unit Transfers',
+    'View Raw Inventory Page',
+    'Record Raw Stock Intake & Issue Requisitions',
+    'Physical Stocktake Adjustments & Edit Raw Items',
+    'View Stock Movements Ledger Page',
+    'Record Manual Transfers & Export Movements',
+    'View Suppliers & Vendors Page',
+    'Manage Suppliers & Verify Vendor Invoices',
+    'View Packaging Materials Page',
+    'Manage Packaging Stock, Receipts & Reconciliations',
     'Lot Expiry Monitoring',
-    'Inventory Threshold Overrides',
-    'Supplier Invoice Verification'
+    'Inventory Threshold Overrides'
   ],
   dispatcher: [
-    'View Storefront & Website Orders',
-    'Update Order Fulfillment Status',
-    'Dispatch Queue Assignment',
-    'Rider Location & Route Tracking',
-    'Third-party Rider Bookings',
+    'View Dispatch Board Page',
+    'Assign Riders & Control Dispatch Queue',
+    'View Delivery Schedule Page',
+    'Manage & Dispatch Scheduled Orders',
+    'View In-House Riders Page',
+    'View Store Pickup Counter Page',
+    'Verify Collector & Complete Pickup Handover',
+    'View Third-Party Delivery Page',
+    'Book 3PL Couriers & Verify Surge Fee Evidence',
+    'View Website Orders Page',
+    'Edit & Reschedule Website Orders',
+    'View Packaging Execution Page',
+    'Execute Order Pack-out & Deduct Consumables',
     'Logistics Dispatch Controls',
-    'Customer OTP Drop-off Sign-off',
-    'Staff Shift Assignments',
-    'Portion Pack-out Logging'
+    'Staff Shift Assignments'
   ],
   rider: [
-    'Accept & Transit Delivery',
-    'Customer OTP Drop-off Sign-off',
-    'Wallet & Payout History'
+    'Access Mobile Rider Portal (My Trips)',
+    'Rider: Accept Dispatches & Start Transit',
+    'Rider: Confirm Customer Drop-off Handover',
+    'Rider: View Wallet & Earnings Ledger'
   ],
   sales_manager: [
-    'View Customer Orders',
-    'View Storefront & Website Orders',
-    'Update Order Fulfillment Status',
-    'Export Sales & Revenue Reports',
-    'Export Sales & Order Reports',
-    'Sales Inventory & Menu Availability',
-    'Store Pickup Handover',
-    'Periodic Cycle Counts'
+    'View Website Orders Page',
+    'Edit & Reschedule Website Orders',
+    'Export Website Order & Revenue Reports',
+    'View Sales Inventory Page',
+    'Edit Sales Inventory, Pricing & Menu Catalog',
+    'View Store Pickup Counter Page',
+    'Verify Collector & Complete Pickup Handover',
+    'Physical Stocktake Adjustments & Edit Raw Items'
   ]
 }
 
@@ -690,45 +903,48 @@ export interface RouteAccessRule {
 
 export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   // Super Admin only routes
-  { prefix: '/accounts', allowedRoles: ['admin'], title: 'Staff Account Management' },
-  { prefix: '/admin/accounts', allowedRoles: ['admin'], title: 'Staff Account Management' },
-  { prefix: '/offices', allowedRoles: ['admin'], title: 'Office & Regional Hub Management' },
-  { prefix: '/admin/offices', allowedRoles: ['admin'], title: 'Office & Regional Hub Management' },
+  { prefix: '/accounts', allowedRoles: ['admin'], requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
+  { prefix: '/admin/accounts', allowedRoles: ['admin'], requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
+  { prefix: '/offices', allowedRoles: ['admin'], requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
+  { prefix: '/admin/offices', allowedRoles: ['admin'], requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
 
   // Dedicated Rider Portal
-  { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], title: 'Rider Delivery Portal' },
-  { prefix: '/rider', allowedRoles: ['rider'], title: 'Rider Delivery Portal' },
+  { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff'], title: 'Rider Delivery Portal' },
+  { prefix: '/rider', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff'], title: 'Rider Delivery Portal' },
 
-  // Sales domain
-  { prefix: '/sales', allowedRoles: ['admin', 'manager', 'dispatcher', 'sales_manager'], requiredPermissions: ['perm_orders_view', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
+  // 1. Sales domain
+  { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'View Website Orders Page', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
+  { prefix: '/sales', exact: true, requiredPermissions: ['perm_orders_view', 'View Website Orders Page', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
+  { prefix: '/inventory/sales', requiredPermissions: ['perm_sales_inventory_view', 'View Sales Inventory Page', 'perm_sales_catalog', 'Edit Sales Inventory, Pricing & Menu Catalog'], title: 'Sales Inventory' },
 
-  // Inventory sub-routes
-  { prefix: '/inventory/suppliers', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_invoices', 'Supplier Invoice Verification', 'perm_intake'], title: 'Suppliers & Vendors' },
-  { prefix: '/inventory/movements', allowedRoles: ['admin', 'manager', 'inventory'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts', 'perm_transfers'], title: 'Stock Movements Ledger' },
-  { prefix: '/inventory/sales', allowedRoles: ['admin', 'manager', 'inventory', 'sales_manager'], requiredPermissions: ['perm_cycle_counts', 'Periodic Cycle Counts', 'perm_sales_catalog', 'Sales Inventory & Menu Availability'], title: 'Sales Inventory' },
-  { prefix: '/inventory/raw', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Raw Inventory' },
-  { prefix: '/inventory/packaging', allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Packaging Materials' },
-  { prefix: '/inventory', exact: true, allowedRoles: ['admin', 'manager', 'inventory', 'kitchen'], title: 'Inventory Domain' },
+  // 2. Packaging domain
+  { prefix: '/production/packaging', requiredPermissions: ['perm_packaging_exec_view', 'View Packaging Execution Page', 'perm_packout', 'Execute Order Pack-out & Deduct Consumables'], title: 'Packaging Execution' },
+  { prefix: '/inventory/packaging', requiredPermissions: ['perm_packaging_materials_view', 'View Packaging Materials Page', 'perm_transfers', 'Manage Packaging Stock, Receipts & Reconciliations'], title: 'Packaging Materials' },
 
-  // Production sub-routes
-  { prefix: '/production/batches', allowedRoles: ['admin', 'manager', 'kitchen'], requiredPermissions: ['perm_cook', 'Start & Complete Batches', 'perm_batches'], title: 'Production Batches' },
-  { prefix: '/production/tasks', allowedRoles: ['admin', 'manager', 'kitchen'], requiredPermissions: ['perm_cook', 'Start & Complete Batches'], title: 'Kitchen Shift Tasks' },
-  { prefix: '/production/packaging', allowedRoles: ['admin', 'manager', 'kitchen', 'dispatcher'], title: 'Packaging Execution' },
-  { prefix: '/production', exact: true, allowedRoles: ['admin', 'manager', 'kitchen'], title: 'Production Domain' },
+  // 3. Production domain
+  { prefix: '/production/batches', requiredPermissions: ['perm_batches_view', 'View Production Batches Page', 'perm_cook', 'Start, Update & Complete Cooking Batches', 'perm_batches', 'Manage Master Recipes (BOMs) & Purge Batches'], title: 'Production Batches' },
+  { prefix: '/production/tasks', requiredPermissions: ['perm_tasks_view', 'View Kitchen Shift Tasks Page', 'perm_tasks_edit', 'Create, Assign & Complete Kitchen Tasks'], title: 'Kitchen Shift Tasks' },
+  { prefix: '/production', exact: true, requiredPermissions: ['perm_batches_view', 'View Production Batches Page', 'perm_packaging_exec_view', 'perm_tasks_view'], title: 'Production Domain' },
 
-  // Logistics sub-routes
-  { prefix: '/logistics/board', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_dispatch_ctrl'], title: 'Dispatch Board' },
-  { prefix: '/logistics/schedule', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment'], title: 'Delivery Schedule' },
-  { prefix: '/logistics/riders', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_tracking', 'Rider Location & Route Tracking', 'perm_dispatch_ctrl'], title: 'In-House Riders' },
-  { prefix: '/logistics/pickup', allowedRoles: ['admin', 'manager', 'dispatcher', 'sales_manager'], requiredPermissions: ['perm_queue_assign', 'Dispatch Queue Assignment', 'perm_otp_dropoff'], title: 'Store Pickup Counter' },
-  { prefix: '/logistics/third-party', allowedRoles: ['admin', 'manager', 'dispatcher'], requiredPermissions: ['perm_3pl', 'Third-party Rider Bookings'], title: 'Third Party Delivery' },
-  { prefix: '/logistics', exact: true, allowedRoles: ['admin', 'manager', 'dispatcher'], title: 'Logistics Domain' },
+  // 4. Inventory domain
+  { prefix: '/inventory/raw', requiredPermissions: ['perm_raw_view', 'View Raw Inventory Page', 'perm_intake', 'Record Raw Stock Intake & Issue Requisitions', 'perm_cycle_counts'], title: 'Raw Inventory' },
+  { prefix: '/inventory/movements', requiredPermissions: ['perm_movements_view', 'View Stock Movements Ledger Page', 'perm_movements_edit', 'Record Manual Transfers & Export Movements'], title: 'Stock Movements Ledger' },
+  { prefix: '/inventory/suppliers', requiredPermissions: ['perm_suppliers_view', 'View Suppliers & Vendors Page', 'perm_invoices', 'Manage Suppliers & Verify Vendor Invoices'], title: 'Suppliers & Vendors' },
+  { prefix: '/inventory', exact: true, requiredPermissions: ['perm_raw_view', 'perm_sales_inventory_view', 'perm_packaging_materials_view', 'perm_movements_view', 'perm_suppliers_view'], title: 'Inventory Domain' },
+
+  // 5. Logistics domain
+  { prefix: '/logistics/board', requiredPermissions: ['perm_dispatch_view', 'View Dispatch Board Page', 'perm_queue_assign', 'Assign Riders & Control Dispatch Queue'], title: 'Dispatch Board' },
+  { prefix: '/logistics/schedule', requiredPermissions: ['perm_schedule_view', 'View Delivery Schedule Page', 'perm_schedule_edit', 'Manage & Dispatch Scheduled Orders'], title: 'Delivery Schedule' },
+  { prefix: '/logistics/riders', requiredPermissions: ['perm_tracking', 'View In-House Riders Page', 'perm_rider_payout', 'Manage Rider Roster, Shifts & Payout Disbursements'], title: 'In-House Riders' },
+  { prefix: '/logistics/pickup', requiredPermissions: ['perm_pickup_view', 'View Store Pickup Counter Page', 'perm_pickup_edit', 'Verify Collector & Complete Pickup Handover'], title: 'Store Pickup Counter' },
+  { prefix: '/logistics/third-party', requiredPermissions: ['perm_3pl_view', 'View Third-Party Delivery Page', 'perm_3pl', 'Book 3PL Couriers & Verify Surge Fee Evidence'], title: 'Third Party Delivery' },
+  { prefix: '/logistics', exact: true, requiredPermissions: ['perm_dispatch_view', 'perm_schedule_view', 'perm_tracking', 'perm_pickup_view', 'perm_3pl_view'], title: 'Logistics Domain' },
 
   // Operations Overview (Executive)
-  { prefix: '/overview', allowedRoles: ['admin', 'manager'], title: 'Operations Overview' },
+  { prefix: '/overview', requiredPermissions: ['perm_overview_view', 'View Executive Operations Overview', 'Full Database & Records Access'], title: 'Operations Overview' },
 
   // Support Help Desk (Universal for all authenticated staff)
-  { prefix: '/support', allowedRoles: ['admin', 'manager', 'kitchen', 'inventory', 'dispatcher', 'rider', 'sales_manager'], title: 'Support & Help Desk' },
+  { prefix: '/support', title: 'Support & Help Desk' },
 ]
 
 export const APP_ACCOUNTS: AppUserAccount[] = [
@@ -807,10 +1023,11 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     last_active: '30m ago',
     created_at: '04 Aug 2026',
     permissions: [
-      'Start & Complete Batches',
-      'Raw Materials Depletion',
-      'Portion Pack-out Logging',
-      'Waste & Spoilage Incident Reports'
+      'View Packaging Execution Page',
+      'Execute Order Pack-out & Deduct Consumables',
+      'View Packaging Materials Page',
+      'Manage Packaging Stock, Receipts & Reconciliations',
+      'View Production Batches Page'
     ]
   },
   {
@@ -826,10 +1043,16 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     last_active: '10m ago',
     created_at: '13 Apr 2026',
     permissions: [
-      'Dispatch Queue Assignment',
-      'Rider Location & Route Tracking',
-      'Third-party Rider Bookings',
-      ]
+      'View Dispatch Board Page',
+      'Assign Riders & Control Dispatch Queue',
+      'View Delivery Schedule Page',
+      'Manage & Dispatch Scheduled Orders',
+      'View In-House Riders Page',
+      'View Store Pickup Counter Page',
+      'Verify Collector & Complete Pickup Handover',
+      'View Third-Party Delivery Page',
+      'Book 3PL Couriers & Verify Surge Fee Evidence'
+    ]
   },
   {
     email: 'Smokeyhutdelight01@gmail.com',
@@ -844,10 +1067,13 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     last_active: '25m ago',
     created_at: '14 Apr 2026',
     permissions: [
-      'Orders:view',
-      'Orders:manage',
-      'Customers:view',
-      'Customers:manage'
+      'View Website Orders Page',
+      'Edit & Reschedule Website Orders',
+      'Export Website Order & Revenue Reports',
+      'View Sales Inventory Page',
+      'Edit Sales Inventory, Pricing & Menu Catalog',
+      'View Store Pickup Counter Page',
+      'Verify Collector & Complete Pickup Handover'
     ]
   },
   {
@@ -2803,9 +3029,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [customScopes, setCustomScopes] = useState<CustomRoleScope[]>(() => {
     try {
       const local = localStorage.getItem('smokey_custom_scopes')
-      if (local) return JSON.parse(local)
+      if (local) {
+        const parsed = JSON.parse(local)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
     } catch {}
-    return []
+    return INITIAL_CUSTOM_SCOPES
   })
 
   // Strict RBAC & Permissions Engine Methods
@@ -2818,45 +3047,40 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const cleanInput = permIdOrLabel.trim()
       const resolvedId = PERMISSION_LABEL_TO_ID[cleanInput] || cleanInput
       const resolvedLabel = PERMISSION_ID_TO_LABEL[cleanInput] || cleanInput
+      const aliases = LEGACY_PERMISSION_ALIASES[cleanInput] || LEGACY_PERMISSION_ALIASES[resolvedId] || []
 
-      // 2. Check explicit custom user permissions
-      const userPerms = account.permissions || []
-      if (
-        userPerms.some(
-          p =>
-            p === resolvedId ||
-            p === resolvedLabel ||
-            p.toLowerCase() === cleanInput.toLowerCase()
+      const matchesTarget = (p: string) => {
+        if (!p) return false
+        const pTrim = p.trim()
+        const pId = PERMISSION_LABEL_TO_ID[pTrim] || pTrim
+        const pLabel = PERMISSION_ID_TO_LABEL[pTrim] || pTrim
+        return (
+          pId === resolvedId ||
+          pLabel === resolvedLabel ||
+          pTrim.toLowerCase() === cleanInput.toLowerCase() ||
+          pTrim.toLowerCase() === resolvedLabel.toLowerCase() ||
+          aliases.includes(pTrim) ||
+          aliases.includes(pId) ||
+          aliases.includes(pLabel)
         )
-      ) {
-        return true
       }
 
-      // 3. Check custom scope permissions if assigned
+      // 2. Check custom scope permissions if assigned
       if (account.scope_id) {
         const customScope = customScopes.find(s => s.id === account.scope_id)
-        if (customScope) {
-          if (
-            customScope.permissions.some(
-              p =>
-                p === resolvedId ||
-                p === resolvedLabel ||
-                p.toLowerCase() === cleanInput.toLowerCase()
-            )
-          ) {
-            return true
-          }
+        if (customScope && Array.isArray(customScope.permissions)) {
+          return customScope.permissions.some(matchesTarget)
         }
       }
 
-      // 4. Check role default permissions
+      // 3. Check explicit custom user permissions (Authoritative when array is present)
+      if (Array.isArray(account.permissions)) {
+        return account.permissions.some(matchesTarget)
+      }
+
+      // 4. Fallback to role default permissions ONLY if no explicit permissions array was configured
       const roleDefaults = ROLE_DEFAULT_PERMISSIONS[account.role] || []
-      return roleDefaults.some(
-        p =>
-          p === resolvedId ||
-          p === resolvedLabel ||
-          p.toLowerCase() === cleanInput.toLowerCase()
-      )
+      return roleDefaults.some(matchesTarget)
     },
     [currentAccount, customScopes]
   )
@@ -2888,41 +3112,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [currentAccount]
   )
 
-  const getRoleDefaultLandingPath = React.useCallback(
-    (role?: UserRole, account?: AppUserAccount): string => {
-      const active = account || currentAccount
-      // 1. If account has custom scope with designated workspace, use it
-      if (active?.scope_id) {
-        const customScope = customScopes.find(s => s.id === active.scope_id)
-        if (customScope?.defaultLandingPath) {
-          return customScope.defaultLandingPath
-        }
-      }
-      // 2. Special landing for Packaging Team account (lands directly on packaging execution)
-      if (active?.email?.toLowerCase() === 'smokeyhutpackagingteam@gmail.com') {
-        return '/production/packaging'
-      }
-      const targetRole = role || active?.role || 'admin'
-      switch (targetRole) {
-        case 'rider':
-          return '/logistics/rider-portal'
-        case 'sales_manager':
-          return '/sales/orders'
-        case 'kitchen':
-          return '/production/batches'
-        case 'inventory':
-          return '/inventory/raw'
-        case 'dispatcher':
-          return '/logistics/board'
-        case 'manager':
-        case 'admin':
-        default:
-          return '/overview'
-      }
-    },
-    [currentAccount, customScopes]
-  )
-
   const isRouteAllowed = React.useCallback(
     (path: string, account: AppUserAccount = currentAccount): boolean => {
       if (!account) return false
@@ -2930,24 +3119,18 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const normalizedPath = path.split('?')[0].split('#')[0]
 
-      // Check if account has custom scope with this landing path
+      // Dedicated Rider sandbox: riders cannot leave rider portal, office staff cannot enter rider portal
+      if (account.role === 'rider') {
+        return normalizedPath === '/logistics/rider-portal' || normalizedPath === '/rider' || normalizedPath === '/support'
+      }
+      if (normalizedPath === '/logistics/rider-portal' || normalizedPath === '/rider') {
+        return false
+      }
+
+      // Check if account has custom scope with designated landing path
       if (account.scope_id) {
         const customScope = customScopes.find(s => s.id === account.scope_id)
         if (customScope && customScope.defaultLandingPath === normalizedPath) {
-          return true
-        }
-      }
-
-      // Special case: Packaging team can access packaging execution, materials, batches, raw and tasks
-      if (account.email?.toLowerCase() === 'smokeyhutpackagingteam@gmail.com') {
-        if (
-          normalizedPath === '/production/packaging' ||
-          normalizedPath === '/inventory/packaging' ||
-          normalizedPath === '/production/batches' ||
-          normalizedPath === '/inventory/raw' ||
-          normalizedPath === '/production/tasks' ||
-          normalizedPath === '/support'
-        ) {
           return true
         }
       }
@@ -2963,27 +3146,85 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return normalizedPath === '/support' || normalizedPath === '/login' || normalizedPath === '/auth'
       }
 
-      if (matchingRule.allowedRoles && !matchingRule.allowedRoles.includes(account.role)) {
-        // If account has custom scope, check if baseRole matches
-        if (account.scope_id) {
-          const customScope = customScopes.find(s => s.id === account.scope_id)
-          if (customScope && matchingRule.allowedRoles.includes(customScope.baseRole)) {
-            // continue to permission check
-          } else {
-            return false
-          }
-        } else {
-          return false
-        }
+      // Super admin routes strictly require admin role
+      if (matchingRule.allowedRoles?.includes('admin') && matchingRule.allowedRoles.length === 1) {
+        return false
       }
 
+      // Specific permission check takes precedence
       if (matchingRule.requiredPermissions && matchingRule.requiredPermissions.length > 0) {
         return hasAnyPermission(matchingRule.requiredPermissions, account)
+      }
+
+      if (matchingRule.allowedRoles && !matchingRule.allowedRoles.includes(account.role)) {
+        return false
       }
 
       return true
     },
     [currentAccount, hasAnyPermission, customScopes]
+  )
+
+  const getRoleDefaultLandingPath = React.useCallback(
+    (role?: UserRole, account?: AppUserAccount): string => {
+      const active = account || currentAccount
+      // 1. If account has custom scope with designated workspace, use it
+      if (active?.scope_id) {
+        const customScope = customScopes.find(s => s.id === active.scope_id)
+        if (customScope?.defaultLandingPath) {
+          return customScope.defaultLandingPath
+        }
+      }
+      const targetRole = role || active?.role || 'admin'
+      let candidate = '/overview'
+      switch (targetRole) {
+        case 'rider':
+          return '/logistics/rider-portal'
+        case 'sales_manager':
+          candidate = '/sales/orders'
+          break
+        case 'kitchen':
+          candidate = '/production/batches'
+          break
+        case 'inventory':
+          candidate = '/inventory/raw'
+          break
+        case 'dispatcher':
+          candidate = '/logistics/board'
+          break
+        case 'manager':
+        case 'admin':
+        default:
+          candidate = '/overview'
+          break
+      }
+
+      if (isRouteAllowed(candidate, active)) {
+        return candidate
+      }
+
+      const fallbackRoutes = [
+        '/sales/orders',
+        '/inventory/sales',
+        '/production/packaging',
+        '/inventory/packaging',
+        '/production/batches',
+        '/production/tasks',
+        '/inventory/raw',
+        '/inventory/movements',
+        '/inventory/suppliers',
+        '/logistics/board',
+        '/logistics/schedule',
+        '/logistics/riders',
+        '/logistics/pickup',
+        '/logistics/third-party',
+        '/overview',
+        '/support'
+      ]
+      const firstAllowed = fallbackRoutes.find(r => isRouteAllowed(r, active))
+      return firstAllowed || '/support'
+    },
+    [currentAccount, customScopes, isRouteAllowed]
   )
 
   const getRoleAuthorizedRoutes = React.useCallback(

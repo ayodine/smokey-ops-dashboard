@@ -153,36 +153,56 @@ export const RiderDeliveryMobileCard: React.FC<RiderDeliveryMobileCardProps> = (
         onClick={(e) => e.stopPropagation()}
       >
         {tab === 'assigned' && (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => onDecline?.(order)}
-              className="h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold active:scale-[0.98] transition-all shadow-sm"
-            >
-              <XCircle className="w-4 h-4" />
-              <span>Decline</span>
-            </button>
+          onAccept || onDecline ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onDecline?.(order)}
+                className="h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold active:scale-[0.98] transition-all shadow-sm"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Decline</span>
+              </button>
 
+              <button
+                type="button"
+                onClick={() => onAccept?.(order.id)}
+                className="h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
+              >
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>Accept Order</span>
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => onAccept?.(order.id)}
-              className="h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
+              onClick={() => onViewDetails?.(order)}
+              className="w-full h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm"
             >
-              <Check className="w-4 h-4 stroke-[2.5]" />
-              <span>Accept Order</span>
+              <span>View Trip Details</span>
             </button>
-          </div>
+          )
         )}
 
         {tab === 'in_transit' && (
-          <button
-            type="button"
-            onClick={() => onConfirmDelivered?.(order)}
-            className="w-full h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-[#c0201f] hover:bg-[#a01817] text-white text-sm font-bold shadow-md shadow-red-700/20 active:scale-[0.98] transition-all"
-          >
-            <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
-            <span>Confirm Handover & Complete</span>
-          </button>
+          onConfirmDelivered ? (
+            <button
+              type="button"
+              onClick={() => onConfirmDelivered?.(order)}
+              className="w-full h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-[#c0201f] hover:bg-[#a01817] text-white text-sm font-bold shadow-md shadow-red-700/20 active:scale-[0.98] transition-all"
+            >
+              <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
+              <span>Confirm Handover & Complete</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onViewDetails?.(order)}
+              className="w-full h-12 flex items-center justify-center gap-1.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm"
+            >
+              <span>View Trip Details</span>
+            </button>
+          )
         )}
 
         {tab === 'delivered' && (

@@ -38,7 +38,8 @@ export const LogisticsBoardPage: React.FC = () => {
     riders,
     assignRider,
     confirmRiderCollect,
-    markDelivered
+    markDelivered,
+    hasPermission
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'unassigned' | 'assigned'>('unassigned')
@@ -188,16 +189,25 @@ export const LogisticsBoardPage: React.FC = () => {
       defaultWidth: 160,
       accessor: (d) => (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Assign order to an in-house driver or courier">
+          {hasPermission('perm_queue_assign') ? (
+            <Tooltip content="Assign order to an in-house driver or courier">
+              <TableActionButton
+                variant="primary"
+                icon={<UserCheck />}
+                iconStrokeWidth={2}
+                onClick={() => handleOpenAssign(d)}
+              >
+                Assign Driver
+              </TableActionButton>
+            </Tooltip>
+          ) : (
             <TableActionButton
-              variant="primary"
-              icon={<UserCheck />}
-              iconStrokeWidth={2}
-              onClick={() => handleOpenAssign(d)}
+              variant="outline"
+              onClick={() => handleOpenDetails(d)}
             >
-              Assign Driver
+              View
             </TableActionButton>
-          </Tooltip>
+          )}
         </div>
       ),
     },
@@ -272,34 +282,45 @@ export const LogisticsBoardPage: React.FC = () => {
       defaultWidth: 180,
       accessor: (d) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          {d.status === 'assigned' && (
-            <Tooltip content="Confirm driver collected food from kitchen">
-              <TableActionButton
-                variant="outline"
-                onClick={() => confirmRiderCollect(d.id)}
-              >
-                Driver Collect
-              </TableActionButton>
-            </Tooltip>
-          )}
+          {hasPermission('perm_queue_assign') ? (
+            <>
+              {d.status === 'assigned' && (
+                <Tooltip content="Confirm driver collected food from kitchen">
+                  <TableActionButton
+                    variant="outline"
+                    onClick={() => confirmRiderCollect(d.id)}
+                  >
+                    Driver Collect
+                  </TableActionButton>
+                </Tooltip>
+              )}
 
-          {(d.status === 'in_transit' || d.status === 'out_for_delivery') && (
-            <Tooltip content="Confirm order delivered to customer">
-              <TableActionButton
-                variant="primary"
-                icon={<CheckCircle2 />}
-                iconStrokeWidth={2}
-                onClick={() => markDelivered(d.id)}
-              >
-                Delivered
-              </TableActionButton>
-            </Tooltip>
-          )}
+              {(d.status === 'in_transit' || d.status === 'out_for_delivery') && (
+                <Tooltip content="Confirm order delivered to customer">
+                  <TableActionButton
+                    variant="primary"
+                    icon={<CheckCircle2 />}
+                    iconStrokeWidth={2}
+                    onClick={() => markDelivered(d.id)}
+                  >
+                    Delivered
+                  </TableActionButton>
+                </Tooltip>
+              )}
 
-          {d.status === 'delivered' && (
-            <span className="text-xs text-kumo-subtle font-medium flex items-center gap-1 whitespace-nowrap shrink-0 px-2 font-sans">
-              <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500" /> Completed
-            </span>
+              {d.status === 'delivered' && (
+                <span className="text-xs text-kumo-subtle font-medium flex items-center gap-1 whitespace-nowrap shrink-0 px-2 font-sans">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500" /> Completed
+                </span>
+              )}
+            </>
+          ) : (
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenDetails(d)}
+            >
+              View
+            </TableActionButton>
           )}
         </div>
       ),

@@ -7,6 +7,7 @@ interface RiderMobileBottomNavProps {
   assignedCount: number;
   inTransitCount: number;
   deliveredCount: number;
+  showWallet?: boolean;
 }
 
 export const RiderMobileBottomNav: React.FC<RiderMobileBottomNavProps> = ({
@@ -15,8 +16,9 @@ export const RiderMobileBottomNav: React.FC<RiderMobileBottomNavProps> = ({
   assignedCount,
   inTransitCount,
   deliveredCount,
+  showWallet = true,
 }) => {
-  const tabs = [
+  const allTabs = [
     {
       id: 'assigned',
       label: 'Assigned',
@@ -35,12 +37,12 @@ export const RiderMobileBottomNav: React.FC<RiderMobileBottomNavProps> = ({
       icon: CheckCircle2,
       badge: deliveredCount > 0 ? deliveredCount : null,
     },
-    {
+    ...(showWallet ? [{
       id: 'earnings',
       label: 'Wallet',
       icon: Wallet,
       badge: null,
-    },
+    }] : []),
   ];
 
   return (
@@ -48,8 +50,8 @@ export const RiderMobileBottomNav: React.FC<RiderMobileBottomNavProps> = ({
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] pb-[env(safe-area-inset-bottom)] transition-all"
       aria-label="Rider Navigation"
     >
-      <div className="grid grid-cols-4 h-16 max-w-md mx-auto">
-        {tabs.map((tab) => {
+      <div className={`grid ${allTabs.length === 3 ? 'grid-cols-3' : 'grid-cols-4'} h-16 max-w-md mx-auto`}>
+        {allTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
 

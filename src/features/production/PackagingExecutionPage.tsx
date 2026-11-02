@@ -38,7 +38,8 @@ export const PackagingExecutionPage: React.FC = () => {
     confirmPackagingOrder,
     addPackagingQueueOrder,
     issuePackagingFromCentral,
-    currentAccount
+    currentAccount,
+    hasPermission
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'ready' | 'in_packaging' | 'daily' | 'history'>('ready')
@@ -207,15 +208,25 @@ export const PackagingExecutionPage: React.FC = () => {
       defaultWidth: 170,
       accessor: (o) => (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Allocate containers and start packaging this order">
+          {hasPermission('perm_packout') ? (
+            <Tooltip content="Allocate containers and start packaging this order">
+              <TableActionButton
+                variant="primary"
+                onClick={() => handleOpenStartModal(o)}
+                leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
+              >
+                Start Packaging
+              </TableActionButton>
+            </Tooltip>
+          ) : (
             <TableActionButton
-              variant="primary"
-              onClick={() => handleOpenStartModal(o)}
-              leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
+              variant="outline"
+              onClick={() => handleOpenDetails(o)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
             >
-              Start Packaging
+              Details
             </TableActionButton>
-          </Tooltip>
+          )}
         </div>
       ),
     },
@@ -267,15 +278,25 @@ export const PackagingExecutionPage: React.FC = () => {
         const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
         return (
           <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-            <Tooltip content={isPickup ? "Hand over to Store Pickup Counter" : "Hand over packed meal to dispatch board"}>
+            {hasPermission('perm_packout') ? (
+              <Tooltip content={isPickup ? "Hand over to Store Pickup Counter" : "Hand over packed meal to dispatch board"}>
+                <TableActionButton
+                  variant="primary"
+                  onClick={() => confirmPackagingOrder(o.id, currentAccount?.name || 'Packaging Staff')}
+                  leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+                >
+                  {isPickup ? 'Send to Pickup' : 'Send to Dispatch'}
+                </TableActionButton>
+              </Tooltip>
+            ) : (
               <TableActionButton
-                variant="primary"
-                onClick={() => confirmPackagingOrder(o.id, currentAccount?.name || 'Packaging Staff')}
-                leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+                variant="outline"
+                onClick={() => handleOpenDetails(o)}
+                leftIcon={<Eye className="w-3.5 h-3.5" />}
               >
-                {isPickup ? 'Send to Pickup' : 'Send to Dispatch'}
+                Details
               </TableActionButton>
-            </Tooltip>
+            )}
           </div>
         )
       },
@@ -391,17 +412,19 @@ export const PackagingExecutionPage: React.FC = () => {
         title="Packaging Execution & Kitchen Pack-Out"
         subtitle="The operational bridge between kitchen cooking and logistics. Select packaging materials to deduct consumables before releasing orders for dispatch."
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsRequisitionModalOpen(true)}
-              leftIcon={<ArrowRightLeft className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
-              className="h-10 px-3.5 text-xs font-medium"
-            >
-              Requisition from Central
-            </Button>
-          </div>
+          hasPermission('perm_packout') ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsRequisitionModalOpen(true)}
+                leftIcon={<ArrowRightLeft className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
+                className="h-10 px-3.5 text-xs font-medium"
+              >
+                Requisition from Central
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 

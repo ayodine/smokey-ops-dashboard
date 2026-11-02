@@ -42,7 +42,8 @@ export const PackagingInventoryPage: React.FC = () => {
     issuePackagingFromCentral,
     returnPackagingToCentral,
     performDailyPackagingReconciliation,
-    currentAccount
+    currentAccount,
+    hasPermission
   } = useSmokeyOps()
 
   const [activeTab, setActiveTab] = useState<'materials' | 'reconciliation' | 'transfers' | 'totals'>('materials')
@@ -542,56 +543,58 @@ export const PackagingInventoryPage: React.FC = () => {
         title="Packaging Inventory & Stock Movement Hub"
         subtitle="Manage Central Store packaging reserves, issue materials to the packaging execution bench, and verify daily shift reconciliation."
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setNewMaterialForm({
-                  name: '',
-                  sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
-                  unit: 'PIECES',
-                  central_stock_qty: 80,
-                  bench_stock_qty: 20,
-                  unit_cost: 250,
-                  reorder_level: 50,
-                  supplier_name: 'PACKAGING DIRECT LTD'
-                })
-                setIsNewMaterialModalOpen(true)
-              }}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="h-10 px-3.5 text-xs font-medium"
-            >
-              New Material
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenReturnModal()}
-              leftIcon={<RotateCcw className="w-4 h-4 text-emerald-600" />}
-              className="h-10 px-3.5 text-xs font-medium"
-            >
-              EOD Bench Return
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenReceive()}
-              leftIcon={<PackageCheck className="w-4 h-4 text-zinc-600" />}
-              className="h-10 px-3.5 text-xs font-medium"
-            >
-              Receive Stock
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => handleOpenIssueModal()}
-              leftIcon={<ArrowRightLeft className="w-4 h-4" />}
-              className="h-10 px-4 text-xs font-medium shadow-xs"
-            >
-              Issue to Bench
-            </Button>
-          </div>
+          hasPermission('perm_transfers') ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setNewMaterialForm({
+                    name: '',
+                    sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
+                    unit: 'PIECES',
+                    central_stock_qty: 80,
+                    bench_stock_qty: 20,
+                    unit_cost: 250,
+                    reorder_level: 50,
+                    supplier_name: 'PACKAGING DIRECT LTD'
+                  })
+                  setIsNewMaterialModalOpen(true)
+                }}
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="h-10 px-3.5 text-xs font-medium"
+              >
+                New Material
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenReturnModal()}
+                leftIcon={<RotateCcw className="w-4 h-4 text-emerald-600" />}
+                className="h-10 px-3.5 text-xs font-medium"
+              >
+                EOD Bench Return
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenReceive()}
+                leftIcon={<PackageCheck className="w-4 h-4 text-zinc-600" />}
+                className="h-10 px-3.5 text-xs font-medium"
+              >
+                Receive Stock
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleOpenIssueModal()}
+                leftIcon={<ArrowRightLeft className="w-4 h-4" />}
+                className="h-10 px-4 text-xs font-medium shadow-xs"
+              >
+                Issue to Bench
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 

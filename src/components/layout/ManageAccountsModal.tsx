@@ -57,50 +57,72 @@ export interface RoleConfig {
 export interface SystemPermissionItem {
   id: string
   label: string
-  category: 'Administration' | 'Finance' | 'Production' | 'Inventory' | 'Logistics' | 'Sales'
+  category: 'Administration' | 'Finance' | 'Production' | 'Packaging' | 'Inventory' | 'Logistics' | 'Sales'
   description: string
+  pageRoute?: string
 }
 
 export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
-  // Administration
-  { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Access master database records and operational raw data tables.' },
-  { id: 'perm_users', label: 'User Onboarding & Deletion', category: 'Administration', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
-  { id: 'perm_rbac', label: 'Role & Permission Management', category: 'Administration', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
-  
-  // Finance
-  { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
-  { id: 'perm_invoices', label: 'Supplier Invoice Verification', category: 'Finance', description: 'Review purchase order billing, confirm line item unit costs, and approve credits.' },
-  { id: 'perm_rider_payout', label: 'Rider Payout Disbursement', category: 'Finance', description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.' },
-  { id: 'perm_wallet', label: 'Wallet & Payout History', category: 'Finance', description: 'Inspect individual courier earnings ledger, trip commissions, and deductions.' },
-
-  // Production
-  { id: 'perm_batches', label: 'Batch Scheduling & Cook Approvals', category: 'Production', description: 'Schedule smoking grill cooks, modify recipes, and sign off completed runs.' },
-  { id: 'perm_cook', label: 'Start & Complete Batches', category: 'Production', description: 'Record real-time cook progress, internal food temps, and yield outputs.' },
-  { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of meat, seasoning packs, and marinades during runs.' },
-  { id: 'perm_packout', label: 'Portion Pack-out Logging', category: 'Production', description: 'Log sealed units into vacuum pouches and carton cases for sales inventory.' },
-  { id: 'perm_spoilage', label: 'Waste & Spoilage Incident Reports', category: 'Production', description: 'Submit and approve burned portions, expired cuts, or compromised batches.' },
-
-  // Inventory
-  { id: 'perm_intake', label: 'Stock Intake PO Receipts', category: 'Inventory', description: 'Receive vendor deliveries at loading dock and verify lot batch numbers.' },
-  { id: 'perm_cycle_counts', label: 'Periodic Cycle Counts', category: 'Inventory', description: 'Perform physical warehouse stock reconciliations against system tallies.' },
-  { id: 'perm_transfers', label: 'Packaging Unit Transfers', category: 'Inventory', description: 'Transfer foil trays, branded thermal bags, and boxes across kitchens and hubs.' },
-  { id: 'perm_expiry', label: 'Lot Expiry Monitoring', category: 'Inventory', description: 'Track freshness dates, send urgent reorder notifications, and quarantine aging lots.' },
-  { id: 'perm_thresholds', label: 'Inventory Threshold Overrides', category: 'Inventory', description: 'Adjust safety stock minimums and critical reorder threshold parameters.' },
-
-  // Logistics & Dispatch
-  { id: 'perm_dispatch_ctrl', label: 'Logistics Dispatch Controls', category: 'Logistics', description: 'Full control over courier allocation, rider assignment, and emergency re-routes.' },
-  { id: 'perm_queue_assign', label: 'Dispatch Queue Assignment', category: 'Logistics', description: 'Assign ready cooked orders to available couriers waiting at the staging dock.' },
-  { id: 'perm_tracking', label: 'Rider Location & Route Tracking', category: 'Logistics', description: 'Live tracking of delivery couriers, ETA monitoring, and route compliance.' },
-  { id: 'perm_3pl', label: 'Third-party Rider Bookings', category: 'Logistics', description: 'Dispatch overflow delivery orders to Gozem, Gokada, or third-party riders.' },
-  { id: 'perm_delivery_transit', label: 'Accept & Transit Delivery', category: 'Logistics', description: 'Rider mobile view to accept assigned trips and initiate waypoint transit.' },
-  { id: 'perm_otp_dropoff', label: 'Customer OTP Drop-off Sign-off', category: 'Logistics', description: 'Validate customer delivery OTP code before concluding drop-off handover.' },
-  { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage rider shift rotas, check-in schedules, and coverage plans.' },
-
   // Sales & Storefront Orders
-  { id: 'perm_orders_view', label: 'View Customer Orders', category: 'Sales', description: 'Monitor incoming customer orders, payment statuses, and fulfillment pipeline.' },
-  { id: 'perm_orders_status', label: 'Update Order Fulfillment Status', category: 'Sales', description: 'Progress orders through kitchen prep, packaging, ready for delivery, and completed.' },
-  { id: 'perm_orders_export', label: 'Export Sales & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and daily sales summaries.' },
-  { id: 'perm_sales_catalog', label: 'Sales Inventory & Menu Availability', category: 'Sales', description: 'Toggle items in/out of stock and adjust sellable menu listings.' }
+  { id: 'perm_orders_view', label: 'View Website Orders Page', category: 'Sales', pageRoute: '/sales/orders', description: 'Access /sales/orders to view incoming customer orders, payment status, and order details.' },
+  { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
+  { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
+  { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
+  { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
+
+  // Packaging Operations
+  { id: 'perm_packaging_exec_view', label: 'View Packaging Execution Page', category: 'Packaging', pageRoute: '/production/packaging', description: 'Access /production/packaging to view the order packaging queue, packing manifests, and history.' },
+  { id: 'perm_packout', label: 'Execute Order Pack-out & Deduct Consumables', category: 'Packaging', description: 'Start packaging orders, pick/deduct pouches & boxes, requisition materials, and send orders to Dispatch or Pickup.' },
+  { id: 'perm_packaging_materials_view', label: 'View Packaging Materials Page', category: 'Packaging', pageRoute: '/inventory/packaging', description: 'Access /inventory/packaging to view central store and bench reserves of polybags, boxes, stickers, and sachets.' },
+  { id: 'perm_transfers', label: 'Manage Packaging Stock, Receipts & Reconciliations', category: 'Packaging', description: 'Add/edit packaging materials, log supplier deliveries, transfer stock to bench, and perform daily reconciliations.' },
+
+  // Kitchen & Production Operations
+  { id: 'perm_batches_view', label: 'View Production Batches Page', category: 'Production', pageRoute: '/production/batches', description: 'Access /production/batches to inspect active smoking runs, prep queues, completed yields, and recipe preps.' },
+  { id: 'perm_cook', label: 'Start, Update & Complete Cooking Batches', category: 'Production', description: 'Queue today/tomorrow cooking batches, start smoking grills, log actual meat yield & wastage, and mix spice rubs.' },
+  { id: 'perm_batches', label: 'Manage Master Recipes (BOMs) & Purge Batches', category: 'Production', description: 'Configure master recipe formulas (BOMs), edit batch parameters, and delete or clear batch cooking records.' },
+  { id: 'perm_tasks_view', label: 'View Kitchen Shift Tasks Page', category: 'Production', pageRoute: '/production/tasks', description: 'Access /production/tasks to view kitchen prep checklists, station hygiene schedules, and shift delegation.' },
+  { id: 'perm_tasks_edit', label: 'Create, Assign & Complete Kitchen Tasks', category: 'Production', description: 'Assign tasks to shift operators, update task completion status, and manage kitchen shift delegation.' },
+  { id: 'perm_raw_deplete', label: 'Raw Materials Depletion', category: 'Production', description: 'Auto-deplete raw cuts of livestock, seasoning packs, and marinades during cooking runs.' },
+  { id: 'perm_spoilage', label: 'Waste & Spoilage Incident Reports', category: 'Production', description: 'Submit and approve burned portions, expired cuts, or compromised kitchen batches.' },
+
+  // Inventory & Warehouse Control
+  { id: 'perm_raw_view', label: 'View Raw Inventory Page', category: 'Inventory', pageRoute: '/inventory/raw', description: 'Access /inventory/raw to view raw meat cuts, spices, cooking oils, firewood stock levels, and safety thresholds.' },
+  { id: 'perm_intake', label: 'Record Raw Stock Intake & Issue Requisitions', category: 'Inventory', description: 'Receive vendor deliveries at loading dock, confirm item quantities, issue stock to kitchen, and fulfill requisitions.' },
+  { id: 'perm_cycle_counts', label: 'Physical Stocktake Adjustments & Edit Raw Items', category: 'Inventory', description: 'Perform physical warehouse stock reconciliations, add/edit raw items, and override safety reorder thresholds.' },
+  { id: 'perm_movements_view', label: 'View Stock Movements Ledger Page', category: 'Inventory', pageRoute: '/inventory/movements', description: 'Access /inventory/movements to inspect the full audit trail of raw intakes, batch depletions, variances, and transfers.' },
+  { id: 'perm_movements_edit', label: 'Record Manual Transfers & Export Movements', category: 'Inventory', description: 'Log manual inter-station stock transfers and export ledger audit reports.' },
+  { id: 'perm_suppliers_view', label: 'View Suppliers & Vendors Page', category: 'Inventory', pageRoute: '/inventory/suppliers', description: 'Access /inventory/suppliers to view the vendor directory, supply categories, and delivery history.' },
+  { id: 'perm_invoices', label: 'Manage Suppliers & Verify Vendor Invoices', category: 'Inventory', description: 'Onboard new suppliers, edit vendor profiles & bank details, verify supplier invoices, and delete vendors.' },
+  { id: 'perm_expiry', label: 'Lot Expiry Monitoring', category: 'Inventory', description: 'Track freshness dates, send urgent reorder notifications, and quarantine aging lots.' },
+  { id: 'perm_thresholds', label: 'Inventory Threshold Overrides', category: 'Inventory', description: 'Adjust safety stock minimums, maximum storage capacities, and critical reorder threshold parameters.' },
+
+  // Logistics & Fleet Dispatch
+  { id: 'perm_dispatch_view', label: 'View Dispatch Board Page', category: 'Logistics', pageRoute: '/logistics/board', description: 'Access /logistics/board to view packaged orders awaiting dispatch, active in-transit deliveries, and courier assignments.' },
+  { id: 'perm_queue_assign', label: 'Assign Riders & Control Dispatch Queue', category: 'Logistics', description: 'Assign packaged orders to in-house or 3PL riders, initiate transit, re-route trips, and mark deliveries completed.' },
+  { id: 'perm_schedule_view', label: 'View Delivery Schedule Page', category: 'Logistics', pageRoute: '/logistics/schedule', description: 'Access /logistics/schedule to monitor pre-scheduled customer orders, future delivery windows, and prep countdowns.' },
+  { id: 'perm_schedule_edit', label: 'Manage & Dispatch Scheduled Orders', category: 'Logistics', description: 'Update scheduled delivery windows and release scheduled orders into active dispatch.' },
+  { id: 'perm_tracking', label: 'View In-House Riders Page', category: 'Logistics', pageRoute: '/logistics/riders', description: 'Access /logistics/riders to view fleet roster, rider availability, active trip assignments, and performance ratings.' },
+  { id: 'perm_rider_payout', label: 'Manage Rider Roster, Shifts & Payout Disbursements', category: 'Logistics', description: 'Onboard/edit riders, assign shift schedules & zones, and disburse rider delivery fee payouts.' },
+  { id: 'perm_pickup_view', label: 'View Store Pickup Counter Page', category: 'Logistics', pageRoute: '/logistics/pickup', description: 'Access /logistics/pickup to view customer walk-in / self-pickup orders waiting at the counter.' },
+  { id: 'perm_pickup_edit', label: 'Verify Collector & Complete Pickup Handover', category: 'Logistics', description: 'Record collector details and complete customer counter handover.' },
+  { id: 'perm_3pl_view', label: 'View Third-Party Delivery Page', category: 'Logistics', pageRoute: '/logistics/third-party', description: 'Access /logistics/third-party to monitor overflow dispatches via Uber Connect, Gokada, Bolt, and Kwik.' },
+  { id: 'perm_3pl', label: 'Book 3PL Couriers & Verify Surge Fee Evidence', category: 'Logistics', description: 'Book 3PL riders, upload/verify booking fee screenshots, and approve/reject surge fee variances.' },
+  { id: 'perm_rider_portal_view', label: 'Access Mobile Rider Portal (My Trips)', category: 'Logistics', pageRoute: '/logistics/rider-portal', description: 'Access /logistics/rider-portal mobile app to view assigned trips, customer phone links, and Google Maps routes.' },
+  { id: 'perm_delivery_transit', label: 'Rider: Accept Dispatches & Start Transit', category: 'Logistics', description: 'Accept or decline assigned delivery trips and mark orders In-Transit.' },
+  { id: 'perm_otp_dropoff', label: 'Rider: Confirm Customer Drop-off Handover', category: 'Logistics', description: 'Verify customer handover and mark trips Delivered.' },
+  { id: 'perm_wallet', label: 'Rider: View Wallet & Earnings Ledger', category: 'Logistics', description: 'View the Rider Wallet tab, trip commissions, and payout history.' },
+  { id: 'perm_dispatch_ctrl', label: 'Logistics Dispatch Controls', category: 'Logistics', description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.' },
+  { id: 'perm_shifts', label: 'Staff Shift Assignments', category: 'Logistics', description: 'Manage courier shift rotas, check-in schedules, and dispatch station coverage plans.' },
+
+  // Finance & Executive Overview
+  { id: 'perm_overview_view', label: 'View Executive Operations Overview', category: 'Administration', pageRoute: '/overview', description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.' },
+  { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
+
+  // Administration & Security
+  { id: 'perm_users', label: 'Manage Staff Accounts & KYC Onboarding', category: 'Administration', pageRoute: '/accounts', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
+  { id: 'perm_rbac', label: 'Manage Role Scopes & Permission Policies', category: 'Administration', pageRoute: '/accounts/matrix', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
+  { id: 'perm_facility_config', label: 'Manage Operating Offices & Regional Hubs', category: 'Administration', pageRoute: '/offices', description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.' },
+  { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Access master database records, audit trails, and operational raw data tables.' }
 ]
 
 export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
@@ -109,87 +131,49 @@ export const SYSTEM_ROLE_CONFIGS: RoleConfig[] = [
     label: 'Super Admin',
     description: 'Unrestricted master access across all operational hubs, financial controls, team RBAC, and system audits.',
     badgeClass: 'bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-400',
-    permissions: [
-      'Full Database & Records Access',
-      'User Onboarding & Deletion',
-      'Role & Permission Management',
-      'Finance & Payout Remittances',
-      'Inventory Threshold Overrides',
-      'Logistics Dispatch Controls'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['admin']
   },
   {
     id: 'manager',
     label: 'Operations Manager',
     description: 'Supervises kitchen shifts, approves spoilage write-offs, modifies recipes, and reviews driver payouts.',
     badgeClass: 'bg-purple-500/10 text-purple-700 border-purple-500/20 dark:text-purple-400',
-    permissions: [
-      'Batch Scheduling & Cook Approvals',
-      'Variance Reconciliation',
-      'Staff Shift Assignments',
-      'Supplier Invoice Verification',
-      'Waste & Spoilage Write-offs'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['manager']
   },
   {
     id: 'sales_manager',
     label: 'Sale Manager',
     description: 'Oversees incoming customer storefront orders, catalog pricing & availability, sales inventory allocations, and pickup desk handovers.',
     badgeClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400',
-    permissions: [
-      'View Customer Orders',
-      'Update Order Fulfillment Status',
-      'Export Sales & Revenue Reports',
-      'Sales Inventory & Menu Availability',
-      'Store Pickup Handover'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['sales_manager']
   },
   {
     id: 'kitchen',
     label: 'Production Cook',
     description: 'Executes daily smoking grill runs, batch packaging, ingredients intake, and yield tracking.',
     badgeClass: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400',
-    permissions: [
-      'Start & Complete Batches',
-      'Raw Materials Depletion',
-      'Portion Pack-out Logging',
-      'Waste & Spoilage Incident Reports'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['kitchen']
   },
   {
     id: 'inventory',
     label: 'Inventory Specialist',
     description: 'Manages physical warehouse stock counts, receiving supplier shipments, and tracking lot expirations.',
     badgeClass: 'bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-400',
-    permissions: [
-      'Stock Intake PO Receipts',
-      'Periodic Cycle Counts',
-      'Packaging Unit Transfers',
-      'Lot Expiry Monitoring'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['inventory']
   },
   {
     id: 'dispatcher',
     label: 'Logistics Coordinator',
     description: 'Coordinates dispatch queue, assigns orders to couriers, monitors SLA transit times, and audits completed trips.',
     badgeClass: 'bg-teal-500/10 text-teal-700 border-teal-500/20 dark:text-teal-400',
-    permissions: [
-      'Dispatch Queue Assignment',
-      'Rider Location & Route Tracking',
-      'Third-party Rider Bookings',
-      'Trip Audit & Payout Disbursement'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['dispatcher']
   },
   {
     id: 'rider',
     label: 'Delivery Rider',
     description: 'Driver portal view restricted to accepted dispatch orders, customer drop-off verification, and payout earnings.',
     badgeClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400',
-    permissions: [
-      'Accept & Transit Delivery',
-      'Customer OTP Drop-off Sign-off',
-      'Wallet & Payout History'
-    ]
+    permissions: ROLE_DEFAULT_PERMISSIONS['rider']
   }
 ]
 

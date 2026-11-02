@@ -161,7 +161,8 @@ export const WebsiteOrdersPage: React.FC = () => {
     logisticsDeliveries,
     packagingQueue,
     scheduledOrders,
-    rescheduleOrderDelivery
+    rescheduleOrderDelivery,
+    hasPermission
   } = useSmokeyOps()
   const [loading] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
@@ -836,7 +837,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </Button>
               <div className="flex items-center gap-2">
                 {/* Only allow scheduling / rescheduling for orders that are not already out for delivery or delivered */}
-                {selectedOrder.fulfillment_status !== 'in_transit' && selectedOrder.fulfillment_status !== 'delivered' && (
+                {hasPermission('perm_orders_status') && selectedOrder.fulfillment_status !== 'in_transit' && selectedOrder.fulfillment_status !== 'delivered' && (
                   <Button
                     variant="outline"
                     size="md"

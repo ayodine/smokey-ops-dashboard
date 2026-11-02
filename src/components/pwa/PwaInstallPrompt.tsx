@@ -81,7 +81,7 @@ export const PwaInstallPrompt: React.FC = () => {
 
   return (
     <>
-      <div className="md:hidden fixed bottom-20 left-3 right-3 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700/60 p-4 backdrop-blur-md">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#c0201f] text-white flex items-center justify-center shrink-0 shadow-md">

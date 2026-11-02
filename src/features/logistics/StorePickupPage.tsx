@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 
 export const StorePickupPage: React.FC = () => {
-  const { storePickups, markPickupCollected } = useSmokeyOps()
+  const { storePickups, markPickupCollected, hasPermission } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'collected'>('all')
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -140,7 +140,7 @@ export const StorePickupPage: React.FC = () => {
       defaultWidth: 160,
       accessor: (p) => (
         <div onClick={e => e.stopPropagation()} className="shrink-0 flex items-center gap-1.5">
-          {p.order_status === 'ready_for_pickup' ? (
+          {p.order_status === 'ready_for_pickup' && hasPermission('perm_pickup_edit') ? (
             <TableActionButton
               variant="primary"
               icon={<UserCheck />}
@@ -312,7 +312,7 @@ export const StorePickupPage: React.FC = () => {
               >
                 Close
               </Button>
-              {selectedDetailsPickup.order_status === 'ready_for_pickup' && (
+              {selectedDetailsPickup.order_status === 'ready_for_pickup' && hasPermission('perm_pickup_edit') && (
                 <Button
                   variant="primary"
                   size="md"

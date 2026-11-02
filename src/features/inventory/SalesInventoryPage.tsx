@@ -75,7 +75,8 @@ export const SalesInventoryPage: React.FC = () => {
     productionBatches,
     dailySales,
     adjustSalesStock,
-    saveSalesProduct
+    saveSalesProduct,
+    hasPermission
   } = useSmokeyOps()
 
   // Calculate live incoming batch buffers per dish from ongoing/scheduled production runs
@@ -441,22 +442,33 @@ export const SalesInventoryPage: React.FC = () => {
       defaultWidth: 160,
       accessor: (p) => (
         <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Manually adjust on-hand stock">
+          {hasPermission('perm_sales_catalog') ? (
+            <>
+              <Tooltip content="Manually adjust on-hand stock">
+                <TableActionButton
+                  variant="outline"
+                  onClick={() => handleOpenAdjust(p)}
+                >
+                  Adjust
+                </TableActionButton>
+              </Tooltip>
+              <Tooltip content="Edit product pricing and reorder levels">
+                <TableActionButton
+                  variant="primary"
+                  onClick={() => handleOpenEdit(p)}
+                >
+                  Edit
+                </TableActionButton>
+              </Tooltip>
+            </>
+          ) : (
             <TableActionButton
               variant="outline"
-              onClick={() => handleOpenAdjust(p)}
+              onClick={() => handleOpenDetails(p)}
             >
-              Adjust
+              View
             </TableActionButton>
-          </Tooltip>
-          <Tooltip content="Edit product pricing and reorder levels">
-            <TableActionButton
-              variant="primary"
-              onClick={() => handleOpenEdit(p)}
-            >
-              Edit
-            </TableActionButton>
-          </Tooltip>
+          )}
         </div>
       ),
     },
@@ -517,15 +529,17 @@ export const SalesInventoryPage: React.FC = () => {
             >
               {isRefreshing ? 'Syncing...' : 'Sync Backend'}
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => handleOpenEdit()}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="h-10 px-4 text-sm font-medium shadow-xs"
-            >
-              Add Sales Product
-            </Button>
+            {hasPermission('perm_sales_catalog') && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleOpenEdit()}
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="h-10 px-4 text-sm font-medium shadow-xs"
+              >
+                Add Sales Product
+              </Button>
+            )}
           </div>
         }
       />
@@ -849,30 +863,32 @@ export const SalesInventoryPage: React.FC = () => {
                 >
                   Close
                 </Button>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={() => {
-                      setIsDetailsModalOpen(false)
-                      handleOpenAdjust(p)
-                    }}
-                    leftIcon={<SlidersHorizontal className="w-3.5 h-3.5" />}
-                  >
-                    Adjust Stock
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      setIsDetailsModalOpen(false)
-                      handleOpenEdit(p)
-                    }}
-                    leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  >
-                    Edit Product & Pricing
-                  </Button>
-                </div>
+                {hasPermission('perm_sales_catalog') && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => {
+                        setIsDetailsModalOpen(false)
+                        handleOpenAdjust(p)
+                      }}
+                      leftIcon={<SlidersHorizontal className="w-3.5 h-3.5" />}
+                    >
+                      Adjust Stock
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => {
+                        setIsDetailsModalOpen(false)
+                        handleOpenEdit(p)
+                      }}
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    >
+                      Edit Product & Pricing
+                    </Button>
+                  </div>
+                )}
               </div>
             }
           >

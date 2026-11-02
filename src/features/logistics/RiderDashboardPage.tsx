@@ -39,6 +39,7 @@ export const RiderDashboardPage: React.FC = () => {
     declineDelivery,
     showToast,
     currentAccount,
+    hasPermission
   } = useSmokeyOps()
 
   // Dynamically match the logged-in rider profile strictly to currentAccount
@@ -140,6 +141,7 @@ export const RiderDashboardPage: React.FC = () => {
   }
 
   // Clean Tab configuration (No icons in front of labels, per user requirement)
+  const canViewWallet = hasPermission('perm_wallet')
   const tabs = [
     {
       id: 'assigned',
@@ -156,10 +158,10 @@ export const RiderDashboardPage: React.FC = () => {
       label: 'Delivered Orders',
       badge: completedOrders.length > 0 ? completedOrders.length : undefined,
     },
-    {
+    ...(canViewWallet ? [{
       id: 'earnings',
       label: 'Earnings & Wallet',
-    },
+    }] : []),
   ]
 
   // Calculated metrics strictly derived from verified rider deliveries
@@ -268,20 +270,31 @@ export const RiderDashboardPage: React.FC = () => {
       defaultWidth: 230,
       accessor: (d) => (
         <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
-          <TableActionButton
-            variant="outline"
-            onClick={() => handleOpenDecline(d)}
-          >
-            Decline
-          </TableActionButton>
-          <TableActionButton
-            variant="primary"
-            icon={<Check />}
-            iconStrokeWidth={2.5}
-            onClick={() => acceptDelivery(d.id)}
-          >
-            Accept Order
-          </TableActionButton>
+          {hasPermission('perm_delivery_transit') ? (
+            <>
+              <TableActionButton
+                variant="outline"
+                onClick={() => handleOpenDecline(d)}
+              >
+                Decline
+              </TableActionButton>
+              <TableActionButton
+                variant="primary"
+                icon={<Check />}
+                iconStrokeWidth={2.5}
+                onClick={() => acceptDelivery(d.id)}
+              >
+                Accept Order
+              </TableActionButton>
+            </>
+          ) : (
+            <TableActionButton
+              variant="outline"
+              onClick={() => setPreviewOrder(d)}
+            >
+              View Details
+            </TableActionButton>
+          )}
         </div>
       ),
     },
@@ -384,14 +397,23 @@ export const RiderDashboardPage: React.FC = () => {
       defaultWidth: 180,
       accessor: (d) => (
         <div className="flex items-center gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
-          <TableActionButton
-            variant="primary"
-            icon={<CheckCircle2 />}
-            iconStrokeWidth={2}
-            onClick={() => setConfirmDeliveryTarget(d)}
-          >
-            Confirm Delivered
-          </TableActionButton>
+          {hasPermission('perm_otp_dropoff') ? (
+            <TableActionButton
+              variant="primary"
+              icon={<CheckCircle2 />}
+              iconStrokeWidth={2}
+              onClick={() => setConfirmDeliveryTarget(d)}
+            >
+              Confirm Delivered
+            </TableActionButton>
+          ) : (
+            <TableActionButton
+              variant="outline"
+              onClick={() => setPreviewOrder(d)}
+            >
+              View Details
+            </TableActionButton>
+          )}
         </div>
       ),
     },
@@ -783,8 +805,8 @@ export const RiderDashboardPage: React.FC = () => {
                     key={order.id}
                     order={order}
                     tab="assigned"
-                    onAccept={(orderId) => acceptDelivery(orderId)}
-                    onDecline={(ord) => handleOpenDecline(ord)}
+                    onAccept={hasPermission('perm_delivery_transit') ? (orderId) => acceptDelivery(orderId) : undefined}
+                    onDecline={hasPermission('perm_delivery_transit') ? (ord) => handleOpenDecline(ord) : undefined}
                     onViewDetails={(ord) => setPreviewOrder(ord)}
                   />
                 ))
@@ -811,7 +833,7 @@ export const RiderDashboardPage: React.FC = () => {
                     key={order.id}
                     order={order}
                     tab="in_transit"
-                    onConfirmDelivered={(ord) => setConfirmDeliveryTarget(ord)}
+                    onConfirmDelivered={hasPermission('perm_otp_dropoff') ? (ord) => setConfirmDeliveryTarget(ord) : undefined}
                     onViewDetails={(ord) => setPreviewOrder(ord)}
                   />
                 ))
@@ -1394,6 +1416,7 @@ export const RiderDashboardPage: React.FC = () => {
         assignedCount={assignedOrders.length}
         inTransitCount={inTransitOrders.length}
         deliveredCount={completedOrders.length}
+        showWallet={canViewWallet}
       />
     </div>
   )

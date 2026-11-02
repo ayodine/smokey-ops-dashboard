@@ -333,6 +333,161 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
   )
 }
 
+const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: string[] }[]> = {
+  'Sales & Storefront Orders': [
+    {
+      label: 'Website Orders Only',
+      permLabels: [
+        'View Website Orders Page',
+        'Edit & Reschedule Website Orders',
+        'Export Website Order & Revenue Reports'
+      ]
+    },
+    {
+      label: 'Sales Inventory Only',
+      permLabels: [
+        'View Sales Inventory Page',
+        'Edit Sales Inventory, Pricing & Menu Catalog'
+      ]
+    },
+    {
+      label: 'View Only (All Sales)',
+      permLabels: [
+        'View Website Orders Page',
+        'View Sales Inventory Page'
+      ]
+    }
+  ],
+  'Packaging Execution & Materials': [
+    {
+      label: 'Packaging Execution Only',
+      permLabels: [
+        'View Packaging Execution Page',
+        'Execute Order Pack-out & Deduct Consumables'
+      ]
+    },
+    {
+      label: 'Packaging Materials Only',
+      permLabels: [
+        'View Packaging Materials Page',
+        'Manage Packaging Stock, Receipts & Reconciliations'
+      ]
+    },
+    {
+      label: 'View Only (All Packaging)',
+      permLabels: [
+        'View Packaging Execution Page',
+        'View Packaging Materials Page'
+      ]
+    }
+  ],
+  'Production Batches & Kitchen Tasks': [
+    {
+      label: 'Production Batches Only',
+      permLabels: [
+        'View Production Batches Page',
+        'Start, Update & Complete Cooking Batches',
+        'Manage Master Recipes (BOMs) & Purge Batches'
+      ]
+    },
+    {
+      label: 'Kitchen Tasks Only',
+      permLabels: [
+        'View Kitchen Shift Tasks Page',
+        'Create, Assign & Complete Kitchen Tasks'
+      ]
+    },
+    {
+      label: 'View Only (All Kitchen)',
+      permLabels: [
+        'View Production Batches Page',
+        'View Kitchen Shift Tasks Page'
+      ]
+    }
+  ],
+  'Inventory & Warehouse Control': [
+    {
+      label: 'Raw Inventory Only',
+      permLabels: [
+        'View Raw Inventory Page',
+        'Record Raw Stock Intake & Issue Requisitions',
+        'Physical Stocktake Adjustments & Edit Raw Items'
+      ]
+    },
+    {
+      label: 'Stock Movements Only',
+      permLabels: [
+        'View Stock Movements Ledger Page',
+        'Record Manual Transfers & Export Movements'
+      ]
+    },
+    {
+      label: 'Suppliers Only',
+      permLabels: [
+        'View Suppliers & Vendors Page',
+        'Manage Suppliers & Verify Vendor Invoices'
+      ]
+    },
+    {
+      label: 'View Only (All Inventory)',
+      permLabels: [
+        'View Raw Inventory Page',
+        'View Stock Movements Ledger Page',
+        'View Suppliers & Vendors Page'
+      ]
+    }
+  ],
+  'Riders & Logistics Operations': [
+    {
+      label: 'Dispatch Board Only',
+      permLabels: [
+        'View Dispatch Board Page',
+        'Assign Riders & Control Dispatch Queue'
+      ]
+    },
+    {
+      label: 'Delivery Schedule Only',
+      permLabels: [
+        'View Delivery Schedule Page',
+        'Manage & Dispatch Scheduled Orders'
+      ]
+    },
+    {
+      label: 'Store Pickup Only',
+      permLabels: [
+        'View Store Pickup Counter Page',
+        'Verify Collector & Complete Pickup Handover'
+      ]
+    },
+    {
+      label: '3PL Dispatches Only',
+      permLabels: [
+        'View Third-Party Delivery Page',
+        'Book 3PL Couriers & Verify Surge Fee Evidence'
+      ]
+    },
+    {
+      label: 'Mobile Rider App',
+      permLabels: [
+        'Access Mobile Rider Portal (My Trips)',
+        'Rider: Accept Dispatches & Start Transit',
+        'Rider: Confirm Customer Drop-off Handover',
+        'Rider: View Wallet & Earnings Ledger'
+      ]
+    },
+    {
+      label: 'View Only (All Logistics)',
+      permLabels: [
+        'View Dispatch Board Page',
+        'View Delivery Schedule Page',
+        'View In-House Riders Page',
+        'View Store Pickup Counter Page',
+        'View Third-Party Delivery Page'
+      ]
+    }
+  ]
+}
+
 export const ManageAccountsPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -431,11 +586,12 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Accordion Expand/Collapse state
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    'Sales & Storefront Orders': true,
+    'Packaging Execution & Materials': true,
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
     'Logistics & Fleet Dispatch': false,
-    'Finance & Payout Disbursements': false,
-    'Administration & Security Controls': false,
+    'Executive Overview & Administration': false,
   })
 
   // Handle auto-selecting scope from query string (e.g. ?scope=...)
@@ -675,11 +831,12 @@ export const ManageAccountsPage: React.FC = () => {
   const [matrixSearchQuery, setMatrixSearchQuery] = useState('')
   const [matrixPermissions, setMatrixPermissions] = useState<string[]>([])
   const [matrixExpandedCats, setMatrixExpandedCats] = useState<Record<string, boolean>>({
+    'Sales & Storefront Orders': true,
+    'Packaging Execution & Materials': true,
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
     'Logistics & Fleet Dispatch': false,
-    'Finance & Payout Disbursements': false,
-    'Administration & Security Controls': false,
+    'Executive Overview & Administration': false,
   })
 
   // Create Custom Scope Form State
@@ -699,12 +856,12 @@ export const ManageAccountsPage: React.FC = () => {
 
   const [createScopeSearchQuery, setCreateScopeSearchQuery] = useState('')
   const [createScopeExpandedCats, setCreateScopeExpandedCats] = useState<Record<string, boolean>>({
-    'Kitchen & Production Operations': true,
     'Sales & Storefront Orders': true,
+    'Packaging Execution & Materials': true,
+    'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
     'Logistics & Fleet Dispatch': true,
-    'Finance & Payout Disbursements': true,
-    'Administration & Security Controls': true,
+    'Executive Overview & Administration': true,
   })
 
   const toggleCreateScopeCategory = (catLabels: string[], currentlyAllActive: boolean) => {
@@ -794,36 +951,120 @@ export const ManageAccountsPage: React.FC = () => {
   const [requirePassReset, setRequirePassReset] = useState(true)
   const [showResetPassword, setShowResetPassword] = useState(false)
 
-  // Real SmokeyOps Operational Policy Categories matching core modules
+  // Real SmokeyOps Operational Policy Categories matching core dashboard operations
   const policyCategoryGroups = useMemo<PolicyCategoryGroup[]>(() => {
     return [
+      {
+        id: 'sales',
+        name: 'Sales & Storefront Orders',
+        permissions: [
+          {
+            id: 'perm_orders_view',
+            label: 'View Website Orders Page',
+            category: 'Sales',
+            pageRoute: '/sales/orders',
+            description: 'Access /sales/orders to view incoming customer orders, payment status, and order details.'
+          },
+          {
+            id: 'perm_orders_status',
+            label: 'Edit & Reschedule Website Orders',
+            category: 'Sales',
+            description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.'
+          },
+          {
+            id: 'perm_orders_export',
+            label: 'Export Website Order & Revenue Reports',
+            category: 'Sales',
+            description: 'Download CSV and Excel order manifests and financial audit reports.'
+          },
+          {
+            id: 'perm_sales_inventory_view',
+            label: 'View Sales Inventory Page',
+            category: 'Sales',
+            pageRoute: '/inventory/sales',
+            description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.'
+          },
+          {
+            id: 'perm_sales_catalog',
+            label: 'Edit Sales Inventory, Pricing & Menu Catalog',
+            category: 'Sales',
+            description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.'
+          }
+        ]
+      },
+      {
+        id: 'packaging',
+        name: 'Packaging Execution & Materials',
+        permissions: [
+          {
+            id: 'perm_packaging_exec_view',
+            label: 'View Packaging Execution Page',
+            category: 'Packaging',
+            pageRoute: '/production/packaging',
+            description: 'Access /production/packaging to view the order packaging queue, packing manifests, and history.'
+          },
+          {
+            id: 'perm_packout',
+            label: 'Execute Order Pack-out & Deduct Consumables',
+            category: 'Packaging',
+            description: 'Start packaging orders, pick/deduct pouches & boxes, requisition materials, and send orders to Dispatch or Pickup.'
+          },
+          {
+            id: 'perm_packaging_materials_view',
+            label: 'View Packaging Materials Page',
+            category: 'Packaging',
+            pageRoute: '/inventory/packaging',
+            description: 'Access /inventory/packaging to view central store and bench reserves of polybags, boxes, stickers, and sachets.'
+          },
+          {
+            id: 'perm_transfers',
+            label: 'Manage Packaging Stock, Receipts & Reconciliations',
+            category: 'Packaging',
+            description: 'Add/edit packaging materials, log supplier deliveries, transfer stock to bench, and perform daily reconciliations.'
+          }
+        ]
+      },
       {
         id: 'production',
         name: 'Kitchen & Production Operations',
         permissions: [
           {
-            id: 'perm_batches',
-            label: 'Batch Scheduling & Cook Approvals',
+            id: 'perm_batches_view',
+            label: 'View Production Batches Page',
             category: 'Production',
-            description: 'Schedule smoking grill cooks, modify recipes, and sign off completed operational runs.'
+            pageRoute: '/production/batches',
+            description: 'Access /production/batches to inspect active smoking runs, prep queues, completed yields, and recipe preps.'
           },
           {
             id: 'perm_cook',
-            label: 'Start & Complete Batches',
+            label: 'Start, Update & Complete Cooking Batches',
             category: 'Production',
-            description: 'Record real-time cook progress, internal meat temps, smoking grill timings, and yield outputs.'
+            description: 'Queue today/tomorrow cooking batches, start smoking grills, log actual meat yield & wastage, and mix spice rubs.'
+          },
+          {
+            id: 'perm_batches',
+            label: 'Manage Master Recipes (BOMs) & Purge Batches',
+            category: 'Production',
+            description: 'Configure master recipe formulas (BOMs), edit batch parameters, and delete or clear batch cooking records.'
+          },
+          {
+            id: 'perm_tasks_view',
+            label: 'View Kitchen Shift Tasks Page',
+            category: 'Production',
+            pageRoute: '/production/tasks',
+            description: 'Access /production/tasks to view kitchen prep checklists, station hygiene schedules, and shift delegation.'
+          },
+          {
+            id: 'perm_tasks_edit',
+            label: 'Create, Assign & Complete Kitchen Tasks',
+            category: 'Production',
+            description: 'Assign tasks to shift operators, update task completion status, and manage kitchen shift delegation.'
           },
           {
             id: 'perm_raw_deplete',
             label: 'Raw Materials Depletion',
             category: 'Production',
-            description: 'Auto-deplete raw cuts of livestock, seasoning packs, marinades, and firewood during runs.'
-          },
-          {
-            id: 'perm_packout',
-            label: 'Portion Pack-out Logging',
-            category: 'Production',
-            description: 'Log sealed units into vacuum pouches and carton cases ready for sales inventory.'
+            description: 'Auto-deplete raw cuts of livestock, seasoning packs, and marinades during cooking runs.'
           },
           {
             id: 'perm_spoilage',
@@ -834,62 +1075,59 @@ export const ManageAccountsPage: React.FC = () => {
         ]
       },
       {
-        id: 'sales',
-        name: 'Sales & Storefront Orders',
-        permissions: [
-          {
-            id: 'perm_orders_view',
-            label: 'View Customer Orders',
-            category: 'Sales',
-            description: 'Monitor incoming customer orders, payment statuses, and fulfillment pipeline.'
-          },
-          {
-            id: 'perm_orders_status',
-            label: 'Update Order Fulfillment Status',
-            category: 'Sales',
-            description: 'Progress orders through kitchen prep, packaging, ready for delivery, and completed.'
-          },
-          {
-            id: 'perm_orders_export',
-            label: 'Export Sales & Revenue Reports',
-            category: 'Sales',
-            description: 'Download CSV and Excel order manifests and daily sales summaries.'
-          },
-          {
-            id: 'perm_sales_catalog',
-            label: 'Sales Inventory & Menu Availability',
-            category: 'Sales',
-            description: 'Toggle items in/out of stock and adjust sellable menu listings.'
-          }
-        ]
-      },
-      {
         id: 'inventory',
         name: 'Inventory & Warehouse Control',
         permissions: [
           {
-            id: 'perm_intake',
-            label: 'Stock Intake PO Receipts',
+            id: 'perm_raw_view',
+            label: 'View Raw Inventory Page',
             category: 'Inventory',
-            description: 'Receive vendor deliveries at loading dock, confirm item quantities, and verify lot batch numbers.'
+            pageRoute: '/inventory/raw',
+            description: 'Access /inventory/raw to view raw meat cuts, spices, cooking oils, firewood stock levels, and safety thresholds.'
+          },
+          {
+            id: 'perm_intake',
+            label: 'Record Raw Stock Intake & Issue Requisitions',
+            category: 'Inventory',
+            description: 'Receive vendor deliveries at loading dock, confirm item quantities, issue stock to kitchen, and fulfill requisitions.'
           },
           {
             id: 'perm_cycle_counts',
-            label: 'Periodic Cycle Counts',
+            label: 'Physical Stocktake Adjustments & Edit Raw Items',
             category: 'Inventory',
-            description: 'Perform physical warehouse stock reconciliations and adjustments against system tallies.'
+            description: 'Perform physical warehouse stock reconciliations, add/edit raw items, and override safety reorder thresholds.'
           },
           {
-            id: 'perm_transfers',
-            label: 'Packaging Unit Transfers',
+            id: 'perm_movements_view',
+            label: 'View Stock Movements Ledger Page',
             category: 'Inventory',
-            description: 'Transfer foil trays, branded thermal bags, and boxes across kitchens, depots, and hubs.'
+            pageRoute: '/inventory/movements',
+            description: 'Access /inventory/movements to inspect the full audit trail of raw intakes, batch depletions, variances, and transfers.'
+          },
+          {
+            id: 'perm_movements_edit',
+            label: 'Record Manual Transfers & Export Movements',
+            category: 'Inventory',
+            description: 'Log manual inter-station stock transfers and export ledger audit reports.'
+          },
+          {
+            id: 'perm_suppliers_view',
+            label: 'View Suppliers & Vendors Page',
+            category: 'Inventory',
+            pageRoute: '/inventory/suppliers',
+            description: 'Access /inventory/suppliers to view the vendor directory, supply categories, and delivery history.'
+          },
+          {
+            id: 'perm_invoices',
+            label: 'Manage Suppliers & Verify Vendor Invoices',
+            category: 'Inventory',
+            description: 'Onboard new suppliers, edit vendor profiles & bank details, verify supplier invoices, and delete vendors.'
           },
           {
             id: 'perm_expiry',
             label: 'Lot Expiry Monitoring',
             category: 'Inventory',
-            description: 'Track meat and spice freshness dates, send urgent reorder notifications, and quarantine aging lots.'
+            description: 'Track freshness dates, send urgent reorder notifications, and quarantine aging lots.'
           },
           {
             id: 'perm_thresholds',
@@ -904,40 +1142,100 @@ export const ManageAccountsPage: React.FC = () => {
         name: 'Logistics & Fleet Dispatch',
         permissions: [
           {
-            id: 'perm_dispatch_ctrl',
-            label: 'Logistics Dispatch Controls',
+            id: 'perm_dispatch_view',
+            label: 'View Dispatch Board Page',
             category: 'Logistics',
-            description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.'
+            pageRoute: '/logistics/board',
+            description: 'Access /logistics/board to view packaged orders awaiting dispatch, active in-transit deliveries, and courier assignments.'
           },
           {
             id: 'perm_queue_assign',
-            label: 'Dispatch Queue Assignment',
+            label: 'Assign Riders & Control Dispatch Queue',
             category: 'Logistics',
-            description: 'Assign ready cooked orders to available couriers waiting at the dispatch staging dock.'
+            description: 'Assign packaged orders to in-house or 3PL riders, initiate transit, re-route trips, and mark deliveries completed.'
+          },
+          {
+            id: 'perm_schedule_view',
+            label: 'View Delivery Schedule Page',
+            category: 'Logistics',
+            pageRoute: '/logistics/schedule',
+            description: 'Access /logistics/schedule to monitor pre-scheduled customer orders, future delivery windows, and prep countdowns.'
+          },
+          {
+            id: 'perm_schedule_edit',
+            label: 'Manage & Dispatch Scheduled Orders',
+            category: 'Logistics',
+            description: 'Update scheduled delivery windows and release scheduled orders into active dispatch.'
           },
           {
             id: 'perm_tracking',
-            label: 'Rider Location & Route Tracking',
+            label: 'View In-House Riders Page',
             category: 'Logistics',
-            description: 'Live GPS tracking of delivery couriers, transit ETA monitoring, and delivery route compliance.'
+            pageRoute: '/logistics/riders',
+            description: 'Access /logistics/riders to view fleet roster, rider availability, active trip assignments, and performance ratings.'
+          },
+          {
+            id: 'perm_rider_payout',
+            label: 'Manage Rider Roster, Shifts & Payout Disbursements',
+            category: 'Logistics',
+            description: 'Onboard/edit riders, assign shift schedules & zones, and disburse rider delivery fee payouts.'
+          },
+          {
+            id: 'perm_pickup_view',
+            label: 'View Store Pickup Counter Page',
+            category: 'Logistics',
+            pageRoute: '/logistics/pickup',
+            description: 'Access /logistics/pickup to view customer walk-in / self-pickup orders waiting at the counter.'
+          },
+          {
+            id: 'perm_pickup_edit',
+            label: 'Verify Collector & Complete Pickup Handover',
+            category: 'Logistics',
+            description: 'Record collector details and complete customer counter handover.'
+          },
+          {
+            id: 'perm_3pl_view',
+            label: 'View Third-Party Delivery Page',
+            category: 'Logistics',
+            pageRoute: '/logistics/third-party',
+            description: 'Access /logistics/third-party to monitor overflow dispatches via Uber Connect, Gokada, Bolt, and Kwik.'
           },
           {
             id: 'perm_3pl',
-            label: 'Third-party Rider Bookings',
+            label: 'Book 3PL Couriers & Verify Surge Fee Evidence',
             category: 'Logistics',
-            description: 'Dispatch overflow delivery orders to Gozem, Gokada, or private 3PL courier fleets.'
+            description: 'Book 3PL riders, upload/verify booking fee screenshots, and approve/reject surge fee variances.'
+          },
+          {
+            id: 'perm_rider_portal_view',
+            label: 'Access Mobile Rider Portal (My Trips)',
+            category: 'Logistics',
+            pageRoute: '/logistics/rider-portal',
+            description: 'Access /logistics/rider-portal mobile app to view assigned trips, customer phone links, and Google Maps routes.'
           },
           {
             id: 'perm_delivery_transit',
-            label: 'Accept & Transit Delivery',
+            label: 'Rider: Accept Dispatches & Start Transit',
             category: 'Logistics',
             description: 'Rider interface permissions to accept assigned trips and initiate waypoint delivery transit.'
           },
           {
             id: 'perm_otp_dropoff',
-            label: 'Customer OTP Drop-off Sign-off',
+            label: 'Rider: Confirm Customer Drop-off Handover',
             category: 'Logistics',
             description: 'Validate customer delivery OTP code and electronic signature before concluding drop-off handover.'
+          },
+          {
+            id: 'perm_wallet',
+            label: 'Rider: View Wallet & Earnings Ledger',
+            category: 'Logistics',
+            description: 'Inspect individual courier earnings ledger, trip commissions, tips, and account deductions.'
+          },
+          {
+            id: 'perm_dispatch_ctrl',
+            label: 'Logistics Dispatch Controls',
+            category: 'Logistics',
+            description: 'Full supervisory control over courier allocation, rider assignment, and emergency re-routes.'
           },
           {
             id: 'perm_shifts',
@@ -948,9 +1246,16 @@ export const ManageAccountsPage: React.FC = () => {
         ]
       },
       {
-        id: 'finance',
-        name: 'Finance & Payout Disbursements',
+        id: 'admin',
+        name: 'Executive Overview & Administration',
         permissions: [
+          {
+            id: 'perm_overview_view',
+            label: 'View Executive Operations Overview',
+            category: 'Administration',
+            pageRoute: '/overview',
+            description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.'
+          },
           {
             id: 'perm_finance',
             label: 'Finance & Payout Remittances',
@@ -958,52 +1263,31 @@ export const ManageAccountsPage: React.FC = () => {
             description: 'Process batch payouts, approve cash disbursements, and clear delivery rider ledgers.'
           },
           {
-            id: 'perm_invoices',
-            label: 'Supplier Invoice Verification',
-            category: 'Finance',
-            description: 'Review purchase order billing, confirm line item unit costs, and approve inventory payments.'
+            id: 'perm_users',
+            label: 'Manage Staff Accounts & KYC Onboarding',
+            category: 'Administration',
+            pageRoute: '/accounts',
+            description: 'Create, update credentials, deactivate and delete dashboard operator accounts.'
           },
-          {
-            id: 'perm_rider_payout',
-            label: 'Rider Payout Disbursement',
-            category: 'Finance',
-            description: 'Audit completed trips and disburse accumulated delivery fee earnings to riders.'
-          },
-          {
-            id: 'perm_wallet',
-            label: 'Wallet & Payout History',
-            category: 'Finance',
-            description: 'Inspect individual courier earnings ledger, trip commissions, tips, and account deductions.'
-          }
-        ]
-      },
-      {
-        id: 'admin',
-        name: 'Administration & Security Controls',
-        permissions: [
           {
             id: 'perm_rbac',
-            label: 'Role & Permission Management',
+            label: 'Manage Role Scopes & Permission Policies',
             category: 'Administration',
+            pageRoute: '/accounts/matrix',
             description: 'Assign roles, adjust privilege scopes, and configure custom operational security grants.'
           },
           {
-            id: 'perm_users',
-            label: 'User Onboarding & Deletion',
+            id: 'perm_facility_config',
+            label: 'Manage Operating Offices & Regional Hubs',
             category: 'Administration',
-            description: 'Create, update credentials, deactivate and delete dashboard operator accounts.'
+            pageRoute: '/offices',
+            description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.'
           },
           {
             id: 'perm_records',
             label: 'Full Database & Records Access',
             category: 'Administration',
             description: 'Access master database records, audit trails, and operational raw data tables.'
-          },
-          {
-            id: 'perm_facility_config',
-            label: 'Office & Facility Settings',
-            category: 'Administration',
-            description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.'
           }
         ]
       }
@@ -1075,6 +1359,30 @@ export const ManageAccountsPage: React.FC = () => {
     } else {
       setEditPermissions(prev => Array.from(new Set([...prev, ...categoryPerms])))
     }
+  }
+
+  const applyCategoryPreset = (categoryAllLabels: string[], presetLabels: string[]) => {
+    setEditPermissions(prev => {
+      const withoutCategory = prev.filter(p => !categoryAllLabels.includes(p))
+      return [...withoutCategory, ...presetLabels]
+    })
+  }
+
+  const applyCreateScopePreset = (categoryAllLabels: string[], presetLabels: string[]) => {
+    setNewScopeForm(prev => {
+      const withoutCategory = prev.permissions.filter(p => !categoryAllLabels.includes(p))
+      return {
+        ...prev,
+        permissions: [...withoutCategory, ...presetLabels]
+      }
+    })
+  }
+
+  const applyMatrixScopePreset = (categoryAllLabels: string[], presetLabels: string[]) => {
+    setMatrixPermissions(prev => {
+      const withoutCategory = prev.filter(p => !categoryAllLabels.includes(p))
+      return [...withoutCategory, ...presetLabels]
+    })
   }
 
   const handleSaveRouteAndPolicies = (e?: React.FormEvent) => {
@@ -2275,6 +2583,33 @@ export const ManageAccountsPage: React.FC = () => {
                           {/* Expanded Policy Rows with Dashed Dividers matching Screenshot 2 */}
                           {isExpanded && (
                             <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                              {/* Operational Scope Presets for this Category */}
+                              {OPERATIONAL_CATEGORY_PRESETS[group.name] && (
+                                <div className="px-6 py-2.5 bg-kumo-canvas/30 border-b border-kumo-line flex items-center gap-2 flex-wrap">
+                                  <span className="text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle mr-1">
+                                    Quick Presets:
+                                  </span>
+                                  {OPERATIONAL_CATEGORY_PRESETS[group.name].map(preset => {
+                                    const isPresetActive = preset.permLabels.every(l => editPermissions.includes(l)) &&
+                                      group.permissions.filter(p => !preset.permLabels.includes(p.label)).every(p => !editPermissions.includes(p.label))
+                                    return (
+                                      <button
+                                        key={preset.label}
+                                        type="button"
+                                        onClick={() => applyCategoryPreset(group.permissions.map(p => p.label), preset.permLabels)}
+                                        className={cn(
+                                          "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer",
+                                          isPresetActive
+                                            ? "bg-[#c0201f] text-white border-[#c0201f] shadow-2xs font-semibold"
+                                            : "bg-kumo-base text-kumo-default border-kumo-line hover:border-[#c0201f]/60 hover:text-kumo-strong"
+                                        )}
+                                      >
+                                        {preset.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
                               {filteredInGroup.map((perm) => {
                                 const isChecked = editPermissions.includes(perm.label)
                                 return (
@@ -2287,6 +2622,17 @@ export const ManageAccountsPage: React.FC = () => {
                                       <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                         {perm.label}
                                       </span>
+                                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                        {perm.pageRoute ? (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
+                                            Page View: {perm.pageRoute}
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                            Action / Edit
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
 
                                     {/* Description (Center) */}
@@ -2698,6 +3044,33 @@ export const ManageAccountsPage: React.FC = () => {
 
                       {isExpanded && (
                         <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                          {/* Operational Scope Presets for this Category */}
+                          {OPERATIONAL_CATEGORY_PRESETS[group.name] && (
+                            <div className="px-6 py-2.5 bg-kumo-canvas/30 border-b border-kumo-line flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle mr-1">
+                                Quick Presets:
+                              </span>
+                              {OPERATIONAL_CATEGORY_PRESETS[group.name].map(preset => {
+                                const isPresetActive = preset.permLabels.every(l => newScopeForm.permissions.includes(l)) &&
+                                  group.permissions.filter(p => !preset.permLabels.includes(p.label)).every(p => !newScopeForm.permissions.includes(p.label))
+                                return (
+                                  <button
+                                    key={preset.label}
+                                    type="button"
+                                    onClick={() => applyCreateScopePreset(group.permissions.map(p => p.label), preset.permLabels)}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer",
+                                      isPresetActive
+                                        ? "bg-[#c0201f] text-white border-[#c0201f] shadow-2xs font-semibold"
+                                        : "bg-kumo-base text-kumo-default border-kumo-line hover:border-[#c0201f]/60 hover:text-kumo-strong"
+                                    )}
+                                  >
+                                    {preset.label}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
                           {filteredInGroup.map((perm) => {
                             const isChecked = newScopeForm.permissions.includes(perm.label)
                             return (
@@ -2710,6 +3083,17 @@ export const ManageAccountsPage: React.FC = () => {
                                   <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                     {perm.label}
                                   </span>
+                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                    {perm.pageRoute ? (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
+                                        Page View: {perm.pageRoute}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                        Action / Edit
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="min-w-0 pr-3">
@@ -2968,6 +3352,33 @@ export const ManageAccountsPage: React.FC = () => {
 
                         {isExpanded && (
                           <div className="divide-y divide-dashed divide-kumo-line/80 bg-kumo-base">
+                            {/* Operational Scope Presets for this Category */}
+                            {OPERATIONAL_CATEGORY_PRESETS[group.name] && (
+                              <div className="px-6 py-2.5 bg-kumo-canvas/30 border-b border-kumo-line flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-kumo-subtle mr-1">
+                                  Quick Presets:
+                                </span>
+                                {OPERATIONAL_CATEGORY_PRESETS[group.name].map(preset => {
+                                  const isPresetActive = preset.permLabels.every(l => matrixPermissions.includes(l)) &&
+                                    group.permissions.filter(p => !preset.permLabels.includes(p.label)).every(p => !matrixPermissions.includes(p.label))
+                                  return (
+                                    <button
+                                      key={preset.label}
+                                      type="button"
+                                      onClick={() => applyMatrixScopePreset(group.permissions.map(p => p.label), preset.permLabels)}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer",
+                                        isPresetActive
+                                          ? "bg-[#c0201f] text-white border-[#c0201f] shadow-2xs font-semibold"
+                                          : "bg-kumo-base text-kumo-default border-kumo-line hover:border-[#c0201f]/60 hover:text-kumo-strong"
+                                      )}
+                                    >
+                                      {preset.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
                             {filteredInGroup.map((perm) => {
                               const isChecked = matrixPermissions.includes(perm.label)
                               return (
@@ -2979,6 +3390,17 @@ export const ManageAccountsPage: React.FC = () => {
                                     <span className="font-semibold text-[14px] text-kumo-strong block leading-tight">
                                       {perm.label}
                                     </span>
+                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                      {perm.pageRoute ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
+                                          Page View: {perm.pageRoute}
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                          Action / Edit
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
 
                                   <div className="min-w-0 pr-3">

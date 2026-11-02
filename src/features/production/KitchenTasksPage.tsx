@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 
 export const KitchenTasksPage: React.FC = () => {
-  const { kitchenTasks, updateTaskStatus, createKitchenTask, availableAccounts, currentAccount } = useSmokeyOps()
+  const { kitchenTasks, updateTaskStatus, createKitchenTask, availableAccounts, currentAccount, hasPermission } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'ongoing' | 'completed'>('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -140,34 +140,46 @@ export const KitchenTasksPage: React.FC = () => {
       defaultWidth: 150,
       accessor: (t) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          {t.status === 'pending' && (
-            <Tooltip content="Start working on this task">
-              <TableActionButton
-                variant="primary"
-                icon={<Play className="fill-current" />}
-                iconStrokeWidth={2}
-                onClick={() => updateTaskStatus(t.id, 'in_progress')}
-              >
-                Start Task
-              </TableActionButton>
-            </Tooltip>
-          )}
-          {t.status === 'in_progress' && (
-            <Tooltip content="Mark this task completed">
-              <TableActionButton
-                variant="success"
-                icon={<Check />}
-                iconStrokeWidth={2.5}
-                onClick={() => updateTaskStatus(t.id, 'done')}
-              >
-                Mark Done
-              </TableActionButton>
-            </Tooltip>
-          )}
-          {t.status === 'done' && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans whitespace-nowrap shrink-0 px-2">
-              <Check className="w-3.5 h-3.5" /> Passed
-            </span>
+          {hasPermission('perm_tasks_edit') ? (
+            <>
+              {t.status === 'pending' && (
+                <Tooltip content="Start working on this task">
+                  <TableActionButton
+                    variant="primary"
+                    icon={<Play className="fill-current" />}
+                    iconStrokeWidth={2}
+                    onClick={() => updateTaskStatus(t.id, 'in_progress')}
+                  >
+                    Start Task
+                  </TableActionButton>
+                </Tooltip>
+              )}
+              {t.status === 'in_progress' && (
+                <Tooltip content="Mark this task completed">
+                  <TableActionButton
+                    variant="success"
+                    icon={<Check />}
+                    iconStrokeWidth={2.5}
+                    onClick={() => updateTaskStatus(t.id, 'done')}
+                  >
+                    Mark Done
+                  </TableActionButton>
+                </Tooltip>
+              )}
+              {t.status === 'done' && (
+                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 font-sans whitespace-nowrap shrink-0 px-2">
+                  <Check className="w-3.5 h-3.5" /> Passed
+                </span>
+              )}
+            </>
+          ) : (
+            <TableActionButton
+              variant="outline"
+              icon={<Eye className="w-3.5 h-3.5" />}
+              onClick={() => handleOpenDetails(t)}
+            >
+              View
+            </TableActionButton>
           )}
         </div>
       ),
@@ -180,15 +192,17 @@ export const KitchenTasksPage: React.FC = () => {
         title="Kitchen Tasks & Shift Delegation"
         subtitle="Assign smoking grill calibration, chiller temp monitoring, pre-marination rubbing, and hygiene checklist tasks to shift operators."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-10 px-4 text-sm font-medium shadow-xs"
-          >
-            New Kitchen Task
-          </Button>
+          hasPermission('perm_tasks_edit') ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs"
+            >
+              New Kitchen Task
+            </Button>
+          ) : undefined
         }
       />
 

@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 
 export const ThirdPartyLogisticsPage: React.FC = () => {
-  const { logisticsDeliveries, verifyThirdPartyFee } = useSmokeyOps()
+  const { logisticsDeliveries, verifyThirdPartyFee, hasPermission } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'verification' | 'variance'>('verification')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'flagged'>('all')
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false)
@@ -445,28 +445,30 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
             >
               Close
             </Button>
-            <div className="flex items-center gap-2">
-              {selectedDelivery?.fee_verify_status !== 'flagged' && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  type="button"
-                  onClick={() => handleActionVerify('flagged')}
-                >
-                  Flag Overcharge
-                </Button>
-              )}
-              {selectedDelivery?.fee_verify_status !== 'approved' && (
-                <Button
-                  variant="primary"
-                  size="md"
-                  type="button"
-                  onClick={() => handleActionVerify('approved')}
-                >
-                  Approve Invoice
-                </Button>
-              )}
-            </div>
+            {hasPermission('perm_3pl') && (
+              <div className="flex items-center gap-2">
+                {selectedDelivery?.fee_verify_status !== 'flagged' && (
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    type="button"
+                    onClick={() => handleActionVerify('flagged')}
+                  >
+                    Flag Overcharge
+                  </Button>
+                )}
+                {selectedDelivery?.fee_verify_status !== 'approved' && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    type="button"
+                    onClick={() => handleActionVerify('approved')}
+                  >
+                    Approve Invoice
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         }
       >
