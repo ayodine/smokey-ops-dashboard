@@ -164,6 +164,7 @@ export const WebsiteOrdersPage: React.FC = () => {
     rescheduleOrderDelivery,
     hasPermission
   } = useSmokeyOps()
+  const canViewKPIs = hasPermission('perm_orders_kpi_view')
   const [loading] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
@@ -619,6 +620,8 @@ export const WebsiteOrdersPage: React.FC = () => {
           value={loading ? '...' : totalOrdersCount}
           description="Storefront customer intake"
           icon={<ShoppingBag className="w-4 h-4 text-primary" />}
+          isLocked={!canViewKPIs}
+          lockedMessage="Restricted Metric"
         />
         <MetricCard
           title="Total Gross Revenue"
@@ -626,6 +629,8 @@ export const WebsiteOrdersPage: React.FC = () => {
           description="Customer payment settlement"
           trend={{ value: 12.5, isPositive: true }}
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+          isLocked={!canViewKPIs}
+          lockedMessage="Confidential Revenue"
         />
         <MetricCard
           title="Packaging Queue"
@@ -633,12 +638,16 @@ export const WebsiteOrdersPage: React.FC = () => {
           description="Orders being packed from sales stock"
           icon={<Package className="w-4 h-4 text-amber-500" />}
           variant="default"
+          isLocked={!canViewKPIs}
+          lockedMessage="Restricted Metric"
         />
         <MetricCard
           title="Out for Delivery"
           value={loading ? '...' : outForDeliveryCount}
           description="Active riders on transit"
           icon={<Truck className="w-4 h-4 text-blue-500" />}
+          isLocked={!canViewKPIs}
+          lockedMessage="Restricted Metric"
         />
       </div>
 

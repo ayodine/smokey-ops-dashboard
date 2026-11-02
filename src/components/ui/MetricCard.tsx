@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Minus, Lock } from 'lucide-react'
 
 export interface MetricCardProps {
   title: string
@@ -26,6 +26,8 @@ export interface MetricCardProps {
   noData?: boolean
   strokeColor?: string
   onClick?: () => void
+  isLocked?: boolean
+  lockedMessage?: string
 }
 
 // Generate realistic deterministic sparklines matching Cloudflare Metrics
@@ -82,6 +84,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   noData,
   strokeColor,
   onClick,
+  isLocked = false,
+  lockedMessage,
 }) => {
   const effectiveSubtext = subtext || description
 
@@ -236,32 +240,51 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       <div>
         {/* Title row */}
         <div className="flex items-center justify-between gap-2">
-          <span
-            data-slot="chart-card-title"
-            className="text-[13px] font-normal text-kumo-subtle truncate tracking-normal font-sans"
-          >
-            {title}
-          </span>
-        </div>
-
-        {/* Value and inline delta row */}
-        <div className="mt-1 flex items-baseline gap-2.5 flex-wrap">
-          <div className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display">
-            {value}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              data-slot="chart-card-title"
+              className="text-[13px] font-normal text-kumo-subtle truncate tracking-normal font-sans"
+            >
+              {title}
+            </span>
+            {isLocked && (
+              <Lock className="w-3 h-3 text-kumo-subtle/70 shrink-0" />
+            )}
           </div>
-          {renderDelta()}
+          {icon && <div className="shrink-0">{icon}</div>}
+        </div>
+
+        {/* Content area: Value, Delta & Chart */}
+        <div className={cn('transition-all duration-200', isLocked && 'filter blur-[6px] opacity-30 select-none pointer-events-none')}>
+          {/* Value and inline delta row */}
+          <div className="mt-1 flex items-baseline gap-2.5 flex-wrap">
+            <div className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display">
+              {value}
+            </div>
+            {renderDelta()}
+          </div>
+
+          {/* Cloudflare Sparkline Chart */}
+          <div className="mt-2.5 w-full">
+            {renderSparkline()}
+          </div>
+
+          {/* Optional micro subtext */}
+          {effectiveSubtext && (
+            <div className="mt-1.5 text-[11px] text-kumo-subtle/80 truncate">
+              {effectiveSubtext}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Cloudflare Sparkline Chart */}
-      <div className="mt-2.5 w-full">
-        {renderSparkline()}
-      </div>
-
-      {/* Optional micro subtext */}
-      {effectiveSubtext && (
-        <div className="mt-1.5 text-[11px] text-kumo-subtle/80 truncate">
-          {effectiveSubtext}
+      {/* Lock Overlay when isLocked */}
+      {isLocked && (
+        <div className="absolute inset-x-0 bottom-0 top-[38px] z-10 flex flex-col items-center justify-center bg-kumo-base/40 backdrop-blur-[1.5px] p-2 text-center transition-all select-none pointer-events-none">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-kumo-line bg-kumo-surface/95 px-2.5 py-1 text-[11px] font-medium text-kumo-subtle shadow-xs">
+            <Lock className="w-3 h-3 text-kumo-subtle shrink-0" />
+            <span className="truncate max-w-[140px]">{lockedMessage || 'Restricted Metric'}</span>
+          </div>
         </div>
       )}
 

@@ -336,11 +336,19 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
 const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: string[] }[]> = {
   'Sales & Storefront Orders': [
     {
-      label: 'Website Orders Only',
+      label: 'Full Orders (With KPIs)',
       permLabels: [
         'View Website Orders Page',
         'Edit & Reschedule Website Orders',
+        'View Order KPI Metric Cards & Analytics Graphs',
         'Export Website Order & Revenue Reports'
+      ]
+    },
+    {
+      label: 'Orders Only (Hide KPIs)',
+      permLabels: [
+        'View Website Orders Page',
+        'Edit & Reschedule Website Orders'
       ]
     },
     {
@@ -354,6 +362,7 @@ const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: 
       label: 'View Only (All Sales)',
       permLabels: [
         'View Website Orders Page',
+        'View Order KPI Metric Cards & Analytics Graphs',
         'View Sales Inventory Page'
       ]
     }
@@ -970,6 +979,12 @@ export const ManageAccountsPage: React.FC = () => {
             label: 'Edit & Reschedule Website Orders',
             category: 'Sales',
             description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.'
+          },
+          {
+            id: 'perm_orders_kpi_view',
+            label: 'View Order KPI Metric Cards & Analytics Graphs',
+            category: 'Sales',
+            description: 'Inspect live KPI metric summary cards, revenue totals, order volume counters, and sparkline trend graphs on the Website Orders page.'
           },
           {
             id: 'perm_orders_export',

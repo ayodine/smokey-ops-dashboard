@@ -398,14 +398,28 @@ export interface CustomRoleScope {
 
 export const INITIAL_CUSTOM_SCOPES: CustomRoleScope[] = [
   {
+    id: 'scope_website_orders_restricted',
+    label: 'Website Orders Specialist (Blind KPIs & Financials)',
+    description: 'Restricted sales scope limited strictly to intake and status changes of customer orders with financial KPI metric cards and revenue trends blurred and locked.',
+    baseRole: 'sales_manager',
+    defaultLandingPath: '/sales/orders',
+    permissions: [
+      'View Website Orders Page',
+      'Edit & Reschedule Website Orders'
+    ],
+    createdAt: '2026-11-01T00:00:00.000Z',
+    isCustom: true
+  },
+  {
     id: 'scope_website_orders_only',
-    label: 'Website Orders Specialist (Orders Only)',
-    description: 'Restricted sales scope limited strictly to incoming website customer orders and delivery reschedule without catalog pricing access.',
+    label: 'Website Orders Specialist (Full Orders & KPIs)',
+    description: 'Restricted sales scope limited strictly to incoming website customer orders, metrics, and delivery reschedule without catalog pricing access.',
     baseRole: 'sales_manager',
     defaultLandingPath: '/sales/orders',
     permissions: [
       'View Website Orders Page',
       'Edit & Reschedule Website Orders',
+      'View Order KPI Metric Cards & Analytics Graphs',
       'Export Website Order & Revenue Reports'
     ],
     createdAt: '2026-11-01T00:00:00.000Z',
@@ -565,6 +579,7 @@ export type PermissionId =
   // Sales
   | 'perm_orders_view'
   | 'perm_orders_status'
+  | 'perm_orders_kpi_view'
   | 'perm_orders_export'
   | 'perm_sales_inventory_view'
   | 'perm_sales_catalog'
@@ -630,6 +645,7 @@ export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> =
   // Sales
   perm_orders_view: { id: 'perm_orders_view', label: 'View Website Orders Page', category: 'Sales', pageRoute: '/sales/orders', isPageView: true, description: 'Access /sales/orders to view incoming customer orders, payment status, and order details.' },
   perm_orders_status: { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
+  perm_orders_kpi_view: { id: 'perm_orders_kpi_view', label: 'View Order KPI Metric Cards & Analytics Graphs', category: 'Sales', description: 'Inspect live KPI metric summary cards, revenue totals, order volume counters, and sparkline trend graphs on the Website Orders page.' },
   perm_orders_export: { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
   perm_sales_inventory_view: { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', isPageView: true, description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
   perm_sales_catalog: { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
@@ -704,6 +720,8 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'View Website Orders Page': ['View Storefront & Website Orders', 'View Customer Orders', 'Orders:view', 'Customers:view'],
   perm_orders_status: ['Update Order Fulfillment Status', 'Orders:manage', 'Customers:manage'],
   'Edit & Reschedule Website Orders': ['Update Order Fulfillment Status', 'Orders:manage', 'Customers:manage'],
+  perm_orders_kpi_view: ['View Order KPI Cards', 'View Sales Metrics', 'View Website Orders KPI Metrics & Graphs', 'View Orders KPIs'],
+  'View Order KPI Metric Cards & Analytics Graphs': ['View Order KPI Cards', 'View Sales Metrics', 'View Website Orders KPI Metrics & Graphs', 'View Orders KPIs'],
   perm_orders_export: ['Export Sales & Order Reports', 'Export Sales & Revenue Reports'],
   'Export Website Order & Revenue Reports': ['Export Sales & Order Reports', 'Export Sales & Revenue Reports'],
   perm_sales_inventory_view: ['Sales Inventory & Menu Availability', 'Manage Sales Menu & Finished Pricing'],
@@ -796,6 +814,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'View Executive Operations Overview',
     'View Website Orders Page',
     'Edit & Reschedule Website Orders',
+    'View Order KPI Metric Cards & Analytics Graphs',
     'Export Website Order & Revenue Reports',
     'View Sales Inventory Page',
     'Edit Sales Inventory, Pricing & Menu Catalog',
@@ -884,6 +903,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   sales_manager: [
     'View Website Orders Page',
     'Edit & Reschedule Website Orders',
+    'View Order KPI Metric Cards & Analytics Graphs',
     'Export Website Order & Revenue Reports',
     'View Sales Inventory Page',
     'Edit Sales Inventory, Pricing & Menu Catalog',
@@ -1069,11 +1089,30 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     permissions: [
       'View Website Orders Page',
       'Edit & Reschedule Website Orders',
+      'View Order KPI Metric Cards & Analytics Graphs',
       'Export Website Order & Revenue Reports',
       'View Sales Inventory Page',
       'Edit Sales Inventory, Pricing & Menu Catalog',
       'View Store Pickup Counter Page',
       'Verify Collector & Complete Pickup Handover'
+    ]
+  },
+  {
+    email: 'orders.clerk@smokeyhutdelight.com',
+    name: 'CHIOMA OKAFOR (ORDERS CLERK)',
+    role: 'sales_manager',
+    roleLabel: 'Orders Intake Clerk (Restricted KPIs)',
+    scope_id: 'scope_website_orders_restricted',
+    staff_id: 'SHD-CLK-002',
+    assigned_hub: 'Lagos Mainland HQ',
+    department: 'Sales & Storefront',
+    phone: '08099887766',
+    status: 'active',
+    last_active: 'Active now',
+    created_at: '02 Nov 2026',
+    permissions: [
+      'View Website Orders Page',
+      'Edit & Reschedule Website Orders'
     ]
   },
   {
@@ -2022,7 +2061,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             'ridersmokeyfrlgs@gmail.com'
           ]
           const filtered = parsed.filter((a: any) => !mockEmails.includes((a.email || '').toLowerCase()))
-          if (filtered.length > 0) return filtered
+          if (filtered.length > 0) {
+            // Merge in any missing official accounts from APP_ACCOUNTS
+            const existingEmails = new Set(filtered.map((a: any) => (a.email || '').toLowerCase()))
+            const missing = APP_ACCOUNTS.filter(a => !existingEmails.has(a.email.toLowerCase()))
+            return missing.length > 0 ? [...filtered, ...missing] : filtered
+          }
         }
       } catch (e) {
         // fallback

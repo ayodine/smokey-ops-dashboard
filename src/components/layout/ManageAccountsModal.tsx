@@ -66,6 +66,7 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   // Sales & Storefront Orders
   { id: 'perm_orders_view', label: 'View Website Orders Page', category: 'Sales', pageRoute: '/sales/orders', description: 'Access /sales/orders to view incoming customer orders, payment status, and order details.' },
   { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
+  { id: 'perm_orders_kpi_view', label: 'View Order KPI Metric Cards & Analytics Graphs', category: 'Sales', description: 'Inspect live KPI metric summary cards, revenue totals, order volume counters, and sparkline trend graphs on the Website Orders page.' },
   { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
   { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
   { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
