@@ -670,9 +670,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       </div>
 
       {/* 4. Footer: Support, Sign-in Activity & Sign Out */}
-      <div className="border-t border-kumo-line p-2 shrink-0 bg-kumo-canvas">
+      <div className="border-t border-kumo-line px-2 py-2 shrink-0 bg-kumo-canvas">
         {!isCollapsed ? (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-y-0.5">
+            {/* Support & Help Desk */}
             <button
               type="button"
               onClick={() => {
@@ -680,34 +681,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 navigate('/support')
               }}
               className={cn(
-                "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
+                "group relative flex min-h-[32px] w-full min-w-0 cursor-pointer items-center justify-between rounded-md px-2.5 py-1 text-[13px] font-normal outline-none transition-colors text-left",
                 location.pathname === '/support'
-                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold"
-                  : "text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-kumo-default font-normal hover:bg-kumo-tint hover:text-kumo-strong"
               )}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <HelpCircle className="w-4 h-4 text-black dark:text-white shrink-0" />
-                <span className="truncate">Support & Help Desk</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <HelpCircle
+                  className={cn(
+                    "w-4 h-4 shrink-0 transition-colors",
+                    location.pathname === '/support'
+                      ? "text-primary"
+                      : "text-kumo-subtle group-hover:text-kumo-strong"
+                  )}
+                />
+                <span
+                  className="truncate text-[13px] font-normal"
+                  style={{ fontSize: '13px', fontWeight: 400 }}
+                >
+                  Support & Help Desk
+                </span>
               </div>
             </button>
 
+            {/* Sign-in Activity (Admin Only) */}
             {currentAccount.role === 'admin' && (
               <button
                 type="button"
                 onClick={() => setIsActivityModalOpen(true)}
-                className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
+                className="group relative flex min-h-[32px] w-full min-w-0 cursor-pointer items-center justify-between rounded-md px-2.5 py-1 text-[13px] font-normal outline-none transition-colors text-left text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <ShieldCheck className="w-4 h-4 text-black dark:text-white shrink-0" />
-                  <span className="truncate">Sign-in activity</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <ShieldCheck className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong shrink-0 transition-colors" />
+                  <span
+                    className="truncate text-[13px] font-normal"
+                    style={{ fontSize: '13px', fontWeight: 400 }}
+                  >
+                    Sign-in activity
+                  </span>
                 </div>
-                <span className="text-[9px] uppercase tracking-wider font-bold bg-kumo-tint text-kumo-strong px-1.5 py-0.2 rounded shrink-0">
+                <span className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider select-none border border-kumo-line text-kumo-subtle bg-kumo-surface ml-1.5">
                   Admin
                 </span>
               </button>
             )}
 
+            {/* Sign Out */}
             <button
               type="button"
               onClick={() => {
@@ -715,13 +735,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 logout()
                 navigate('/login', { replace: true })
               }}
-              className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong transition-colors cursor-pointer text-left"
+              className="group relative flex min-h-[32px] w-full min-w-0 cursor-pointer items-center justify-between rounded-md px-2.5 py-1 text-[13px] font-normal outline-none transition-colors text-left text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong"
             >
-              <LogOut className="w-4 h-4 text-black dark:text-white shrink-0" />
-              <span className="truncate">Sign out</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <LogOut className="w-4 h-4 text-kumo-subtle group-hover:text-kumo-strong shrink-0 transition-colors" />
+                <span
+                  className="truncate text-[13px] font-normal"
+                  style={{ fontSize: '13px', fontWeight: 400 }}
+                >
+                  Sign out
+                </span>
+              </div>
             </button>
           </div>
         ) : (
+          /* Collapsed View */
           <div className="flex flex-col items-center gap-1.5 py-1">
             <button
               type="button"
@@ -732,8 +760,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer",
                 location.pathname === '/support'
-                  ? "bg-zinc-200 dark:bg-zinc-700 text-black dark:text-white"
-                  : "text-black dark:text-white hover:bg-kumo-tint"
+                  ? "bg-primary/10 text-primary"
+                  : "text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint"
               )}
               title="Support & Help Desk"
             >
@@ -744,10 +772,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
               <button
                 type="button"
                 onClick={() => setIsActivityModalOpen(true)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer"
                 title="Sign-in Activity (Admin)"
               >
-                <ShieldCheck className="w-4 h-4 text-black dark:text-white" />
+                <ShieldCheck className="w-4 h-4" />
               </button>
             )}
             <button
@@ -757,10 +785,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                 logout()
                 navigate('/login', { replace: true })
               }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-black dark:text-white hover:bg-kumo-tint transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint transition-colors cursor-pointer"
               title="Sign out"
             >
-              <LogOut className="w-4 h-4 text-black dark:text-white" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         )}
