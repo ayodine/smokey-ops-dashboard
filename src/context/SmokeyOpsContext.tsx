@@ -11,6 +11,8 @@ import {
   SalesMovement,
   Supplier,
   ProductionBatch,
+  ProductBatchEntry,
+  ProductionBatchHistoryLog,
   RawMaterialBOM,
   BatchMaterialRequisition,
   PackagingQueueOrder,
@@ -61,6 +63,9 @@ import {
   SEED_STOCKTAKE_VARIANCES,
   SEED_WEBSITE_ORDERS,
   WebsiteOrder,
+  StockConversionRule,
+  StockConversionRecord,
+  INITIAL_STOCK_CONVERSION_RULES,
 } from '@/lib/smokeyData'
 import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
@@ -213,6 +218,11 @@ interface SmokeyOpsContextType {
   submitStocktakeCount: (counts: Array<{ productId: number; physicalCount: number; category: 'raw' | 'packaging' | 'sales' }>, countedBy: string) => number
   resolveStocktakeVariance: (varianceId: number, supervisorNotes: string) => void
 
+  // Stock Conversion & Product Repackaging State & Actions
+  stockConversions: StockConversionRecord[]
+  stockConversionRules: StockConversionRule[]
+  executeStockConversion: (sourceProductId: number, destProductId: number, sourceQty: number, reason?: string) => { success: boolean; error?: string }
+
   // Hub & Outlets Inventory State
   packagingReconciliations: PackagingDailyReconciliation[]
   intermediatePreps: IntermediatePrep[]
@@ -254,7 +264,44 @@ interface SmokeyOpsContextType {
       compound_id?: number
       prep_ref?: string
     }>
-  }) => void
+    targetMasterBatchId?: number // Optional: append product entry to an existing open Master Batch
+  }) => number | string
+  addProductToBatch: (
+    batchId: number,
+    entry: {
+      outputProductId: number
+      outputProductName: string
+      expectedOutput: number
+      remarks?: string
+      feed_sales_inventory?: boolean
+      estimated_ready_time?: string
+      rawMaterials: Array<{
+        product_id: number
+        sku: string
+        name: string
+        quantity: number
+        unit: string
+        item_type?: 'raw' | 'compound'
+        compound_id?: number
+        prep_ref?: string
+      }>
+    }
+  ) => boolean
+  updateProductEntry: (
+    batchId: number,
+    entryId: string | number,
+    updates: Partial<ProductBatchEntry>
+  ) => boolean
+  startProductProduction: (batchId: number, entryId: string | number) => void
+  completeProductProduction: (
+    batchId: number,
+    entryId: string | number,
+    actualOutput: number,
+    wastage: number,
+    remarks?: string,
+    returnedMaterials?: Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>
+  ) => void
+  cancelProductEntry: (batchId: number, entryId: string | number, reason?: string) => void
   updateBatch: (batchId: number, data: Partial<ProductionBatch>) => void
   deleteBatch: (batchId: number) => boolean
   deleteIntermediatePrep: (prepId: number) => boolean
@@ -486,6 +533,9 @@ export interface AppUserAccount {
   role: UserRole
   roleLabel: string
   scope_id?: string
+  /** 'team' = shared operational/department login (no personal KYC); 'staff' = individual with full KYC */
+  account_type?: 'team' | 'staff'
+  must_change_password?: boolean
   rider_user_id?: number
   phone?: string
   staff_id?: string
@@ -552,7 +602,7 @@ export function getStaffKycData(acc: AppUserAccount): AppUserAccount {
     nin_verified: Boolean(acc.national_id_nin && acc.nin_verified),
     bvn: acc.bvn || '',
     employment_status: acc.employment_status || 'full_time',
-    shift_schedule: acc.shift_schedule || (isKitchen ? 'Morning Cook & Prep (06:00 - 15:00)' : isRider ? 'Day Dispatch (08:00 - 18:00)' : isInventory ? 'Morning Intake & Audit (07:00 - 16:00)' : isDispatcher ? 'All-Day Fulfillment (08:00 - 18:00)' : 'General Operations'),
+    shift_schedule: acc.shift_schedule || (isKitchen ? 'Morning Cook & Prep (6:00 AM - 3:00 PM)' : isRider ? 'Day Dispatch (8:00 AM - 6:00 PM)' : isInventory ? 'Morning Intake & Audit (7:00 AM - 4:00 PM)' : isDispatcher ? 'All-Day Fulfillment (8:00 AM - 6:00 PM)' : 'General Operations'),
     date_joined: acc.date_joined || acc.created_at || '',
     emergency_contact: acc.emergency_contact || '',
     emergency_phone: acc.emergency_phone || '',
@@ -1332,11 +1382,58 @@ const writeLocalCache = (key: string, value: any) => {
 const persistAppSetting = (key: string, value: any) => {
   if (typeof window === 'undefined') return
   writeLocalCache(`smokey_app_setting_${key}`, value)
+  const upsertDirect = () =>
+    supabase
+      .from('app_settings')
+      .upsert({ key, value }, { onConflict: 'key' })
+      .then(({ error }) => {
+        if (error) console.error(`[app_settings] Failed to persist "${key}":`, error.message)
+      })
+  // Prefer the dev middleware (keeps its server cache warm); fall back to a direct
+  // Supabase upsert when the endpoint is unavailable (e.g. static production hosting).
   fetch('/api/app-settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, value }),
-  }).catch(() => {})
+  })
+    .then(res => {
+      const isJson = (res.headers.get('content-type') || '').includes('application/json')
+      if (!res.ok || !isJson) return upsertDirect()
+    })
+    .catch(() => upsertDirect())
+}
+
+/** Fetch a set of app_settings keys, via the dev middleware or directly from Supabase. */
+const fetchAppSettings = async (keys: string[]): Promise<Record<string, any>> => {
+  const toMap = (rows: Array<{ key: string; value: any }> | null | undefined) => {
+    const map: Record<string, any> = {}
+    ;(rows || []).forEach(r => { if (r?.key) map[r.key] = r.value })
+    return map
+  }
+  try {
+    const res = await fetch(`/api/app-settings?keys=${keys.join(',')}`)
+    const isJson = (res.headers.get('content-type') || '').includes('application/json')
+    if (res.ok && isJson) {
+      const json = await res.json()
+      if (Array.isArray(json?.data)) return toMap(json.data)
+    }
+  } catch {
+    // fall through to direct Supabase read
+  }
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys)
+  if (error) throw error
+  return toMap(data as any)
+}
+
+const DELETED_ACCOUNTS_STORAGE_KEY = 'smokey_deleted_accounts'
+const readDeletedAccountEmails = (): string[] => {
+  try {
+    const raw = localStorage.getItem(DELETED_ACCOUNTS_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.map((e: any) => String(e).toLowerCase()) : []
+  } catch {
+    return []
+  }
 }
 
 export interface OrderPipelineOverride {
@@ -1922,6 +2019,18 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     readAppSettingCache('sales_movements', SEED_SALES_MOVEMENTS)
   )
 
+  const [stockConversions, setStockConversions] = useState<StockConversionRecord[]>(() =>
+    readAppSettingCache('stock_conversions', [])
+  )
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('smokey_stock_conversions', JSON.stringify(stockConversions))
+    } catch {}
+  }, [stockConversions])
+
+  const [stockConversionRules] = useState<StockConversionRule[]>(INITIAL_STOCK_CONVERSION_RULES)
+
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     const boot = getLiveBootstrap()
     if (boot?.suppliers && Array.isArray(boot.suppliers) && boot.suppliers.length > 0) {
@@ -1942,9 +2051,40 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   )
 
   // Production Domain
-  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(() =>
-    readAppSettingCache('production_batches', SEED_PRODUCTION_BATCHES)
-  )
+  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(() => {
+    const raw = readAppSettingCache('production_batches', SEED_PRODUCTION_BATCHES) || []
+    // Ensure all batches have a well-formed products array for master batch architecture
+    return raw.map((b: any) => {
+      if (Array.isArray(b.products) && b.products.length > 0) return b
+      const fallbackEntry: ProductBatchEntry = {
+        id: `PBE-${b.id || Date.now()}-1`,
+        output_product_id: b.output_product_id || 7,
+        output_product_name: b.output_product_name || 'Full Smokey Guineafowl',
+        expected_output: b.expected_output || 0,
+        actual_output: b.actual_output || 0,
+        wastage: b.wastage || 0,
+        status: b.status || 'draft',
+        feed_sales_inventory: b.feed_sales_inventory !== false,
+        estimated_ready_time: b.estimated_ready_time,
+        started_at: b.started_at,
+        completed_at: b.completed_at,
+        remarks: b.remarks,
+        recipe_template_id: b.recipe_template_id,
+        raw_materials: b.raw_materials || [],
+        additional_requisitions: b.additional_requisitions || [],
+        initial_material_cost: b.initial_material_cost || 0,
+        additional_material_cost: b.additional_material_cost || 0,
+        total_material_cost: b.total_material_cost || 0,
+        unit_cost_per_portion: b.unit_cost_per_portion || 0,
+        returned_materials: b.returned_materials || []
+      }
+      return {
+        ...b,
+        production_date: b.production_date || (b.created_at ? b.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+        products: [fallbackEntry]
+      }
+    })
+  })
   const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(() => {
     if (initialOrdersBundle && initialOrdersBundle.newPackagingItems.length > 0) {
       return initialOrdersBundle.newPackagingItems
@@ -1960,10 +2100,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   )
 
   // Two-Tier Inventory Pipeline: Calculate live incoming estimated batches from active/scheduled smoke runs
+  // Supports both Master Batch with multiple ProductBatchEntries and legacy single-entry batches
   const activeIncomingBatchesByProduct = useMemo(() => {
     const map: Record<number, number> = {}
     productionBatches.forEach(b => {
-      if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false) {
+      if (b.status === 'cancelled') return
+
+      if (Array.isArray(b.products) && b.products.length > 0) {
+        b.products.forEach(p => {
+          if ((p.status === 'draft' || p.status === 'in_production') && p.feed_sales_inventory !== false) {
+            map[p.output_product_id] = (map[p.output_product_id] || 0) + (p.expected_output || 0)
+          }
+        })
+      } else if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false && b.output_product_id) {
         map[b.output_product_id] = (map[b.output_product_id] || 0) + (b.expected_output || 0)
       }
     })
@@ -2060,20 +2209,25 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             'egbetechizaram10@gmail.com',
             'ridersmokeyfrlgs@gmail.com'
           ]
-          const filtered = parsed.filter((a: any) => !mockEmails.includes((a.email || '').toLowerCase()))
-          if (filtered.length > 0) {
-            // Merge in any missing official accounts from APP_ACCOUNTS
-            const existingEmails = new Set(filtered.map((a: any) => (a.email || '').toLowerCase()))
-            const missing = APP_ACCOUNTS.filter(a => !existingEmails.has(a.email.toLowerCase()))
-            return missing.length > 0 ? [...filtered, ...missing] : filtered
-          }
+          const deleted = new Set(readDeletedAccountEmails())
+          const filtered = parsed.filter((a: any) => {
+            const em = (a?.email || '').toLowerCase()
+            return em && !mockEmails.includes(em) && !deleted.has(em)
+          })
+          // Saved list is authoritative: never re-inject seeded APP_ACCOUNTS here,
+          // otherwise removed members are resurrected on every reload.
+          if (filtered.length > 0) return filtered
         }
       } catch (e) {
         // fallback
       }
     }
-    return APP_ACCOUNTS
+    const deleted = new Set(readDeletedAccountEmails())
+    return APP_ACCOUNTS.filter(a => !deleted.has(a.email.toLowerCase()))
   })
+  // Prevents the persistence effect from overwriting the backend with local
+  // state before remote staff accounts have been hydrated on mount.
+  const accountsHydratedRef = useRef(false)
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
     try {
@@ -2431,6 +2585,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     persistAppSetting('fleet_riders', riders)
   }, [riders])
   useEffect(() => {
+    if (!accountsHydratedRef.current) return
+    localStorage.setItem('smokey_accounts', JSON.stringify(accounts))
     persistAppSetting('staff_accounts', accounts)
   }, [accounts])
   useEffect(() => { persistAppSetting('raw_deliveries', rawDeliveries) }, [rawDeliveries])
@@ -2539,25 +2695,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
       .catch(err => console.error('Error fetching live fleet riders:', err))
 
-    fetch('/api/staff-accounts')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const remoteAccounts = json.data as AppUserAccount[]
-          setAccounts(prev => {
-            const byEmail = new Map(prev.map(a => [a.email.toLowerCase(), a]))
-            remoteAccounts.forEach(ra => {
-              if (!ra?.email) return
-              const existing = byEmail.get(ra.email.toLowerCase())
-              byEmail.set(ra.email.toLowerCase(), existing ? { ...ra, ...existing } : ra)
-            })
-            const merged = Array.from(byEmail.values())
-            localStorage.setItem('smokey_accounts', JSON.stringify(merged))
-            return merged
-          })
+    fetchAppSettings(['staff_accounts', 'deleted_staff_accounts', 'custom_scopes'])
+      .then(settings => {
+        // Deleted-account tombstones: union of backend + local so removals stick everywhere.
+        const remoteDeleted = Array.isArray(settings.deleted_staff_accounts)
+          ? settings.deleted_staff_accounts.map((e: any) => String(e).toLowerCase())
+          : []
+        const deletedSet = new Set([...readDeletedAccountEmails(), ...remoteDeleted])
+        localStorage.setItem(DELETED_ACCOUNTS_STORAGE_KEY, JSON.stringify(Array.from(deletedSet)))
+
+        if (Array.isArray(settings.custom_scopes) && settings.custom_scopes.length > 0) {
+          setCustomScopes(settings.custom_scopes as CustomRoleScope[])
+          localStorage.setItem('smokey_custom_scopes', JSON.stringify(settings.custom_scopes))
+        }
+
+        const remoteAccounts = Array.isArray(settings.staff_accounts)
+          ? (settings.staff_accounts as AppUserAccount[]).filter(a => a?.email && !deletedSet.has(a.email.toLowerCase()))
+          : []
+
+        setAccounts(prev => {
+          // Backend is the source of truth once it has data; otherwise keep local state.
+          const next = remoteAccounts.length > 0
+            ? remoteAccounts
+            : prev.filter(a => !deletedSet.has(a.email.toLowerCase()))
+          localStorage.setItem('smokey_accounts', JSON.stringify(next))
+          return next
+        })
+        if (remoteAccounts.length === 0) {
+          // Seed the backend from local state the first time.
+          accountsHydratedRef.current = true
+          setAccounts(prev => [...prev])
         }
       })
-      .catch(() => {})
+      .catch(err => console.error('Error hydrating staff accounts:', err))
+      .finally(() => {
+        // Allow subsequent account changes to persist to the backend.
+        setTimeout(() => { accountsHydratedRef.current = true }, 0)
+      })
 
     refreshLiveSalesProducts(false)
     refreshWebsiteOrders(false)
@@ -2834,6 +3008,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           : a
       )
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
       return updated
     })
 
@@ -2914,6 +3089,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ? prev.map(a => a.email.toLowerCase() === riderAccount.email.toLowerCase() ? { ...a, ...riderAccount } : a)
         : [...prev, riderAccount]
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
       return updated
     })
 
@@ -3000,6 +3176,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       permissions: newAcc.permissions || ROLE_DEFAULT_PERMISSIONS[newAcc.role] || [],
     }
 
+    // Re-creating a previously removed email clears its tombstone.
+    const deletedBefore = readDeletedAccountEmails()
+    if (deletedBefore.includes(accountWithPermissions.email.toLowerCase())) {
+      const deletedList = deletedBefore.filter(e => e !== accountWithPermissions.email.toLowerCase())
+      localStorage.setItem(DELETED_ACCOUNTS_STORAGE_KEY, JSON.stringify(deletedList))
+      persistAppSetting('deleted_staff_accounts', deletedList)
+    }
+    accountsHydratedRef.current = true
+
     setAccounts(prev => {
       const exists = prev.some(a => a.email.toLowerCase() === accountWithPermissions.email.toLowerCase())
       let updated: AppUserAccount[]
@@ -3009,12 +3194,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updated = [...prev, accountWithPermissions]
       }
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
       return updated
     })
     showToast(`Created ${accountWithPermissions.roleLabel} account for ${accountWithPermissions.name || accountWithPermissions.email}`, 'success')
   }
 
   const updateAccount = (email: string, updates: Partial<AppUserAccount> & { password?: string }) => {
+    accountsHydratedRef.current = true
     setAccounts(prev => {
       const updated = prev.map(a => {
         if (a.email.toLowerCase() === email.toLowerCase()) {
@@ -3030,6 +3217,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return a
       })
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
       return updated
     })
 
@@ -3051,9 +3239,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccounts(prev => {
       const updated = prev.filter(a => a.email.toLowerCase() !== email.toLowerCase())
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
       return updated
     })
 
+    // Record a tombstone so the member is never resurrected from seeds or stale caches.
+    const deleted = new Set(readDeletedAccountEmails())
+    deleted.add(email.toLowerCase())
+    const deletedList = Array.from(deleted)
+    localStorage.setItem(DELETED_ACCOUNTS_STORAGE_KEY, JSON.stringify(deletedList))
+    persistAppSetting('deleted_staff_accounts', deletedList)
+    accountsHydratedRef.current = true
     if (activeAccountEmail.toLowerCase() === email.toLowerCase()) {
       const remaining = accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase())
       if (remaining.length > 0) {
@@ -3065,7 +3261,22 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const changePassword = (email: string, newPassword: string) => {
-    updateAccount(email, { password: newPassword, temporary_password: newPassword })
+    const clean = newPassword.trim()
+    if (!clean) {
+      showToast('Password cannot be empty', 'error', 'Security Credentials')
+      return
+    }
+    accountsHydratedRef.current = true
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.email.toLowerCase() === email.toLowerCase()
+          ? { ...a, password: clean, temporary_password: clean }
+          : a
+      )
+      localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+      persistAppSetting('staff_accounts', updated)
+      return updated
+    })
     showToast(`Password successfully updated for ${email}`, 'success', 'Security Credentials')
   }
 
@@ -3828,6 +4039,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const newBatch: ProductionBatch = {
       id: Date.now(),
       batch_ref: batchRef,
+      production_date: new Date().toISOString().slice(0, 10),
       output_product_id: outputProductId,
       output_product_name: targetDishName,
       expected_output: actualQty,
@@ -3843,6 +4055,34 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       additional_material_cost: 0,
       total_material_cost: lotTotalCost,
       additional_requisitions: [],
+      products: [
+        {
+          id: `PBE-${Date.now()}-exp`,
+          output_product_id: outputProductId,
+          output_product_name: targetDishName,
+          expected_output: actualQty,
+          actual_output: 0,
+          wastage: 0,
+          status: "in_production",
+          feed_sales_inventory: true,
+          started_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          completed_at: null,
+          remarks: `[URGENT EXPIRING BATCH] Lot: ${lot.lot_number}`,
+          raw_materials: [
+            {
+              product_id: lot.product_id,
+              sku: lot.sku,
+              name: `${lot.product_name} (Lot: ${lot.lot_number})`,
+              quantity: actualQty,
+              unit: lot.unit,
+              unit_cost: lotUnitCost,
+              total_cost: lotTotalCost,
+              source: 'initial',
+              item_type: 'raw'
+            }
+          ]
+        }
+      ],
       raw_materials: [
         {
           product_id: lot.product_id,
@@ -4989,6 +5229,153 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
+  const executeStockConversion = (
+    sourceProductId: number,
+    destProductId: number,
+    sourceQty: number,
+    reason?: string
+  ): { success: boolean; error?: string } => {
+    if (!sourceProductId || !destProductId || sourceQty <= 0) {
+      return { success: false, error: 'Please enter a valid quantity greater than zero.' }
+    }
+
+    const sourceProd = salesProducts.find(p => p.id === sourceProductId)
+    const destProd = salesProducts.find(p => p.id === destProductId)
+
+    if (!sourceProd || !destProd) {
+      return { success: false, error: 'Selected products could not be found.' }
+    }
+
+    const available = Math.max(0, sourceProd.stock_qty - (sourceProd.qty_allocated || 0))
+    if (sourceQty > available) {
+      return {
+        success: false,
+        error: `Insufficient available stock for ${sourceProd.name}. Available: ${available} ${sourceProd.unit}, requested: ${sourceQty} ${sourceProd.unit}.`
+      }
+    }
+
+    const rule = stockConversionRules.find(
+      r => r.source_product_id === sourceProductId && r.destination_product_id === destProductId && r.is_active
+    )
+
+    if (!rule) {
+      return {
+        success: false,
+        error: `No compatible conversion rule between ${sourceProd.name} and ${destProd.name}.`
+      }
+    }
+
+    if (rule.requires_processing) {
+      return {
+        success: false,
+        error: `Conversion from ${sourceProd.name} to ${destProd.name} requires physical processing. Please use the Production Batches module.`
+      }
+    }
+
+    const qtyAdded = Math.round(sourceQty * rule.conversion_ratio * 100) / 100
+    const newSourceStock = Math.max(0, sourceProd.stock_qty - sourceQty)
+    const newDestStock = destProd.stock_qty + qtyAdded
+
+    const updateSource = (p: SalesProduct) =>
+      p.id === sourceProductId
+        ? {
+            ...p,
+            stock_qty: newSourceStock,
+            qty_available: Math.max(0, newSourceStock - (p.qty_allocated || 0)),
+            inventory_value: newSourceStock * p.selling_price
+          }
+        : p
+
+    const updateDest = (p: SalesProduct) =>
+      p.id === destProductId
+        ? {
+            ...p,
+            stock_qty: newDestStock,
+            qty_available: Math.max(0, newDestStock - (destProd.qty_allocated || 0)),
+            inventory_value: newDestStock * p.selling_price
+          }
+        : p
+
+    setSalesProducts(prev => prev.map(updateSource).map(updateDest))
+    setLiveSalesProducts(prev => prev.map(updateSource).map(updateDest))
+
+    persistProductUpdateToBackend(sourceProductId, { stock: newSourceStock })
+    persistProductUpdateToBackend(destProductId, { stock: newDestStock })
+
+    const repRef = `REP-${String(stockConversions.length + 1).padStart(5, '0')}`
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const userName = currentAccount?.name || 'Operations Staff'
+
+    const deductMovement: SalesMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      product_id: sourceProd.id,
+      product_name: sourceProd.name,
+      sku: sourceProd.sku,
+      unit: sourceProd.unit,
+      location: 'sales',
+      movement_type: 'repackage_deduct',
+      quantity: -sourceQty,
+      unit_cost: sourceProd.unit_cost,
+      value_amount: sourceQty * sourceProd.unit_cost,
+      balance_after: newSourceStock,
+      notes: `[${repRef}] Repackaged into ${qtyAdded} ${destProd.unit} of ${destProd.name}${reason ? ` - ${reason}` : ''}`,
+      created_at: timestamp,
+      user_name: userName
+    }
+
+    const addMovement: SalesMovement = {
+      id: Date.now() + Math.floor(Math.random() * 1000) + 1,
+      product_id: destProd.id,
+      product_name: destProd.name,
+      sku: destProd.sku,
+      unit: destProd.unit,
+      location: 'sales',
+      movement_type: 'repackage_add',
+      quantity: qtyAdded,
+      unit_cost: destProd.unit_cost,
+      value_amount: qtyAdded * destProd.unit_cost,
+      balance_after: newDestStock,
+      notes: `[${repRef}] Repackaged from ${sourceQty} ${sourceProd.unit} of ${sourceProd.name}${reason ? ` - ${reason}` : ''}`,
+      created_at: timestamp,
+      user_name: userName
+    }
+
+    setSalesMovements(prev => [addMovement, deductMovement, ...prev])
+
+    const convRecord: StockConversionRecord = {
+      id: `conv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      conversion_ref: repRef,
+      source_product_id: sourceProd.id,
+      source_product_name: sourceProd.name,
+      source_qty_deducted: sourceQty,
+      destination_product_id: destProd.id,
+      destination_product_name: destProd.name,
+      destination_qty_added: qtyAdded,
+      conversion_ratio: rule.conversion_ratio,
+      conversion_type: 'direct_repackage',
+      status: 'completed',
+      user_name: userName,
+      reason: reason || 'Stock repackaging / format conversion',
+      created_at: timestamp
+    }
+
+    setStockConversions(prev => [convRecord, ...prev])
+
+    showSuccessModal({
+      title: 'Stock Repackaged Successfully',
+      message: `Successfully converted ${sourceQty} ${sourceProd.unit} of ${sourceProd.name} into ${qtyAdded} ${destProd.unit} of ${destProd.name}. Total underlying physical stock is conserved.`,
+      details: [
+        { label: 'Conversion Ref', value: repRef },
+        { label: 'Source Deducted', value: `-${sourceQty} ${sourceProd.unit} (New Stock: ${newSourceStock})` },
+        { label: 'Destination Added', value: `+${qtyAdded} ${destProd.unit} (New Stock: ${newDestStock})` },
+        { label: 'Conversion Ratio', value: `1 : ${rule.conversion_ratio}` },
+        { label: 'Authorized By', value: userName }
+      ]
+    })
+
+    return { success: true }
+  }
+
   const savePackagingProduct = (product: Partial<PackagingProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number }) => {
     if (product.id) {
       setPackagingProducts(prev => prev.map(p => p.id === product.id ? {
@@ -5061,26 +5448,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   // -------------------------------------------------------------
-  // PRODUCTION MUTATIONS
+  // PRODUCTION MUTATIONS (MASTER BATCH + MULTI-PRODUCT ARCHITECTURE)
   // -------------------------------------------------------------
 
-  const createBatch = ({
-    outputProductId,
-    outputProductName,
-    expectedOutput,
-    remarks,
-    batch_schedule = 'today',
-    feed_sales_inventory = true,
-    estimated_ready_time,
-    rawMaterials
-  }: {
-    outputProductId: number
-    outputProductName: string
-    expectedOutput: number
-    remarks?: string
-    batch_schedule?: 'today' | 'tomorrow_morning'
-    feed_sales_inventory?: boolean
-    estimated_ready_time?: string
+  const helperDeductMaterials = (
     rawMaterials: Array<{
       product_id: number
       sku: string
@@ -5090,12 +5461,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       item_type?: 'raw' | 'compound'
       compound_id?: number
       prep_ref?: string
-    }>
-  }) => {
-    const batchRef = `BAT-${String(productionBatches.length + 1).padStart(5, '0')}`
-
-    // 1. Snapshot raw and compound materials with unit cost and total cost, then deduct from inventory
-    const snappedMaterials: RawMaterialBOM[] = rawMaterials.map(mat => {
+    }>,
+    targetProductName: string,
+    batchRef: string
+  ): RawMaterialBOM[] => {
+    return rawMaterials.map(mat => {
       const isCompound = mat.item_type === 'compound' || !!mat.compound_id || compoundInventory.some(c => c.id === mat.product_id || c.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
 
       if (isCompound) {
@@ -5108,7 +5478,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const unitCost = matchedCompound?.unit_cost || 0
         const totalCost = Math.round(mat.quantity * unitCost * 100) / 100
 
-        // Deduct from compound inventory ONLY (never re-deduct raw materials!)
         if (matchedCompound) {
           const newCompoundStock = Math.max(0, matchedCompound.stock_qty - mat.quantity)
           setCompoundInventory(prev => prev.map(ci => ci.id === matchedCompound.id ? {
@@ -5120,7 +5489,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 id: `ALLOC-CPD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                 batch_id: 0,
                 batch_ref: batchRef,
-                target_product_name: outputProductName,
+                target_product_name: targetProductName,
                 quantity: mat.quantity,
                 unit_cost_at_issue: unitCost,
                 total_cost: totalCost,
@@ -5144,7 +5513,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             unit_cost: unitCost,
             value_amount: totalCost,
             balance_after: newCompoundStock,
-            notes: `Compound issued: ${mat.quantity} ${matchedCompound.unit} to ${outputProductName} (${batchRef})`,
+            notes: `Compound issued: ${mat.quantity} ${matchedCompound.unit} to ${targetProductName} (${batchRef})`,
             created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
             user_name: currentAccount?.name || "Kitchen Pitmaster"
           }
@@ -5171,7 +5540,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const unitCost = matchedRaw?.unit_cost || 0
       const totalCost = Math.round(mat.quantity * unitCost * 100) / 100
       if (matchedRaw) {
-        adjustRawStock(matchedRaw.id, -mat.quantity, `Batch allocation for ${outputProductName}`, "consumption")
+        adjustRawStock(matchedRaw.id, -mat.quantity, `Batch allocation for ${targetProductName}`, "consumption")
       }
       return {
         ...mat,
@@ -5181,15 +5550,198 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         source: 'initial' as const
       }
     })
+  }
 
+  const addProductToBatch = (
+    batchId: number,
+    entry: {
+      outputProductId: number
+      outputProductName: string
+      expectedOutput: number
+      remarks?: string
+      feed_sales_inventory?: boolean
+      estimated_ready_time?: string
+      rawMaterials: Array<{
+        product_id: number
+        sku: string
+        name: string
+        quantity: number
+        unit: string
+        item_type?: 'raw' | 'compound'
+        compound_id?: number
+        prep_ref?: string
+      }>
+    }
+  ): boolean => {
+    const targetBatch = productionBatches.find(b => b.id === batchId)
+    if (!targetBatch) return false
+
+    const snappedMaterials = helperDeductMaterials(entry.rawMaterials, entry.outputProductName, targetBatch.batch_ref)
+    const initialMaterialCost = snappedMaterials.reduce((acc, m) => acc + (m.total_cost || 0), 0)
+
+    const newEntry: ProductBatchEntry = {
+      id: `PBE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      output_product_id: entry.outputProductId,
+      output_product_name: entry.outputProductName,
+      expected_output: entry.expectedOutput,
+      actual_output: 0,
+      wastage: 0,
+      status: targetBatch.status === 'in_production' ? 'in_production' : 'draft',
+      feed_sales_inventory: entry.feed_sales_inventory !== false,
+      estimated_ready_time: entry.estimated_ready_time || targetBatch.estimated_ready_time,
+      started_at: targetBatch.status === 'in_production' ? new Date().toISOString().replace('T', ' ').substring(0, 19) : null,
+      completed_at: null,
+      remarks: entry.remarks,
+      raw_materials: snappedMaterials,
+      additional_requisitions: [],
+      initial_material_cost: initialMaterialCost,
+      additional_material_cost: 0,
+      total_material_cost: initialMaterialCost,
+      returned_materials: []
+    }
+
+    const logEntry: ProductionBatchHistoryLog = {
+      id: `LOG-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      user_name: currentAccount?.name || 'Kitchen Staff',
+      event_type: 'product_added',
+      title: `Added ${entry.outputProductName} (${entry.expectedOutput} portions planned)`,
+      product_name: entry.outputProductName,
+      details: `${snappedMaterials.length} materials allocated. +${entry.expectedOutput} buffered to Sales Inventory.`
+    }
+
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const existingProducts = Array.isArray(b.products) ? b.products : []
+      const updatedProducts = [...existingProducts, newEntry]
+      const totalCost = updatedProducts.reduce((acc, p) => acc + (p.total_material_cost || 0), 0)
+      const totalExpected = updatedProducts.reduce((acc, p) => acc + (p.expected_output || 0), 0)
+      const allMaterials = updatedProducts.flatMap(p => p.raw_materials)
+
+      return {
+        ...b,
+        products: updatedProducts,
+        total_material_cost: totalCost,
+        expected_output: totalExpected,
+        raw_materials: allMaterials,
+        history: [logEntry, ...(b.history || [])]
+      }
+    }))
+
+    showToast(`Added ${entry.outputProductName} to Master Batch ${targetBatch.batch_ref}: +${entry.expectedOutput} buffered to sales`, 'success')
+    return true
+  }
+
+  const createBatch = ({
+    outputProductId,
+    outputProductName,
+    expectedOutput,
+    remarks,
+    batch_schedule = 'today',
+    feed_sales_inventory = true,
+    estimated_ready_time,
+    rawMaterials,
+    targetMasterBatchId
+  }: {
+    outputProductId: number
+    outputProductName: string
+    expectedOutput: number
+    remarks?: string
+    batch_schedule?: 'today' | 'tomorrow_morning'
+    feed_sales_inventory?: boolean
+    estimated_ready_time?: string
+    rawMaterials: Array<{
+      product_id: number
+      sku: string
+      name: string
+      quantity: number
+      unit: string
+      item_type?: 'raw' | 'compound'
+      compound_id?: number
+      prep_ref?: string
+    }>
+    targetMasterBatchId?: number
+  }) => {
+    // If targetMasterBatchId is provided, append product to that master batch directly
+    if (targetMasterBatchId) {
+      addProductToBatch(targetMasterBatchId, {
+        outputProductId,
+        outputProductName,
+        expectedOutput,
+        remarks,
+        feed_sales_inventory,
+        estimated_ready_time,
+        rawMaterials
+      })
+      return targetMasterBatchId
+    }
+
+    // Check if an open Master Batch for today already exists
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const existingOpenTodayBatch = productionBatches.find(b => 
+      b.status !== 'completed' && 
+      b.status !== 'cancelled' && 
+      b.batch_schedule === batch_schedule &&
+      (b.production_date === todayStr || (b.created_at && b.created_at.slice(0, 10) === todayStr))
+    )
+
+    if (existingOpenTodayBatch) {
+      // Append product entry to existing open Master Batch
+      addProductToBatch(existingOpenTodayBatch.id, {
+        outputProductId,
+        outputProductName,
+        expectedOutput,
+        remarks,
+        feed_sales_inventory,
+        estimated_ready_time,
+        rawMaterials
+      })
+      return existingOpenTodayBatch.id
+    }
+
+    // Otherwise create a new Master Batch
+    const batchRef = `BAT-${String(productionBatches.length + 1).padStart(5, '0')}`
+    const snappedMaterials = helperDeductMaterials(rawMaterials, outputProductName, batchRef)
     const initialMaterialCost = snappedMaterials.reduce((acc, m) => acc + (m.total_cost || 0), 0)
     const defaultReadyTime = batch_schedule === 'tomorrow_morning'
       ? 'Tomorrow 9:30 AM'
       : `Today ${new Date(Date.now() + 4 * 3600 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 
+    const initialProductEntry: ProductBatchEntry = {
+      id: `PBE-${Date.now()}-1`,
+      output_product_id: outputProductId,
+      output_product_name: outputProductName,
+      expected_output: expectedOutput,
+      actual_output: 0,
+      wastage: 0,
+      status: "draft",
+      feed_sales_inventory,
+      estimated_ready_time: estimated_ready_time || defaultReadyTime,
+      started_at: null,
+      completed_at: null,
+      remarks,
+      raw_materials: snappedMaterials,
+      additional_requisitions: [],
+      initial_material_cost: initialMaterialCost,
+      additional_material_cost: 0,
+      total_material_cost: initialMaterialCost,
+      returned_materials: []
+    }
+
+    const logEntry: ProductionBatchHistoryLog = {
+      id: `LOG-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      user_name: currentAccount?.name || 'Production Supervisor',
+      event_type: 'batch_created',
+      title: `Created Master Batch ${batchRef}`,
+      product_name: outputProductName,
+      details: `Initial product ${outputProductName} added (${expectedOutput} planned portions). +${expectedOutput} buffered to Sales Inventory.`
+    }
+
     const newBatch: ProductionBatch = {
       id: Date.now(),
       batch_ref: batchRef,
+      production_date: todayStr,
       output_product_id: outputProductId,
       output_product_name: outputProductName,
       expected_output: expectedOutput,
@@ -5204,29 +5756,350 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       remarks,
       created_by_name: currentAccount?.name || "Production Supervisor",
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      products: [initialProductEntry],
+      history: [logEntry],
       raw_materials: snappedMaterials,
       additional_requisitions: [],
       initial_material_cost: initialMaterialCost,
       additional_material_cost: 0,
       total_material_cost: initialMaterialCost
     }
+
     setProductionBatches(prev => [newBatch, ...prev])
 
     showSuccessModal({
-      title: batch_schedule === 'tomorrow_morning' ? 'Next-Day Morning Smoke Scheduled' : 'Cooking Batch Created',
+      title: batch_schedule === 'tomorrow_morning' ? 'Next-Day Morning Smoke Scheduled' : 'Master Cooking Batch Created',
       message: feed_sales_inventory
-        ? `Batch formulated. +${expectedOutput} units buffered to Sales Inventory so online orders continue uninterrupted.`
-        : `Batch formulated for ${outputProductName}. Raw ingredients allocated from inventory.`,
+        ? `Master Batch ${batchRef} opened. +${expectedOutput} units of ${outputProductName} buffered to Sales Inventory. You can add more products to this master batch anytime.`
+        : `Master Batch ${batchRef} opened for ${outputProductName}. Raw ingredients allocated from inventory.`,
       details: [
-        { label: 'Batch Ref', value: batchRef },
-        { label: 'Target Product', value: outputProductName },
+        { label: 'Master Batch Ref', value: batchRef },
+        { label: 'First Product', value: outputProductName },
         { label: 'Planned Output', value: `${expectedOutput} portions` },
         { label: 'Initial Material Cost', value: formatNaira(initialMaterialCost) },
         { label: 'Target Completion', value: estimated_ready_time || defaultReadyTime },
         { label: 'Website Buffer Feed', value: feed_sales_inventory ? `+${expectedOutput} Units Bookable Online` : 'Internal Prep Only' },
       ],
     })
-    showToast(`Batch ${batchRef} created: +${expectedOutput} units buffered to sales`, 'success')
+    showToast(`Master Batch ${batchRef} created with ${outputProductName}`, 'success')
+    return batchRef
+  }
+
+  const updateProductEntry = (
+    batchId: number,
+    entryId: string | number,
+    updates: Partial<ProductBatchEntry>
+  ): boolean => {
+    let diffMsg = ''
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const existingProducts = Array.isArray(b.products) ? b.products : []
+      const updatedProducts = existingProducts.map(p => {
+        if (p.id !== entryId) return p
+        if (updates.expected_output !== undefined && updates.expected_output !== p.expected_output) {
+          diffMsg = `Output changed from ${p.expected_output} to ${updates.expected_output}`
+        }
+        return { ...p, ...updates }
+      })
+
+      const totalExpected = updatedProducts.reduce((acc, p) => acc + (p.expected_output || 0), 0)
+      const totalActual = updatedProducts.reduce((acc, p) => acc + (p.actual_output || 0), 0)
+      const totalWastage = updatedProducts.reduce((acc, p) => acc + (p.wastage || 0), 0)
+
+      const historyLog: ProductionBatchHistoryLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        user_name: currentAccount?.name || 'Production Supervisor',
+        event_type: 'output_changed',
+        title: `Updated Product Entry`,
+        details: diffMsg || 'Updated product parameters.'
+      }
+
+      return {
+        ...b,
+        products: updatedProducts,
+        expected_output: totalExpected,
+        actual_output: totalActual,
+        wastage: totalWastage,
+        history: [historyLog, ...(b.history || [])]
+      }
+    }))
+
+    showToast('Product entry updated successfully', 'success')
+    return true
+  }
+
+  const startProductProduction = (batchId: number, entryId: string | number) => {
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const updatedProducts = (b.products || []).map(p => {
+        if (p.id !== entryId) return p
+        return {
+          ...p,
+          status: 'in_production' as const,
+          started_at: p.started_at || now
+        }
+      })
+
+      const historyLog: ProductionBatchHistoryLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: now,
+        user_name: currentAccount?.name || 'Kitchen Staff',
+        event_type: 'started',
+        title: `Started Cooking`,
+        details: `Product entry placed on smoking grill.`
+      }
+
+      return {
+        ...b,
+        status: 'in_production',
+        started_at: b.started_at || now,
+        products: updatedProducts,
+        history: [historyLog, ...(b.history || [])]
+      }
+    }))
+    showToast(`Product cooking started on smoking grill`, 'info')
+  }
+
+  const completeProductProduction = (
+    batchId: number,
+    entryId: string | number,
+    actualOutput: number,
+    wastage: number,
+    remarks?: string,
+    returnedMaterials?: Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>
+  ) => {
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!batch) return
+    const entry = (batch.products || []).find(p => p.id === entryId)
+    if (!entry) return
+
+    let totalCreditedValue = 0
+    const returnedItemsSummary: Array<{ product_id: number; name: string; quantity: number; unit: string; value_credited: number }> = []
+
+    if (returnedMaterials && returnedMaterials.length > 0) {
+      returnedMaterials.forEach(ret => {
+        if (ret.quantity > 0) {
+          if (ret.item_type === 'compound' || ret.compound_id) {
+            const compound = compoundInventory.find(c => c.id === ret.compound_id || c.id === ret.productId)
+            if (compound) {
+              const newCompoundStock = compound.stock_qty + ret.quantity
+              const unitCost = compound.unit_cost
+              const creditedVal = Math.round(ret.quantity * unitCost * 100) / 100
+              totalCreditedValue += creditedVal
+              returnedItemsSummary.push({
+                product_id: compound.id,
+                name: compound.name,
+                quantity: ret.quantity,
+                unit: compound.unit,
+                value_credited: creditedVal
+              })
+              setCompoundInventory(prev => prev.map(c => c.id === compound.id ? {
+                ...c,
+                stock_qty: newCompoundStock,
+                inventory_value: Math.round(newCompoundStock * c.unit_cost * 100) / 100,
+                surplus_returns: [
+                  {
+                    id: `RET-CPD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    batch_id: batch.id,
+                    batch_ref: batch.batch_ref,
+                    quantity: ret.quantity,
+                    unit_cost: unitCost,
+                    total_credited: creditedVal,
+                    returned_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                    returned_by: currentAccount?.name || "Kitchen Chef",
+                    notes: `Surplus return from ${entry.output_product_name} (${batch.batch_ref})`
+                  },
+                  ...c.surplus_returns
+                ]
+              } : c))
+            }
+          } else {
+            const raw = rawProducts.find(p => p.id === ret.productId)
+            if (raw) {
+              const unitCost = raw.unit_cost || 0
+              const creditedVal = Math.round(ret.quantity * unitCost * 100) / 100
+              totalCreditedValue += creditedVal
+              returnedItemsSummary.push({
+                product_id: raw.id,
+                name: raw.name,
+                quantity: ret.quantity,
+                unit: raw.unit,
+                value_credited: creditedVal
+              })
+              adjustRawStock(raw.id, ret.quantity, `Surplus return from ${entry.output_product_name} (${batch.batch_ref})`, "adjustment")
+            }
+          }
+        }
+      })
+    }
+
+    const initialCost = entry.initial_material_cost || 0
+    const additionalCost = entry.additional_material_cost || 0
+    const netMaterialCost = Math.max(0, Math.round((initialCost + additionalCost - totalCreditedValue) * 100) / 100)
+    const portionDivisor = actualOutput > 0 ? actualOutput : (entry.expected_output || 1)
+    const unitCostPerPortion = Math.round((netMaterialCost / portionDivisor) * 100) / 100
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    // 1. Reconcile this product entry in state
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const updatedProducts = (b.products || []).map(p => {
+        if (p.id !== entryId) return p
+        return {
+          ...p,
+          actual_output: actualOutput,
+          wastage,
+          status: 'completed' as const,
+          completed_at: now,
+          remarks: remarks || p.remarks,
+          returned_materials: returnedItemsSummary.length > 0 ? [...(p.returned_materials || []), ...returnedItemsSummary] : p.returned_materials,
+          total_material_cost: netMaterialCost,
+          unit_cost_per_portion: unitCostPerPortion
+        }
+      })
+
+      // If all products in this master batch are now completed, mark the master batch as completed
+      const allCompleted = updatedProducts.length > 0 && updatedProducts.every(p => p.status === 'completed' || p.status === 'cancelled')
+      const totalActual = updatedProducts.reduce((acc, p) => acc + (p.actual_output || 0), 0)
+      const totalWastage = updatedProducts.reduce((acc, p) => acc + (p.wastage || 0), 0)
+      const totalCost = updatedProducts.reduce((acc, p) => acc + (p.total_material_cost || 0), 0)
+
+      const historyLog: ProductionBatchHistoryLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: now,
+        user_name: currentAccount?.name || 'QC Supervisor',
+        event_type: 'completed',
+        title: `Completed ${entry.output_product_name}`,
+        product_name: entry.output_product_name,
+        details: `Yield: ${actualOutput} portions (wastage: ${wastage}). Net cost: ${formatNaira(netMaterialCost)}.`
+      }
+
+      return {
+        ...b,
+        status: allCompleted ? 'completed' : b.status,
+        completed_at: allCompleted ? now : b.completed_at,
+        actual_output: totalActual,
+        wastage: totalWastage,
+        total_material_cost: totalCost,
+        products: updatedProducts,
+        history: [historyLog, ...(b.history || [])]
+      }
+    }))
+
+    // 2. Increment physical stock in Sales Inventory (existing reconciliation logic)
+    const allSales = [...liveSalesProducts, ...salesProducts]
+    const targetSales = allSales.find(sp => sp.id === entry.output_product_id || sp.name.toLowerCase().trim() === entry.output_product_name.toLowerCase().trim())
+    if (targetSales) {
+      adjustSalesStock(targetSales.id, actualOutput, `Master Batch ${batch.batch_ref}: ${entry.output_product_name} yield deposit`)
+
+      if (unitCostPerPortion > 0) {
+        const currentStock = targetSales.stock_qty || 0
+        const currentCost = targetSales.unit_cost || 0
+        const combinedStock = currentStock + actualOutput
+        const newFgWac = combinedStock > 0
+          ? Math.round(((currentStock * currentCost) + (actualOutput * unitCostPerPortion)) / combinedStock)
+          : Math.round(unitCostPerPortion)
+
+        setSalesProducts(prev => prev.map(sp => sp.id === targetSales.id ? { ...sp, unit_cost: newFgWac } : sp))
+        setLiveSalesProducts(prev => prev.map(sp => sp.id === targetSales.id ? { ...sp, unit_cost: newFgWac } : sp))
+      }
+    }
+
+    showSuccessModal({
+      title: `${entry.output_product_name} Completed & Reconciled`,
+      message: `Verified actual yield deposited into Physical Sales Inventory. Estimated incoming buffer converted to ready stock.`,
+      details: [
+        { label: 'Master Batch', value: batch.batch_ref },
+        { label: 'Product Reconciled', value: entry.output_product_name },
+        { label: 'Actual Physical Deposited', value: `+${actualOutput} portions` },
+        { label: 'Cooking Loss / Shrinkage', value: `${wastage} portions` },
+        { label: 'Net Consumed Material Cost', value: formatNaira(netMaterialCost) },
+        ...(totalCreditedValue > 0 ? [{ label: 'Materials Returned to Store', value: `${returnedItemsSummary.map(r => `${r.quantity} ${r.unit} ${r.name}`).join(', ')} (${formatNaira(totalCreditedValue)} credited)` }] : [])
+      ],
+    })
+    showToast(`${entry.output_product_name} finished: +${actualOutput} physical portions deposited`, 'success')
+  }
+
+  const cancelProductEntry = (batchId: number, entryId: string | number, reason?: string) => {
+    const batch = productionBatches.find(b => b.id === batchId)
+    if (!batch) return
+    const entry = (batch.products || []).find(p => p.id === entryId)
+    if (!entry) return
+
+    // Restore materials to store
+    entry.raw_materials.forEach(mat => {
+      if (mat.item_type === 'compound' || mat.source === 'compound' || mat.compound_id) {
+        const matchedComp = compoundInventory.find(c => c.id === mat.compound_id || c.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
+        if (matchedComp) {
+          const restoredStock = matchedComp.stock_qty + mat.quantity
+          setCompoundInventory(prev => prev.map(c => c.id === matchedComp.id ? {
+            ...c,
+            stock_qty: restoredStock,
+            inventory_value: Math.round(restoredStock * c.unit_cost * 100) / 100
+          } : c))
+          const movement: RawMovement = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            product_id: matchedComp.id,
+            product_name: matchedComp.name,
+            sku: matchedComp.sku,
+            unit: matchedComp.unit,
+            location: "raw",
+            movement_type: "adjustment",
+            quantity: mat.quantity,
+            unit_cost: mat.unit_cost || matchedComp.unit_cost,
+            value_amount: mat.total_cost || Math.round(mat.quantity * matchedComp.unit_cost * 100) / 100,
+            balance_after: restoredStock,
+            notes: `Compound restored from cancelled product ${entry.output_product_name} (${batch.batch_ref})`,
+            created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            user_name: currentAccount?.name || "Kitchen Pitmaster"
+          }
+          setRawMovements(prev => [movement, ...prev])
+        }
+      } else {
+        const matchedRaw = rawProducts.find(p => p.id === mat.product_id || p.name.toLowerCase().trim() === mat.name.toLowerCase().trim())
+        if (matchedRaw) {
+          adjustRawStock(matchedRaw.id, mat.quantity, `Reversal from cancelled product ${entry.output_product_name} (${batch.batch_ref})`, "adjustment")
+        }
+      }
+    })
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
+    setProductionBatches(prev => prev.map(b => {
+      if (b.id !== batchId) return b
+      const updatedProducts = (b.products || []).map(p => {
+        if (p.id !== entryId) return p
+        return {
+          ...p,
+          status: 'cancelled' as const,
+          remarks: reason || p.remarks
+        }
+      })
+
+      const allCancelledOrDone = updatedProducts.every(p => p.status === 'cancelled' || p.status === 'completed')
+
+      const historyLog: ProductionBatchHistoryLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: now,
+        user_name: currentAccount?.name || 'Production Supervisor',
+        event_type: 'cancelled',
+        title: `Cancelled ${entry.output_product_name}`,
+        product_name: entry.output_product_name,
+        details: reason || 'Product entry cancelled before completion. Materials restored to inventory.'
+      }
+
+      return {
+        ...b,
+        status: allCancelledOrDone ? 'cancelled' : b.status,
+        products: updatedProducts,
+        history: [historyLog, ...(b.history || [])]
+      }
+    }))
+
+    showToast(`Cancelled ${entry.output_product_name}: materials restored & buffer reversed`, 'info')
   }
 
   const startBatch = (batchId: number) => {
@@ -6370,6 +7243,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         adjustPackagingStock,
         adjustSalesStock,
         saveSalesProduct,
+        stockConversions,
+        stockConversionRules,
+        executeStockConversion,
         addSupplier,
         updateSupplier,
         deleteSupplier,
@@ -6393,6 +7269,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         packagingMaterialsDaily,
         kitchenTasks,
         createBatch,
+        addProductToBatch,
+        updateProductEntry,
+        startProductProduction,
+        completeProductProduction,
+        cancelProductEntry,
         updateBatch,
         deleteBatch,
         deleteIntermediatePrep,
