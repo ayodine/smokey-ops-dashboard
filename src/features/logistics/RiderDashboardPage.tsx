@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/Button'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/Select'
-import { formatNaira } from '@/lib/utils'
-import { openImageSafe } from '@/lib/imageUtils'
+import { formatNaira, cn } from '@/lib/utils'
+import { openImageSafe, downloadImage } from '@/lib/imageUtils'
 import { RiderDeliveryMobileCard } from './components/RiderDeliveryMobileCard'
 import { RiderMobileBottomNav } from './components/RiderMobileBottomNav'
 import {
@@ -29,6 +29,11 @@ import {
   LayoutGrid,
   Table as TableIcon,
   CircleDot,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  X
 } from 'lucide-react'
 
 export const RiderDashboardPage: React.FC = () => {
@@ -135,6 +140,8 @@ export const RiderDashboardPage: React.FC = () => {
   // Confirm Handover Dialog state
   const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<LogisticsDelivery | null>(null)
   const [previewOrder, setPreviewOrder] = useState<LogisticsDelivery | null>(null)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [isImageZoomed, setIsImageZoomed] = useState(false)
 
   const handleConfirmDelivered = (order: LogisticsDelivery) => {
     markDelivered(order.id)
@@ -1265,29 +1272,45 @@ export const RiderDashboardPage: React.FC = () => {
                   </div>
 
                   {previewOrder.fee_evidence_path && (
-                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 mt-2">
-                      <div className="flex items-center justify-between mb-1">
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 mt-2 space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <span className="text-zinc-500 text-[13px] block font-medium">Attached Courier Receipt Proof:</span>
-                        <button
-                          type="button"
-                          onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                          title="View image full size in new tab"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>View Full Size</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setIsLightboxOpen(true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-lg dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition cursor-pointer shadow-xs"
+                            title="Inspect waybill in full size"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                            <span>View Full Size</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
+                            className="inline-flex items-center justify-center p-1.5 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition cursor-pointer"
+                            title="Open in new browser tab"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <div 
-                        onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
-                        className="max-w-xs border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden cursor-pointer hover:border-zinc-400 transition group"
+                        onClick={() => setIsLightboxOpen(true)}
+                        className="max-w-xs border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-zinc-950 cursor-zoom-in hover:border-zinc-400 transition group relative flex items-center justify-center p-1"
                         title="Click to view full size"
                       >
                         <img
                           src={previewOrder.fee_evidence_path}
                           alt="Courier Receipt"
-                          className="w-full h-auto object-cover max-h-48 group-hover:opacity-90 transition"
+                          className="w-full h-auto object-contain max-h-48 group-hover:scale-[1.01] transition"
                         />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 text-white text-xs font-medium backdrop-blur-xs shadow-lg">
+                            <Eye className="w-3.5 h-3.5" />
+                            Click to inspect full size
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1297,6 +1320,90 @@ export const RiderDashboardPage: React.FC = () => {
           </div>
         )}
       </Dialog>
+
+      {/* FULL-SIZE WAYBILL LIGHTBOX MODAL */}
+      {isLightboxOpen && previewOrder?.fee_evidence_path && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col animate-in fade-in duration-150">
+          {/* Lightbox Top Bar */}
+          <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-black/40 shrink-0">
+            <div className="flex items-center gap-3 text-white min-w-0">
+              <span className="text-sm font-semibold truncate">
+                Waybill Proof · Order {previewOrder.order_ref}
+              </span>
+              {previewOrder.assigned_rider && (
+                <span className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-md bg-white/10 text-zinc-300">
+                  {previewOrder.assigned_rider}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsImageZoomed(!isImageZoomed)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-200 bg-white/10 hover:bg-white/20 rounded-lg transition cursor-pointer"
+                title={isImageZoomed ? 'Fit to Screen' : '100% Zoom'}
+              >
+                {isImageZoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{isImageZoomed ? 'Fit Screen' : 'Zoom 100%'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-200 bg-white/10 hover:bg-white/20 rounded-lg transition cursor-pointer"
+                title="Open in new browser tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">New Tab</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadImage(previewOrder.fee_evidence_path!, `waybill-${previewOrder.order_ref}.jpg`)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-200 bg-white/10 hover:bg-white/20 rounded-lg transition cursor-pointer"
+                title="Download waybill slip image"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Download</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLightboxOpen(false)
+                  setIsImageZoomed(false)
+                }}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-zinc-300 hover:text-white transition ml-1 cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Lightbox Image Stage */}
+          <div 
+            className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center cursor-default"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsLightboxOpen(false)
+                setIsImageZoomed(false)
+              }
+            }}
+          >
+            <div className="relative max-w-full max-h-full flex items-center justify-center">
+              <img
+                src={previewOrder.fee_evidence_path}
+                alt={`Waybill Proof for Order ${previewOrder.order_ref}`}
+                className={cn(
+                  'rounded-lg shadow-2xl transition-all duration-200 object-contain',
+                  isImageZoomed
+                    ? 'max-w-none w-auto cursor-zoom-out'
+                    : 'max-h-[82vh] max-w-[92vw] cursor-zoom-in'
+                )}
+                onClick={() => setIsImageZoomed(!isImageZoomed)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
       {/* MODAL: DECLINE DELIVERY (Spec 4.4)                            */}

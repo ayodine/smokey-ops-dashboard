@@ -9,7 +9,8 @@ export function dataUriToBlob(dataUri: string): Blob {
   const parts = dataUri.split(',')
   const mimeMatch = parts[0]?.match(/:(.*?);/)
   const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-  const byteString = atob(parts[1] || '')
+  const rawBase64 = (parts[1] || '').replace(/\s/g, '')
+  const byteString = atob(rawBase64)
   const buffer = new Uint8Array(byteString.length)
   for (let i = 0; i < byteString.length; i++) {
     buffer[i] = byteString.charCodeAt(i)
