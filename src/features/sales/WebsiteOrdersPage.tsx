@@ -40,8 +40,11 @@ import {
   UtensilsCrossed,
   CreditCard,
   Package,
-  Printer
+  Printer,
+  Volume2,
+  VolumeX
 } from 'lucide-react'
+import { playOrderRingtone5s, stopOrderRingtone, isOrderRingtonePlaying } from '@/lib/notificationAudio'
 
 export interface WebsiteOrder {
   id: string | number
@@ -506,6 +509,20 @@ export const WebsiteOrdersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [isPlayingRingtone, setIsPlayingRingtone] = useState(false)
+
+  const handleToggleTestRingtone = () => {
+    if (isPlayingRingtone) {
+      stopOrderRingtone()
+      setIsPlayingRingtone(false)
+    } else {
+      playOrderRingtone5s()
+      setIsPlayingRingtone(true)
+      window.setTimeout(() => {
+        setIsPlayingRingtone(false)
+      }, 5000)
+    }
+  }
 
   // Reschedule / Schedule Delivery State
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false)
@@ -926,6 +943,16 @@ export const WebsiteOrdersPage: React.FC = () => {
         subtitle="Manage customer orders originating directly from the website storefront, track payment confirmation, and monitor live kitchen-to-doorstep dispatch."
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleTestRingtone}
+              leftIcon={isPlayingRingtone ? <VolumeX className="w-4 h-4 text-rose-500 animate-pulse" /> : <Volume2 className="w-4 h-4 text-zinc-500" />}
+              className="h-10 px-3.5 text-sm font-medium shadow-xs cursor-pointer"
+              title="Test the 5-second incoming order notification ringtone"
+            >
+              {isPlayingRingtone ? 'Stop Ringtone' : 'Test Ringtone (5s)'}
+            </Button>
             <Button
               variant="outline"
               size="sm"

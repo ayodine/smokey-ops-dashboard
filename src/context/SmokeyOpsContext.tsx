@@ -71,7 +71,7 @@ import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
-import { playAlertChime, sendDesktopNotification } from '@/lib/notificationAudio'
+import { playAlertChime, sendDesktopNotification, stopOrderRingtone } from '@/lib/notificationAudio'
 
 export interface LiveSalesProduct extends SalesProduct {
   image?: string | null
@@ -2228,6 +2228,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Prevents the persistence effect from overwriting the backend with local
   // state before remote staff accounts have been hydrated on mount.
   const accountsHydratedRef = useRef(false)
+  const knownOrderRefsRef = useRef<Set<string>>(new Set())
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
     try {
@@ -2341,6 +2342,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deliveredDeliveries,
         newStorePickups
       } = deriveQueuesFromRawOrders(rawOrders)
+
+      // Alert staff with the 5-second ringtone when newly arriving orders are fetched
+      if (knownOrderRefsRef.current.size > 0) {
+        const brandNewOrders = mappedOrders.filter(o => 
+          !knownOrderRefsRef.current.has(o.order_ref) &&
+          o.payment_status !== 'refunded'
+        )
+        if (brandNewOrders.length > 0) {
+          playAlertChime('order')
+          const firstNew = brandNewOrders[0]
+          showToast(
+            `New Customer Order #${firstNew.order_ref} received from ${firstNew.customer_name || 'Website'}!`,
+            'success',
+            'New Online Order'
+          )
+        }
+      }
+      mappedOrders.forEach(o => knownOrderRefsRef.current.add(o.order_ref))
 
       setWebsiteOrders(mappedOrders)
       writeLocalCache('smokey_live_cache_v3_website_orders', mappedOrders)
@@ -2776,7 +2795,22 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        () => {
+        (payload: any) => {
+          if (payload?.eventType === 'INSERT') {
+            const newOrder = payload.new
+            if (newOrder && newOrder.status !== 'pending_payment') {
+              playAlertChime('order')
+              const ref = newOrder.order_ref || `#${newOrder.id}`
+              showToast(
+                `New Customer Order ${ref} received from ${newOrder.customer_name || 'Website'}!`,
+                'success',
+                'New Online Order'
+              )
+              sendDesktopNotification(`New Order ${ref}`, {
+                body: `${newOrder.customer_name || 'Customer'} placed an order of ${formatNaira(newOrder.total || newOrder.total_amount || 0)}`,
+              })
+            }
+          }
           refreshWebsiteOrders(false)
         }
       )
@@ -3627,6 +3661,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const dismissToast = React.useCallback((id: string) => {
+    stopOrderRingtone()
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 

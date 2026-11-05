@@ -10,6 +10,7 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/Select'
 import { formatNaira } from '@/lib/utils'
+import { openImageSafe } from '@/lib/imageUtils'
 import { RiderDeliveryMobileCard } from './components/RiderDeliveryMobileCard'
 import { RiderMobileBottomNav } from './components/RiderMobileBottomNav'
 import {
@@ -1265,12 +1266,27 @@ export const RiderDashboardPage: React.FC = () => {
 
                   {previewOrder.fee_evidence_path && (
                     <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 mt-2">
-                      <span className="text-zinc-500 text-[13px] block mb-1 font-medium">Attached Courier Receipt Proof:</span>
-                      <div className="max-w-xs border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-zinc-500 text-[13px] block font-medium">Attached Courier Receipt Proof:</span>
+                        <button
+                          type="button"
+                          onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                          title="View image full size in new tab"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>View Full Size</span>
+                        </button>
+                      </div>
+                      <div 
+                        onClick={() => openImageSafe(previewOrder.fee_evidence_path!, `Receipt-${previewOrder.order_ref}`)}
+                        className="max-w-xs border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden cursor-pointer hover:border-zinc-400 transition group"
+                        title="Click to view full size"
+                      >
                         <img
                           src={previewOrder.fee_evidence_path}
                           alt="Courier Receipt"
-                          className="w-full h-auto object-cover max-h-48"
+                          className="w-full h-auto object-cover max-h-48 group-hover:opacity-90 transition"
                         />
                       </div>
                     </div>

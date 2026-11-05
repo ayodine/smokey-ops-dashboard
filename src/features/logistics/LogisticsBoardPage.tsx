@@ -29,8 +29,10 @@ import {
   X,
   Image as ImageIcon,
   FileText,
-  Eye
+  Eye,
+  ExternalLink
 } from 'lucide-react'
+import { openImageSafe } from '@/lib/imageUtils'
 
 export const LogisticsBoardPage: React.FC = () => {
   const {
@@ -706,12 +708,27 @@ export const LogisticsBoardPage: React.FC = () => {
                 )}
                 {selectedDetailsDelivery.fee_evidence_path && (
                   <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1.5">
-                    <span className="text-zinc-500 dark:text-zinc-400 text-xs block">Attached Waybill / Fare Receipt</span>
-                    <div className="max-w-xs rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+                    <div className="flex items-center justify-between">
+                      <span className="text-zinc-500 dark:text-zinc-400 text-xs block font-medium">Attached Waybill / Fare Receipt</span>
+                      <button
+                        type="button"
+                        onClick={() => openImageSafe(selectedDetailsDelivery.fee_evidence_path!, `Waybill-${selectedDetailsDelivery.order_ref}`)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                        title="View image full size in new tab"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>View Full Size</span>
+                      </button>
+                    </div>
+                    <div 
+                      onClick={() => openImageSafe(selectedDetailsDelivery.fee_evidence_path!, `Waybill-${selectedDetailsDelivery.order_ref}`)}
+                      className="max-w-xs rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-50 dark:bg-zinc-950 cursor-pointer hover:border-zinc-400 transition group relative"
+                      title="Click to view full size"
+                    >
                       <img
                         src={selectedDetailsDelivery.fee_evidence_path}
                         alt="Waybill Fare Proof"
-                        className="w-full h-auto max-h-48 object-contain"
+                        className="w-full h-auto max-h-48 object-contain transition group-hover:opacity-90"
                       />
                     </div>
                   </div>
