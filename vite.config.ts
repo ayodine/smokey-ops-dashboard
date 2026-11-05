@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => {
 
   const ensureCacheWarm = async (force = false) => {
     const isCold = serverCache.liveOrders === null || serverCache.products === null
-    const isStale = Date.now() - serverCache.lastUpdated > 10000
+    const isStale = Date.now() - serverCache.lastUpdated > 2000
     if (force || isCold) {
       if (!serverCache.warmingPromise || force) {
         serverCache.warmingPromise = refreshServerCache()
@@ -135,7 +135,11 @@ export default defineConfig(({ mode }) => {
                 const forceRefresh = urlObj.searchParams.get('refresh') === '1'
 
                 if (!query) {
-                  await ensureCacheWarm(forceRefresh)
+                  if (forceRefresh || !serverCache.liveOrders) {
+                    await refreshServerCache()
+                  } else {
+                    await ensureCacheWarm()
+                  }
                   if (serverCache.liveOrders) {
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')

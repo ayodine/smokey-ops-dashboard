@@ -2229,6 +2229,34 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // state before remote staff accounts have been hydrated on mount.
   const accountsHydratedRef = useRef(false)
   const knownOrderRefsRef = useRef<Set<string>>(new Set())
+  const notifiedOrderRefsRef = useRef<Set<string>>(new Set())
+
+  // Feedback: Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const lastToastMsgRef = useRef<string>('')
+  const lastToastTimeRef = useRef<number>(0)
+
+  const showToast = React.useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
+    const now = Date.now()
+    if (message === lastToastMsgRef.current && now - lastToastTimeRef.current < 3000) {
+      return
+    }
+    lastToastMsgRef.current = message
+    lastToastTimeRef.current = now
+
+    const id = `toast-${now}-${Math.random().toString(36).substring(2, 6)}`
+    setToasts(prev => {
+      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev
+      return [...trimmed, { id, message, type, title }]
+    })
+
+    playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
+  }, [])
+
+  const dismissToast = React.useCallback((id: string) => {
+    stopOrderRingtone()
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
     try {
@@ -2625,6 +2653,177 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => { persistAppSetting('rider_tasks', riderTasks) }, [riderTasks])
   useEffect(() => { persistAppSetting('store_pickups', storePickups) }, [storePickups])
 
+  const handleIncomingNewOrder = React.useCallback((orderData: any) => {
+    if (!orderData) return
+    const ref = String(orderData.order_ref || orderData.id || '')
+    if (!ref) return
+
+    // Deduplicate ringtone chime per order
+    if (!notifiedOrderRefsRef.current.has(ref)) {
+      notifiedOrderRefsRef.current.add(ref)
+      if (notifiedOrderRefsRef.current.size > 200) {
+        const list = Array.from(notifiedOrderRefsRef.current)
+        notifiedOrderRefsRef.current = new Set(list.slice(-100))
+      }
+
+      // Play 5-second rhythmic ringtone loudly
+      playAlertChime('order')
+
+      const custName = orderData.customer_name || 'Website Customer'
+      const orderTotal = formatNaira(orderData.total || orderData.total_amount || 0)
+
+      showToast(
+        `New Customer Order #${ref} (${orderTotal}) received from ${custName}!`,
+        'success',
+        'New Online Order'
+      )
+
+      sendDesktopNotification(`New Order #${ref}`, {
+        body: `${custName} placed an order of ${orderTotal}`,
+      })
+    }
+
+    knownOrderRefsRef.current.add(ref)
+
+    // Immediate optimistic injection into websiteOrders if not present
+    setWebsiteOrders(prev => {
+      if (prev.some(o => o.order_ref === ref || String(o.id) === String(orderData.id))) {
+        return prev
+      }
+      const numericId = parseInt(ref.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 90000 + 10000)
+      const optimisticOrder: WebsiteOrder = {
+        id: numericId,
+        order_ref: ref,
+        customer_name: orderData.customer_name || 'Website Customer',
+        phone: orderData.customer_phone || orderData.phone || 'N/A',
+        address: orderData.delivery_address || orderData.address || 'Storefront Delivery',
+        items_summary: orderData.items_summary || (Array.isArray(orderData.order_items) ? orderData.order_items.map((i: any) => `${i.qty}x ${i.name}`).join('; ') : 'Assorted Smokey Delicacies'),
+        raw_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
+        total_amount: Number(orderData.total || orderData.total_amount) || 0,
+        delivery_fee: Number(orderData.delivery_fee) || 0,
+        payment_status: orderData.status === 'processing' ? 'paid' : (orderData.payment_status || 'paid'),
+        payment_method: orderData.payment_method || 'bank_transfer',
+        fulfillment_status: 'in_intake',
+        created_at: orderData.created_at || new Date().toISOString(),
+        scheduled_delivery_at: orderData.scheduled_delivery_date || '',
+        rider_name: '',
+        notes: orderData.notes || '',
+        channel: orderData.channel || 'website'
+      }
+      return [optimisticOrder, ...prev]
+    })
+
+    // Prepend to packagingQueue if not scheduled for future date
+    if (!orderData.scheduled_delivery_date) {
+      setPackagingQueue(prev => {
+        if (prev.some(p => p.order_ref === ref || String(p.id) === String(orderData.id))) {
+          return prev
+        }
+        const numericId = parseInt(ref.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 90000 + 10000)
+        const optimisticPkg: PackagingQueueOrder = {
+          id: numericId,
+          order_ref: ref,
+          customer_name: orderData.customer_name || 'Website Customer',
+          phone: orderData.customer_phone || orderData.phone || 'N/A',
+          address: orderData.delivery_address || orderData.address || 'Storefront Delivery',
+          items_summary: orderData.items_summary || (Array.isArray(orderData.order_items) ? orderData.order_items.map((i: any) => `${i.qty}x ${i.name}`).join('; ') : 'Assorted Smokey Delicacies'),
+          items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
+          total_amount: Number(orderData.total || orderData.total_amount) || 0,
+          delivery_fee: Number(orderData.delivery_fee) || 0,
+          delivery_mode: 'instant',
+          payment_status: 'paid',
+          order_status: 'ready_for_fulfillment',
+          created_at: orderData.created_at || new Date().toISOString().replace('T', ' ').substring(0, 19),
+          packaged_at: null,
+          packaged_by_name: null,
+          packaging_materials_picked: []
+        }
+        return [optimisticPkg, ...prev]
+      })
+    }
+
+    refreshWebsiteOrders(false)
+  }, [refreshWebsiteOrders, showToast])
+
+  const handleOrderLifecycleChange = React.useCallback((updated: any) => {
+    if (!updated) return
+    const ref = String(updated.order_ref || updated.id || '')
+    if (!ref) return
+
+    // 1. Update in-memory websiteOrders
+    setWebsiteOrders(prev => prev.map(o => {
+      if (o.order_ref === ref || String(o.id) === String(updated.id)) {
+        const normDeliv = String(updated.delivery_status || '').toLowerCase()
+        const normStatus = String(updated.status || '').toLowerCase()
+        let fulfillStatus: WebsiteOrder['fulfillment_status'] = o.fulfillment_status
+        if (normDeliv.includes('transit')) fulfillStatus = 'in_transit'
+        else if (normDeliv.includes('deliver') || normStatus === 'delivered') fulfillStatus = 'delivered'
+        else if (normDeliv.includes('packaged') || normDeliv.includes('ready')) fulfillStatus = 'ready_for_dispatch'
+        else if (normStatus === 'processing' || normDeliv.includes('packaging')) fulfillStatus = 'packaging'
+
+        let payStatus: WebsiteOrder['payment_status'] = o.payment_status
+        if (normStatus === 'processing' || normStatus === 'completed' || normStatus === 'delivered') payStatus = 'paid'
+
+        return {
+          ...o,
+          payment_status: payStatus,
+          fulfillment_status: fulfillStatus,
+          scheduled_delivery_at: updated.scheduled_delivery_date || o.scheduled_delivery_at,
+          notes: updated.notes !== undefined ? updated.notes : o.notes,
+          rider_name: updated.assigned_rider || o.rider_name
+        }
+      }
+      return o
+    }))
+
+    // 2. Update packagingQueue
+    setPackagingQueue(prev => prev.map(p => {
+      if (p.order_ref === ref || String(p.id) === String(updated.id)) {
+        const normDeliv = String(updated.delivery_status || '').toLowerCase()
+        const isPackaged = normDeliv === 'ready_for_dispatch' || normDeliv === 'packaged' || updated.status === 'delivered'
+        return {
+          ...p,
+          order_status: isPackaged ? 'packaged' : (updated.order_status || p.order_status),
+          packaged_by_name: updated.packaged_by_name || p.packaged_by_name,
+          packaged_at: updated.packaged_at || p.packaged_at
+        }
+      }
+      return p
+    }))
+
+    // 3. Update logisticsDeliveries
+    setLogisticsDeliveries(prev => prev.map(d => {
+      if (d.order_ref === ref) {
+        const normDeliv = String(updated.delivery_status || '').toLowerCase()
+        let delivStatus: LogisticsDelivery['status'] = d.status
+        if (normDeliv.includes('transit')) delivStatus = 'in_transit'
+        else if (normDeliv.includes('deliver') || updated.status === 'delivered') delivStatus = 'delivered'
+        else if (normDeliv.includes('assigned')) delivStatus = 'assigned'
+        return {
+          ...d,
+          status: delivStatus,
+          assigned_rider: updated.assigned_rider || d.assigned_rider
+        }
+      }
+      return d
+    }))
+
+    // 4. Update storePickups
+    setStorePickups(prev => prev.map(p => {
+      if (p.order_ref === ref) {
+        const isDelivered = updated.status === 'delivered' || updated.delivery_status === 'collected'
+        return {
+          ...p,
+          order_status: isDelivered ? 'collected' : p.order_status
+        }
+      }
+      return p
+    }))
+
+    // 5. Reconcile with latest database records in background
+    refreshWebsiteOrders(false)
+  }, [refreshWebsiteOrders])
+
   // Synchronize live data from Supabase backend on mount
   React.useEffect(() => {
     fetch('/api/app-settings?keys=order_pipeline_state')
@@ -2790,6 +2989,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshLiveSalesProducts(false)
     refreshWebsiteOrders(false)
 
+    // 1. PostgreSQL Logical Replication Realtime Channel
     const ordersChannel = supabase
       .channel('ops_context_orders_realtime')
       .on(
@@ -2799,23 +2999,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (payload?.eventType === 'INSERT') {
             const newOrder = payload.new
             if (newOrder && newOrder.status !== 'pending_payment') {
-              playAlertChime('order')
-              const ref = newOrder.order_ref || `#${newOrder.id}`
-              showToast(
-                `New Customer Order ${ref} received from ${newOrder.customer_name || 'Website'}!`,
-                'success',
-                'New Online Order'
-              )
-              sendDesktopNotification(`New Order ${ref}`, {
-                body: `${newOrder.customer_name || 'Customer'} placed an order of ${formatNaira(newOrder.total || newOrder.total_amount || 0)}`,
-              })
+              handleIncomingNewOrder(newOrder)
             }
+          } else if (payload?.eventType === 'UPDATE') {
+            const newOrder = payload.new
+            const oldOrder = payload.old
+            if (oldOrder?.status === 'pending_payment' && newOrder?.status !== 'pending_payment') {
+              handleIncomingNewOrder(newOrder)
+            } else {
+              handleOrderLifecycleChange(newOrder)
+            }
+          } else if (payload?.eventType === 'DELETE') {
+            refreshWebsiteOrders(false)
           }
-          refreshWebsiteOrders(false)
         }
       )
       .subscribe()
 
+    // 2. Products Realtime Channel
     const productsChannel = supabase
       .channel('ops_context_products_realtime')
       .on(
@@ -2827,18 +3028,36 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
       .subscribe()
 
-    // Live Operational Alerts & Notifications Broadcast Channel
+    // 3. App Settings Realtime Channel (Order Pipeline & Store Pickup State)
+    const settingsChannel = supabase
+      .channel('ops_context_settings_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_settings' },
+        (payload: any) => {
+          const setting = payload.new
+          if (setting?.key === 'order_pipeline_state') {
+            refreshWebsiteOrders(false)
+          } else if (setting?.key === 'store_pickups' && Array.isArray(setting.value)) {
+            setStorePickups(setting.value)
+          }
+        }
+      )
+      .subscribe()
+
+    // 4. Live Operational Alerts & Lifecycle Broadcast Channel
     const alertsBroadcastChannel = supabase
       .channel('ops_context_system_broadcast', { config: { broadcast: { self: true } } })
       .on('broadcast', { event: 'new_order_alert' }, (payload: any) => {
         const orderData = payload.payload
         if (orderData?.id) {
-          playAlertChime('order')
-          showToast(`New Customer Order #${orderData.id} received from ${orderData.customer_name || 'Website'}!`, 'success', 'New Online Order')
-          sendDesktopNotification(`New Order #${orderData.id}`, {
-            body: `${orderData.customer_name || 'Customer'} placed an order of ${formatNaira(orderData.total || 0)}`,
-          })
-          refreshWebsiteOrders(false)
+          handleIncomingNewOrder(orderData)
+        }
+      })
+      .on('broadcast', { event: 'order_lifecycle_updated' }, (payload: any) => {
+        const orderData = payload.payload
+        if (orderData?.id) {
+          handleOrderLifecycleChange(orderData)
         }
       })
       .on('broadcast', { event: 'low_stock_alert' }, (payload: any) => {
@@ -2856,9 +3075,18 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => {
       supabase.removeChannel(ordersChannel)
       supabase.removeChannel(productsChannel)
+      supabase.removeChannel(settingsChannel)
       supabase.removeChannel(alertsBroadcastChannel)
     }
-  }, [refreshLiveSalesProducts, refreshWebsiteOrders])
+  }, [refreshLiveSalesProducts, refreshWebsiteOrders, handleIncomingNewOrder, handleOrderLifecycleChange])
+
+  // Continuous background sync poller (runs every 12 seconds to ensure fresh state across all tabs)
+  useEffect(() => {
+    const poller = setInterval(() => {
+      refreshWebsiteOrders(false)
+    }, 12000)
+    return () => clearInterval(poller)
+  }, [refreshWebsiteOrders])
 
   // Automated background scheduler: checks scheduledOrders every 10 seconds.
   // If an order's scheduled date/time has arrived, automatically sends it to packagingQueue without user action!
@@ -3622,8 +3850,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [currentAccount?.role]
   )
 
-  // Feedback: Toasts & Success Modal
-  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  // Success Modal
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean
     title: string
@@ -3636,34 +3863,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     title: '',
     message: '',
   })
-
-  const lastToastMsgRef = useRef<string>('')
-  const lastToastTimeRef = useRef<number>(0)
-
-  const showToast = React.useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
-    const now = Date.now()
-    // Deduplicate identical toasts within 3000ms
-    if (message === lastToastMsgRef.current && now - lastToastTimeRef.current < 3000) {
-      return
-    }
-    lastToastMsgRef.current = message
-    lastToastTimeRef.current = now
-
-    const id = `toast-${now}-${Math.random().toString(36).substring(2, 6)}`
-    setToasts(prev => {
-      // Keep at most 3 active toasts to prevent viewport clogging
-      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev
-      return [...trimmed, { id, message, type, title }]
-    })
-
-    // Play throttled alert sound for toasts
-    playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
-  }, [])
-
-  const dismissToast = React.useCallback((id: string) => {
-    stopOrderRingtone()
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
 
   const showSuccessModal = React.useCallback((data: {
     title: string
