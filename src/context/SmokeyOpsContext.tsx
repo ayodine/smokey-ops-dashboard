@@ -78,15 +78,17 @@ export interface LiveSalesProduct extends SalesProduct {
   category_name?: string
 }
 
-export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
+export const mapSupabaseProductToSalesProduct = (p: any, existingOpsProduct?: any): LiveSalesProduct => {
   if (p && p.product_type === 'sales' && typeof p.selling_price === 'number') {
     return p as LiveSalesProduct
   }
-  const stock = Number(p.stock ?? p.stock_qty ?? 0)
+  // Standalone Ops Stock: Never adopt storefront products.stock as ops stock.
+  // Use existing ops stock if available, or p.stock_qty if p is an internal ops product, defaulting to 0.
+  const stock = Number(existingOpsProduct?.stock_qty ?? p.stock_qty ?? 0)
   const price = Number(p.price ?? p.selling_price ?? 0)
-  const cost = Number(p.cost_price ?? p.unit_cost ?? Math.round(price * 0.45))
-  const reorder = Number(p.reorder_level ?? 10)
-  const allocated = Number(p.qty_allocated ?? 0)
+  const cost = Number(existingOpsProduct?.unit_cost ?? p.cost_price ?? p.unit_cost ?? Math.round(price * 0.45))
+  const reorder = Number(existingOpsProduct?.reorder_level ?? p.reorder_level ?? 10)
+  const allocated = Number(existingOpsProduct?.qty_allocated ?? p.qty_allocated ?? 0)
   const available = Math.max(0, stock - allocated)
 
   return {
@@ -112,15 +114,19 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   if (raw && raw.order_ref && raw.items_summary && raw.fulfillment_status && !Array.isArray(raw.order_items)) {
     return raw as WebsiteOrder
   }
-  const status = String(raw.delivery_status || raw.status || '').toLowerCase()
+  const delivStatus = String(raw.delivery_status || '').toLowerCase()
+  const pkgStatus = String(raw.packaging_status || '').toLowerCase()
+  const rawRider = String(raw.rider_name || '').trim()
+  const hasRider = Boolean(rawRider && rawRider !== 'Unassigned' && rawRider !== 'Pending Rider' && rawRider !== 'Dispatched Courier')
+
   let fulfillment_status: WebsiteOrder['fulfillment_status'] = 'in_intake'
-  if (status.includes('deliver')) {
+  if (Boolean(raw.delivered_at) || delivStatus.includes('deliver') || String(raw.status || '').toLowerCase() === 'delivered') {
     fulfillment_status = 'delivered'
-  } else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery') || status.includes('on_road')) {
+  } else if ((Boolean(raw.pickup_at) || delivStatus.includes('transit')) && hasRider) {
     fulfillment_status = 'in_transit'
-  } else if (status.includes('ready') || status.includes('packed') || status.includes('packaged')) {
+  } else if (pkgStatus === 'packaged' || delivStatus.includes('ready') || delivStatus.includes('packaged') || (delivStatus.includes('assigned') && hasRider)) {
     fulfillment_status = 'ready_for_dispatch'
-  } else if (status.includes('pack') || status.includes('process') || status.includes('prep') || status.includes('cook') || status.includes('paid')) {
+  } else if (pkgStatus === 'in_packaging' || String(raw.status || '').toLowerCase() === 'processing') {
     fulfillment_status = 'packaging'
   } else {
     fulfillment_status = 'in_intake'
@@ -169,7 +175,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     created_at: raw.created_at || raw.scheduled_delivery_date || new Date().toISOString(),
     scheduled_delivery_at: scheduledAt,
     paid_at: raw.paid_at || '',
-    rider_name: raw.rider_name || (raw.delivery_status ? 'Assigned Rider' : 'Pending Rider'),
+    rider_name: hasRider ? rawRider : 'Unassigned',
     notes: raw.notes || ''
   }
 }
@@ -1524,12 +1530,15 @@ const persistOrderUpdateToBackend = (orderRef: string, updates: Record<string, a
 
 const persistProductUpdateToBackend = (productId: number, updates: Record<string, any>) => {
   if (!productId) return
+  const safeUpdates = { ...updates }
+  delete safeUpdates.stock // Standalone ops inventory: Never mutate storefront products.stock
+  if (Object.keys(safeUpdates).length === 0) return
   fetch('/api/update-product', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: productId, updates }),
+    body: JSON.stringify({ id: productId, updates: safeUpdates }),
   }).catch(() => {})
-  Promise.resolve(supabase.from('products').update(updates).eq('id', productId)).catch(() => {})
+  Promise.resolve(supabase.from('products').update(safeUpdates).eq('id', productId)).catch(() => {})
 }
 
 const mapRawInventoryItems = (list: any[]): RawProduct[] => {
@@ -1648,22 +1657,23 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     const notes = override?.notes || o.notes || ''
 
     const normDelivStatus = String(o.delivery_status || '').toLowerCase().trim().replace(/\s+/g, '_')
-    const normOrderStatus = String(o.status || '').toLowerCase().trim().replace(/\s+/g, '_')
-    const normFulfillStatus = String(o.fulfillment_status || '').toLowerCase().trim().replace(/\s+/g, '_')
+    const rawRiderName = o.rider_name || override?.assigned_rider
+    const hasRider = Boolean(rawRiderName && rawRiderName !== 'Unassigned' && rawRiderName !== 'Dispatched Courier' && rawRiderName.trim() !== '')
 
+    // Standalone Ops Fulfillment: derived strictly from ops lifecycle fields & overrides.
+    // Ignored admin o.status so actions in Smokey-React/admin never force in_transit or skip packaging.
     const isDelivered =
       override?.delivery_status === 'delivered' ||
       normDelivStatus === 'delivered' ||
-      normOrderStatus === 'delivered' ||
-      normFulfillStatus === 'delivered'
+      Boolean(o.delivered_at)
+
     const isInTransit =
-      !isDelivered && (
+      !isDelivered && hasRider && (
         override?.delivery_status === 'in_transit' ||
-        override?.delivery_status === 'assigned' ||
         normDelivStatus === 'in_transit' ||
-        normDelivStatus === 'assigned' ||
-        normFulfillStatus === 'in_transit'
+        Boolean(o.pickup_at)
       )
+
     const isPackaged =
       isDelivered ||
       isInTransit ||
@@ -1777,9 +1787,7 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           override?.delivery_status === 'delivered' ||
           normDelivStatus === 'collected' ||
           normDelivStatus === 'delivered' ||
-          normOrderStatus === 'collected' ||
-          normOrderStatus === 'delivered' ||
-          normFulfillStatus === 'delivered'
+          Boolean(o.delivered_at)
         newStorePickups.push({
           id: numericId,
           order_ref: orderRef,
@@ -1799,18 +1807,14 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
       } else if (isDelivered || isInTransit || isPackaged) {
         let delivStatus: LogisticsDelivery['status'] = isDelivered
           ? 'delivered'
-          : (override?.delivery_status === 'in_transit' || normDelivStatus === 'in_transit' || normOrderStatus === 'shipped'
+          : (isInTransit
               ? 'in_transit'
-              : (override?.delivery_status === 'assigned' || normDelivStatus === 'assigned'
+              : (override?.delivery_status === 'assigned' || normDelivStatus === 'assigned' || hasRider
                   ? 'assigned'
                   : 'pending'))
 
         const resolvedRiderType = o.rider_type || override?.rider_type || 'internal'
-        const rawRiderName = o.rider_name || override?.assigned_rider
-        const riderName =
-          rawRiderName && rawRiderName !== 'Dispatched Courier' && rawRiderName !== 'Unassigned'
-            ? rawRiderName
-            : 'Unassigned'
+        const riderName = hasRider ? rawRiderName! : 'Unassigned'
 
         const resolvedRiderId =
           o.rider_id !== undefined && o.rider_id !== null
@@ -1913,7 +1917,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [liveSalesProducts, setLiveSalesProducts] = useState<LiveSalesProduct[]>(() => {
     const boot = getLiveBootstrap()
     if (boot?.products && Array.isArray(boot.products) && boot.products.length > 0) {
-      return boot.products.map(mapSupabaseProductToSalesProduct)
+      return boot.products.map(p => mapSupabaseProductToSalesProduct(p))
     }
     const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
     if (cached && cached.length > 0) return cached
@@ -1987,8 +1991,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   )
 
   const [salesProducts, setSalesProducts] = useState<SalesProduct[]>(() => {
-    const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
-    return cached && cached.length > 0 ? cached : SEED_SALES_PRODUCTS
+    const cached = readLocalCache<SalesProduct[]>('smokey_live_cache_v3_inventory_sales')
+    if (cached && cached.length > 0) return cached
+    const oldCached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
+    return oldCached && oldCached.length > 0 ? oldCached : SEED_SALES_PRODUCTS
   })
 
   // Keep salesProducts unified with liveSalesProducts whenever liveSalesProducts updates
@@ -2310,32 +2316,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshLiveSalesProducts = React.useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsSalesProductsRefreshing(true)
     try {
+      let catalogRows: any[] = []
       try {
         const url = showIndicator ? '/api/products?refresh=1' : '/api/products'
         const res = await fetch(url)
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           const json = await res.json()
           if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-            const mapped = json.data.map(mapSupabaseProductToSalesProduct)
-            setLiveSalesProducts(mapped)
-            writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
-            return
+            catalogRows = json.data
           }
         }
       } catch {
         // Fallback to direct Supabase query when /api/products is unavailable
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .is('deleted_at', null)
-        .order('name', { ascending: true })
+      if (catalogRows.length === 0) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .is('deleted_at', null)
+          .order('name', { ascending: true })
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const mapped = data.map(mapSupabaseProductToSalesProduct)
-        setLiveSalesProducts(mapped)
-        writeLocalCache('smokey_live_cache_v3_sales_products', mapped)
+        if (!error && Array.isArray(data) && data.length > 0) {
+          catalogRows = data
+        }
+      }
+
+      if (catalogRows.length > 0) {
+        setSalesProducts(prev => {
+          const prevMap = new Map(prev.map(p => [p.id, p]))
+          const mapped = catalogRows.map(rawProd => {
+            const existing = prevMap.get(rawProd.id)
+            return mapSupabaseProductToSalesProduct(rawProd, existing)
+          })
+          setLiveSalesProducts(mapped)
+          writeLocalCache('smokey_live_cache_v3_inventory_sales', mapped)
+          return mapped
+        })
       }
     } catch (err) {
       console.warn('Error fetching Supabase products:', err)
@@ -2636,6 +2653,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Persist operational ledger arrays and core inventories whenever mutated
   useEffect(() => {
+    writeLocalCache('smokey_live_cache_v3_inventory_sales', salesProducts)
+    persistAppSetting('inventory_sales', salesProducts)
+  }, [salesProducts])
+  useEffect(() => {
     writeLocalCache('smokey_live_cache_v3_raw_products', rawProducts)
     persistAppSetting('inventory_raw', rawProducts)
   }, [rawProducts])
@@ -2770,19 +2791,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const ref = String(updated.order_ref || updated.id || '')
     if (!ref) return
 
+    const rawRider = updated.assigned_rider || updated.rider_name
+    const hasRider = Boolean(rawRider && rawRider !== 'Unassigned' && rawRider !== 'Dispatched Courier' && rawRider.trim() !== '')
+    const riderName = hasRider ? rawRider : 'Unassigned'
+    const riderType = updated.rider_type || 'internal'
+
+    const normDeliv = String(updated.delivery_status || '').toLowerCase()
+    const normPkg = String(updated.packaging_status || '').toLowerCase()
+    const normStatus = String(updated.status || '').toLowerCase()
+
     // 1. Update in-memory websiteOrders
     setWebsiteOrders(prev => prev.map(o => {
       if (o.order_ref === ref || String(o.id) === String(updated.id)) {
-        const normDeliv = String(updated.delivery_status || '').toLowerCase()
-        const normStatus = String(updated.status || '').toLowerCase()
         let fulfillStatus: WebsiteOrder['fulfillment_status'] = o.fulfillment_status
-        if (normDeliv.includes('transit')) fulfillStatus = 'in_transit'
-        else if (normDeliv.includes('deliver') || normStatus === 'delivered') fulfillStatus = 'delivered'
-        else if (normDeliv.includes('packaged') || normDeliv.includes('ready')) fulfillStatus = 'ready_for_dispatch'
-        else if (normStatus === 'processing' || normDeliv.includes('packaging')) fulfillStatus = 'packaging'
+        if (Boolean(updated.delivered_at) || normDeliv.includes('deliver')) fulfillStatus = 'delivered'
+        else if ((Boolean(updated.pickup_at) || normDeliv.includes('transit')) && hasRider) fulfillStatus = 'in_transit'
+        else if (normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || (normDeliv.includes('assigned') && hasRider)) fulfillStatus = 'ready_for_dispatch'
+        else if (normPkg === 'in_packaging') fulfillStatus = 'packaging'
 
         let payStatus: WebsiteOrder['payment_status'] = o.payment_status
-        if (normStatus === 'processing' || normStatus === 'completed' || normStatus === 'delivered') payStatus = 'paid'
+        if (normStatus === 'cancelled') payStatus = 'refunded'
+        else if (normStatus === 'processing' || normStatus === 'completed' || normStatus === 'delivered' || normStatus === 'paid') payStatus = 'paid'
 
         return {
           ...o,
@@ -2790,7 +2819,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           fulfillment_status: fulfillStatus,
           scheduled_delivery_at: updated.scheduled_delivery_date || o.scheduled_delivery_at,
           notes: updated.notes !== undefined ? updated.notes : o.notes,
-          rider_name: updated.assigned_rider || o.rider_name
+          rider_name: hasRider ? riderName : o.rider_name
         }
       }
       return o
@@ -2799,12 +2828,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 2. Update packagingQueue
     setPackagingQueue(prev => prev.map(p => {
       if (p.order_ref === ref || String(p.id) === String(updated.id)) {
-        const normDeliv = String(updated.delivery_status || '').toLowerCase()
-        const isPackaged = normDeliv === 'ready_for_dispatch' || normDeliv === 'packaged' || updated.status === 'delivered'
+        const isPackaged = normPkg === 'packaged' || normDeliv === 'ready_for_dispatch' || normDeliv === 'packaged' || Boolean(updated.delivered_at) || (Boolean(updated.pickup_at) && hasRider)
         return {
           ...p,
-          order_status: isPackaged ? 'packaged' : (updated.order_status || p.order_status),
-          packaged_by_name: updated.packaged_by_name || p.packaged_by_name,
+          order_status: isPackaged ? 'packaged' : (updated.order_status || (normPkg === 'in_packaging' ? 'in_packaging' : p.order_status)),
+          packaged_by_name: updated.packaged_by_name || updated.packaged_by || p.packaged_by_name,
           packaged_at: updated.packaged_at || p.packaged_at
         }
       }
@@ -2814,17 +2842,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 3. Update logisticsDeliveries (with dynamic ingestion if newly dispatched)
     setLogisticsDeliveries(prev => {
       const exists = prev.some(d => d.order_ref === ref)
-      const normDeliv = String(updated.delivery_status || '').toLowerCase()
-      const normStatus = String(updated.status || '').toLowerCase()
-      const isDelivered = normDeliv.includes('deliver') || normStatus === 'delivered'
+      const isDelivered = normDeliv.includes('deliver') || Boolean(updated.delivered_at)
       let delivStatus: LogisticsDelivery['status'] = 'pending'
-      if (normDeliv.includes('transit')) delivStatus = 'in_transit'
+      if (normDeliv.includes('transit') && hasRider) delivStatus = 'in_transit'
       else if (isDelivered) delivStatus = 'delivered'
-      else if (normDeliv.includes('assigned')) delivStatus = 'assigned'
-
-      const rawRider = updated.assigned_rider || updated.rider_name
-      const riderName = rawRider && rawRider !== 'Unassigned' && rawRider !== 'Dispatched Courier' ? rawRider : 'Unassigned'
-      const riderType = updated.rider_type || 'internal'
+      else if (normDeliv.includes('assigned') && hasRider) delivStatus = 'assigned'
 
       // Apply safety invariant: cannot be in_transit or assigned without a designated rider
       if (delivStatus !== 'delivered' && (!riderName || riderName === 'Unassigned')) {
@@ -2854,7 +2876,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       // If NOT yet in logisticsDeliveries, but ready for dispatch, dynamically construct and prepend!
       const isDispatchReady =
+        normPkg === 'packaged' ||
         normDeliv.includes('ready') ||
+        normDeliv.includes('packaged') ||
+        (normDeliv.includes('assigned') && hasRider) ||
+        (normDeliv.includes('transit') && hasRider) ||
+        isDelivered
         normDeliv.includes('packaged') ||
         normDeliv.includes('assigned') ||
         normDeliv.includes('transit') ||
@@ -2977,6 +3004,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       })
       .catch(err => console.error('Error fetching live packaging inventory:', err))
+
+    fetch('/api/sales-inventory')
+      .then(res => res.json())
+      .then(json => {
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          setSalesProducts(json.data)
+          writeLocalCache('smokey_live_cache_v3_inventory_sales', json.data)
+        }
+      })
+      .catch(() => {
+        Promise.resolve(
+          supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'inventory_sales')
+            .single()
+        )
+          .then(({ data }) => {
+            if (data?.value && Array.isArray(data.value) && data.value.length > 0) {
+              setSalesProducts(data.value)
+              writeLocalCache('smokey_live_cache_v3_inventory_sales', data.value)
+            }
+          })
+          .catch(() => {})
+      })
 
     fetch('/api/suppliers')
       .then(res => res.json())
@@ -5593,7 +5645,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setSalesProducts(prev => prev.map(updateProd))
     setLiveSalesProducts(prev => prev.map(updateProd))
-    persistProductUpdateToBackend(productId, { stock: newQty })
+    // Standalone ops sales inventory: persisted via useEffect to inventory_sales in app_settings without mutating products.stock
 
     const newMovement: SalesMovement = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -5713,9 +5765,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setSalesProducts(prev => prev.map(updateSource).map(updateDest))
     setLiveSalesProducts(prev => prev.map(updateSource).map(updateDest))
-
-    persistProductUpdateToBackend(sourceProductId, { stock: newSourceStock })
-    persistProductUpdateToBackend(destProductId, { stock: newDestStock })
+    // Standalone ops sales inventory: persisted via useEffect to inventory_sales in app_settings without mutating products.stock
 
     const repRef = `REP-${String(stockConversions.length + 1).padStart(5, '0')}`
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)

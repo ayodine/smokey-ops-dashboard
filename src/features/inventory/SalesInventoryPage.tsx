@@ -301,17 +301,7 @@ export const SalesInventoryPage: React.FC = () => {
     if (!selectedProduct) return
     const nextStock = Math.max(0, selectedProduct.stock_qty + Number(adjustDelta))
 
-    // 1. Live update to Supabase backend
-    try {
-      await supabase
-        .from('products')
-        .update({ stock: nextStock })
-        .eq('id', selectedProduct.id)
-    } catch (err) {
-      console.warn('Direct Supabase stock update note:', err)
-    }
-
-    // 2. Optimistic local update
+    // 1. Optimistic local update
     setLiveProducts(prev =>
       prev.map(p =>
         p.id === selectedProduct.id
@@ -325,6 +315,7 @@ export const SalesInventoryPage: React.FC = () => {
       )
     )
 
+    // 2. Standalone ops sales stock ledger update (persisted via ops context)
     adjustSalesStock(selectedProduct.id, Number(adjustDelta), adjustNotes)
     setIsAdjustModalOpen(false)
   }
@@ -391,7 +382,6 @@ export const SalesInventoryPage: React.FC = () => {
               name: productForm.name,
               price: price,
               cost_price: cost,
-              stock: stock,
               image: productForm.image ? productForm.image.trim() : null,
               category_id: productForm.category_id,
               short_desc: productForm.short_desc || null,
@@ -406,7 +396,6 @@ export const SalesInventoryPage: React.FC = () => {
             name: productForm.name,
             price: price,
             cost_price: cost,
-            stock: stock,
             image: productForm.image ? productForm.image.trim() : null,
             category_id: productForm.category_id,
             short_desc: productForm.short_desc || null,
@@ -420,7 +409,6 @@ export const SalesInventoryPage: React.FC = () => {
             name: productForm.name,
             price: price,
             cost_price: cost,
-            stock: stock,
             image: productForm.image ? productForm.image.trim() : null,
             category_id: productForm.category_id,
             short_desc: productForm.short_desc || null,

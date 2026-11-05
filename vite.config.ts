@@ -224,6 +224,33 @@ export default defineConfig(({ mode }) => {
               return
             }
 
+            if (req.url?.startsWith('/api/sales-inventory')) {
+              try {
+                await ensureCacheWarm()
+                const { data, error } = await sb
+                  .from('app_settings')
+                  .select('value')
+                  .eq('key', 'inventory_sales')
+                  .single()
+
+                if (error && error.code !== 'PGRST116') {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: error.message }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ data: data?.value || [] }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Server error' }))
+              }
+              return
+            }
+
             if (req.url?.startsWith('/api/raw-inventory')) {
               try {
                 await ensureCacheWarm()
@@ -538,10 +565,12 @@ export default defineConfig(({ mode }) => {
                 try {
                   const parsed = JSON.parse(body)
                   const { id, updates, insert } = parsed
+                  const safeUpdates = updates ? { ...updates } : {}
+                  delete safeUpdates.stock // Never mutate storefront stock units from ops dashboard
                   if (insert && updates) {
                     const { data, error } = await sb
                       .from('products')
-                      .insert(updates)
+                      .insert(safeUpdates)
                       .select()
                     if (error) {
                       res.statusCode = 500
@@ -563,7 +592,7 @@ export default defineConfig(({ mode }) => {
                   }
                   const { data, error } = await sb
                     .from('products')
-                    .update(updates)
+                    .update(safeUpdates)
                     .eq('id', Number(id))
                     .select()
                   if (error) {
