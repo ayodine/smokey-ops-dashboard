@@ -113,9 +113,8 @@ export const PackagingExecutionPage: React.FC = () => {
   const handleConfirmStart = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedOrder) return
-    startPackagingOrder(selectedOrder.id, [])
+    startPackagingOrder(selectedOrder.id, [], true)
     setIsStartModalOpen(false)
-    setActiveTab('in_packaging')
   }
 
   const handleConfirmManualOrder = (e: React.FormEvent) => {
@@ -208,30 +207,44 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 170,
-      accessor: (o) => (
-        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-          {hasPermission('perm_packout') ? (
-            <Tooltip content="Allocate containers and start packaging this order">
+      defaultWidth: 260,
+      accessor: (o) => {
+        const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
+        return (
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+            {hasPermission('perm_packout') ? (
+              <>
+                <Tooltip content={isPickup ? "Pack and transfer directly to Pickup Counter" : "Pack and transfer directly to Dispatch Board"}>
+                  <TableActionButton
+                    variant="primary"
+                    onClick={() => startPackagingOrder(o.id, [], true)}
+                    leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+                  >
+                    {isPickup ? 'Pack to Pickup' : 'Pack & Dispatch'}
+                  </TableActionButton>
+                </Tooltip>
+                <Tooltip content="Review order details & start packaging workflow">
+                  <TableActionButton
+                    variant="outline"
+                    onClick={() => handleOpenStartModal(o)}
+                    leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
+                  >
+                    Start Packing
+                  </TableActionButton>
+                </Tooltip>
+              </>
+            ) : (
               <TableActionButton
-                variant="primary"
-                onClick={() => handleOpenStartModal(o)}
-                leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
+                variant="outline"
+                onClick={() => handleOpenDetails(o)}
+                leftIcon={<Eye className="w-3.5 h-3.5" />}
               >
-                Start Packaging
+                Details
               </TableActionButton>
-            </Tooltip>
-          ) : (
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(o)}
-              leftIcon={<Eye className="w-3.5 h-3.5" />}
-            >
-              Details
-            </TableActionButton>
-          )}
-        </div>
-      ),
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -538,13 +551,28 @@ export const PackagingExecutionPage: React.FC = () => {
         description="Verify the customer destination and ordered meal items before beginning kitchen pack-out."
         maxWidth="md"
         footer={
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-between w-full gap-2">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
               Close
             </Button>
-            <Button variant="primary" size="md" type="submit" form="start-packaging-form">
-              Confirm &amp; Start Packaging
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                onClick={() => {
+                  if (!selectedOrder) return
+                  startPackagingOrder(selectedOrder.id, [], false)
+                  setIsStartModalOpen(false)
+                  setActiveTab('in_packaging')
+                }}
+              >
+                Move to Packing Now
+              </Button>
+              <Button variant="primary" size="md" type="submit" form="start-packaging-form">
+                Pack &amp; Send to Dispatch
+              </Button>
+            </div>
           </div>
         }
       >
@@ -571,7 +599,7 @@ export const PackagingExecutionPage: React.FC = () => {
           </div>
           
           <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-600 dark:text-zinc-400 font-sans">
-            Packaging containers and branded bags are drawn directly from active shift bench stock. Confirming will move this order to <strong>Packing Now</strong>.
+            Packaging supplies are deducted directly from shift bench stock. Choose <strong>Pack &amp; Send to Dispatch</strong> to advance immediately to the dispatch board, or <strong>Move to Packing Now</strong> if the order takes extended assembly time.
           </div>
         </form>
       </Dialog>

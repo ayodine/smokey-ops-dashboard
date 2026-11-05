@@ -338,7 +338,7 @@ interface SmokeyOpsContextType {
   ) => void
   cancelBatch: (batchId: number) => void
   addPackagingQueueOrder: (order: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => void
-  startPackagingOrder: (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => void
+  startPackagingOrder: (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>, autoDispatch?: boolean) => void
   confirmPackagingOrder: (orderId: number, staffName?: string) => void
   updateTaskStatus: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
   createKitchenTask: (task: Omit<KitchenTask, 'id' | 'task_ref'>) => void
@@ -1667,6 +1667,7 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     const isPackaged =
       isDelivered ||
       isInTransit ||
+      o.packaging_status === 'packaged' ||
       override?.order_status === 'packaged' ||
       normDelivStatus === 'ready_for_dispatch' ||
       normDelivStatus === 'packaged'
@@ -1740,7 +1741,7 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
       const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' =
         isPackaged
           ? 'packaged'
-          : (override?.order_status || 'ready_for_fulfillment')
+          : (o.packaging_status || override?.order_status || 'ready_for_fulfillment')
 
       newPackagingItems.push({
         id: numericId,
@@ -1756,8 +1757,8 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         items_summary: itemsList,
         items: typedItems,
         packaging_materials_picked: override?.packaging_materials_picked,
-        packaged_at: isPackaged ? (override?.packaged_at || createdAt) : null,
-        packaged_by_name: isPackaged ? (override?.packaged_by_name || o.packaged_by_name || 'Packaging Station') : undefined,
+        packaged_at: isPackaged ? (o.packaged_at || override?.packaged_at || createdAt) : null,
+        packaged_by_name: isPackaged ? (o.packaged_by || override?.packaged_by_name || o.packaged_by_name || 'Packaging Station') : undefined,
         created_at: createdAt
       })
 
@@ -1788,33 +1789,52 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           total_amount: totalAmount,
           payment_status: 'paid',
           order_status: isCollected ? 'collected' : 'ready_for_pickup',
-          packaged_at: override?.packaged_at || createdAt,
-          collected_at: isCollected ? (override?.delivered_at || override?.collected_at || createdAt) : null,
+          packaged_at: o.packaged_at || override?.packaged_at || createdAt,
+          collected_at: isCollected ? (o.delivered_at || override?.delivered_at || override?.collected_at || createdAt) : null,
           collected_by: override?.collected_by || (isCollected ? customerName : null),
           handover_staff: override?.handover_staff || null,
           collector_phone: override?.collector_phone || phone,
           items_summary: itemsList
         })
       } else if (isDelivered || isInTransit || isPackaged) {
-        const delivStatus: LogisticsDelivery['status'] = isDelivered
+        let delivStatus: LogisticsDelivery['status'] = isDelivered
           ? 'delivered'
-          : (override?.delivery_status === 'in_transit' || normDelivStatus === 'in_transit'
+          : (override?.delivery_status === 'in_transit' || normDelivStatus === 'in_transit' || normOrderStatus === 'shipped'
               ? 'in_transit'
               : (override?.delivery_status === 'assigned' || normDelivStatus === 'assigned'
                   ? 'assigned'
                   : 'pending'))
-        const resolvedRiderType = override?.rider_type || 'internal'
-        const rawRiderName = override?.assigned_rider || o.rider_name
+
+        const resolvedRiderType = o.rider_type || override?.rider_type || 'internal'
+        const rawRiderName = o.rider_name || override?.assigned_rider
         const riderName =
           rawRiderName && rawRiderName !== 'Dispatched Courier' && rawRiderName !== 'Unassigned'
             ? rawRiderName
             : 'Unassigned'
+
         const resolvedRiderId =
-          override?.assigned_rider_id !== undefined
-            ? Number(override.assigned_rider_id)
-            : (resolvedRiderType === 'internal' && riderName !== 'Unassigned'
-                ? SEED_RIDER_PAYOUTS.find(r => r.rider_name.toLowerCase() === riderName.toLowerCase())?.rider_user_id
-                : undefined)
+          o.rider_id !== undefined && o.rider_id !== null
+            ? Number(o.rider_id)
+            : (override?.assigned_rider_id !== undefined
+                ? Number(override.assigned_rider_id)
+                : (resolvedRiderType === 'internal' && riderName !== 'Unassigned'
+                    ? SEED_RIDER_PAYOUTS.find(r => r.rider_name.toLowerCase() === riderName.toLowerCase())?.rider_user_id
+                    : undefined))
+
+        // DEFENSIVE SAFETY INVARIANT:
+        // An order CANNOT be in_transit or assigned if it has no designated rider!
+        // Even if Smokey-React/admin set status = 'shipped', it MUST remain in 'pending' (Awaiting Driver Assignment)
+        if (delivStatus !== 'delivered' && (!riderName || riderName === 'Unassigned')) {
+          delivStatus = 'pending'
+        }
+
+        const bookedFee = o.booked_fee !== undefined && o.booked_fee !== null ? Number(o.booked_fee) : (override?.booked_fee ?? null)
+        const feeEvidencePath = o.fee_evidence_path || override?.fee_evidence_path || null
+        const feeVerifyStatus = o.fee_verify_status || override?.fee_verify_status || (resolvedRiderType === 'third_party' ? 'pending' : (isDelivered ? 'approved' : 'none'))
+        const thirdPartyProvider = resolvedRiderType === 'third_party' ? (o.third_party_provider || override?.third_party_provider || riderName) : null
+        const pickupAt = o.pickup_at || override?.pickup_at || (isDelivered || delivStatus === 'in_transit' ? createdAt : null)
+        const deliveredAt = o.delivered_at || override?.delivered_at || (isDelivered ? (o.updated_at || createdAt) : null)
+
         deliveredDeliveries.push({
           id: numericId,
           delivery_ref: `DEL-${numericId}`,
@@ -1825,17 +1845,17 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           address,
           total_amount: totalAmount,
           delivery_fee: deliveryFee || 3000,
-          booked_fee: override?.booked_fee ?? null,
+          booked_fee: bookedFee,
           rider_type: resolvedRiderType,
           assigned_rider: riderName,
           assigned_rider_id: resolvedRiderId,
-          third_party_provider: resolvedRiderType === 'third_party' ? (override?.third_party_provider || riderName) : null,
+          third_party_provider: thirdPartyProvider,
           status: delivStatus,
           dispatch_date: createdAt.split('T')[0],
-          pickup_at: override?.pickup_at || (isDelivered || delivStatus === 'in_transit' ? createdAt : null),
-          delivered_at: override?.delivered_at || (isDelivered ? (o.updated_at || createdAt) : null),
-          fee_evidence_path: override?.fee_evidence_path || null,
-          fee_verify_status: override?.fee_verify_status || (resolvedRiderType === 'third_party' ? 'pending' : (isDelivered ? 'approved' : 'none')),
+          pickup_at: pickupAt,
+          delivered_at: deliveredAt,
+          fee_evidence_path: feeEvidencePath,
+          fee_verify_status: feeVerifyStatus,
           items_summary: itemsList,
           notes: notes || undefined,
           decline_reason: override?.decline_reason
@@ -2791,22 +2811,87 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return p
     }))
 
-    // 3. Update logisticsDeliveries
-    setLogisticsDeliveries(prev => prev.map(d => {
-      if (d.order_ref === ref) {
-        const normDeliv = String(updated.delivery_status || '').toLowerCase()
-        let delivStatus: LogisticsDelivery['status'] = d.status
-        if (normDeliv.includes('transit')) delivStatus = 'in_transit'
-        else if (normDeliv.includes('deliver') || updated.status === 'delivered') delivStatus = 'delivered'
-        else if (normDeliv.includes('assigned')) delivStatus = 'assigned'
-        return {
-          ...d,
-          status: delivStatus,
-          assigned_rider: updated.assigned_rider || d.assigned_rider
-        }
+    // 3. Update logisticsDeliveries (with dynamic ingestion if newly dispatched)
+    setLogisticsDeliveries(prev => {
+      const exists = prev.some(d => d.order_ref === ref)
+      const normDeliv = String(updated.delivery_status || '').toLowerCase()
+      const normStatus = String(updated.status || '').toLowerCase()
+      const isDelivered = normDeliv.includes('deliver') || normStatus === 'delivered'
+      let delivStatus: LogisticsDelivery['status'] = 'pending'
+      if (normDeliv.includes('transit')) delivStatus = 'in_transit'
+      else if (isDelivered) delivStatus = 'delivered'
+      else if (normDeliv.includes('assigned')) delivStatus = 'assigned'
+
+      const rawRider = updated.assigned_rider || updated.rider_name
+      const riderName = rawRider && rawRider !== 'Unassigned' && rawRider !== 'Dispatched Courier' ? rawRider : 'Unassigned'
+      const riderType = updated.rider_type || 'internal'
+
+      // Apply safety invariant: cannot be in_transit or assigned without a designated rider
+      if (delivStatus !== 'delivered' && (!riderName || riderName === 'Unassigned')) {
+        delivStatus = 'pending'
       }
-      return d
-    }))
+
+      if (exists) {
+        return prev.map(d => {
+          if (d.order_ref === ref) {
+            return {
+              ...d,
+              status: delivStatus,
+              rider_type: riderType,
+              assigned_rider: riderName !== 'Unassigned' ? riderName : d.assigned_rider,
+              assigned_rider_id: updated.assigned_rider_id ?? d.assigned_rider_id,
+              third_party_provider: updated.third_party_provider ?? d.third_party_provider,
+              booked_fee: updated.booked_fee ?? d.booked_fee,
+              fee_evidence_path: updated.fee_evidence_path || d.fee_evidence_path,
+              fee_verify_status: updated.fee_verify_status || d.fee_verify_status,
+              pickup_at: updated.pickup_at || d.pickup_at,
+              delivered_at: updated.delivered_at || d.delivered_at
+            }
+          }
+          return d
+        })
+      }
+
+      // If NOT yet in logisticsDeliveries, but ready for dispatch, dynamically construct and prepend!
+      const isDispatchReady =
+        normDeliv.includes('ready') ||
+        normDeliv.includes('packaged') ||
+        normDeliv.includes('assigned') ||
+        normDeliv.includes('transit') ||
+        isDelivered
+
+      const isStorePickup = (updated.address || '').toLowerCase().includes('pickup') || (updated.delivery_zone || '').toLowerCase().includes('pickup')
+
+      if (isDispatchReady && !isStorePickup) {
+        const numericId = parseInt(ref.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 90000 + 10000)
+        const newDelivery: LogisticsDelivery = {
+          id: numericId,
+          delivery_ref: `DEL-${numericId}`,
+          order_id: numericId,
+          order_ref: ref,
+          customer_name: updated.customer_name || 'Customer',
+          phone: updated.customer_phone || updated.phone || 'N/A',
+          address: updated.delivery_address || updated.address || 'Lagos Delivery',
+          total_amount: Number(updated.total || updated.total_amount) || 0,
+          delivery_fee: Number(updated.delivery_fee) || 3000,
+          booked_fee: updated.booked_fee ?? null,
+          rider_type: riderType,
+          assigned_rider: riderName,
+          assigned_rider_id: updated.assigned_rider_id,
+          third_party_provider: updated.third_party_provider || null,
+          status: delivStatus,
+          dispatch_date: (updated.created_at || new Date().toISOString()).split('T')[0],
+          pickup_at: updated.pickup_at || null,
+          delivered_at: updated.delivered_at || null,
+          fee_evidence_path: updated.fee_evidence_path || null,
+          fee_verify_status: updated.fee_verify_status || (riderType === 'third_party' ? 'pending' : 'none'),
+          items_summary: updated.items_summary || 'Assorted Smokey Delicacies',
+          notes: updated.notes
+        }
+        return [newDelivery, ...prev]
+      }
+      return prev
+    })
 
     // 4. Update storePickups
     setStorePickups(prev => prev.map(p => {
@@ -2824,30 +2909,52 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshWebsiteOrders(false)
   }, [refreshWebsiteOrders])
 
-  // Synchronize live data from Supabase backend on mount
+  // Synchronize live data from Supabase backend on mount (with direct Supabase fallback)
   React.useEffect(() => {
-    fetch('/api/app-settings?keys=order_pipeline_state')
-      .then(res => res.json())
-      .then(json => {
-        const remoteRow = Array.isArray(json?.data) ? json.data.find((r: any) => r.key === 'order_pipeline_state') : null
-        const remoteState = remoteRow?.value && typeof remoteRow.value === 'object' && !Array.isArray(remoteRow.value) ? remoteRow.value : {}
-        const localState = readOrderPipelineState()
-        // Deep merge: localState first, remoteState overrides so authoritative remote settings win
-        const allKeys = Array.from(new Set([...Object.keys(localState), ...Object.keys(remoteState)]))
-        const merged: Record<string, OrderPipelineOverride> = {}
-        for (const k of allKeys) {
-          merged[k] = {
-            ...(localState[k] || {}),
-            ...(remoteState[k] || {})
+    const syncPipelineState = async () => {
+      let remoteState: Record<string, OrderPipelineOverride> = {}
+      try {
+        const res = await fetch('/api/app-settings?keys=order_pipeline_state')
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const json = await res.json()
+          const remoteRow = Array.isArray(json?.data) ? json.data.find((r: any) => r.key === 'order_pipeline_state') : null
+          if (remoteRow?.value && typeof remoteRow.value === 'object' && !Array.isArray(remoteRow.value)) {
+            remoteState = remoteRow.value
           }
         }
-        if (Object.keys(merged).length > 0) {
-          localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(merged))
-          persistAppSetting('order_pipeline_state', merged)
-          refreshWebsiteOrders(false)
+      } catch {
+        // Fallback
+      }
+
+      // Direct Supabase query fallback (essential on static hosting like Cloudflare Pages)
+      if (Object.keys(remoteState).length === 0) {
+        try {
+          const { data } = await supabase.from('app_settings').select('*').eq('key', 'order_pipeline_state').single()
+          if (data?.value && typeof data.value === 'object' && !Array.isArray(data.value)) {
+            remoteState = data.value
+          }
+        } catch {
+          // ignore
         }
-      })
-      .catch(() => {})
+      }
+
+      const localState = readOrderPipelineState()
+      const allKeys = Array.from(new Set([...Object.keys(localState), ...Object.keys(remoteState)]))
+      const merged: Record<string, OrderPipelineOverride> = {}
+      for (const k of allKeys) {
+        merged[k] = {
+          ...(localState[k] || {}),
+          ...(remoteState[k] || {})
+        }
+      }
+      if (Object.keys(merged).length > 0) {
+        localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(merged))
+        writeLocalCache('smokey_app_setting_order_pipeline_state', merged)
+        refreshWebsiteOrders(false)
+      }
+    }
+
+    syncPipelineState()
 
     fetch('/api/raw-inventory')
       .then(res => res.json())
@@ -6933,7 +7040,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Order ${orderRef} queued for packaging!`, 'success')
   }
 
-  const startPackagingOrder = (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>) => {
+  const startPackagingOrder = (
+    orderId: number,
+    materials: Array<{ packaging_name: string; quantity: number }>,
+    autoDispatch: boolean = false
+  ) => {
     const targetOrder = packagingQueue.find(o => o.id === orderId)
     const resolvedStaff = currentAccount?.name || "Kitchen Staff"
     const nowTimestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
@@ -6977,6 +7088,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     })
 
+    // If 1-click packout requested, immediately complete packaging & advance to dispatch!
+    if (autoDispatch && targetOrder) {
+      confirmPackagingOrder(orderId, resolvedStaff)
+      return
+    }
+
     // 2. Advance status to in_packaging
     setPackagingQueue(prev => prev.map(o => o.id === orderId ? {
       ...o,
@@ -6988,6 +7105,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       updateOrderPipelineState(targetOrder.order_ref, {
         order_status: "in_packaging",
         packaging_materials_picked: materials
+      })
+      persistOrderUpdateToBackend(targetOrder.order_ref, {
+        packaging_status: "in_packaging"
       })
     }
   }
@@ -7014,7 +7134,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       packaging_materials_picked: order.packaging_materials_picked,
       delivery_status: "pending"
     })
-    persistOrderUpdateToBackend(order.order_ref, { delivery_status: "Ready for Dispatch" })
+    persistOrderUpdateToBackend(order.order_ref, {
+      delivery_status: "Ready for Dispatch",
+      packaging_status: "packaged",
+      packaged_at: nowTimestamp,
+      packaged_by: resolvedStaff
+    })
     setWebsiteOrders(prev => prev.map(w => w.order_ref === order.order_ref ? {
       ...w,
       fulfillment_status: "ready_for_dispatch"
@@ -7145,7 +7270,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fee_verify_status: riderType === 'third_party' ? 'pending' : 'none'
       })
       persistOrderUpdateToBackend(targetDel.order_ref, {
-        delivery_status: "Assigned"
+        delivery_status: "Assigned",
+        rider_name: riderName,
+        rider_id: numericRiderId,
+        rider_type: riderType,
+        third_party_provider: riderType === 'third_party' ? riderName : null,
+        booked_fee: bookedFee || null,
+        fee_evidence_path: feeEvidencePath || targetDel.fee_evidence_path || null,
+        fee_verify_status: riderType === 'third_party' ? 'pending' : 'none'
       })
       setWebsiteOrders(prev => prev.map(w => w.order_ref === targetDel.order_ref ? {
         ...w,
@@ -7161,6 +7293,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const confirmRiderCollect = (deliveryId: number) => {
     const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    if (!delivery) return
+
+    // STRICT INVARIANT GUARD: Must have a designated driver or courier!
+    if (!delivery.assigned_rider || delivery.assigned_rider === 'Unassigned') {
+      showToast('Cannot dispatch order: You must assign an in-house driver or third-party courier first!', 'error', 'Driver Assignment Required')
+      return
+    }
+
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
     setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
       ...d,
@@ -7172,7 +7312,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         delivery_status: "in_transit",
         pickup_at: nowTime
       })
-      persistOrderUpdateToBackend(delivery.order_ref, { delivery_status: "In Transit" })
+      persistOrderUpdateToBackend(delivery.order_ref, {
+        delivery_status: "In Transit",
+        pickup_at: nowTime
+      })
       setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
         ...w,
         fulfillment_status: "in_transit"
@@ -7193,7 +7336,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         delivery_status: "in_transit",
         pickup_at: nowTime
       })
-      persistOrderUpdateToBackend(delivery.order_ref, { delivery_status: "In Transit" })
+      persistOrderUpdateToBackend(delivery.order_ref, {
+        delivery_status: "In Transit",
+        pickup_at: nowTime
+      })
       setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
         ...w,
         fulfillment_status: "in_transit"
@@ -7216,6 +7362,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     updateOrderPipelineState(delivery.order_ref, {
       delivery_status: "delivered",
+      delivered_at: nowTime
+    })
+    persistOrderUpdateToBackend(delivery.order_ref, {
+      status: "delivered",
+      delivery_status: "Delivered",
       delivered_at: nowTime
     })
     persistOrderUpdateToBackend(delivery.order_ref, {

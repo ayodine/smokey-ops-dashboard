@@ -78,8 +78,17 @@ export const LogisticsBoardPage: React.FC = () => {
     return logisticsDeliveries.filter(d => isWithinDateRange(d.dispatch_date || d.pickup_at || d.delivered_at, dateRange))
   }, [logisticsDeliveries, dateRange])
 
-  const unassignedDeliveries = useMemo(() => activeDeliveriesForKPI.filter(d => d.status === 'pending'), [activeDeliveriesForKPI])
-  const activeDeliveries = useMemo(() => activeDeliveriesForKPI.filter(d => d.status !== 'pending'), [activeDeliveriesForKPI])
+  // A delivery is truly "unassigned" if its status is 'pending' OR if it has no designated driver yet
+  const unassignedDeliveries = useMemo(
+    () => activeDeliveriesForKPI.filter(d => d.status === 'pending' || !d.assigned_rider || d.assigned_rider === 'Unassigned'),
+    [activeDeliveriesForKPI]
+  )
+
+  // A delivery is in "assigned trips" ONLY if it has an actual driver/courier assigned!
+  const activeDeliveries = useMemo(
+    () => activeDeliveriesForKPI.filter(d => d.status !== 'pending' && d.assigned_rider && d.assigned_rider !== 'Unassigned'),
+    [activeDeliveriesForKPI]
+  )
   const inTransitCount = useMemo(
     () => activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery').length,
     [activeDeliveries]
@@ -590,7 +599,7 @@ export const LogisticsBoardPage: React.FC = () => {
               </Button>
               {selectedDetailsDelivery.status !== 'delivered' && (
                 <div className="flex items-center gap-2">
-                  {selectedDetailsDelivery.status === 'pending' && (
+                  {(!selectedDetailsDelivery.assigned_rider || selectedDetailsDelivery.assigned_rider === 'Unassigned' || selectedDetailsDelivery.status === 'pending') ? (
                     <Button
                       variant="primary"
                       size="md"
@@ -601,8 +610,7 @@ export const LogisticsBoardPage: React.FC = () => {
                     >
                       Assign Driver
                     </Button>
-                  )}
-                  {selectedDetailsDelivery.status === 'assigned' && (
+                  ) : selectedDetailsDelivery.status === 'assigned' ? (
                     <Button
                       variant="primary"
                       size="md"
@@ -613,8 +621,7 @@ export const LogisticsBoardPage: React.FC = () => {
                     >
                       Driver Collect
                     </Button>
-                  )}
-                  {(selectedDetailsDelivery.status === 'in_transit' || selectedDetailsDelivery.status === 'out_for_delivery') && (
+                  ) : (selectedDetailsDelivery.status === 'in_transit' || selectedDetailsDelivery.status === 'out_for_delivery') ? (
                     <Button
                       variant="primary"
                       size="md"
@@ -625,7 +632,7 @@ export const LogisticsBoardPage: React.FC = () => {
                     >
                       Delivered
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
