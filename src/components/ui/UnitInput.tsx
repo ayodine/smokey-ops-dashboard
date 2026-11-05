@@ -64,6 +64,21 @@ export const UnitInput: React.FC<UnitInputProps> = ({
 
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  // Local text state so the field can be temporarily empty while typing,
+  // instead of snapping back to "0" (which caused "010").
+  const toDisplay = (v: number | string | undefined | null) =>
+    v === undefined || v === null || v === '' || Number(v) === 0 ? '' : String(v)
+  const [displayVal, setDisplayVal] = useState<string>(() => toDisplay(value))
+  const [isFocused, setIsFocused] = useState(false)
+
+  useEffect(() => {
+    // Sync external changes when not actively typing (or when value truly differs)
+    if (!isFocused || Number(displayVal || 0) !== Number(value || 0)) {
+      setDisplayVal(toDisplay(value))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
   // Update dropdown position when opened
   const updatePosition = () => {
     if (!buttonRef.current) return
@@ -141,15 +156,36 @@ export const UnitInput: React.FC<UnitInputProps> = ({
           step={step}
           min={min}
           max={max}
-          value={value === undefined || value === null ? '' : value}
+          value={displayVal}
+          onFocus={(e) => {
+            setIsFocused(true)
+            // Select existing value so typing replaces it (no "010")
+            e.currentTarget.select()
+          }}
+          onBlur={() => {
+            setIsFocused(false)
+            setDisplayVal(toDisplay(value))
+          }}
           onChange={(e) => {
-            onChangeValue?.(Number(e.target.value))
+            let raw = e.target.value
+            // Strip leading zeros like '010' -> '10', but preserve '0' and decimals like '0.5'
+            if (/^0\d/.test(raw)) {
+              raw = raw.replace(/^0+/, '') || '0'
+            }
+            setDisplayVal(raw)
+            onChangeValue?.(raw === '' ? (0 as any) : Number(raw))
             onChange?.(e)
+          }}
+          onWheel={(e) => e.currentTarget.blur()}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+              e.preventDefault()
+            }
           }}
           disabled={disabled}
           placeholder={placeholder}
           required={required}
-          className="flex-1 min-w-0 h-full px-3 text-sm sm:text-base font-sans text-kumo-strong bg-transparent focus:outline-none placeholder:text-kumo-subtle/50"
+          className="flex-1 min-w-0 h-full px-3 text-sm sm:text-base font-sans text-kumo-strong bg-transparent focus:outline-none placeholder:text-kumo-subtle/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:hidden"
         />
 
         {/* Attached Unit Addon on the Right */}

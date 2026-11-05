@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { SalesProduct, DailySalesItem } from '@/lib/smokeyData'
+import { SalesProduct, DailySalesItem, StockConversionRecord, StockConversionRule } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -15,7 +16,7 @@ import { UnitInput } from '@/components/ui/UnitInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { FileUpload } from '@/components/ui/FileUpload'
-import { formatNaira, formatQuantity, cn } from '@/lib/utils'
+import { formatNaira, formatQuantity, formatDate, cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { 
   Package, 
@@ -30,7 +31,10 @@ import {
   Flame,
   Clock,
   CheckCircle2,
-  Eye
+  Eye,
+  ArrowRightLeft,
+  Check,
+  Layers
 } from 'lucide-react'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -66,6 +70,7 @@ export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
 }
 
 export const SalesInventoryPage: React.FC = () => {
+  const navigate = useNavigate()
   const {
     salesProducts,
     liveSalesProducts: liveProducts,
@@ -76,23 +81,51 @@ export const SalesInventoryPage: React.FC = () => {
     dailySales,
     adjustSalesStock,
     saveSalesProduct,
+    stockConversions,
+    stockConversionRules,
+    executeStockConversion,
     hasPermission
   } = useSmokeyOps()
 
-  // Calculate live incoming batch buffers per dish from ongoing/scheduled production runs
+  // Calculate live incoming batch buffers per dish from ongoing/scheduled production runs (supports Master Batches)
   const incomingByDish = React.useMemo(() => {
     const map: Record<string, { qty: number; batches: typeof productionBatches }> = {}
+
     productionBatches.forEach(b => {
-      if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false) {
+      if (b.status === 'cancelled') return
+
+      if (Array.isArray(b.products) && b.products.length > 0) {
+        b.products.forEach(p => {
+          if ((p.status === 'draft' || p.status === 'in_production') && p.feed_sales_inventory !== false) {
+            const keyId = String(p.output_product_id)
+            const keyName = (p.output_product_name || '').toLowerCase().trim()
+
+            if (keyId) {
+              if (!map[keyId]) map[keyId] = { qty: 0, batches: [] }
+              map[keyId].qty += p.expected_output || 0
+              if (!map[keyId].batches.some(existing => existing.id === b.id)) {
+                map[keyId].batches.push(b)
+              }
+            }
+            if (keyName) {
+              if (!map[keyName]) map[keyName] = { qty: 0, batches: [] }
+              map[keyName].qty += p.expected_output || 0
+              if (!map[keyName].batches.some(existing => existing.id === b.id)) {
+                map[keyName].batches.push(b)
+              }
+            }
+          }
+        })
+      } else if ((b.status === 'draft' || b.status === 'in_production') && b.feed_sales_inventory !== false && b.output_product_id) {
         const keyId = String(b.output_product_id)
-        const keyName = b.output_product_name.toLowerCase().trim()
+        const keyName = (b.output_product_name || '').toLowerCase().trim()
 
         if (!map[keyId]) map[keyId] = { qty: 0, batches: [] }
-        map[keyId].qty += b.expected_output
+        map[keyId].qty += b.expected_output || 0
         map[keyId].batches.push(b)
 
         if (!map[keyName]) map[keyName] = { qty: 0, batches: [] }
-        map[keyName].qty += b.expected_output
+        map[keyName].qty += b.expected_output || 0
         map[keyName].batches.push(b)
       }
     })
@@ -101,12 +134,20 @@ export const SalesInventoryPage: React.FC = () => {
 
   const [loading] = useState<boolean>(false)
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'daily'>('inventory')
+  const [activeTab, setActiveTab] = useState<'inventory' | 'daily' | 'conversions'>('inventory')
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<LiveSalesProduct | null>(null)
   const [selectedDetailsProduct, setSelectedDetailsProduct] = useState<LiveSalesProduct | null>(null)
+
+  // Stock Conversion & Repackaging Modal State
+  const [isConversionModalOpen, setIsConversionModalOpen] = useState(false)
+  const [conversionSourceId, setConversionSourceId] = useState<number | ''>('')
+  const [conversionDestId, setConversionDestId] = useState<number | ''>('')
+  const [conversionQty, setConversionQty] = useState<string | number>('')
+  const [conversionReason, setConversionReason] = useState('')
+  const [conversionError, setConversionError] = useState<string | null>(null)
 
   const handleOpenDetails = (p: LiveSalesProduct) => {
     setSelectedDetailsProduct(p)
@@ -134,6 +175,73 @@ export const SalesInventoryPage: React.FC = () => {
 
   // Active products list
   const displayProducts = liveProducts.length > 0 ? liveProducts : salesProducts
+
+  // Conversion Helpers
+  const selectedSourceProd = React.useMemo(() => {
+    return conversionSourceId ? displayProducts.find(p => p.id === Number(conversionSourceId)) : null
+  }, [conversionSourceId, displayProducts])
+
+  const selectedDestProd = React.useMemo(() => {
+    return conversionDestId ? displayProducts.find(p => p.id === Number(conversionDestId)) : null
+  }, [conversionDestId, displayProducts])
+
+  const selectedSourceAvailable = Math.max(0, (selectedSourceProd?.stock_qty || 0) - (selectedSourceProd?.qty_allocated || 0))
+
+  const compatibleRules = React.useMemo(() => {
+    if (!conversionSourceId) return []
+    return stockConversionRules.filter(r => r.source_product_id === Number(conversionSourceId) && r.is_active)
+  }, [conversionSourceId, stockConversionRules])
+
+  const selectedConversionRule = React.useMemo(() => {
+    if (!conversionSourceId || !conversionDestId) return null
+    return stockConversionRules.find(
+      r => r.source_product_id === Number(conversionSourceId) && r.destination_product_id === Number(conversionDestId) && r.is_active
+    )
+  }, [conversionSourceId, conversionDestId, stockConversionRules])
+
+  const handleOpenConversionModal = (sourceProduct?: LiveSalesProduct) => {
+    setConversionSourceId(sourceProduct ? sourceProduct.id : '')
+    setConversionDestId('')
+    setConversionQty('')
+    setConversionReason('')
+    setConversionError(null)
+    setIsConversionModalOpen(true)
+  }
+
+  const handleConfirmConversion = (e: React.FormEvent) => {
+    e.preventDefault()
+    setConversionError(null)
+    const qtyNum = Number(conversionQty)
+    if (!conversionSourceId || !conversionDestId || isNaN(qtyNum) || qtyNum <= 0) {
+      setConversionError('Please enter a valid conversion quantity greater than zero.')
+      return
+    }
+    if (qtyNum > selectedSourceAvailable) {
+      setConversionError(`Cannot convert ${qtyNum} ${selectedSourceProd?.unit}. Only ${selectedSourceAvailable} ${selectedSourceProd?.unit} are currently available.`)
+      return
+    }
+    if (selectedConversionRule?.requires_processing) {
+      setConversionError('This product transformation requires kitchen cooking or cutting. Please use the Production Batches workflow.')
+      return
+    }
+
+    const result = executeStockConversion(
+      Number(conversionSourceId),
+      Number(conversionDestId),
+      qtyNum,
+      conversionReason.trim() || undefined
+    )
+
+    if (result.success) {
+      setIsConversionModalOpen(false)
+      setConversionSourceId('')
+      setConversionDestId('')
+      setConversionQty('')
+      setConversionReason('')
+    } else if (result.error) {
+      setConversionError(result.error)
+    }
+  }
 
   // KPIs
   const totalSKUs = displayProducts.length
@@ -512,6 +620,84 @@ export const SalesInventoryPage: React.FC = () => {
     },
   ]
 
+  const conversionColumns: ColumnDef<StockConversionRecord>[] = [
+    {
+      key: 'conversion_ref',
+      header: 'Conversion Ref',
+      accessor: (c) => (
+        <span className="font-mono font-bold text-xs text-kumo-strong">
+          {c.conversion_ref}
+        </span>
+      ),
+      sortValue: (c) => c.conversion_ref,
+    },
+    {
+      key: 'created_at',
+      header: 'Timestamp',
+      accessor: (c) => (
+        <span className="text-xs text-kumo-subtle font-mono">
+          {formatDate(c.created_at)}
+        </span>
+      ),
+      sortValue: (c) => c.created_at,
+    },
+    {
+      key: 'source_product_name',
+      header: 'Source Deducted',
+      accessor: (c) => (
+        <div>
+          <span className="font-semibold text-xs text-kumo-strong block">{c.source_product_name}</span>
+          <span className="text-xs text-rose-600 dark:text-rose-400 font-mono font-bold">
+            -{c.source_qty_deducted} units
+          </span>
+        </div>
+      ),
+      sortValue: (c) => c.source_product_name,
+    },
+    {
+      key: 'destination_product_name',
+      header: 'Destination Added',
+      accessor: (c) => (
+        <div>
+          <span className="font-semibold text-xs text-kumo-strong block">{c.destination_product_name}</span>
+          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-bold">
+            +{c.destination_qty_added} units
+          </span>
+        </div>
+      ),
+      sortValue: (c) => c.destination_product_name,
+    },
+    {
+      key: 'conversion_ratio',
+      header: 'Ratio',
+      accessor: (c) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-kumo-tint border border-kumo-line text-kumo-strong">
+          1 : {c.conversion_ratio}
+        </span>
+      ),
+      sortValue: (c) => c.conversion_ratio,
+    },
+    {
+      key: 'user_name',
+      header: 'Authorized By',
+      accessor: (c) => (
+        <span className="text-xs text-kumo-subtle font-sans">
+          {c.user_name}
+        </span>
+      ),
+      sortValue: (c) => c.user_name,
+    },
+    {
+      key: 'reason',
+      header: 'Audit Notes',
+      accessor: (c) => (
+        <span className="text-xs text-kumo-subtle italic max-w-xs truncate block">
+          {c.reason || 'Direct stock conversion'}
+        </span>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
@@ -519,6 +705,15 @@ export const SalesInventoryPage: React.FC = () => {
         subtitle="Sales-ready smoked guinea fowls, 1-liter rice bowls, beef jerky, and fresh palm wine available for order fulfillment."
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenConversionModal()}
+              leftIcon={<ArrowRightLeft className="w-4 h-4 text-primary" />}
+              className="h-10 px-4 text-sm font-medium shadow-xs border-primary/30 hover:bg-primary/5 text-primary"
+            >
+              Repackage / Convert Stock
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -587,6 +782,7 @@ export const SalesInventoryPage: React.FC = () => {
           tabs={[
             { id: 'inventory', label: 'In Stock', badge: displayProducts.length },
             { id: 'daily', label: 'Daily Sales' },
+            { id: 'conversions', label: 'Repackaging History', badge: stockConversions.length },
           ]}
         />
       </div>
@@ -603,13 +799,22 @@ export const SalesInventoryPage: React.FC = () => {
             exportFilename="smokey-sales-inventory"
             onRowClick={(p) => handleOpenDetails(p)}
           />
-        ) : (
+        ) : activeTab === 'daily' ? (
           <DataTable
             data={dailySales}
             columns={dailyColumns}
             searchable={false}
             title="Sales Ledger Item"
             exportFilename="smokey-daily-sales-breakdown"
+          />
+        ) : (
+          <DataTable
+            data={stockConversions}
+            columns={conversionColumns}
+            searchable={true}
+            searchPlaceholder="Search conversion ref, product or reason..."
+            title="Stock Repackaging Record"
+            exportFilename="smokey-repackaging-history"
           />
         )}
       </div>
@@ -645,18 +850,19 @@ export const SalesInventoryPage: React.FC = () => {
           </div>
 
           <UnitInput
-            label="Delta Quantity (+/-)"
+            label="Quantity to Add or Remove"
             value={adjustDelta}
             onChangeValue={setAdjustDelta}
             unit={selectedProduct?.unit || 'packs'}
-            helperText={`Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit || 'packs'}`}
+            helperText={`Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit || 'packs'} (use minus sign e.g. -2 to deduct)`}
             required
           />
 
           <Input
-            label="Adjustment Reason & Sign-off"
+            label="Reason for Adjustment & Sign-off"
             value={adjustNotes}
             onChange={(e) => setAdjustNotes(e.target.value)}
+            placeholder="e.g. Batch yield intake, damaged packs, or count correction"
             required
           />
         </form>
@@ -1074,6 +1280,279 @@ export const SalesInventoryPage: React.FC = () => {
           </Dialog>
         )
       })()}
+
+      {/* Stock Conversion & Product Repackaging Modal */}
+      <Dialog
+        isOpen={isConversionModalOpen}
+        onClose={() => {
+          setIsConversionModalOpen(false)
+          setConversionError(null)
+        }}
+        title="Inventory Stock Conversion & Repackaging"
+        description="Convert stock between compatible sales formats without generating false physical stock or disturbing incoming oven buffers."
+        maxWidth="2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              onClick={() => {
+                setIsConversionModalOpen(false)
+                setConversionError(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="stock-conversion-form"
+              disabled={
+                !conversionSourceId ||
+                !conversionDestId ||
+                !conversionQty ||
+                Number(conversionQty) <= 0 ||
+                Number(conversionQty) > selectedSourceAvailable ||
+                Boolean(selectedConversionRule?.requires_processing)
+              }
+            >
+              Confirm Repackaging
+            </Button>
+          </div>
+        }
+      >
+        <form id="stock-conversion-form" onSubmit={handleConfirmConversion} className="space-y-4 font-sans text-xs">
+          {/* Informational Guidance Alert */}
+          <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 flex items-start gap-2.5">
+            <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none mt-0.5">
+              !
+            </div>
+            <div className="space-y-0.5 text-xs leading-relaxed">
+              <span className="font-semibold block">Stock Repackaging / Format Allocation</span>
+              <span>
+                Converts existing on-hand physical stock into compatible retail formats. Total underlying physical units remain conserved.
+              </span>
+            </div>
+          </div>
+
+          {conversionError && (
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{conversionError}</span>
+            </div>
+          )}
+
+          {/* Source Product Selector */}
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 block">
+              Source Product (Format to Deduct)
+            </label>
+            <Select
+              value={conversionSourceId}
+              onChange={(e) => {
+                const val = e.target.value === '' ? '' : Number(e.target.value)
+                setConversionSourceId(val)
+                setConversionDestId('')
+                setConversionQty('')
+                setConversionError(null)
+              }}
+              options={[
+                { value: '', label: 'Select source product...' },
+                ...displayProducts.map(p => ({
+                  value: p.id,
+                  label: `${p.name} (${p.stock_qty} ${p.unit} in store, ${Math.max(0, p.stock_qty - (p.qty_allocated || 0))} available)`
+                }))
+              ]}
+              size="md"
+            />
+            {selectedSourceProd && (
+              <div className="flex items-center justify-between text-[11px] text-kumo-subtle pt-0.5 px-1">
+                <span>
+                  Physical On-Hand: <strong className="font-mono text-kumo-strong">{selectedSourceProd.stock_qty} {selectedSourceProd.unit}</strong>
+                </span>
+                <span>
+                  Allocated: <strong className="font-mono text-amber-600">{selectedSourceProd.qty_allocated || 0}</strong> &bull; Available to Repackage:{' '}
+                  <strong className="font-mono text-emerald-600 dark:text-emerald-400">{selectedSourceAvailable} {selectedSourceProd.unit}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Destination Product Selector */}
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 block">
+              Destination Product (Target Format to Receive)
+            </label>
+            <Select
+              value={conversionDestId}
+              onChange={(e) => {
+                const val = e.target.value === '' ? '' : Number(e.target.value)
+                setConversionDestId(val)
+                setConversionError(null)
+              }}
+              options={[
+                { value: '', label: conversionSourceId ? 'Select destination product format...' : 'Select source product first...' },
+                ...compatibleRules.map(r => ({
+                  value: r.destination_product_id,
+                  label: `${r.destination_product_name} (${r.requires_processing ? 'Requires Kitchen Processing' : `Ratio 1 : ${r.conversion_ratio}`})`
+                }))
+              ]}
+              disabled={!conversionSourceId || compatibleRules.length === 0}
+              size="md"
+            />
+            {conversionSourceId && compatibleRules.length === 0 && (
+              <span className="text-[11px] text-amber-600 italic block px-1">
+                No configured conversion rules for this item. Only products with pre-mapped conversion ratios can be repackaged.
+              </span>
+            )}
+          </div>
+
+          {/* If Transformation Requires Processing: Display Guardrail Alert */}
+          {selectedConversionRule?.requires_processing && (
+            <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/70 dark:bg-rose-950/40 p-4 space-y-2.5 text-xs text-rose-900 dark:text-rose-200">
+              <div className="flex items-center gap-2.5 font-semibold text-[13px]">
+                <div className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                  !
+                </div>
+                <span>Physical Kitchen Processing Required</span>
+              </div>
+              <p className="leading-relaxed text-xs">
+                Converting <strong>{selectedSourceProd?.name}</strong> into <strong>{selectedDestProd?.name}</strong> alters the physical product state (requires cutting, drying, or secondary smoking). Direct inventory conversion is prohibited to preserve inventory integrity.
+              </p>
+              <div className="pt-1">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    setIsConversionModalOpen(false)
+                    navigate('/production/batches')
+                  }}
+                  leftIcon={<Flame className="w-3.5 h-3.5" />}
+                >
+                  Go to Kitchen Production Batches
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Direct Repackaging Fields (When processing is NOT required) */}
+          {selectedConversionRule && !selectedConversionRule.requires_processing && selectedDestProd && (
+            <div className="space-y-4 pt-2">
+              {/* Ratio Badge */}
+              <div className="p-3 rounded-xl border border-kumo-line bg-kumo-base flex items-center justify-between text-xs">
+                <span className="text-kumo-subtle font-medium">Configured Repackage Ratio:</span>
+                <span className="font-mono font-bold text-kumo-strong text-sm">
+                  1 {selectedSourceProd?.unit} = {selectedConversionRule.conversion_ratio} {selectedDestProd.unit}s
+                </span>
+              </div>
+
+              {/* Quantity to Convert Input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 block">
+                    Quantity of Source to Deduct ({selectedSourceProd?.unit}s)
+                  </label>
+                  <span className="text-[11px] text-kumo-subtle">
+                    Max: <strong className="font-mono text-kumo-strong">{selectedSourceAvailable}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    max={selectedSourceAvailable}
+                    value={conversionQty === '' ? '' : conversionQty}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setConversionQty(val === '' ? '' : Number(val))
+                      setConversionError(null)
+                    }}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                        e.preventDefault()
+                      }
+                    }}
+                    className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="e.g. 2"
+                  />
+                  <span className="w-20 shrink-0 h-full flex items-center justify-center text-center px-1 text-[11px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
+                    {selectedSourceProd?.unit}s
+                  </span>
+                </div>
+                {Number(conversionQty) > selectedSourceAvailable && (
+                  <span className="text-[11px] text-rose-600 block px-1">
+                    Cannot convert more than available {selectedSourceAvailable} {selectedSourceProd?.unit}s.
+                  </span>
+                )}
+              </div>
+
+              {/* Live Before / After Calculation Card */}
+              {Number(conversionQty) > 0 && (
+                <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 font-sans">
+                  <span className="text-[11px] font-bold text-kumo-strong uppercase tracking-wider block">
+                    Live Stock Movement Preview
+                  </span>
+
+                  <div className="divide-y divide-kumo-line/50 text-xs">
+                    {/* Source deduction */}
+                    <div className="py-2 flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-kumo-strong block">{selectedSourceProd?.name}</span>
+                        <span className="text-[11px] text-kumo-subtle font-mono">Deducting from on-hand</span>
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-rose-600 dark:text-rose-400 font-bold block">
+                          -{conversionQty} {selectedSourceProd?.unit}s
+                        </span>
+                        <span className="text-[11px] text-kumo-subtle">
+                          New Stock: {Math.max(0, (selectedSourceProd?.stock_qty || 0) - Number(conversionQty))}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Destination receipt */}
+                    <div className="py-2 flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-kumo-strong block">{selectedDestProd.name}</span>
+                        <span className="text-[11px] text-kumo-subtle font-mono">Receiving into ready stock</span>
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold block">
+                          +{Number(conversionQty) * selectedConversionRule.conversion_ratio} {selectedDestProd.unit}s
+                        </span>
+                        <span className="text-[11px] text-kumo-subtle">
+                          New Stock: {selectedDestProd.stock_qty + (Number(conversionQty) * selectedConversionRule.conversion_ratio)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-kumo-line/60 flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      Physical Stock Conserved: Net physical units remain exactly identical before and after.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Audit Reason Input */}
+              <Input
+                label="Repackaging Reason / Audit Note"
+                placeholder="e.g. Broken down for weekend individual order fulfillment"
+                value={conversionReason}
+                onChange={(e) => setConversionReason(e.target.value)}
+              />
+            </div>
+          )}
+        </form>
+      </Dialog>
     </div>
   )
 }

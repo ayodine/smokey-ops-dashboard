@@ -2714,11 +2714,46 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           : []
 
         setAccounts(prev => {
-          // Backend is the source of truth once it has data; otherwise keep local state.
-          const next = remoteAccounts.length > 0
-            ? remoteAccounts
-            : prev.filter(a => !deletedSet.has(a.email.toLowerCase()))
+          const map = new Map<string, AppUserAccount>()
+
+          // 1. Keep valid locally cached accounts (created on this device)
+          prev.forEach(acc => {
+            if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
+              map.set(acc.email.toLowerCase(), acc)
+            }
+          })
+
+          // 2. Also inspect fresh localStorage in case another tab or effect wrote to it
+          try {
+            const rawStored = localStorage.getItem('smokey_accounts')
+            if (rawStored) {
+              const parsed = JSON.parse(rawStored)
+              if (Array.isArray(parsed)) {
+                parsed.forEach((acc: any) => {
+                  if (acc?.email && !deletedSet.has(acc.email.toLowerCase()) && !map.has(acc.email.toLowerCase())) {
+                    map.set(acc.email.toLowerCase(), acc)
+                  }
+                })
+              }
+            }
+          } catch {}
+
+          // 3. Merge remote accounts (remote values take precedence for existing, add new ones)
+          remoteAccounts.forEach(acc => {
+            if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
+              const local = map.get(acc.email.toLowerCase())
+              map.set(acc.email.toLowerCase(), local ? { ...local, ...acc } : acc)
+            }
+          })
+
+          const next = Array.from(map.values())
           localStorage.setItem('smokey_accounts', JSON.stringify(next))
+
+          // If local has accounts that remote doesn't have yet, persist them to remote!
+          if (next.length > remoteAccounts.length) {
+            persistAppSetting('staff_accounts', next)
+          }
+
           return next
         })
         if (remoteAccounts.length === 0) {
@@ -2843,6 +2878,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => clearInterval(timer)
   }, [])
 
+  // Cross-tab real-time accounts synchronization to ensure newly provisioned accounts
+  // work across all open tabs, windows, and login screens without requiring a hard refresh
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'smokey_accounts' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAccounts(parsed)
+          }
+        } catch {}
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
   const currentAccount = useMemo(() => {
     return accounts.find(a => a.email.toLowerCase() === activeAccountEmail.toLowerCase()) || accounts[0]
   }, [accounts, activeAccountEmail])
@@ -2890,7 +2943,28 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
 
-    const matchedAccount = accounts.find(acc => {
+    // Inspect in-memory accounts AND fresh localStorage.getItem('smokey_accounts')
+    // to guarantee freshly provisioned accounts from other tabs/modals authenticate immediately without hard refresh
+    let candidateAccounts = [...accounts]
+    try {
+      const rawStored = localStorage.getItem('smokey_accounts')
+      if (rawStored) {
+        const parsed = JSON.parse(rawStored)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingEmails = new Set(candidateAccounts.map(a => (a.email || '').toLowerCase()))
+          parsed.forEach((pa: any) => {
+            if (pa?.email && !existingEmails.has(pa.email.toLowerCase())) {
+              candidateAccounts.push(pa)
+            }
+          })
+          if (candidateAccounts.length !== accounts.length) {
+            setAccounts(candidateAccounts)
+          }
+        }
+      }
+    } catch {}
+
+    const matchedAccount = candidateAccounts.find(acc => {
       const emailLower = (acc.email || '').toLowerCase()
       const emailPrefix = emailLower.split('@')[0]
       const usernameLower = (acc.username || '').toLowerCase()

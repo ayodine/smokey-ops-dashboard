@@ -6,7 +6,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   ChevronsUpDown, 
-  Plus, 
   RotateCw 
 } from 'lucide-react'
 
@@ -92,6 +91,12 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const [customRangeQuery, setCustomRangeQuery] = useState('')
   const triggerRef = useRef<HTMLDivElement>(null)
   const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const dateButtonRef = useRef<HTMLButtonElement>(null)
+  const [caretOffset, setCaretOffset] = useState<number>(24)
+  const [hasCaret, setHasCaret] = useState<boolean>(true)
+  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom')
+  const [popoverMaxHeight, setPopoverMaxHeight] = useState<number>(600)
   
   // Current viewing month for calendar
   const [viewDate, setViewDate] = useState<Date>(value?.start || new Date(2026, 9, 21)) // October 2026
@@ -113,28 +118,76 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   }, [value])
 
   useEffect(() => {
-    if (!isOpen || !triggerRef.current) return
+    if (!isOpen) return
     const updatePosition = () => {
-      if (!triggerRef.current) return
-      const rect = triggerRef.current.getBoundingClientRect()
-      const popoverWidth = Math.min(540, window.innerWidth - 24)
-      const popoverHeight = 450
+      const anchorEl = dateButtonRef.current || triggerRef.current
+      if (!anchorEl) return
+      const rect = anchorEl.getBoundingClientRect()
+      const popoverWidth = Math.min(520, window.innerWidth - 24)
+      const card = popoverRef.current?.lastElementChild as HTMLElement | null
+      const measuredHeight = card?.offsetHeight || 400
+
+      // Horizontal: align right edge with button right edge, clamped safely within viewport
       const rawLeft = align === 'left' ? rect.left : rect.right - popoverWidth
       const clampedLeft = Math.max(12, Math.min(rawLeft, window.innerWidth - popoverWidth - 12))
-      const rawTop = rect.bottom + 8
-      const clampedTop = rawTop + popoverHeight > window.innerHeight
-        ? Math.max(12, window.innerHeight - popoverHeight - 12)
-        : rawTop
-      setPopoverCoords({ top: clampedTop, left: clampedLeft })
+
+      // Vertical: ensure popover is completely within viewport
+      const spaceBelow = window.innerHeight - rect.bottom - 12
+      const spaceAbove = rect.top - 12
+      let nextPlacement: 'bottom' | 'top' = 'bottom'
+      let top = rect.bottom + 8
+      let showCaret = true
+
+      if (spaceBelow >= measuredHeight + 8) {
+        nextPlacement = 'bottom'
+        top = rect.bottom + 8
+      } else if (spaceAbove >= measuredHeight + 8) {
+        nextPlacement = 'top'
+        top = rect.top - measuredHeight - 8
+      } else {
+        // Neither fits without clipping: choose side with more space, and clamp top so the bottom is never cut off
+        if (spaceBelow >= spaceAbove) {
+          nextPlacement = 'bottom'
+          top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - measuredHeight - 12))
+        } else {
+          nextPlacement = 'top'
+          top = Math.max(12, Math.min(rect.top - measuredHeight - 8, window.innerHeight - measuredHeight - 12))
+        }
+        // If popover overlaps the button vertically, hide caret to avoid pointing to wrong origin
+        if (top < rect.bottom && top + measuredHeight > rect.top) {
+          showCaret = false
+        }
+      }
+
+      // Max height constraint to guarantee internal scrolling if screen is tiny (< 560px)
+      const availableMaxHeight = Math.max(280, window.innerHeight - top - 12)
+
+      // Caret position relative to popover: exactly aligns with center of anchor button
+      const anchorCenter = rect.left + rect.width / 2
+      const caret = Math.max(20, Math.min(anchorCenter - clampedLeft - 7, popoverWidth - 34))
+
+      // If anchor center is outside the popover horizontal bounds, hide caret
+      if (anchorCenter < clampedLeft || anchorCenter > clampedLeft + popoverWidth) {
+        showCaret = false
+      }
+
+      setPlacement(nextPlacement)
+      setCaretOffset(caret)
+      setHasCaret(showCaret)
+      setPopoverMaxHeight(availableMaxHeight)
+      setPopoverCoords({ top, left: clampedLeft })
     }
     updatePosition()
+    // Re-measure after the popover has painted so the real height is used
+    const raf = requestAnimationFrame(updatePosition)
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
     return () => {
+      cancelAnimationFrame(raf)
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [isOpen, align])
+  }, [isOpen, align, isSelectingEnd])
 
   // Timezone selection
   const [selectedTimezone, setSelectedTimezone] = useState('West Africa Time (GMT+1)')
@@ -293,42 +346,23 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   return (
     <div ref={triggerRef} className={cn('relative inline-block font-sans select-none', className)}>
-      {/* Trigger Button Group matching Screenshot */}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setIsOpen(prev => !prev)}
-          className={cn(
-            'h-10 px-3.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs sm:text-sm font-medium text-kumo-strong flex items-center gap-2 cursor-pointer transition-colors shadow-2xs',
-            isOpen && 'ring-2 ring-black/20 border-black dark:ring-white/20 dark:border-white',
-            activePreset === 'custom' && 'border-black/50 bg-black/5 dark:border-white/50 dark:bg-white/5'
-          )}
-        >
-          <CalendarIcon className={cn('w-4 h-4 shrink-0', activePreset === 'custom' ? 'text-black dark:text-white' : 'text-kumo-subtle')} />
-          <span>{displayLabel}</span>
-          {activePreset === 'custom' && (
-            <span className="w-2 h-2 rounded-full bg-black dark:bg-white shrink-0" title="Custom date range active" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setIsOpen(prev => !prev)}
-          className="h-10 w-9 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
-          title="Add range filter"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleApply()}
-          className="h-10 w-9 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
-          title="Apply current range"
-        >
-          <RotateCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {/* Single Date Filter Button (No redundant extra button) */}
+      <button
+        ref={dateButtonRef}
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        className={cn(
+          'h-10 px-3.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-tint text-xs sm:text-sm font-medium text-kumo-strong flex items-center gap-2 cursor-pointer transition-colors shadow-2xs',
+          isOpen && 'ring-2 ring-primary border-primary bg-primary/5 text-primary',
+          activePreset === 'custom' && 'border-primary/50 bg-primary/5'
+        )}
+      >
+        <CalendarIcon className={cn('w-4 h-4 shrink-0', (isOpen || activePreset === 'custom') ? 'text-primary' : 'text-kumo-subtle')} />
+        <span>{displayLabel}</span>
+        {activePreset === 'custom' && (
+          <span className="w-2 h-2 rounded-full bg-primary shrink-0" title="Custom date range active" />
+        )}
+      </button>
 
       {/* Popover Card matching Screenshot exactly */}
       {isOpen && typeof document !== 'undefined' && createPortal(
@@ -342,63 +376,78 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             }} 
           />
           <div
+            ref={popoverRef}
             style={{ top: popoverCoords.top, left: popoverCoords.left }}
-            className="fixed w-[540px] max-w-[95vw] rounded-xl border border-kumo-line bg-kumo-base shadow-xl p-4 font-sans space-y-4 z-[100] animate-in fade-in zoom-in-95"
+            className="fixed w-[510px] max-w-[95vw] z-[100] animate-in fade-in zoom-in-95"
           >
-            {/* Popover caret pointing up */}
-            <div className="absolute -top-2 left-24 w-3.5 h-3.5 bg-kumo-base border-t border-l border-kumo-line rotate-45" />
-
-            {/* Top custom range quick input */}
-            <div>
-              <input
-                type="text"
-                placeholder="Custom range: 3h, 3 hours, 7d, 30d..."
-                value={customRangeQuery}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setCustomRangeQuery(val)
-                  const trimmed = val.trim().toLowerCase()
-                  const foundPreset = PRESETS.find(p => p.id === trimmed)
-                  if (foundPreset) {
-                    handleSelectPreset(foundPreset.id)
-                  }
-                }}
-                className="w-full px-3 py-2 text-xs text-kumo-strong bg-kumo-base border border-kumo-line rounded-lg focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white placeholder:text-kumo-subtle font-sans"
+            {/* Popover caret — dynamically aligned with the date trigger button */}
+            {hasCaret && (
+              <div
+                style={{ left: `${caretOffset}px` }}
+                className={cn(
+                  'absolute w-3.5 h-3.5 bg-kumo-base border-kumo-line rotate-45 pointer-events-none z-[1]',
+                  placement === 'bottom' ? '-top-[7px] border-t border-l' : '-bottom-[7px] border-b border-r'
+                )}
               />
-            </div>
-
-            {/* Selection Status Prompt */}
-            {isSelectingEnd && (
-              <div className="px-3 py-1.5 bg-black/5 dark:bg-white/10 border border-black/15 dark:border-white/15 rounded-lg text-xs text-black dark:text-white font-medium flex items-center justify-between">
-                <span>Click a second date on the calendar to set your end date</span>
-                <span className="text-[11px] underline cursor-pointer" onClick={() => setIsSelectingEnd(false)}>Done</span>
-              </div>
             )}
 
-            {/* Main 2-column section: Left Calendar, Right Presets */}
-            <div className="grid grid-cols-12 gap-4">
-              {/* Left Calendar (7 cols) */}
-              <div className="col-span-7 space-y-3">
-                {/* Month header with prev/next buttons */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-kumo-strong">
-                    {monthName}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+            <div
+              style={{ maxHeight: popoverMaxHeight }}
+              className="rounded-xl border border-kumo-line bg-kumo-base shadow-xl font-sans flex flex-col overflow-hidden"
+            >
+              {/* Scrollable Main Area (Guarantees footer is never cropped) */}
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+                {/* Top custom range quick input */}
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Custom range: 3h, 3 hours, 7d, 30d..."
+                    value={customRangeQuery}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setCustomRangeQuery(val)
+                      const trimmed = val.trim().toLowerCase()
+                      const foundPreset = PRESETS.find(p => p.id === trimmed)
+                      if (foundPreset) {
+                        handleSelectPreset(foundPreset.id)
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 text-xs text-kumo-strong bg-kumo-base border border-kumo-line rounded-lg focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white placeholder:text-kumo-subtle font-sans"
+                  />
+                </div>
+
+                {/* Selection Status Prompt */}
+                {isSelectingEnd && (
+                  <div className="px-2.5 py-1 bg-black/5 dark:bg-white/10 border border-black/15 dark:border-white/15 rounded-lg text-xs text-black dark:text-white font-medium flex items-center justify-between">
+                    <span>Click a second date on the calendar to set your end date</span>
+                    <span className="text-[11px] underline cursor-pointer" onClick={() => setIsSelectingEnd(false)}>Done</span>
+                  </div>
+                )}
+
+                {/* Main 2-column section: Left Calendar, Right Presets */}
+                <div className="grid grid-cols-12 gap-3">
+                  {/* Left Calendar (7 cols) */}
+                  <div className="col-span-7 space-y-2">
+                    {/* Month header with prev/next buttons */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-kumo-strong">
+                        {monthName}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg border border-kumo-line hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong cursor-pointer"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                   </div>
                 </div>
 
@@ -439,7 +488,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                           }
                         }}
                         className={cn(
-                          'h-8 w-full flex items-center justify-center text-xs transition-colors cursor-pointer',
+                          'h-7 w-full flex items-center justify-center text-xs transition-colors cursor-pointer',
                           cell.isCurrentMonth
                             ? 'text-kumo-strong'
                             : 'text-kumo-subtle/30',
@@ -465,14 +514,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               </div>
 
               {/* Right Presets List (5 cols) */}
-              <div className="col-span-5 border-l border-kumo-line pl-3 space-y-1">
+              <div className="col-span-5 border-l border-kumo-line pl-2.5 space-y-0.5">
                 {PRESETS.map((p) => (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => handleSelectPreset(p.id)}
                     className={cn(
-                      'w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer font-sans',
+                      'w-full text-left px-2 py-1 text-xs rounded-lg transition-colors cursor-pointer font-sans',
                       activePreset === p.id
                         ? 'bg-black/10 text-black font-semibold dark:bg-white/15 dark:text-white'
                         : 'text-kumo-default hover:bg-kumo-tint hover:text-kumo-strong'
@@ -485,43 +534,58 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             </div>
 
             {/* Bottom Row: Start and End Datetime Inputs */}
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-kumo-line">
-              <div className="space-y-1">
-                <label className="text-[11px] font-medium text-kumo-subtle block">Start</label>
-                <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
-                  <CalendarIcon className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
-                  <span className="font-mono text-xs">{formatDateTime(startDate)}</span>
+            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-kumo-line">
+              <div className="space-y-0.5">
+                <label className="text-[10px] font-medium text-kumo-subtle block">Start</label>
+                <div className="flex items-center gap-1.5 h-8 px-2 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
+                  <CalendarIcon className="w-3 h-3 text-black dark:text-white shrink-0" />
+                  <span className="font-mono text-[11px]">{formatDateTime(startDate)}</span>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-medium text-kumo-subtle block">End</label>
-                <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
-                  <CalendarIcon className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
-                  <span className="font-mono text-xs">{formatDateTime(endDate)}</span>
+              <div className="space-y-0.5">
+                <label className="text-[10px] font-medium text-kumo-subtle block">End</label>
+                <div className="flex items-center gap-1.5 h-8 px-2 rounded-lg border border-kumo-line bg-kumo-base text-xs text-kumo-strong">
+                  <CalendarIcon className="w-3 h-3 text-black dark:text-white shrink-0" />
+                  <span className="font-mono text-[11px]">{formatDateTime(endDate)}</span>
                 </div>
               </div>
             </div>
+            </div>
 
-            {/* Footer Row: Timezone on left, Apply Button on right */}
-            <div className="flex items-center justify-between pt-3 border-t border-kumo-line">
+            {/* Non-Cropped Pinned Footer Row: Timezone on left, Cancel & Apply on right */}
+            <div className="shrink-0 px-3.5 py-2.5 bg-kumo-base border-t border-kumo-line flex items-center justify-between z-10">
               <div className="relative">
                 <button
                   type="button"
                   className="flex items-center gap-1.5 text-xs text-kumo-subtle hover:text-kumo-strong cursor-pointer font-sans"
                 >
                   <span>{selectedTimezone}</span>
-                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                  <ChevronsUpDown className="w-3 h-3" />
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleApply}
-                className="px-6 py-2 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] rounded-lg shadow-xs cursor-pointer transition-colors"
-              >
-                Apply
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectingEnd(false)
+                    setHoverDate(null)
+                    setIsOpen(false)
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-kumo-default hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  className="px-5 py-1.5 text-xs font-semibold text-white bg-[#c0201f] hover:bg-[#a01817] rounded-lg shadow-xs cursor-pointer transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
             </div>
           </div>
         </>,

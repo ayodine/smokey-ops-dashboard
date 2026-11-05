@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
+import { formatTime12h } from '@/lib/utils'
 import {
   ShieldCheck,
   Search,
@@ -355,7 +356,7 @@ export const SignInActivityModal: React.FC<SignInActivityModalProps> = ({
                     {/* When */}
                     <td className="py-2.5 px-3.5 whitespace-nowrap">
                       <div className="font-medium text-kumo-strong text-[13px]">{log.when}</div>
-                      <div className="text-[11px] text-kumo-subtle">{log.timestamp.slice(11)}</div>
+                      <div className="text-[11px] text-kumo-subtle">{formatTime12h(log.timestamp.slice(11))}</div>
                     </td>
 
                     {/* User */}

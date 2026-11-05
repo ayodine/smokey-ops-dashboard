@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { PermissionGate } from '@/components/ui/PermissionGate'
-import { ProductionBatch, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation, BatchMaterialRequisition } from '@/lib/smokeyData'
+import { ProductionBatch, ProductBatchEntry, ProductionBatchHistoryLog, RawMaterialBOM, IntermediatePrep, IntermediatePrepAllocation, BatchMaterialRequisition } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -71,6 +71,11 @@ export const ProductionBatchesPage: React.FC = () => {
     intermediatePreps,
     compoundInventory,
     createBatch,
+    addProductToBatch,
+    updateProductEntry,
+    startProductProduction,
+    completeProductProduction,
+    cancelProductEntry,
     startBatch,
     completeBatch,
     cancelBatch,
@@ -101,6 +106,27 @@ export const ProductionBatchesPage: React.FC = () => {
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null)
+
+  // Target master batch ID when adding a product directly into an existing batch
+  const [targetMasterBatchId, setTargetMasterBatchId] = useState<number | null>(null)
+
+  // Master Batch Detail View Sub-tab
+  const [detailTab, setDetailTab] = useState<'products' | 'materials' | 'requisitions' | 'history'>('products')
+
+  // Product-level Completion Modal State
+  const [isCompleteProductModalOpen, setIsCompleteProductModalOpen] = useState(false)
+  const [productForComplete, setProductForComplete] = useState<ProductBatchEntry | null>(null)
+  const [productActualOutput, setProductActualOutput] = useState<number>(50)
+  const [productWastage, setProductWastage] = useState<number>(0)
+  const [productQcNotes, setProductQcNotes] = useState<string>('QC Passed: internal core temp > 85°C. Golden brown smoke finish.')
+  const [productReturnedMaterials, setProductReturnedMaterials] = useState<Array<{ productId: number; quantity: number; item_type?: 'raw' | 'compound'; compound_id?: number }>>([])
+  const [isProductReturnsExpanded, setIsProductReturnsExpanded] = useState<boolean>(false)
+
+  // Product-level Edit Modal State
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false)
+  const [productForEdit, setProductForEdit] = useState<ProductBatchEntry | null>(null)
+  const [productEditExpectedOutput, setProductEditExpectedOutput] = useState<number>(50)
+  const [productEditRemarks, setProductEditRemarks] = useState<string>('')
 
   // Requisitions Form State
   const [isRequisitionModalOpen, setIsRequisitionModalOpen] = useState(false)
@@ -525,6 +551,84 @@ export const ProductionBatchesPage: React.FC = () => {
   const totalBatches = dateFilteredBatches.length
   const totalProducedUnits = dateFilteredCompleted.reduce((acc, b) => acc + b.actual_output, 0)
 
+  // Dynamically resolved fresh reference to active master batch
+  const activeMasterBatch = useMemo(() => {
+    if (!selectedBatch) return null
+    return productionBatches.find(b => b.id === selectedBatch.id) || selectedBatch
+  }, [productionBatches, selectedBatch])
+
+  // Open Add Product Modal for a specific Master Batch
+  const handleOpenAddProduct = (batch: ProductionBatch) => {
+    setSelectedBatch(batch)
+    setTargetMasterBatchId(batch.id)
+    const existingProductIds = new Set(batch.products?.map(p => p.output_product_id) || [batch.output_product_id])
+    const availableProduct = activeSalesProducts.find(p => !existingProductIds.has(p.id)) || activeSalesProducts[0]
+    if (availableProduct) {
+      handleSelectOutputProduct(availableProduct.id)
+    }
+    setIsCreateModalOpen(true)
+  }
+
+  // Open Product Completion Modal
+  const handleOpenCompleteProduct = (p: ProductBatchEntry, batch: ProductionBatch) => {
+    setSelectedBatch(batch)
+    setProductForComplete(p)
+    setProductActualOutput(p.expected_output)
+    setProductWastage(0)
+    setProductQcNotes('Smoking grill cycle completed. Core temp and doneness passed inspection.')
+    setProductReturnedMaterials([])
+    setIsProductReturnsExpanded(false)
+    setIsCompleteProductModalOpen(true)
+  }
+
+  // Confirm Product Completion & Reconcile Output
+  const handleConfirmCompleteProduct = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBatch || !productForComplete) return
+    completeProductProduction(
+      selectedBatch.id,
+      productForComplete.id,
+      Number(productActualOutput),
+      Number(productWastage),
+      productQcNotes,
+      productReturnedMaterials.length > 0 ? productReturnedMaterials : undefined
+    )
+    setIsCompleteProductModalOpen(false)
+    setProductForComplete(null)
+  }
+
+  // Open Product Edit Modal
+  const handleOpenEditProduct = (p: ProductBatchEntry, batch: ProductionBatch) => {
+    setSelectedBatch(batch)
+    setProductForEdit(p)
+    setProductEditExpectedOutput(p.expected_output)
+    setProductEditRemarks(p.remarks || '')
+    setIsEditProductModalOpen(true)
+  }
+
+  // Confirm Product Edit
+  const handleConfirmEditProduct = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBatch || !productForEdit) return
+    updateProductEntry(
+      selectedBatch.id,
+      productForEdit.id,
+      {
+        expected_output: Number(productEditExpectedOutput),
+        remarks: productEditRemarks
+      }
+    )
+    setIsEditProductModalOpen(false)
+    setProductForEdit(null)
+  }
+
+  // Cancel Product Entry
+  const handleCancelProduct = (p: ProductBatchEntry, batch: ProductionBatch) => {
+    if (window.confirm(`Are you sure you want to cancel ${p.output_product_name}? Allocated ingredients will be returned to store and the sales inventory buffer feed will be reversed.`)) {
+      cancelProductEntry(batch.id, p.id)
+    }
+  }
+
   // Actions
   const handleOpenComplete = (b: ProductionBatch) => {
     setSelectedBatch(b)
@@ -678,9 +782,11 @@ export const ProductionBatchesPage: React.FC = () => {
       batch_schedule: batchSchedule,
       feed_sales_inventory: feedSalesInventory,
       estimated_ready_time: estimatedReadyTime,
-      rawMaterials: bomRows
+      rawMaterials: bomRows,
+      targetMasterBatchId: targetMasterBatchId || undefined
     })
     setIsCreateModalOpen(false)
+    setTargetMasterBatchId(null)
   }
 
   const handleConfirmComplete = (e: React.FormEvent) => {
@@ -696,51 +802,132 @@ export const ProductionBatchesPage: React.FC = () => {
     setIsCompleteModalOpen(false)
   }
 
+  // Helper to render product chips in Master Batch tables
+  const renderProductChips = (b: ProductionBatch) => {
+    const prods = Array.isArray(b.products) && b.products.length > 0
+      ? b.products
+      : [{
+          id: 'legacy',
+          output_product_id: b.output_product_id,
+          output_product_name: b.output_product_name,
+          expected_output: b.expected_output,
+          actual_output: b.actual_output,
+          status: b.status,
+          raw_materials: b.raw_materials
+        }]
+
+    return (
+      <div className="space-y-1 py-0.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {prods.map((p, idx) => {
+            const isCancelled = p.status === 'cancelled'
+            return (
+              <span
+                key={p.id || idx}
+                className={cn(
+                  'inline-flex items-center text-[11px] px-2 py-0.5 rounded-md border font-medium font-sans transition-colors',
+                  isCancelled
+                    ? 'bg-zinc-100 text-zinc-400 line-through border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
+                    : 'bg-zinc-100/90 hover:bg-zinc-100 text-zinc-800 border-zinc-200/80 dark:bg-zinc-800/90 dark:text-zinc-200 dark:border-zinc-700'
+                )}
+              >
+                <span>{p.output_product_name}</span>
+              </span>
+            )
+          })}
+        </div>
+        <div className="text-[11px] text-kumo-subtle flex items-center gap-1.5 font-sans">
+          <span>{prods.length} {prods.length === 1 ? 'product run' : 'product runs'}</span>
+          <span>&bull;</span>
+          <span>{b.raw_materials.length} ingredients</span>
+          {b.additional_requisitions && b.additional_requisitions.length > 0 && (
+            <span className="text-zinc-500 dark:text-zinc-400 font-medium">
+              (+{b.additional_requisitions.length} reqs)
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Helper to render total output and storefront buffer
+  const renderBatchOutput = (b: ProductionBatch) => {
+    const totalExpected = Array.isArray(b.products) && b.products.length > 0
+      ? b.products.reduce((acc, p) => acc + (p.expected_output || 0), 0)
+      : b.expected_output
+    const totalActual = Array.isArray(b.products) && b.products.length > 0
+      ? b.products.reduce((acc, p) => acc + (p.actual_output || 0), 0)
+      : b.actual_output
+    const activeBuffer = Array.isArray(b.products) && b.products.length > 0
+      ? b.products.filter(p => p.status !== 'completed' && p.status !== 'cancelled').reduce((acc, p) => acc + (p.expected_output || 0), 0)
+      : (b.status !== 'completed' && b.status !== 'cancelled' ? b.expected_output : 0)
+
+    return (
+      <div className="font-sans text-xs">
+        {b.status === 'completed' ? (
+          <div>
+            <span className="font-semibold text-kumo-strong font-mono">
+              {totalActual} portions total
+            </span>
+            <span className="text-kumo-subtle text-[11px] block">
+              Target: {totalExpected} portions
+            </span>
+          </div>
+        ) : (
+          <div>
+            <span className="font-semibold text-kumo-strong font-mono">{totalExpected} portions planned</span>
+            {activeBuffer > 0 && (
+              <span className="text-kumo-subtle text-[11px] block font-mono">
+                +{activeBuffer} buffered to storefront
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // Columns for All Batches
   const allColumns: ColumnDef<ProductionBatch>[] = [
     {
       key: 'batch_ref',
-      header: 'Batch Ref',
-      accessor: (b) => (
-        <Tooltip content="Click to view recipe, requisitions & costing breakdown">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleOpenPreview(b)
-            }}
-            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
-          >
-            <span>{b.batch_ref}</span>
-          </button>
-        </Tooltip>
-      ),
+      header: 'Master Batch Ref',
+      accessor: (b) => {
+        const dateStr = b.production_date ? formatDate(b.production_date) : (b.created_at ? formatDate(b.created_at) : 'Today')
+        return (
+          <Tooltip content="Click to view master batch details, product entries & materials">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPreview(b)
+              }}
+              className="text-left font-sans cursor-pointer group"
+            >
+              <span className="font-bold text-xs text-kumo-strong group-hover:underline block font-mono">
+                {b.batch_ref}
+              </span>
+              <span className="text-[11px] text-kumo-subtle block">
+                {dateStr}
+              </span>
+            </button>
+          </Tooltip>
+        )
+      },
       sortValue: (b) => b.batch_ref,
     },
     {
       key: 'output_product_name',
-      header: 'Dish / Finished Product',
-      accessor: (b) => (
-        <div>
-          <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
-          <div className="text-xs text-kumo-subtle font-sans">
-            {b.raw_materials.length} formulated ingredients
-            {b.additional_requisitions && b.additional_requisitions.length > 0 && (
-              <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">
-                (+{b.additional_requisitions.length} requisitions)
-              </span>
-            )}
-          </div>
-        </div>
-      ),
+      header: 'Product Entries in Master Run',
+      accessor: (b) => renderProductChips(b),
       sortValue: (b) => b.output_product_name,
     },
     {
       key: 'status',
-      header: 'Status',
+      header: 'Master Status',
       accessor: (b) => {
         if (b.status === 'draft') return <StatusBadge status="draft" label="prep queued" />
-        if (b.status === 'in_production') return <StatusBadge status="in-progress" label="on smoking grill" />
+        if (b.status === 'in_production') return <StatusBadge status="in-progress" label="in production" />
         if (b.status === 'completed') return <StatusBadge status="completed" label="finished" />
         return <StatusBadge status="inactive" label="cancelled" />
       },
@@ -748,28 +935,8 @@ export const ProductionBatchesPage: React.FC = () => {
     },
     {
       key: 'yield',
-      header: 'Output / Yield',
-      accessor: (b) => (
-        <div className="font-sans text-xs">
-          {b.status === 'completed' ? (
-            <div>
-              <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-mono">
-                {b.actual_output} portions
-              </span>
-              <span className="text-kumo-subtle text-[11px] block">
-                Target: {b.expected_output} {b.wastage > 0 ? `(${b.wastage} loss)` : ''}
-              </span>
-            </div>
-          ) : (
-            <div>
-              <span className="font-semibold text-kumo-strong font-mono">{b.expected_output} portions planned</span>
-              {b.feed_sales_inventory !== false && (
-                <span className="text-amber-600 dark:text-amber-400 text-[11px] block">Buffered to storefront</span>
-              )}
-            </div>
-          )}
-        </div>
-      ),
+      header: 'Master Output & Buffer',
+      accessor: (b) => renderBatchOutput(b),
       sortValue: (b) => b.status === 'completed' ? b.actual_output : b.expected_output,
     },
     {
@@ -812,64 +979,26 @@ export const ProductionBatchesPage: React.FC = () => {
       defaultWidth: 220,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          {b.status === 'draft' && (
-            <Tooltip content="Begin cooking this batch on smoking grill">
-              <TableActionButton
-                variant="primary"
-                onClick={() => startBatch(b.id)}
-                leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
-              >
-                Start Cooking
-              </TableActionButton>
-            </Tooltip>
-          )}
-          {b.status === 'in_production' && (
-            <>
-              <Tooltip content="Record QC yield and complete cooking">
-                <TableActionButton
-                  variant="success"
-                  onClick={() => handleOpenComplete(b)}
-                  leftIcon={<CheckSquare className="w-3.5 h-3.5" />}
-                >
-                  Complete
-                </TableActionButton>
-              </Tooltip>
-              <Tooltip content="Request extra firewood, spices, or ingredients from Central Store">
-                <TableActionButton
-                  variant="outline"
-                  onClick={() => handleOpenRequisitionModal(b)}
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                >
-                  + Stock
-                </TableActionButton>
-              </Tooltip>
-            </>
-          )}
-          {b.status === 'completed' && (
-            <Tooltip content="View full recipe and batch breakdown">
+          <Tooltip content="Manage Master Batch (products, recipes, materials & history)">
+            <TableActionButton
+              variant="primary"
+              onClick={() => handleOpenPreview(b)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
+            >
+              Manage Batch
+            </TableActionButton>
+          </Tooltip>
+          {b.status !== 'completed' && b.status !== 'cancelled' && (
+            <Tooltip content="Add another product to this open master batch">
               <TableActionButton
                 variant="outline"
-                onClick={() => handleOpenPreview(b)}
-                leftIcon={<Eye className="w-3.5 h-3.5" />}
+                onClick={() => handleOpenAddProduct(b)}
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
               >
-                Recipe
+                Product
               </TableActionButton>
             </Tooltip>
           )}
-          {b.status === 'cancelled' && (
-            <span className="text-xs text-red-500 font-medium px-2 py-0.5 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-              Cancelled
-            </span>
-          )}
-          <Tooltip content="Edit batch parameters">
-            <button
-              type="button"
-              onClick={() => handleOpenEdit(b)}
-              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
         </div>
       ),
     },
@@ -879,50 +1008,41 @@ export const ProductionBatchesPage: React.FC = () => {
   const activeColumns: ColumnDef<ProductionBatch>[] = [
     {
       key: 'batch_ref',
-      header: 'Batch Ref',
-      accessor: (b) => (
-        <Tooltip content="Click to view recipe & ingredients">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleOpenPreview(b)
-            }}
-            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
-          >
-            <span>{b.batch_ref}</span>
-          </button>
-        </Tooltip>
-      ),
+      header: 'Master Batch Ref',
+      accessor: (b) => {
+        const dateStr = b.production_date ? formatDate(b.production_date) : (b.created_at ? formatDate(b.created_at) : 'Today')
+        return (
+          <Tooltip content="Click to view master batch details & products">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPreview(b)
+              }}
+              className="text-left font-sans cursor-pointer group"
+            >
+              <span className="font-bold text-xs text-kumo-strong group-hover:underline block font-mono">
+                {b.batch_ref}
+              </span>
+              <span className="text-[11px] text-kumo-subtle block">
+                {dateStr}
+              </span>
+            </button>
+          </Tooltip>
+        )
+      },
       sortValue: (b) => b.batch_ref,
     },
     {
       key: 'output_product_name',
-      header: 'Target Finished Product',
-      accessor: (b) => (
-        <div>
-          <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
-          <div className="text-xs text-kumo-subtle font-sans">{b.raw_materials.length} raw ingredients formulated</div>
-        </div>
-      ),
+      header: 'Product Entries in Prep',
+      accessor: (b) => renderProductChips(b),
       sortValue: (b) => b.output_product_name,
     },
     {
       key: 'expected_output',
       header: 'Planned Output & Sales Feed',
-      accessor: (b) => (
-        <div>
-          <div className="font-semibold text-kumo-strong font-sans text-xs">{b.expected_output} units</div>
-          {b.feed_sales_inventory !== false ? (
-            <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span>+{b.expected_output} to Web Storefront</span>
-            </div>
-          ) : (
-            <span className="text-[10px] text-zinc-400 font-sans">Internal only</span>
-          )}
-        </div>
-      ),
+      accessor: (b) => renderBatchOutput(b),
       sortValue: (b) => b.expected_output,
     },
     {
@@ -962,41 +1082,26 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 200,
+      defaultWidth: 220,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Begin cooking this batch on smoking grill">
+          <Tooltip content="Manage Master Batch (products, recipes & history)">
             <TableActionButton
               variant="primary"
-              onClick={() => startBatch(b.id)}
-              leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
+              onClick={() => handleOpenPreview(b)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
             >
-              Start Cooking
+              Manage Batch
             </TableActionButton>
           </Tooltip>
-
-          <Tooltip content="Edit batch details or correct recipe quantities">
-            <button
-              type="button"
-              onClick={() => handleOpenEdit(b)}
-              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
+          <Tooltip content="Add another product to this open master batch">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenAddProduct(b)}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Cancel batch & restore reserved ingredients to Central Store">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(`Cancel draft batch ${b.batch_ref}? All reserved ingredients will be restored to store.`)) {
-                  cancelBatch(b.id)
-                }
-              }}
-              className="p-1.5 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              Product
+            </TableActionButton>
           </Tooltip>
         </div>
       ),
@@ -1007,48 +1112,41 @@ export const ProductionBatchesPage: React.FC = () => {
   const ongoingColumns: ColumnDef<ProductionBatch>[] = [
     {
       key: 'batch_ref',
-      header: 'Batch Ref',
-      accessor: (b) => (
-        <Tooltip content="Click to view recipe & ingredients">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleOpenPreview(b)
-            }}
-            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
-          >
-            <span>{b.batch_ref}</span>
-          </button>
-        </Tooltip>
-      ),
+      header: 'Master Batch Ref',
+      accessor: (b) => {
+        const dateStr = b.production_date ? formatDate(b.production_date) : (b.created_at ? formatDate(b.created_at) : 'Today')
+        return (
+          <Tooltip content="Click to view master batch details & products">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPreview(b)
+              }}
+              className="text-left font-sans cursor-pointer group"
+            >
+              <span className="font-bold text-xs text-kumo-strong group-hover:underline block font-mono">
+                {b.batch_ref}
+              </span>
+              <span className="text-[11px] text-kumo-subtle block">
+                {dateStr}
+              </span>
+            </button>
+          </Tooltip>
+        )
+      },
       sortValue: (b) => b.batch_ref,
     },
     {
       key: 'output_product_name',
-      header: 'Cooking Product',
-      accessor: (b) => (
-        <div>
-          <div className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</div>
-          <div className="text-xs text-kumo-subtle font-sans">{b.raw_materials.length} ingredients loaded on smoking grill</div>
-        </div>
-      ),
+      header: 'Product Entries on Grills',
+      accessor: (b) => renderProductChips(b),
       sortValue: (b) => b.output_product_name,
     },
     {
       key: 'expected_output',
       header: 'Grill Output & Buffer Feed',
-      accessor: (b) => (
-        <div>
-          <div className="font-semibold text-kumo-strong font-sans text-xs">{b.expected_output} units</div>
-          {b.feed_sales_inventory !== false && (
-            <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
-              <Flame className="w-3 h-3 text-amber-500 animate-pulse shrink-0" />
-              <span>Selling on Batch (+{b.expected_output})</span>
-            </div>
-          )}
-        </div>
-      ),
+      accessor: (b) => renderBatchOutput(b),
       sortValue: (b) => b.expected_output,
     },
     {
@@ -1092,37 +1190,26 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 240,
+      defaultWidth: 220,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Record QC yield and complete cooking">
+          <Tooltip content="Manage Master Batch (view products, complete runs & log QC)">
             <TableActionButton
-              variant="success"
-              onClick={() => handleOpenComplete(b)}
-              leftIcon={<CheckSquare className="w-3.5 h-3.5" />}
+              variant="primary"
+              onClick={() => handleOpenPreview(b)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
             >
-              Complete Cooking
+              Manage Batch
             </TableActionButton>
           </Tooltip>
-
-          <Tooltip content="Request extra firewood, seasonings, or ingredients without cancelling batch">
+          <Tooltip content="Add another product to this open master batch">
             <TableActionButton
               variant="outline"
-              onClick={() => handleOpenRequisitionModal(b)}
+              onClick={() => handleOpenAddProduct(b)}
               leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              Request Stock
+              Product
             </TableActionButton>
-          </Tooltip>
-
-          <Tooltip content="Edit batch parameters">
-            <button
-              type="button"
-              onClick={() => handleOpenEdit(b)}
-              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
           </Tooltip>
         </div>
       ),
@@ -1133,43 +1220,41 @@ export const ProductionBatchesPage: React.FC = () => {
   const completedColumns: ColumnDef<ProductionBatch>[] = [
     {
       key: 'batch_ref',
-      header: 'Batch Ref',
-      accessor: (b) => (
-        <Tooltip content="Click to view recipe, requisitions & costing breakdown">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleOpenPreview(b)
-            }}
-            className="font-semibold text-xs text-primary hover:underline hover:text-primary/80 font-sans cursor-pointer flex items-center gap-1"
-          >
-            <span>{b.batch_ref}</span>
-          </button>
-        </Tooltip>
-      ),
+      header: 'Master Batch Ref',
+      accessor: (b) => {
+        const dateStr = b.production_date ? formatDate(b.production_date) : (b.created_at ? formatDate(b.created_at) : 'Today')
+        return (
+          <Tooltip content="Click to view master batch details, product entries & materials">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPreview(b)
+              }}
+              className="text-left font-sans cursor-pointer group"
+            >
+              <span className="font-bold text-xs text-kumo-strong group-hover:underline block font-mono">
+                {b.batch_ref}
+              </span>
+              <span className="text-[11px] text-kumo-subtle block">
+                {dateStr}
+              </span>
+            </button>
+          </Tooltip>
+        )
+      },
       sortValue: (b) => b.batch_ref,
     },
     {
       key: 'output_product_name',
-      header: 'Finished Product',
-      accessor: (b) => <span className="font-semibold text-kumo-strong font-sans">{b.output_product_name}</span>,
+      header: 'Product Entries Finished',
+      accessor: (b) => renderProductChips(b),
       sortValue: (b) => b.output_product_name,
     },
     {
       key: 'yield',
       header: 'Sales Inventory Deposit',
-      accessor: (b) => (
-        <div className="font-sans">
-          <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400 text-xs">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>+{b.actual_output} units physical</span>
-          </div>
-          <div className="text-[11px] text-kumo-subtle mt-0.5">
-            Reconciled from {b.expected_output} estimated buffer
-          </div>
-        </div>
-      ),
+      accessor: (b) => renderBatchOutput(b),
       sortValue: (b) => b.actual_output,
     },
     {
@@ -1214,17 +1299,17 @@ export const ProductionBatchesPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 100,
+      defaultWidth: 140,
       accessor: (b) => (
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Correct yield, wastage, or shift notes">
-            <button
-              type="button"
-              onClick={() => handleOpenEdit(b)}
-              className="p-1.5 text-kumo-subtle hover:text-kumo-strong hover:bg-kumo-tint rounded-lg transition-colors cursor-pointer border border-kumo-line shrink-0 flex-none"
+          <Tooltip content="View Master Batch details, products & reconciliation">
+            <TableActionButton
+              variant="outline"
+              onClick={() => handleOpenPreview(b)}
+              leftIcon={<Eye className="w-3.5 h-3.5" />}
             >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
+              View Batch
+            </TableActionButton>
           </Tooltip>
         </div>
       ),
@@ -1621,25 +1706,43 @@ export const ProductionBatchesPage: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL 1: Create Batch */}
+      {/* MODAL 1: Create Master Batch or Add Product to Master Batch */}
       <Dialog
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Start Cooking Batch (Recipe & Ingredients)"
-        description="Select the product to cook, target output portions, and choose raw ingredients to use."
-        maxWidth="3xl"
+        onClose={() => {
+          setIsCreateModalOpen(false)
+          setTargetMasterBatchId(null)
+        }}
+        title={targetMasterBatchId ? `Add Product Entry: Master Batch ${activeMasterBatch?.batch_ref || ''}` : "Start Daily Master Production Run (Recipe & Ingredients)"}
+        description={targetMasterBatchId ? `Add an individual dish cooking run to this open daily master batch with independent Sales Inventory buffer feed.` : "Select the product to cook, target output portions, and choose raw ingredients to use."}
+        maxWidth="xl"
+        zIndex="z-[60]"
         footer={
           <div className="flex items-center justify-between w-full">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsCreateModalOpen(false)}>
+            <Button variant="secondary" size="md" type="button" onClick={() => {
+              setIsCreateModalOpen(false)
+              setTargetMasterBatchId(null)
+            }}>
               Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="start-cooking-batch-form">
-              Queue Batch in Prep
+              {targetMasterBatchId ? "Add Product to Master Batch" : "Queue Batch in Prep"}
             </Button>
           </div>
         }
       >
         <form id="start-cooking-batch-form" onSubmit={handleConfirmCreate} className="space-y-5 font-sans">
+          {targetMasterBatchId && (
+            <div className="rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 px-4 py-3 flex items-center gap-3 shadow-2xs font-sans">
+              <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                !
+              </div>
+              <div className="text-xs font-medium leading-snug flex-1">
+                <span>Master Batch: <strong className="font-semibold">{activeMasterBatch?.batch_ref}</strong> — Adding Product #{((activeMasterBatch?.products?.length || 0) + 1)}. Its expected output will independently feed Sales Inventory buffer.</span>
+              </div>
+            </div>
+          )}
+
           {templateSuccessFeedback && (
             <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -1647,62 +1750,66 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           )}
 
-          {/* Batch Schedule & Storefront Settings Container */}
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
-            {/* Schedule Mode */}
-            <div className="p-3.5 space-y-2">
-              <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                Batch Schedule
-              </span>
-              <KumoTabs
-                activeTab={batchSchedule}
-                onChange={(val) => {
-                  setBatchSchedule(val as 'today' | 'tomorrow_morning')
-                  if (val === 'today') {
-                    setEstimatedReadyTime('Today 1:30 PM')
-                  } else {
-                    setEstimatedReadyTime('Tomorrow 9:30 AM')
-                  }
-                }}
-                tabs={[
-                  { id: 'today', label: "Today's Smoke Run" },
-                  { id: 'tomorrow_morning', label: "Tomorrow Morning Run (Pre-Orders)" }
-                ]}
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                {batchSchedule === 'today'
-                  ? 'Active daytime smoking. Buffers online store availability while batch is cooking on smoking grills.'
-                  : 'End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.'}
-              </p>
-            </div>
+          {!targetMasterBatchId && (
+            <>
+              {/* Batch Schedule & Storefront Settings Container */}
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+                {/* Schedule Mode */}
+                <div className="p-3.5 space-y-2">
+                  <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Batch Schedule
+                  </span>
+                  <KumoTabs
+                    activeTab={batchSchedule}
+                    onChange={(val) => {
+                      setBatchSchedule(val as 'today' | 'tomorrow_morning')
+                      if (val === 'today') {
+                        setEstimatedReadyTime('Today 1:30 PM')
+                      } else {
+                        setEstimatedReadyTime('Tomorrow 9:30 AM')
+                      }
+                    }}
+                    tabs={[
+                      { id: 'today', label: "Today's Smoke Run" },
+                      { id: 'tomorrow_morning', label: "Tomorrow Morning Run (Pre-Orders)" }
+                    ]}
+                  />
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    {batchSchedule === 'today'
+                      ? 'Active daytime smoking. Buffers online store availability while batch is cooking on smoking grills.'
+                      : 'End-of-day handoff (6:00 PM). Allows online customers to pre-order overnight for tomorrow.'}
+                  </p>
+                </div>
 
-            {/* Feed Storefront Buffer Toggle */}
-            <div className="p-3.5 flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  Feed Storefront Buffer
-                </span>
-                <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                  Keeps item bookable on online ordering storefront while cooking on smoking grill
-                </span>
+                {/* Feed Storefront Buffer Toggle */}
+                <div className="p-3.5 flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <span className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                      Feed Storefront Buffer
+                    </span>
+                    <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                      Keeps item bookable on online ordering storefront while cooking on smoking grill
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={feedSalesInventory}
+                    onChange={setFeedSalesInventory}
+                    size="md"
+                  />
+                </div>
               </div>
-              <Toggle
-                checked={feedSalesInventory}
-                onChange={setFeedSalesInventory}
-                size="md"
-              />
-            </div>
-          </div>
 
-          {/* Target Ready Time (Using custom DateTimePicker) */}
-          <DateTimePicker
-            label="Target Ready Time"
-            value={estimatedReadyTime}
-            onChange={(val) => setEstimatedReadyTime(val)}
-            placeholder="Select target ready date & time"
-            helperText="Est. completion time for kitchen line and customer storefront pre-orders"
-            required
-          />
+              {/* Target Ready Time (Using custom DateTimePicker) */}
+              <DateTimePicker
+                label="Target Ready Time"
+                value={estimatedReadyTime}
+                onChange={(val) => setEstimatedReadyTime(val)}
+                placeholder="Select target ready date & time"
+                helperText="Est. completion time for kitchen line and customer storefront pre-orders"
+                required
+              />
+            </>
+          )}
 
           {/* SECTION 1: Recipe Template & Target Output (Single-column vertical stack) */}
           <div className="space-y-4">
@@ -1777,77 +1884,18 @@ export const ProductionBatchesPage: React.FC = () => {
             />
           </div>
 
-          {/* Interactive Live Batch Cost & Margin Benchmark Card */}
-          {(() => {
-            const totalBomCost = bomRows.reduce((acc, row) => {
-              const unitCost = row.unit_cost || (row.item_type === 'compound'
-                ? compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id)?.unit_cost
-                : rawProducts.find(p => p.id === row.product_id)?.unit_cost) || 0
-              return acc + (row.quantity * unitCost)
-            }, 0)
-            const costPerPortion = expectedOutput > 0 ? totalBomCost / expectedOutput : 0
-            const hasDeficit = bomRows.some(row => {
-              const available = row.item_type === 'compound'
-                ? (compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id)?.stock_qty || 0)
-                : (rawProducts.find(p => p.id === row.product_id)?.stock_qty || 0)
-              return row.quantity > available
-            })
-
-            return (
-              <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 space-y-2.5 font-sans">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                    <Calculator className="w-4 h-4 text-primary" />
-                    Live Batch Cost & Margin Benchmark
-                  </span>
-                  {hasDeficit && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                      Stock Deficit Detected
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Initial BOM Cost</span>
-                    <span className="text-sm font-bold font-mono text-zinc-900 dark:text-zinc-100">
-                      {formatNaira(totalBomCost)}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Est. Portion Cost</span>
-                    <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
-                      {formatNaira(costPerPortion)} / portion
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 col-span-2 sm:col-span-1">
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block font-normal">Ingredients Included</span>
-                    <span className="text-sm font-bold font-mono text-zinc-800 dark:text-zinc-200">
-                      {bomRows.length} items ({bomRows.filter(r => r.item_type === 'compound').length} compound)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* SECTION 2: BOM Ingredients List with Generous Spacing */}
-          <div className="pt-6 mt-6 border-t border-kumo-line space-y-3.5">
+          {/* SECTION 2: BOM Ingredients List - Compact, no thick border, aligned buttons */}
+          <div className="space-y-2.5 pt-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider font-sans block">
-                  Ingredients to Allocate (Raw Materials & Compound Mixes)
-                </span>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
-                  Allocate raw ingredients or surplus compound mixes from Central Store
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider font-sans block">
+                Ingredients to Allocate
+              </span>
+              <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8 text-xs px-2.5"
                   onClick={() => {
                     setTemplateVersionName('')
                     setIsSaveTemplateModalOpen(true)
@@ -1859,6 +1907,7 @@ export const ProductionBatchesPage: React.FC = () => {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8 text-xs px-2.5"
                   onClick={handleAddBomRow}
                 >
                   Add Ingredient
@@ -1867,98 +1916,98 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
 
             {/* Sub-header labels for alignment */}
-            <div className="grid grid-cols-12 gap-3 px-2 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
+            <div className="grid grid-cols-12 gap-2.5 px-1 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider">
               <div className="col-span-7">Ingredient / Mix</div>
               <div className="col-span-4">Batch Allocation</div>
               <div className="col-span-1 text-center">Remove</div>
             </div>
 
-            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
               {bomRows.map((row, idx) => {
                 const isCpd = row.item_type === 'compound' || !!row.compound_id
                 const matchedCpd = isCpd ? compoundInventory.find(c => c.id === row.compound_id || c.id === row.product_id) : undefined
                 const matchedRaw = !isCpd ? rawProducts.find(p => p.id === row.product_id) : undefined
                 const availableStock = isCpd ? (matchedCpd?.stock_qty || 0) : (matchedRaw?.stock_qty || 0)
-                const unitCost = isCpd ? (matchedCpd?.unit_cost || 0) : (matchedRaw?.unit_cost || 0)
-                const lineTotalCost = Math.round(row.quantity * unitCost * 100) / 100
                 const isDeficit = row.quantity > availableStock
 
                 const selectOptions = [
                   ...rawProducts.map(rp => ({
                     value: rp.id,
-                    label: `[Raw] ${rp.name} (${rp.stock_qty} ${formatUnit(rp.unit)} on-hand @ ${formatNaira(rp.unit_cost || 0)})`
+                    label: `[Raw] ${rp.name}`
                   })),
                   ...compoundInventory.map(ci => ({
                     value: `cpd-${ci.id}`,
-                    label: `[Compound Mix] ${ci.name} (${ci.stock_qty} ${formatUnit(ci.unit)} on-hand @ ${formatNaira(ci.unit_cost)})`
+                    label: `[Compound Mix] ${ci.name}`
                   }))
                 ]
 
                 return (
-                  <div key={idx} className={`p-2.5 rounded-lg border transition-colors ${
-                    isDeficit 
-                      ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' 
-                      : 'border-kumo-line bg-kumo-base'
-                  }`}>
-                    <div className="grid grid-cols-12 gap-3 items-center text-xs font-sans">
+                  <div key={idx} className="py-1 transition-colors">
+                    <div className="grid grid-cols-12 gap-2.5 items-center text-xs font-sans">
                       <div className="col-span-7">
                         <Select
                           value={isCpd ? `cpd-${row.compound_id || row.product_id}` : row.product_id}
                           onChange={(e) => handleUpdateBomRow(idx, 'product_id', e.target.value)}
                           options={selectOptions}
                           size="md"
-                          buttonClassName="h-10 text-[13px] font-normal"
+                          buttonClassName="h-9 text-[13px] font-normal"
                         />
                       </div>
-                      <div className="col-span-4">
-                        <div className="flex items-center rounded-lg border border-kumo-line bg-kumo-base overflow-hidden h-10 shadow-2xs focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                      <div className="col-span-4 flex items-center gap-1.5">
+                        <div className={cn(
+                          "flex items-center rounded-lg border bg-kumo-base h-9 shadow-2xs transition-colors flex-1 min-w-0",
+                          isDeficit
+                            ? "border-amber-400 dark:border-amber-500 focus-within:ring-2 focus-within:ring-amber-400"
+                            : "border-kumo-line focus-within:ring-2 focus-within:ring-primary focus-within:border-primary"
+                        )}>
                           <input
                             type="number"
                             step="any"
                             min="0.1"
-                            value={row.quantity}
-                            onChange={(e) => handleUpdateBomRow(idx, 'quantity', Number(e.target.value))}
-                            className="flex-1 min-w-0 h-full px-3 text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none"
+                            value={row.quantity === 0 ? '' : row.quantity}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              handleUpdateBomRow(idx, 'quantity', val === '' ? 0 : Number(val))
+                            }}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            onKeyDown={(e) => {
+                              if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                e.preventDefault()
+                              }
+                            }}
+                            className="w-14 sm:w-16 px-2 h-full text-[13px] font-sans text-kumo-strong bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             placeholder="0.0"
                           />
-                          <span className="w-16 shrink-0 h-full flex items-center justify-center text-center px-1 text-[11px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase">
+                          <span className="w-12 shrink-0 h-full flex items-center justify-center text-center px-1 text-[11px] font-medium text-kumo-subtle bg-kumo-tint/60 border-l border-kumo-line select-none lowercase rounded-r-lg">
                             {formatUnit(row.unit)}
                           </span>
                         </div>
+
+                        {/* Deficit warning indicator OUTSIDE the input container to avoid any cropping */}
+                        {isDeficit ? (
+                          <Tooltip content={`Short by ${(row.quantity - availableStock).toFixed(1)} ${formatUnit(row.unit)} · ${availableStock} in store`}>
+                            <button
+                              type="button"
+                              aria-label="Stock deficit"
+                              className="w-6 h-6 flex items-center justify-center text-amber-600 dark:text-amber-400 cursor-help shrink-0 rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        ) : (
+                          <div className="w-6 h-6 shrink-0" />
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-center">
                         <button
                           type="button"
                           onClick={() => handleRemoveBomRow(idx)}
-                          className="p-2 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
+                          className="p-1.5 text-kumo-subtle hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors"
                           title="Remove ingredient"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      </div>
-                    </div>
-
-                    {/* Sub-line: Stock feasibility indicator & financial valuation */}
-                    <div className="flex items-center justify-between text-[11px] pt-2 px-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isDeficit ? (
-                          <span className="text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            Deficit: -{(row.quantity - availableStock).toFixed(1)} {formatUnit(row.unit)} (Store has {availableStock})
-                          </span>
-                        ) : (
-                          <span className="text-zinc-500 dark:text-zinc-400">
-                            Available in Store: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{availableStock} {formatUnit(row.unit)}</strong>
-                          </span>
-                        )}
-                        {isCpd && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                            Compound Mix ({matchedCpd?.active_lot_ref || 'Central Mix'})
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-mono text-zinc-700 dark:text-zinc-300 text-right">
-                        @ {formatNaira(unitCost)}/{formatUnit(row.unit)} = <strong className="text-zinc-900 dark:text-zinc-100">{formatNaira(lineTotalCost)}</strong>
                       </div>
                     </div>
                   </div>
@@ -1967,8 +2016,8 @@ export const ProductionBatchesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* SECTION 3: Remarks with Top Spacing */}
-          <div className="pt-5 border-t border-kumo-line">
+          {/* SECTION 3: Remarks */}
+          <div className="pt-2">
             <Input
               label="Production supervisor remarks"
               placeholder="e.g. Quality checks, temperature profile, shift directives"
@@ -2101,7 +2150,6 @@ export const ProductionBatchesPage: React.FC = () => {
                           </div>
                           <div className="text-[11px] text-kumo-subtle">
                             Issued: <strong className="font-mono">{m.quantity} {formatUnit(m.unit)}</strong>
-                            {m.unit_cost ? ` @ ${formatNaira(m.unit_cost)}/${formatUnit(m.unit)}` : ''}
                             {isCpd && <span className="text-emerald-600 dark:text-emerald-400 ml-1.5">&bull; Returns to Central Compound Store</span>}
                           </div>
                         </div>
@@ -2151,210 +2199,357 @@ export const ProductionBatchesPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* MODAL 3: Preview BOM Details — Comprehensive Recipe, Requisitions & Batch Costing */}
+      {/* MODAL 3: Master Batch View & Management Detail Dialog */}
       <Dialog
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}
-        title={`Cooking Recipe & Costing: ${selectedBatch?.batch_ref}`}
-        description={`Recipe specifications, formulated ingredients, additional warehouse requisitions, and costing breakdown for ${selectedBatch?.output_product_name}`}
-        maxWidth="2xl"
+        title={`Master Production Batch: ${activeMasterBatch?.batch_ref || ''}`}
+        description={`Daily Master Smoke Run (${activeMasterBatch?.production_date ? formatDate(activeMasterBatch.production_date) : 'Today'}) — ${activeMasterBatch?.products?.length || 1} product entries with live Sales Inventory buffer synchronization.`}
+        maxWidth="3xl"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
               Close
             </Button>
             <div className="flex items-center gap-2">
-              {selectedBatch && selectedBatch.status === 'draft' && (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={() => {
-                      cancelBatch(selectedBatch.id)
-                      setIsPreviewModalOpen(false)
-                    }}
-                  >
-                    Cancel Batch
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={() => {
-                      setIsPreviewModalOpen(false)
-                      handleOpenEdit(selectedBatch)
-                    }}
-                  >
-                    Edit Batch
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    leftIcon={<Play className="w-4 h-4 fill-current" />}
-                    onClick={() => {
-                      startBatch(selectedBatch.id)
-                      setIsPreviewModalOpen(false)
-                    }}
-                  >
-                    Start Cooking
-                  </Button>
-                </>
-              )}
-              {selectedBatch && selectedBatch.status === 'in_production' && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="md"
-                    onClick={() => {
-                      setIsPreviewModalOpen(false)
-                      handleOpenEdit(selectedBatch)
-                    }}
-                  >
-                    Edit Batch
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="md"
-                    leftIcon={<Plus className="w-4 h-4" />}
-                    onClick={() => {
-                      setIsPreviewModalOpen(false)
-                      handleOpenRequisitionModal(selectedBatch)
-                    }}
-                  >
-                    + Request Materials
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    leftIcon={<CheckSquare className="w-4 h-4" />}
-                    onClick={() => {
-                      setIsPreviewModalOpen(false)
-                      handleOpenComplete(selectedBatch)
-                    }}
-                  >
-                    Complete Batch & Log Output
-                  </Button>
-                </>
-              )}
-              {selectedBatch && selectedBatch.status === 'completed' && (
-                <Button variant="primary" size="md" onClick={() => setIsPreviewModalOpen(false)}>
-                  Done
+              {activeMasterBatch && activeMasterBatch.status !== 'completed' && activeMasterBatch.status !== 'cancelled' && (
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={() => {
+                    handleOpenAddProduct(activeMasterBatch)
+                  }}
+                >
+                  Add Product to Master Batch
                 </Button>
               )}
             </div>
           </div>
         }
       >
-        <div className="space-y-4 font-sans text-xs">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
-            {/* Section 1: Batch Overview */}
-            <div className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Batch Specifications
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
-                  {selectedBatch?.status.replace('_', ' ')}
-                </span>
-              </div>
+        <div className="space-y-5 font-sans">
+          {/* Section 1: Master Batch Overview */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1">
+              <span className="text-[10px] font-semibold text-kumo-subtle uppercase tracking-wider block">Master Reference</span>
+              <span className="text-[16px] font-bold text-kumo-strong font-mono block tracking-tight">{activeMasterBatch?.batch_ref}</span>
+              <span className="text-[11px] text-kumo-subtle block font-sans">
+                {activeMasterBatch?.production_date ? formatDate(activeMasterBatch.production_date) : 'Today'}
+              </span>
+            </div>
 
-              <div className="space-y-2.5 pt-1">
-                <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Target Product</span>
-                  <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{selectedBatch?.output_product_name}</span>
-                </div>
-                <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Batch Reference</span>
-                  <span className="text-zinc-900 dark:text-zinc-100 font-mono font-medium">{selectedBatch?.batch_ref}</span>
-                </div>
-                <div className="flex items-start text-[13px]">
-                  <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Planned Output</span>
-                  <span className="text-zinc-900 dark:text-zinc-100 font-medium font-mono">{selectedBatch?.expected_output} portions</span>
-                </div>
-                {selectedBatch?.status === 'completed' && (
-                  <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Actual Reconciled</span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-medium font-mono">
-                      {selectedBatch.actual_output} portions ({selectedBatch.wastage} loss / wastage)
-                    </span>
-                  </div>
-                )}
-                {selectedBatch?.remarks && (
-                  <div className="flex items-start text-[13px]">
-                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Supervisor Remarks</span>
-                    <span className="text-zinc-700 dark:text-zinc-300 font-normal italic leading-relaxed">{selectedBatch.remarks}</span>
-                  </div>
-                )}
+            <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1">
+              <span className="text-[10px] font-semibold text-kumo-subtle uppercase tracking-wider block">Master Status</span>
+              <div className="pt-0.5">
+                {activeMasterBatch?.status === 'draft' && <StatusBadge status="draft" label="prep queued" />}
+                {activeMasterBatch?.status === 'in_production' && <StatusBadge status="in-progress" label="in production" />}
+                {activeMasterBatch?.status === 'completed' && <StatusBadge status="completed" label="finished" />}
+                {activeMasterBatch?.status === 'cancelled' && <StatusBadge status="inactive" label="cancelled" />}
               </div>
             </div>
 
-            {/* Section 2: Formulated Ingredients (BOM) */}
-            <div className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Initial Formulated Ingredients (BOM)
+            <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1">
+              <span className="text-[10px] font-semibold text-kumo-subtle uppercase tracking-wider block">Product Entries</span>
+              <span className="text-[16px] font-bold text-kumo-strong font-mono block tracking-tight">
+                {activeMasterBatch?.products?.length || 1} <span className="text-xs font-normal text-kumo-subtle">items</span>
+              </span>
+              <span className="text-[11px] text-kumo-subtle block font-sans">
+                Independent buffer feeds
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1">
+              <span className="text-[10px] font-semibold text-kumo-subtle uppercase tracking-wider block">Yield Reconciled</span>
+              <span className="text-[16px] font-bold text-kumo-strong font-mono block tracking-tight">
+                {activeMasterBatch?.products?.reduce((acc, p) => acc + (p.actual_output || 0), 0) || activeMasterBatch?.actual_output || 0} <span className="text-xs font-normal text-kumo-subtle">/ {activeMasterBatch?.products?.reduce((acc, p) => acc + (p.expected_output || 0), 0) || activeMasterBatch?.expected_output || 0}</span>
+              </span>
+              <span className="text-[11px] text-kumo-subtle block">portions total</span>
+            </div>
+          </div>
+
+          {/* Subtabs for Detail Navigation */}
+          <KumoTabs
+            activeTab={detailTab}
+            onChange={(val) => setDetailTab(val as any)}
+            tabs={[
+              { id: 'products', label: 'Product Entries', badge: activeMasterBatch?.products?.length || 1 },
+              { id: 'materials', label: 'Materials Summary' },
+              { id: 'requisitions', label: 'Requisitions', badge: activeMasterBatch?.additional_requisitions?.length || 0 },
+              { id: 'history', label: 'Production History', badge: activeMasterBatch?.history?.length || 0 },
+            ]}
+          />
+
+          {/* TAB 1: Product Production Entries */}
+          {detailTab === 'products' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                  Product Entries ({activeMasterBatch?.products?.length || 0})
                 </span>
-                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
-                  {selectedBatch?.raw_materials.filter(m => m.source !== 'additional').length || 0} Ingredients
-                </span>
+                {activeMasterBatch?.status !== 'completed' && activeMasterBatch?.status !== 'cancelled' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    onClick={() => activeMasterBatch && handleOpenAddProduct(activeMasterBatch)}
+                  >
+                    Add Product
+                  </Button>
+                )}
               </div>
 
-              <div className="pt-1 divide-y divide-zinc-200 dark:divide-zinc-800">
-                {selectedBatch?.raw_materials.filter(m => m.source !== 'additional').map((m, idx) => {
-                  const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
-                  const fallbackUnitCost = isCpd
-                    ? compoundInventory.find(c => c.id === m.compound_id || c.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost || 0
-                    : rawProducts.find(p => p.id === m.product_id || p.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost || 0
-                  const displayUnitCost = m.unit_cost && m.unit_cost > 0 ? m.unit_cost : fallbackUnitCost
-                  const displayTotalCost = m.total_cost && m.total_cost > 0 ? m.total_cost : Math.round(m.quantity * displayUnitCost * 100) / 100
+              <div className="space-y-2.5">
+                {activeMasterBatch?.products?.map((prod, idx) => {
+                  const isFinished = prod.status === 'completed'
+                  const isCooking = prod.status === 'in_production'
+                  const isDraft = prod.status === 'draft'
+                  const isCancelled = prod.status === 'cancelled'
 
                   return (
-                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{m.name}</span>
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">[{m.sku}]</span>
-                          {isCpd && (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                              Compound Mix ({m.prep_ref || 'Central Store'})
+                    <div
+                      key={prod.id || idx}
+                      className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-2 hover:border-kumo-line/80 transition-all font-sans"
+                    >
+                      {/* Line 1: Title, Badges, Inline Buffer Pill, and Action Buttons */}
+                      <div className="flex items-center justify-between gap-2.5 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-sm font-bold text-kumo-strong truncate">
+                            {prod.output_product_name}
+                          </span>
+                          {isDraft && <StatusBadge status="draft" label="prep queued" />}
+                          {isCooking && <StatusBadge status="in-progress" label="on smoking grill" />}
+                          {isFinished && <StatusBadge status="completed" label="finished" />}
+                          {isCancelled && <StatusBadge status="inactive" label="cancelled" />}
+
+                          {/* Sleek inline Sales Buffer Pill (Only for active / cancelled runs to avoid duplicate actual output info) */}
+                          {isCancelled ? (
+                            <span className="inline-flex items-center text-[11px] text-zinc-400 font-mono">
+                              Buffer reversed
+                            </span>
+                          ) : !isFinished && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                              +{prod.expected_output} buffer active
                             </span>
                           )}
                         </div>
-                        {displayUnitCost > 0 ? (
-                          <div className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                            @ {formatNaira(displayUnitCost)} / {formatUnit(m.unit)}
-                          </div>
-                        ) : null}
+
+                        {/* Action Buttons: Justified (Cancel on the left, Complete & Edit on the right) */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Left: Cancel button */}
+                          {(isDraft || isCooking) && (
+                            <Tooltip content="Cancel Product Run">
+                              <button
+                                type="button"
+                                onClick={() => handleCancelProduct(prod, activeMasterBatch)}
+                                className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-2xs transition-colors cursor-pointer mr-1"
+                                aria-label="Cancel product"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                          )}
+
+                          {/* Right: Complete & Edit actions */}
+                          {isDraft && (
+                            <>
+                              <Tooltip content="Edit Planned Yield">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditProduct(prod, activeMasterBatch)}
+                                  className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-2xs transition-colors cursor-pointer"
+                                  aria-label="Edit quantity"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              </Tooltip>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Play className="w-3 h-3 fill-current" />}
+                                onClick={() => startProductProduction(activeMasterBatch.id, prod.id)}
+                              >
+                                Start Cooking
+                              </Button>
+                            </>
+                          )}
+                          {isCooking && (
+                            <>
+                              <Tooltip content="Edit Planned Yield">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditProduct(prod, activeMasterBatch)}
+                                  className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-2xs transition-colors cursor-pointer"
+                                  aria-label="Edit quantity"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              </Tooltip>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                className="!bg-emerald-600 hover:!bg-emerald-700 !text-white"
+                                leftIcon={<CheckSquare className="w-3 h-3" />}
+                                onClick={() => handleOpenCompleteProduct(prod, activeMasterBatch)}
+                              >
+                                Complete
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200 text-xs px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                          {m.quantity} {formatUnit(m.unit)}
-                        </span>
-                        {displayTotalCost > 0 ? (
-                          <div className="text-[11px] text-zinc-700 dark:text-zinc-300 font-mono font-semibold mt-1">
-                            {formatNaira(displayTotalCost)}
-                          </div>
-                        ) : null}
+
+                      {/* Line 2: Quantities, Loss, and Timestamp metadata */}
+                      <div className="flex items-center justify-between text-xs text-kumo-subtle flex-wrap gap-2 pt-1 border-t border-kumo-line/40">
+                        <div className="flex items-center gap-2 font-sans">
+                          <span>
+                            Planned: <strong className="text-kumo-strong font-mono">{prod.expected_output} portions</strong>
+                          </span>
+                          {isFinished && (
+                            <>
+                              <span>&bull;</span>
+                              <span>
+                                actual output: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{prod.actual_output} portions</strong>
+                                {prod.wastage ? ` (${prod.wastage} loss)` : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[11px] font-mono text-zinc-500">
+                          {isFinished && prod.completed_at ? (
+                            <span>Completed: {formatDate(prod.completed_at)}</span>
+                          ) : isCooking && prod.started_at ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">Cooking since {formatDate(prod.started_at)}</span>
+                          ) : (
+                            <span>Queued for grill ignition</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
             </div>
+          )}
 
-            {/* Section 3: Additional Material Requisitions */}
-            <div className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Additional Material Requisitions
-                </span>
-                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
-                  {selectedBatch?.additional_requisitions?.length || 0} Requests
-                </span>
+          {/* TAB 2: Materials Summary */}
+          {detailTab === 'materials' && (
+            <div className="space-y-4 font-sans text-xs">
+              {/* Aggregated totals */}
+              <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                    Aggregated Materials for Master Batch {activeMasterBatch?.batch_ref}
+                  </span>
+                  <span className="text-[11px] text-kumo-subtle">
+                    Aggregated across {activeMasterBatch?.products?.length || 1} product runs
+                  </span>
+                </div>
+
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
+                  {(() => {
+                    // Group raw materials across all products and requisitions
+                    const map = new Map<number, { name: string; sku: string; unit: string; issued: number; returned: number }>()
+                    activeMasterBatch?.raw_materials?.forEach(m => {
+                      const existing = map.get(m.product_id) || { name: m.name, sku: m.sku, unit: m.unit, issued: 0, returned: 0 }
+                      existing.issued += m.quantity
+                      map.set(m.product_id, existing)
+                    })
+                    activeMasterBatch?.returned_materials?.forEach(r => {
+                      const existing = map.get(r.product_id)
+                      if (existing) {
+                        existing.returned += r.quantity
+                      }
+                    })
+                    const items = Array.from(map.values())
+
+                    return items.map((item, idx) => {
+                      const net = Math.max(0, item.issued - item.returned)
+                      return (
+                        <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-semibold text-kumo-strong">{item.name}</span>
+                            <span className="text-kumo-subtle font-mono text-[11px] ml-1.5">[{item.sku}]</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-right font-mono">
+                            <div>
+                              <span className="text-kumo-subtle text-[11px] block">Issued</span>
+                              <span className="font-semibold text-kumo-strong">{item.issued} {formatUnit(item.unit)}</span>
+                            </div>
+                            {item.returned > 0 && (
+                              <div>
+                                <span className="text-emerald-600 text-[11px] block">Returned</span>
+                                <span className="font-semibold text-emerald-600">-{item.returned} {formatUnit(item.unit)}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-kumo-subtle text-[11px] block">Net Used</span>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{net} {formatUnit(item.unit)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
               </div>
 
-              {selectedBatch?.additional_requisitions && selectedBatch.additional_requisitions.length > 0 ? (
-                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
-                  {selectedBatch.additional_requisitions.map((req, idx) => (
+              {/* Product-level breakdown */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-kumo-strong uppercase tracking-wider block">
+                  Product-Level Consumption Breakdown
+                </span>
+                {activeMasterBatch?.products?.map((prod, pIdx) => (
+                  <div key={pIdx} className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 space-y-2">
+                    <div className="flex items-center justify-between font-semibold text-kumo-strong">
+                      <span>{prod.output_product_name}</span>
+                      <span className="text-xs font-mono text-kumo-subtle">{prod.expected_output} portions planned</span>
+                    </div>
+                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[11px]">
+                      {prod.raw_materials.map((m, mIdx) => (
+                        <div key={mIdx} className="py-1.5 first:pt-0 last:pb-0 flex justify-between items-center">
+                          <span className="text-kumo-subtle">{m.name} [{m.sku}]</span>
+                          <span className="font-mono font-medium text-kumo-strong">{m.quantity} {formatUnit(m.unit)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Additional Material Requisitions */}
+          {detailTab === 'requisitions' && (
+            <div className="space-y-4 font-sans text-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                    Additional Material Requisitions
+                  </h4>
+                  <p className="text-[11px] text-kumo-subtle">
+                    Mid-cycle requests for extra firewood, charcoal, spices, or ingredients.
+                  </p>
+                </div>
+                {activeMasterBatch && activeMasterBatch.status !== 'completed' && activeMasterBatch.status !== 'cancelled' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      setIsPreviewModalOpen(false)
+                      handleOpenRequisitionModal(activeMasterBatch)
+                    }}
+                  >
+                    Request Stock
+                  </Button>
+                )}
+              </div>
+
+              {activeMasterBatch?.additional_requisitions && activeMasterBatch.additional_requisitions.length > 0 ? (
+                <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                  {activeMasterBatch.additional_requisitions.map((req, idx) => (
                     <div key={idx} className="py-3 first:pt-0 last:pb-0 space-y-2 text-[13px]">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -2390,11 +2585,6 @@ export const ProductionBatchesPage: React.FC = () => {
                               Rejected
                             </span>
                           )}
-                          {req.total_cost && req.total_cost > 0 ? (
-                            <div className="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 mt-1">
-                              +{formatNaira(req.total_cost)}
-                            </div>
-                          ) : null}
                         </div>
                       </div>
 
@@ -2416,100 +2606,290 @@ export const ProductionBatchesPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-zinc-500 text-xs py-1">No additional materials requested during this cooking run.</div>
+                <div className="p-6 text-center text-kumo-subtle text-xs bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                  No additional materials requested during this cooking run.
+                </div>
               )}
             </div>
+          )}
 
-            {/* Section 4: Returned Unconsumed Materials (if any) */}
-            {selectedBatch?.returned_materials && selectedBatch.returned_materials.length > 0 && (
-              <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                    <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
-                    Unconsumed Materials Returned to Store
+          {/* TAB 4: Production History */}
+          {detailTab === 'history' && (
+            <div className="space-y-4 font-sans">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-kumo-strong uppercase tracking-wider">
+                  Master Batch Activity & Inventory Timeline
+                </span>
+                <span className="text-[11px] text-kumo-subtle font-mono">
+                  {activeMasterBatch?.history?.length || 0} event logs
+                </span>
+              </div>
+
+              {activeMasterBatch?.history && activeMasterBatch.history.length > 0 ? (
+                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-kumo-line">
+                  {activeMasterBatch.history.map((log, lIdx) => {
+                    const titleLower = log.title.toLowerCase()
+                    const isCompleted = titleLower.includes('completed') || titleLower.includes('finished') || titleLower.includes('reconciled')
+
+                    // Desaturated to red for completed tasks, grey for ongoing / creation tasks. Pure circle, no icon.
+                    const dotClass = isCompleted
+                      ? 'bg-rose-600 ring-rose-100 dark:ring-rose-950/60'
+                      : 'bg-zinc-400 dark:bg-zinc-600 ring-zinc-100 dark:ring-zinc-800'
+
+                    return (
+                      <div key={log.id || lIdx} className="relative group text-xs">
+                        <div className={cn(
+                          "absolute -left-6 top-2 w-3.5 h-3.5 rounded-full ring-4 transition-all shadow-2xs select-none",
+                          dotClass
+                        )} />
+                        <div className="p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1.5 transition-all hover:border-kumo-line/80">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-bold text-kumo-strong text-[13px]">{log.title}</span>
+                            <span className="text-[11px] text-kumo-subtle font-mono">
+                              {formatDate(log.timestamp)}
+                            </span>
+                          </div>
+                          {log.details && (
+                            <p className="text-xs text-kumo-subtle leading-relaxed">{log.details}</p>
+                          )}
+                          <div className="flex items-center justify-between pt-1 border-t border-kumo-line/40 text-[11px]">
+                            <span className="text-kumo-subtle font-mono">
+                              Logged by: <strong className="text-kumo-strong font-sans">{log.user_name}</strong>
+                            </span>
+                            <span className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                              Verified Event
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-kumo-subtle text-xs bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                  No chronological history recorded yet for this batch.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      {/* MODAL 3B: Complete Individual Product Entry */}
+      <Dialog
+        isOpen={isCompleteProductModalOpen}
+        onClose={() => {
+          setIsCompleteProductModalOpen(false)
+          setProductForComplete(null)
+        }}
+        title={`Complete Product: ${productForComplete?.output_product_name || ''}`}
+        description={`Record verified output portions, grill shrinkage, and deposit finished stock directly into Sales Inventory.`}
+        maxWidth="xl"
+        zIndex="z-[60]"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => {
+              setIsCompleteProductModalOpen(false)
+              setProductForComplete(null)
+            }}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="complete-product-entry-form">
+              Confirm & Deposit Stock
+            </Button>
+          </div>
+        }
+      >
+        <form id="complete-product-entry-form" onSubmit={handleConfirmCompleteProduct} className="space-y-4">
+          <div className="p-3.5 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-2 font-sans">
+            <div className="flex justify-between items-center pb-2 border-b border-kumo-line/60">
+              <span className="text-kumo-subtle font-medium">Estimated Storefront Buffer:</span>
+              <span className="font-semibold text-kumo-strong font-sans">{productForComplete?.expected_output} portions (Active buffer)</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px] text-kumo-subtle">
+              <span>Reconciliation Action:</span>
+              <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                Converts estimated buffer into verified Physical Ready Stock
+              </span>
+            </div>
+          </div>
+
+          <UnitInput
+            label="Actual Cooked Output"
+            value={productActualOutput}
+            onChangeValue={setProductActualOutput}
+            unit="portions"
+            min={0}
+            helperText="Will be added directly to Sales Inventory"
+            required
+          />
+
+          <UnitInput
+            label="Cooking Loss / Wastage"
+            value={productWastage}
+            onChangeValue={setProductWastage}
+            unit="portions"
+            min={0}
+            helperText="Unusable / burnt portions"
+            required
+          />
+
+          {/* Cooking Yield Tolerance Calculation */}
+          {(() => {
+            const expected = productForComplete?.expected_output || 1
+            const variancePct = ((productActualOutput - expected) / expected) * 100
+            const isOutOfTolerance = Math.abs(variancePct) > 5.0
+            return (
+              <div className={`p-3 rounded-lg text-xs space-y-1 font-sans border ${
+                isOutOfTolerance
+                  ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                  : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+              }`}>
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    {isOutOfTolerance ? (
+                      <AlertOctagon className="w-4 h-4 text-amber-600 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    )}
+                    Cooking Yield Variance: {variancePct > 0 ? `+${variancePct.toFixed(1)}%` : `${variancePct.toFixed(1)}%`}
+                  </span>
+                  <span className="text-[11px] font-normal uppercase tracking-wider">
+                    {isOutOfTolerance ? 'Tolerance Exceeded (±5%)' : 'Within Tolerance (±5%)'}
                   </span>
                 </div>
-                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 pt-1">
-                  {selectedBatch.returned_materials.map((ret, idx) => (
-                    <div key={idx} className="py-2 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{ret.name}</span>
-                      <span className="font-mono font-semibold text-emerald-600">
-                        -{ret.quantity} {formatUnit(ret.unit)}
-                      </span>
-                    </div>
-                  ))}
+              </div>
+            )
+          })()}
+
+          {/* Expandable Section: Return Unconsumed Materials */}
+          <div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsProductReturnsExpanded(!isProductReturnsExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-kumo-tint/50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-semibold text-kumo-strong">
+                  Return Unconsumed Raw Materials (Optional)
+                </span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 text-kumo-subtle transition-transform duration-200", isProductReturnsExpanded && "rotate-180")} />
+            </button>
+            {isProductReturnsExpanded && (
+              <div className="p-4 pt-1 border-t border-kumo-line space-y-3 bg-kumo-surface/30">
+                <p className="text-[11px] text-kumo-subtle leading-relaxed">
+                  If any ingredients allocated for this product were not fully consumed, enter the returned quantities below to credit them back to Central Store.
+                </p>
+                <div className="space-y-2.5 divide-y divide-kumo-line/60">
+                  {productForComplete?.raw_materials.map((m: RawMaterialBOM, idx: number) => {
+                    const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
+                    const currentReturn = productReturnedMaterials.find(r => r.productId === m.product_id)?.quantity || 0
+                    return (
+                      <div key={idx} className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 text-xs font-sans">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-kumo-strong truncate">
+                            {m.name}
+                          </div>
+                          <div className="text-[11px] text-kumo-subtle">
+                            Issued: <strong className="font-mono">{m.quantity} {formatUnit(m.unit)}</strong>
+                          </div>
+                        </div>
+                        <div className="w-32 shrink-0">
+                          <UnitInput
+                            value={currentReturn}
+                            onChangeValue={(v) => {
+                              const val = Number(v) || 0
+                              setProductReturnedMaterials(prev => {
+                                const filtered = prev.filter(p => p.productId !== m.product_id)
+                                if (val > 0) return [
+                                  ...filtered, 
+                                  { 
+                                    productId: m.product_id, 
+                                    quantity: Math.min(val, m.quantity),
+                                    item_type: isCpd ? 'compound' : 'raw',
+                                    compound_id: m.compound_id
+                                  }
+                                ]
+                                return filtered
+                              })
+                            }}
+                            unit={formatUnit(m.unit)}
+                            min={0}
+                            max={m.quantity}
+                            step={0.1}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
-
-            {/* Section 5: Batch Run Financial Cost Summary */}
-            {(() => {
-              const initialCostComputed = (selectedBatch?.initial_material_cost && selectedBatch.initial_material_cost > 0)
-                ? selectedBatch.initial_material_cost
-                : (selectedBatch?.raw_materials || []).filter(m => m.source !== 'additional').reduce((acc, m) => {
-                    const isCpd = m.item_type === 'compound' || m.source === 'compound' || !!m.compound_id
-                    const unitCost = m.unit_cost || (isCpd
-                      ? compoundInventory.find(c => c.id === m.compound_id || c.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost
-                      : rawProducts.find(p => p.id === m.product_id || p.name.toLowerCase().trim() === m.name.toLowerCase().trim())?.unit_cost) || 0
-                    return acc + (m.total_cost || (m.quantity * unitCost))
-                  }, 0)
-
-              const additionalCostComputed = (selectedBatch?.additional_material_cost && selectedBatch.additional_material_cost > 0)
-                ? selectedBatch.additional_material_cost
-                : (selectedBatch?.additional_requisitions || []).filter(r => r.status === 'approved' || r.status === 'partially_fulfilled').reduce((acc, r) => acc + (r.total_cost || 0), 0)
-
-              const totalNetCost = selectedBatch?.total_material_cost && selectedBatch.total_material_cost > 0
-                ? selectedBatch.total_material_cost
-                : Math.round((initialCostComputed + additionalCostComputed) * 100) / 100
-
-              const portionDivisor = (selectedBatch?.status === 'completed' && selectedBatch?.actual_output && selectedBatch.actual_output > 0)
-                ? selectedBatch.actual_output
-                : (selectedBatch?.expected_output || 1)
-
-              const unitCostPerPortionComputed = selectedBatch?.unit_cost_per_portion && selectedBatch.unit_cost_per_portion > 0
-                ? selectedBatch.unit_cost_per_portion
-                : Math.round((totalNetCost / portionDivisor) * 100) / 100
-
-              return (
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/40 space-y-2">
-                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider block">
-                    Production Batch Financial Costing
-                  </span>
-                  <div className="space-y-1.5 text-xs pt-1 font-sans">
-                    <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
-                      <span>Initial Material Allocation Cost:</span>
-                      <span className="font-mono font-medium text-zinc-900 dark:text-zinc-100">
-                        {formatNaira(initialCostComputed)}
-                      </span>
-                    </div>
-                    {additionalCostComputed > 0 && (
-                      <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
-                        <span>Fulfilled Additional Requisitions Cost:</span>
-                        <span className="font-mono font-medium text-amber-600">
-                          +{formatNaira(additionalCostComputed)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-700 font-semibold text-[13px]">
-                      <span className="text-zinc-900 dark:text-zinc-100">Total Net Material Cost:</span>
-                      <span className="font-mono text-primary font-bold">
-                        {formatNaira(totalNetCost)}
-                      </span>
-                    </div>
-                    {unitCostPerPortionComputed > 0 && (
-                      <div className="flex justify-between items-center text-xs text-zinc-500">
-                        <span>Net Material Cost per {selectedBatch?.status === 'completed' ? 'Finished' : 'Planned'} Portion:</span>
-                        <span className="font-mono font-semibold text-emerald-600">
-                          {formatNaira(unitCostPerPortionComputed)} / unit
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
           </div>
-        </div>
+
+          <Input
+            label="Quality Control & Inspection Notes"
+            value={productQcNotes}
+            onChange={(e) => setProductQcNotes(e.target.value)}
+            required
+          />
+
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-200 font-sans">
+            <strong>Automated Action:</strong> Submitting will mark this product completed and increment <strong>+{productActualOutput} units</strong> in Sales Inventory while leaving other products in this master batch unaffected.
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 3C: Edit Product Entry */}
+      <Dialog
+        isOpen={isEditProductModalOpen}
+        onClose={() => {
+          setIsEditProductModalOpen(false)
+          setProductForEdit(null)
+        }}
+        title={`Edit Product Run: ${productForEdit?.output_product_name || ''}`}
+        description="Adjust expected output portions. The live storefront buffer feed in Sales Inventory will synchronize automatically by the difference."
+        maxWidth="md"
+        zIndex="z-[60]"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => {
+              setIsEditProductModalOpen(false)
+              setProductForEdit(null)
+            }}>
+              Close
+            </Button>
+            <Button variant="primary" size="md" type="submit" form="edit-product-entry-form">
+              Save Changes & Sync Buffer
+            </Button>
+          </div>
+        }
+      >
+        <form id="edit-product-entry-form" onSubmit={handleConfirmEditProduct} className="space-y-4 font-sans text-xs">
+          <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-900 dark:text-blue-200">
+            Current buffer in Sales Inventory: <strong>{productForEdit?.expected_output} portions</strong>.
+            Changing this will adjust the incoming buffer cleanly without double-counting.
+          </div>
+
+          <UnitInput
+            label="Expected Output Portions"
+            value={productEditExpectedOutput}
+            onChangeValue={setProductEditExpectedOutput}
+            unit="portions"
+            min={1}
+            helperText="Synchronizes the incoming estimate in Sales Inventory"
+            required
+          />
+
+          <Input
+            label="Supervisor Remarks / Reason for change"
+            value={productEditRemarks}
+            onChange={(e) => setProductEditRemarks(e.target.value)}
+            placeholder="e.g. Added 10 portions due to customer rush"
+          />
+        </form>
       </Dialog>
 
       {/* MODAL 4: Save Recipe Template */}
@@ -2724,19 +3104,7 @@ export const ProductionBatchesPage: React.FC = () => {
               required
             />
 
-            {(() => {
-              const selectedProd = rawProducts.find(r => r.id === reqProductId)
-              const unitCost = selectedProd?.unit_cost || 0
-              const estimatedImpact = Math.round(reqQty * unitCost * 100) / 100
-              return (
-                <div className="p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs font-mono">
-                  <span className="text-zinc-500 font-sans">Estimated Cost Impact:</span>
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100">
-                    {reqQty} {formatUnit(selectedProd?.unit)} @ {formatNaira(unitCost)} = <strong className="text-primary font-bold">{formatNaira(estimatedImpact)}</strong>
-                  </span>
-                </div>
-              )
-            })()}
+            {/* Requisition reason selection */}
 
             <Select
               label="Operational Reason for Additional Request"
@@ -2861,18 +3229,6 @@ export const ProductionBatchesPage: React.FC = () => {
                 <span className="text-kumo-subtle">Central Store Available:</span>
                 <span className="font-mono font-semibold text-emerald-600">
                   {rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.stock_qty || 0} {formatUnit(selectedReqForFulfill.unit)} on-hand
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-kumo-subtle">Average Unit Cost:</span>
-                <span className="font-mono font-medium text-zinc-800 dark:text-zinc-200">
-                  {formatNaira(Math.round(rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.unit_cost || 0))} / {formatUnit(selectedReqForFulfill.unit)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-kumo-subtle">Dispatched Value Impact:</span>
-                <span className="font-mono font-bold text-primary">
-                  +{formatNaira(Math.round(fulfillQty * Math.round(rawProducts.find(r => r.id === selectedReqForFulfill.raw_product_id)?.unit_cost || 0)))}
                 </span>
               </div>
             </div>
@@ -3219,27 +3575,7 @@ export const ProductionBatchesPage: React.FC = () => {
             required
           />
 
-          {/* Live Compound Prep Mix Valuation Card */}
-          {(() => {
-            const totalCost = prepIngredients.reduce((acc, ing) => {
-              const p = rawProducts.find(r => r.id === ing.productId)
-              return acc + (ing.quantity * (p?.unit_cost || 0))
-            }, 0)
-            const unitCost = prepYieldQty > 0 ? Math.round(totalCost / prepYieldQty) : 0
-            return (
-              <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 space-y-1 text-xs font-sans">
-                <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
-                  <span>Total Raw Materials Valuation:</span>
-                  <span className="font-mono font-medium text-zinc-900 dark:text-zinc-100">{formatNaira(Math.round(totalCost))}</span>
-                </div>
-                <div className="flex justify-between items-center text-zinc-800 dark:text-zinc-200 font-semibold pt-1 border-t border-zinc-200 dark:border-zinc-700">
-                  <span>Compound Average Cost (per {prepUnit}):</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{formatNaira(unitCost)} / {prepUnit}</span>
-                </div>
-              </div>
-            )
-          })()}
-
+          {/* Compound Prep Ingredients Allocation */}
           <div className="space-y-2.5 pt-3 border-t border-kumo-line">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-kumo-strong text-xs uppercase tracking-wider">

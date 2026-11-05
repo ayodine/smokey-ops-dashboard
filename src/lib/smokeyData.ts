@@ -344,7 +344,7 @@ export interface SalesMovement {
   sku: string
   unit: string
   location: 'sales' | 'finished' | 'packaging'
-  movement_type: 'receipt' | 'consumption' | 'production_output' | 'sale' | 'adjustment' | 'waste' | 'reversal'
+  movement_type: 'receipt' | 'consumption' | 'production_output' | 'sale' | 'adjustment' | 'waste' | 'reversal' | 'repackage_deduct' | 'repackage_add' | 'repackage_conversion'
   quantity: number
   unit_cost: number
   value_amount: number
@@ -406,23 +406,75 @@ export interface BatchMaterialRequisition {
   warehouse_notes?: string
 }
 
-export interface ProductionBatch {
-  id: number
-  batch_ref: string
+export interface ProductBatchEntry {
+  id: string | number
   output_product_id: number
   output_product_name: string
   expected_output: number
   actual_output: number
   wastage: number
   status: 'draft' | 'in_production' | 'completed' | 'cancelled'
-  batch_schedule?: 'today' | 'tomorrow_morning'
   feed_sales_inventory?: boolean
   estimated_ready_time?: string
   started_at: string | null
   completed_at: string | null
   remarks?: string
+  recipe_template_id?: number
+  variance_pct?: number
+  supervisor_override_note?: string
+  raw_materials: RawMaterialBOM[]
+  additional_requisitions?: BatchMaterialRequisition[]
+  initial_material_cost?: number
+  additional_material_cost?: number
+  total_material_cost?: number
+  unit_cost_per_portion?: number
+  returned_materials?: Array<{
+    product_id: number
+    name: string
+    quantity: number
+    unit: string
+    value_credited: number
+    item_type?: 'raw' | 'compound'
+    compound_id?: number
+  }>
+}
+
+export interface ProductionBatchHistoryLog {
+  id: string
+  timestamp: string
+  user_name: string
+  event_type: 'batch_created' | 'product_added' | 'output_changed' | 'started' | 'completed' | 'cancelled' | 'requisition' | 'material_returned'
+  title: string
+  details?: string
+  product_name?: string
+}
+
+export interface ProductionBatch {
+  id: number
+  batch_ref: string
+  production_date?: string // YYYY-MM-DD
+  status: 'draft' | 'in_production' | 'completed' | 'cancelled'
+  batch_schedule?: 'today' | 'tomorrow_morning'
   created_by_name: string
   created_at?: string
+  completed_at?: string | null
+  started_at?: string | null
+  remarks?: string
+  estimated_ready_time?: string
+  
+  // Multi-Product architecture: Individual product production entries
+  products: ProductBatchEntry[]
+
+  // Chronological event audit log for Master Batch Detail Page
+  history?: ProductionBatchHistoryLog[]
+
+  // Backward-compatibility mirrors for legacy single-product queries
+  output_product_id: number
+  output_product_name: string
+  expected_output: number
+  actual_output: number
+  wastage: number
+  feed_sales_inventory?: boolean
   raw_materials: RawMaterialBOM[]
   recipe_template_id?: number
   variance_pct?: number
@@ -457,6 +509,7 @@ export interface PackagingQueueOrder {
   items_summary: string
   items: Array<{ product_name: string; quantity: number; unit_price: number; line_total: number }>
   packaging_materials_picked?: Array<{ packaging_name: string; quantity: number }>
+  notes?: string
   packaged_at?: string | null
   packaged_by_name?: string | null
   created_at: string
@@ -1432,7 +1485,9 @@ export const SEED_SALES_PRODUCTS: SalesProduct[] = [
   { id: 12, sku: "WEB-PROD-12", name: "Smokey Gizzard", product_type: "sales", unit: "unit", reorder_level: 20, unit_cost: 2200, selling_price: 4500, stock_qty: 87, qty_allocated: 0, qty_available: 87, inventory_value: 191400, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 87 },
   { id: 24, sku: "WEB-PROD-24", name: "KING SIZE SMOKEY GUINEAFOWL + GIZZARD", product_type: "sales", unit: "unit", reorder_level: 15, unit_cost: 8500, selling_price: 17000, stock_qty: 77, qty_allocated: 0, qty_available: 77, inventory_value: 654500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 77 },
   { id: 13, sku: "WEB-PROD-13", name: "Undiluted Palmwine (50cl)", product_type: "sales", unit: "bottle", reorder_level: 40, unit_cost: 800, selling_price: 2000, stock_qty: 97, qty_allocated: 0, qty_available: 97, inventory_value: 77600, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 97 },
+  { id: 32, sku: "WEB-PROD-32", name: "Pack of 10 Guinea Fowl", product_type: "sales", unit: "pack", reorder_level: 5, unit_cost: 65000, selling_price: 120000, stock_qty: 4, qty_allocated: 0, qty_available: 4, inventory_value: 260000, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 4 },
   { id: 33, sku: "WEB-PROD-33", name: "Zobo drink(6Bottle)", product_type: "sales", unit: "pack", reorder_level: 20, unit_cost: 2500, selling_price: 5500, stock_qty: 67, qty_allocated: 0, qty_available: 67, inventory_value: 167500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 67 },
+  { id: 34, sku: "WEB-PROD-34", name: "Single Zobo Bottle (50cl)", product_type: "sales", unit: "bottle", reorder_level: 30, unit_cost: 450, selling_price: 1000, stock_qty: 12, qty_allocated: 0, qty_available: 12, inventory_value: 5400, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 12 },
   { id: 6, sku: "WEB-PROD-6", name: "Full Grill Rabbit", product_type: "sales", unit: "unit", reorder_level: 10, unit_cost: 9000, selling_price: 22000, stock_qty: 0, qty_allocated: 0, qty_available: 0, inventory_value: 0, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 0 },
   { id: 2, sku: "WEB-PROD-2", name: "Extra Bag", product_type: "sales", unit: "unit", reorder_level: 50, unit_cost: 250, selling_price: 600, stock_qty: 166, qty_allocated: 0, qty_available: 166, inventory_value: 41500, is_active: 1, estimated_incoming_qty: 0, sellable_qty: 166 }
 ]
@@ -1768,4 +1823,121 @@ export interface WebsiteOrder {
 }
 
 export const SEED_WEBSITE_ORDERS: WebsiteOrder[] = []
+
+export type ConversionType = 'direct_repackage' | 'processing_required'
+
+export interface StockConversionRule {
+  id: string
+  source_product_id: number
+  source_product_name: string
+  destination_product_id: number
+  destination_product_name: string
+  conversion_type: ConversionType
+  conversion_ratio: number // 1 source unit = X destination units
+  requires_processing: boolean
+  is_reversible: boolean
+  is_active: boolean
+  notes?: string
+}
+
+export interface StockConversionRecord {
+  id: string
+  conversion_ref: string // e.g., "REP-00001"
+  source_product_id: number
+  source_product_name: string
+  source_qty_deducted: number
+  destination_product_id: number
+  destination_product_name: string
+  destination_qty_added: number
+  conversion_ratio: number
+  conversion_type: ConversionType
+  status: 'completed' | 'rejected'
+  user_name: string
+  reason?: string
+  created_at: string
+}
+
+export const INITIAL_STOCK_CONVERSION_RULES: StockConversionRule[] = [
+  // Direct Repackaging (Pack formats -> Individual units)
+  {
+    id: 'rule-gf-pack10-to-single',
+    source_product_id: 32, // BUY 10 GET 11 GUINEAFOWL
+    source_product_name: 'BUY 10 GET 11 GUINEAFOWL',
+    destination_product_id: 7, // Full Smokey Guineafowl
+    destination_product_name: 'Full Smokey Guineafowl',
+    conversion_type: 'direct_repackage',
+    conversion_ratio: 10,
+    requires_processing: false,
+    is_reversible: true,
+    is_active: true,
+    notes: 'Direct pack breakdown into individual whole smoked units'
+  },
+  {
+    id: 'rule-zobo-pack10-to-single',
+    source_product_id: 14, // Zobo Drink (Pack of 10 Bottle)
+    source_product_name: 'Zobo Drink (Pack of 10 Bottle)',
+    destination_product_id: 19, // Zobo Drink (Single Pcs)
+    destination_product_name: 'Zobo Drink (Single Pcs)',
+    conversion_type: 'direct_repackage',
+    conversion_ratio: 10,
+    requires_processing: false,
+    is_reversible: true,
+    is_active: true,
+    notes: 'Direct pack breakdown into individual bottles'
+  },
+  {
+    id: 'rule-zobo-pack6-to-single',
+    source_product_id: 33, // Zobo drink(6Bottle)
+    source_product_name: 'Zobo drink(6Bottle)',
+    destination_product_id: 19, // Zobo Drink (Single Pcs)
+    destination_product_name: 'Zobo Drink (Single Pcs)',
+    conversion_type: 'direct_repackage',
+    conversion_ratio: 6,
+    requires_processing: false,
+    is_reversible: true,
+    is_active: true,
+    notes: 'Direct 6-pack breakdown into individual bottles'
+  },
+  // Processing-Dependent Rules (Must use Production Workflow)
+  {
+    id: 'rule-gf-whole-to-chopped',
+    source_product_id: 7, // Full Smokey Guineafowl
+    source_product_name: 'Full Smokey Guineafowl',
+    destination_product_id: 10, // Full Smokey Guineafowl (chopped)
+    destination_product_name: 'Full Smokey Guineafowl (chopped)',
+    conversion_type: 'processing_required',
+    conversion_ratio: 1,
+    requires_processing: true,
+    is_reversible: false,
+    is_active: true,
+    notes: 'Requires kitchen line cutting & packaging execution'
+  },
+  {
+    id: 'rule-gf-whole-to-travel-dry',
+    source_product_id: 7, // Full Smokey Guineafowl
+    source_product_name: 'Full Smokey Guineafowl',
+    destination_product_id: 5, // Travel standard Dry Guineafowl
+    destination_product_name: 'Travel standard Dry Guineafowl',
+    conversion_type: 'processing_required',
+    conversion_ratio: 1,
+    requires_processing: true,
+    is_reversible: false,
+    is_active: true,
+    notes: 'Requires dehydrator/oven secondary smoke run'
+  },
+  {
+    id: 'rule-ch-whole-to-chopped',
+    source_product_id: 9, // Full Smokey Chicken
+    source_product_name: 'Full Smokey Chicken',
+    destination_product_id: 8, // Full Smokey Chicken (chopped)
+    destination_product_name: 'Full Smokey Chicken (chopped)',
+    conversion_type: 'processing_required',
+    conversion_ratio: 1,
+    requires_processing: true,
+    is_reversible: false,
+    is_active: true,
+    notes: 'Requires kitchen cutting & meal pack execution'
+  }
+]
+
 

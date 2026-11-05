@@ -49,7 +49,7 @@ export const PackagingInventoryPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'materials' | 'reconciliation' | 'transfers' | 'totals'>('materials')
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false)
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
-  const [isNewMaterialModalOpen, setIsNewMaterialModalOpen] = useState(false)
+
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false)
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
@@ -62,17 +62,7 @@ export const PackagingInventoryPage: React.FC = () => {
     setIsDetailsModalOpen(true)
   }
 
-  // New Material Form
-  const [newMaterialForm, setNewMaterialForm] = useState({
-    name: '',
-    sku: '',
-    unit: 'PIECES',
-    central_stock_qty: 80,
-    bench_stock_qty: 20,
-    unit_cost: 250,
-    reorder_level: 50,
-    supplier_name: 'PACKAGING DIRECT LTD'
-  })
+
 
   // Receive Form
   const [receiveProductId, setReceiveProductId] = useState<number>(packagingProducts[0]?.id || 93)
@@ -92,6 +82,10 @@ export const PackagingInventoryPage: React.FC = () => {
   const [issueNotes, setIssueNotes] = useState<string>('Stock drawn from Central Store for daily order packing')
 
   // Return to Central Form State
+  const [returnMode, setReturnMode] = useState<'single' | 'multiple'>('single')
+  const [returnProductId, setReturnProductId] = useState<number>(packagingProducts[0]?.id || 93)
+  const [singleReturnQty, setSingleReturnQty] = useState<number>(0)
+  const [singleDamagedQty, setSingleDamagedQty] = useState<number>(0)
   const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>(currentAccount?.name || 'Shift Supervisor')
   const [returnNotes, setReturnNotes] = useState<string>('EOD shift balance: unused packaging materials returned to Central Store')
   const [returnItemEntries, setReturnItemEntries] = useState<Array<{ productId: number; returnQty: number; damagedQty: number }>>([])
@@ -153,7 +147,24 @@ export const PackagingInventoryPage: React.FC = () => {
     setIsIssueModalOpen(true)
   }
 
-  const handleOpenReturnModal = () => {
+  const handleOpenReturnModal = (prod?: PackagingProduct) => {
+    if (prod) {
+      setReturnMode('single')
+      setReturnProductId(prod.id)
+      const bench = prod.bench_stock_qty ?? 0
+      setSingleReturnQty(Math.max(0, Math.floor(bench * 0.5)))
+      setSingleDamagedQty(0)
+    } else {
+      setReturnMode('single')
+      const firstWithBench = packagingProducts.find(p => (p.bench_stock_qty ?? 0) > 0) || packagingProducts[0]
+      if (firstWithBench) {
+        setReturnProductId(firstWithBench.id)
+        const bench = firstWithBench.bench_stock_qty ?? 0
+        setSingleReturnQty(Math.max(0, Math.floor(bench * 0.5)))
+        setSingleDamagedQty(0)
+      }
+    }
+
     const initialEntries = packagingProducts
       .filter(p => (p.bench_stock_qty ?? 0) > 0)
       .map(p => ({
@@ -206,34 +217,25 @@ export const PackagingInventoryPage: React.FC = () => {
 
   const handleConfirmReturn = (e: React.FormEvent) => {
     e.preventDefault()
-    returnPackagingToCentral(returnItemEntries, returnNotes, returnVerifiedBy)
+    let itemsToReturn: Array<{ productId: number; returnQty: number; damagedQty: number }> = []
+
+    if (returnMode === 'single') {
+      if (singleReturnQty <= 0 && singleDamagedQty <= 0) return
+      itemsToReturn = [{
+        productId: Number(returnProductId),
+        returnQty: Number(singleReturnQty) || 0,
+        damagedQty: Number(singleDamagedQty) || 0
+      }]
+    } else {
+      itemsToReturn = returnItemEntries.filter(entry => (entry.returnQty > 0 || entry.damagedQty > 0))
+      if (itemsToReturn.length === 0) return
+    }
+
+    returnPackagingToCentral(itemsToReturn, returnNotes, returnVerifiedBy)
     setIsReturnModalOpen(false)
   }
 
-  const handleConfirmNewMaterial = (e: React.FormEvent) => {
-    e.preventDefault()
-    savePackagingProduct({
-      name: newMaterialForm.name,
-      sku: newMaterialForm.sku || `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
-      unit: newMaterialForm.unit,
-      stock_qty: Number(newMaterialForm.central_stock_qty) + Number(newMaterialForm.bench_stock_qty),
-      central_stock_qty: Number(newMaterialForm.central_stock_qty),
-      bench_stock_qty: Number(newMaterialForm.bench_stock_qty),
-      unit_cost: Number(newMaterialForm.unit_cost),
-      reorder_level: Number(newMaterialForm.reorder_level)
-    })
-    setIsNewMaterialModalOpen(false)
-    setNewMaterialForm({
-      name: '',
-      sku: '',
-      unit: 'PIECES',
-      central_stock_qty: 80,
-      bench_stock_qty: 20,
-      unit_cost: 250,
-      reorder_level: 50,
-      supplier_name: 'PACKAGING DIRECT LTD'
-    })
-  }
+
 
   // Master Materials Columns
   const materialsColumns: ColumnDef<PackagingProduct>[] = [
@@ -548,27 +550,6 @@ export const PackagingInventoryPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setNewMaterialForm({
-                    name: '',
-                    sku: `PKG-${String(packagingProducts.length + 1).padStart(5, '0')}`,
-                    unit: 'PIECES',
-                    central_stock_qty: 80,
-                    bench_stock_qty: 20,
-                    unit_cost: 250,
-                    reorder_level: 50,
-                    supplier_name: 'PACKAGING DIRECT LTD'
-                  })
-                  setIsNewMaterialModalOpen(true)
-                }}
-                leftIcon={<Plus className="w-4 h-4" />}
-                className="h-10 px-3.5 text-xs font-medium"
-              >
-                New Material
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => handleOpenReturnModal()}
                 leftIcon={<RotateCcw className="w-4 h-4 text-emerald-600" />}
                 className="h-10 px-3.5 text-xs font-medium"
@@ -800,6 +781,7 @@ export const PackagingInventoryPage: React.FC = () => {
                               max={centralQty}
                               placeholder="0"
                               value={currentQty === 0 ? '' : currentQty}
+                              onFocus={(e) => e.currentTarget.select()}
                               onChange={(e) => {
                                 const val = Number(e.target.value) || 0
                                 setIssueMultipleEntries((prev) => {
@@ -887,86 +869,173 @@ export const PackagingInventoryPage: React.FC = () => {
         }
       >
         <form id="return-packaging-form" onSubmit={handleConfirmReturn} className="space-y-4 font-sans text-xs">
-          <Input
-            label="Supervisor / Auditor"
-            value={returnVerifiedBy}
-            onChange={(e) => setReturnVerifiedBy(e.target.value)}
-            required
-            autoFocus
+          <KumoTabs
+            tabs={[
+              { id: 'single', label: 'Single Material' },
+              { id: 'multiple', label: 'Multiple Materials' },
+            ]}
+            activeTab={returnMode}
+            onChange={(tabId) => setReturnMode(tabId as 'single' | 'multiple')}
+            size="sm"
           />
 
-          <Input
-            label="Shift Notes"
-            value={returnNotes}
-            onChange={(e) => setReturnNotes(e.target.value)}
-            required
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Supervisor / Auditor"
+              value={returnVerifiedBy}
+              onChange={(e) => setReturnVerifiedBy(e.target.value)}
+              required
+              autoFocus
+            />
 
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
-            <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-              <div className="col-span-6">Bench Material</div>
-              <div className="col-span-3 text-center">Return to Store</div>
-              <div className="col-span-3 text-center">Damaged / Scrap</div>
-            </div>
+            <Input
+              label="Shift Notes"
+              value={returnNotes}
+              onChange={(e) => setReturnNotes(e.target.value)}
+              required
+            />
+          </div>
 
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[320px] overflow-y-auto pr-0.5">
-              {packagingProducts.map(p => {
-                const entry = returnItemEntries.find(e => e.productId === p.id)
-                const returnQty = entry?.returnQty ?? 0
-                const damagedQty = entry?.damagedQty ?? 0
-                const benchQty = p.bench_stock_qty ?? 0
+          {returnMode === 'single' ? (
+            <div className="space-y-4 pt-1">
+              {(() => {
+                const activeProd = packagingProducts.find(p => p.id === returnProductId) || packagingProducts[0]
+                const benchQty = activeProd?.bench_stock_qty ?? 0
+                const centralQty = activeProd?.central_stock_qty ?? 0
+                const projectedBench = Math.max(0, benchQty - singleReturnQty - singleDamagedQty)
+                const projectedCentral = centralQty + singleReturnQty
 
                 return (
-                  <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-4 py-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                    <div className="col-span-6 min-w-0">
-                      <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-[13px]">{p.name}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                        Bench: <strong className="text-zinc-900 dark:text-zinc-100 font-medium">{benchQty} {p.unit}</strong> &bull; Central: {p.central_stock_qty ?? 0}
+                  <div className="space-y-4">
+                    <Select
+                      label="Select Bench Material to Return"
+                      value={returnProductId}
+                      onChange={(e) => {
+                        const newId = Number(e.target.value)
+                        setReturnProductId(newId)
+                        const found = packagingProducts.find(p => p.id === newId)
+                        const bench = found?.bench_stock_qty ?? 0
+                        setSingleReturnQty(Math.max(0, Math.floor(bench * 0.5)))
+                        setSingleDamagedQty(0)
+                      }}
+                      options={packagingProducts.map(p => ({
+                        value: p.id,
+                        label: `${p.name} (${p.bench_stock_qty ?? 0} on bench)`
+                      }))}
+                      size="md"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <UnitInput
+                        label="Quantity to Return to Central"
+                        value={singleReturnQty}
+                        onChangeValue={(v) => setSingleReturnQty(Number(v) || 0)}
+                        unit={activeProd?.unit || 'PIECES'}
+                        min={0}
+                        max={benchQty}
+                        required
+                      />
+
+                      <UnitInput
+                        label="Damaged / Scrap Quantity"
+                        value={singleDamagedQty}
+                        onChangeValue={(v) => setSingleDamagedQty(Number(v) || 0)}
+                        unit={activeProd?.unit || 'PIECES'}
+                        min={0}
+                        max={benchQty}
+                      />
+                    </div>
+
+                    <div className="p-3 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-1.5 text-xs font-sans">
+                      <span className="text-[11px] font-bold text-kumo-subtle uppercase tracking-wider block">
+                        Projected Shift Balances
+                      </span>
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="p-2 rounded-lg bg-kumo-tint/50 border border-kumo-line/60">
+                          <span className="text-[11px] text-kumo-subtle block">Remaining on Bench</span>
+                          <span className="text-sm font-bold font-mono text-kumo-strong">
+                            {projectedBench} {activeProd?.unit}
+                          </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-kumo-tint/50 border border-kumo-line/60">
+                          <span className="text-[11px] text-kumo-subtle block">New Central Store Stock</span>
+                          <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                            {projectedCentral} {activeProd?.unit}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="col-span-3">
-                      <Input
-                        type="number"
-                        min="0"
-                        max={benchQty}
-                        value={returnQty}
-                        onChange={(e) => {
-                          const val = Number(e.target.value)
-                          setReturnItemEntries(prev => {
-                            const exists = prev.find(x => x.productId === p.id)
-                            if (exists) {
-                              return prev.map(x => x.productId === p.id ? { ...x, returnQty: val } : x)
-                            }
-                            return [...prev, { productId: p.id, returnQty: val, damagedQty: 0 }]
-                          })
-                        }}
-                      />
-                    </div>
-
-                    <div className="col-span-3">
-                      <Input
-                        type="number"
-                        min="0"
-                        max={benchQty}
-                        value={damagedQty}
-                        onChange={(e) => {
-                          const val = Number(e.target.value)
-                          setReturnItemEntries(prev => {
-                            const exists = prev.find(x => x.productId === p.id)
-                            if (exists) {
-                              return prev.map(x => x.productId === p.id ? { ...x, damagedQty: val } : x)
-                            }
-                            return [...prev, { productId: p.id, returnQty: 0, damagedQty: val }]
-                          })
-                        }}
-                      />
                     </div>
                   </div>
                 )
-              })}
+              })()}
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                <div className="col-span-6">Bench Material</div>
+                <div className="col-span-3 text-center">Return to Store</div>
+                <div className="col-span-3 text-center">Damaged / Scrap</div>
+              </div>
+
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[320px] overflow-y-auto pr-0.5">
+                {packagingProducts.map(p => {
+                  const entry = returnItemEntries.find(e => e.productId === p.id)
+                  const returnQty = entry?.returnQty ?? 0
+                  const damagedQty = entry?.damagedQty ?? 0
+                  const benchQty = p.bench_stock_qty ?? 0
+
+                  return (
+                    <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-4 py-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                      <div className="col-span-6 min-w-0">
+                        <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-[13px]">{p.name}</div>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Bench: <strong className="text-zinc-900 dark:text-zinc-100 font-medium">{benchQty} {p.unit}</strong> &bull; Central: {p.central_stock_qty ?? 0}
+                        </div>
+                      </div>
+
+                      <div className="col-span-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={benchQty}
+                          value={returnQty}
+                          onChange={(e) => {
+                            const val = Number(e.target.value)
+                            setReturnItemEntries(prev => {
+                              const exists = prev.find(x => x.productId === p.id)
+                              if (exists) {
+                                return prev.map(x => x.productId === p.id ? { ...x, returnQty: val } : x)
+                              }
+                              return [...prev, { productId: p.id, returnQty: val, damagedQty: 0 }]
+                            })
+                          }}
+                        />
+                      </div>
+
+                      <div className="col-span-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={benchQty}
+                          value={damagedQty}
+                          onChange={(e) => {
+                            const val = Number(e.target.value)
+                            setReturnItemEntries(prev => {
+                              const exists = prev.find(x => x.productId === p.id)
+                              if (exists) {
+                                return prev.map(x => x.productId === p.id ? { ...x, damagedQty: val } : x)
+                              }
+                              return [...prev, { productId: p.id, returnQty: 0, damagedQty: val }]
+                            })
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </form>
       </Dialog>
 
@@ -1064,11 +1133,11 @@ export const PackagingInventoryPage: React.FC = () => {
           </div>
 
           <UnitInput
-            label="Adjustment Delta (e.g. -10 for damaged / scrap)"
+            label="Quantity to Add or Remove"
             value={adjustDelta}
             onChangeValue={setAdjustDelta}
             unit={selectedProduct?.unit || 'units'}
-            helperText={`Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit}`}
+            helperText={`Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit} (use minus sign e.g. -10 for damaged / scrap)`}
             required
           />
 
@@ -1081,99 +1150,7 @@ export const PackagingInventoryPage: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* New Packaging Material Modal */}
-      <Dialog
-        isOpen={isNewMaterialModalOpen}
-        onClose={() => setIsNewMaterialModalOpen(false)}
-        title="Create New Packaging Material"
-        description="Add a new consumable container, bag, food bowl, or label SKU to the packaging inventory."
-        maxWidth="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsNewMaterialModalOpen(false)}>
-              Close
-            </Button>
-            <Button variant="primary" size="md" type="submit" form="new-packaging-material-form">
-              Save Packaging Material
-            </Button>
-          </div>
-        }
-      >
-        <form id="new-packaging-material-form" onSubmit={handleConfirmNewMaterial} className="space-y-4 font-sans text-xs">
-          <Input
-            label="Material Name"
-            placeholder="e.g. 1.5L Big Food Bowl & Lid"
-            value={newMaterialForm.name}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, name: e.target.value }))}
-            required
-            autoFocus
-          />
 
-          <Input
-            label="SKU Code"
-            value={newMaterialForm.sku}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, sku: e.target.value }))}
-            placeholder="e.g. PKG-00010"
-            required
-          />
-
-          <Select
-            label="Unit of Measure"
-            value={newMaterialForm.unit}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit: e.target.value }))}
-            options={[
-              { value: 'PIECES', label: 'Pieces (Bags / Bowls / Lids)' },
-              { value: 'PACK', label: 'Packs / Bundles' },
-              { value: 'ROLL', label: 'Rolls (Foil / Wrap / Stickers)' },
-              { value: 'CARTON', label: 'Cartons / Cases' },
-              { value: 'KG', label: 'Kilograms (kg)' },
-            ]}
-          />
-
-          <Input
-            label="Central Store Stock Qty"
-            type="number"
-            min="0"
-            value={newMaterialForm.central_stock_qty}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, central_stock_qty: Number(e.target.value) }))}
-            required
-          />
-
-          <Input
-            label="Bench Active Qty"
-            type="number"
-            min="0"
-            value={newMaterialForm.bench_stock_qty}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, bench_stock_qty: Number(e.target.value) }))}
-            required
-          />
-
-          <Input
-            label="Unit Cost (₦)"
-            type="number"
-            min="0"
-            value={newMaterialForm.unit_cost}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, unit_cost: Number(e.target.value) }))}
-            required
-          />
-
-          <Input
-            label="Reorder Alert Level"
-            type="number"
-            min="1"
-            value={newMaterialForm.reorder_level}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, reorder_level: Number(e.target.value) }))}
-            required
-          />
-
-          <Input
-            label="Preferred Supplier / Manufacturer"
-            placeholder="e.g. PACKAGING DIRECT LTD"
-            value={newMaterialForm.supplier_name}
-            onChange={(e) => setNewMaterialForm(prev => ({ ...prev, supplier_name: e.target.value }))}
-          />
-        </form>
-      </Dialog>
 
       {/* Packaging Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
       {selectedDetailsProduct && (

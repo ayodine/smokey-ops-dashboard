@@ -11,6 +11,7 @@ export interface DialogProps {
   footer?: React.ReactNode
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
   className?: string
+  zIndex?: string
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -22,6 +23,7 @@ export const Dialog: React.FC<DialogProps> = ({
   footer,
   maxWidth = 'md',
   className,
+  zIndex = 'z-50',
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,7 +54,7 @@ export const Dialog: React.FC<DialogProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+    <div className={cn("fixed inset-0 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto", zIndex)}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-kumo-contrast/50 backdrop-blur-xs transition-opacity animate-in fade-in"

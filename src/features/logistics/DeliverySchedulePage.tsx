@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { KumoTabs } from '@/components/ui/Tabs'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, cleanOrderNotes } from '@/lib/utils'
 import { Dialog } from '@/components/ui/Dialog'
 import { 
   CalendarDays, 
@@ -340,10 +340,10 @@ export const DeliverySchedulePage: React.FC = () => {
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Schedule State</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium capitalize">{selectedScheduledOrder.order_status.replace(/_/g, ' ')}</span>
                 </div>
-                {selectedScheduledOrder.notes && (
+                {cleanOrderNotes(selectedScheduledOrder.notes) && (
                   <div className="flex items-start text-[13px]">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Schedule Notes</span>
-                    <span className="text-zinc-700 dark:text-zinc-300 font-normal">{selectedScheduledOrder.notes}</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-normal">{cleanOrderNotes(selectedScheduledOrder.notes)}</span>
                   </div>
                 )}
               </div>

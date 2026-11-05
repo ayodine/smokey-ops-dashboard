@@ -249,16 +249,6 @@ const AccountRowActionCell: React.FC<{
             type="button"
             onClick={() => {
               setOpenMenuEmail(null)
-              onInspectPermissions(acc)
-            }}
-            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
-          >
-            View Policy & Access
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuEmail(null)
               onChangePassword(acc)
             }}
             className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
@@ -576,7 +566,7 @@ export const ManageAccountsPage: React.FC = () => {
   // [ Permission policies | Groups & Zone | Settings ]
   const [staffSubTab, setStaffSubTab] = useState<'policies' | 'groups'>('policies')
   const [editDepartment, setEditDepartment] = useState('')
-  const [editShiftSchedule, setEditShiftSchedule] = useState('Morning Cook & Prep (06:00 - 15:00)')
+  const [editShiftSchedule, setEditShiftSchedule] = useState('Morning Cook & Prep (6:00 AM - 3:00 PM)')
 
   // Inside "Permission policies", whether editing/creating a policy or viewing overview table
   const [isEditingPolicy, setIsEditingPolicy] = useState<boolean>(true)
@@ -586,6 +576,8 @@ export const ManageAccountsPage: React.FC = () => {
   const [policyScope, setPolicyScope] = useState<string>('Operating Office')
   const [policyAppliesTo, setPolicyAppliesTo] = useState<string>('Yaba Head Office')
   const [editRole, setEditRole] = useState<UserRole>('kitchen')
+  // Selected scope id: either a standard role id or a custom scope id (scope_...)
+  const [editScopeSelection, setEditScopeSelection] = useState<string>('kitchen')
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editZone, setEditZone] = useState('Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
@@ -616,6 +608,8 @@ export const ManageAccountsPage: React.FC = () => {
   useEffect(() => {
     if (targetStaff) {
       setEditRole(targetStaff.role)
+      const hasCustomScope = Boolean(targetStaff.scope_id && (customScopes || []).some(s => s.id === targetStaff.scope_id))
+      setEditScopeSelection(hasCustomScope ? targetStaff.scope_id! : targetStaff.role)
       setEditName(targetStaff.name)
       setEditEmail(targetStaff.email)
       const matchingFac = facilities.find(f => 
@@ -627,13 +621,13 @@ export const ManageAccountsPage: React.FC = () => {
       setEditOffice(officeName)
       setEditZone(targetStaff.assigned_zone || 'Zone 1: Core Mainland (Ikeja / Yaba / Surulere)')
       setEditDepartment(targetStaff.department || 'Operations')
-      setEditShiftSchedule(targetStaff.shift_schedule || 'Morning Cook & Prep (06:00 - 15:00)')
+      setEditShiftSchedule(targetStaff.shift_schedule || 'Morning Cook & Prep (6:00 AM - 3:00 PM)')
       setPolicyScope('Operating Office')
       setPolicyAppliesTo(officeName)
       setEditPermissions(targetStaff.permissions || ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || [])
       setIsEditingPolicy(true)
     }
-  }, [targetStaff, facilities])
+  }, [targetStaff, facilities, customScopes])
 
   // -------------------------------------------------------------
   // STAFF PROFILE & KYC CONSTANTS & STATE
@@ -659,11 +653,11 @@ export const ManageAccountsPage: React.FC = () => {
   ], [])
 
   const SHIFT_SCHEDULE_OPTIONS = useMemo(() => [
-    { value: 'Morning Cook & Prep (06:00 - 15:00)', label: 'Morning Cook & Prep (06:00 - 15:00)' },
-    { value: 'Evening Smoke Shift (14:00 - 23:00)', label: 'Evening Smoke Shift (14:00 - 23:00)' },
-    { value: 'Day Delivery Dispatch (08:00 - 18:00)', label: 'Day Delivery Dispatch (08:00 - 18:00)' },
-    { value: 'Morning Intake & Audit (07:00 - 16:00)', label: 'Morning Intake & Audit (07:00 - 16:00)' },
-    { value: 'All-Day Fulfillment (08:00 - 18:00)', label: 'All-Day Fulfillment (08:00 - 18:00)' },
+    { value: 'Morning Cook & Prep (6:00 AM - 3:00 PM)', label: 'Morning Cook & Prep (6:00 AM - 3:00 PM)' },
+    { value: 'Evening Smoke Shift (2:00 PM - 11:00 PM)', label: 'Evening Smoke Shift (2:00 PM - 11:00 PM)' },
+    { value: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)', label: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)' },
+    { value: 'Morning Intake & Audit (7:00 AM - 4:00 PM)', label: 'Morning Intake & Audit (7:00 AM - 4:00 PM)' },
+    { value: 'All-Day Fulfillment (8:00 AM - 6:00 PM)', label: 'All-Day Fulfillment (8:00 AM - 6:00 PM)' },
     { value: 'General Executive Operations', label: 'General Executive Operations' },
   ], [])
 
@@ -707,10 +701,11 @@ export const ManageAccountsPage: React.FC = () => {
   const [profileCity, setProfileCity] = useState('')
   const [profileState, setProfileState] = useState('Lagos State')
   const [profileRole, setProfileRole] = useState<UserRole>('kitchen')
+  const [profileScopeSelection, setProfileScopeSelection] = useState<string>('kitchen')
   const [profileHub, setProfileHub] = useState('Yaba Head Office')
   const [profileDepartment, setProfileDepartment] = useState('Culinary Production')
   const [profileEmploymentStatus, setProfileEmploymentStatus] = useState<'full_time' | 'contract' | 'probation' | 'part_time'>('full_time')
-  const [profileShiftSchedule, setProfileShiftSchedule] = useState('Morning Cook & Prep (06:00 - 15:00)')
+  const [profileShiftSchedule, setProfileShiftSchedule] = useState('Morning Cook & Prep (6:00 AM - 3:00 PM)')
   const [profileStatus, setProfileStatus] = useState<'active' | 'suspended'>('active')
 
   // Next-of-Kin & Guarantor State
@@ -751,6 +746,8 @@ export const ManageAccountsPage: React.FC = () => {
       setProfileCity(data.city || 'Lagos Mainland')
       setProfileState(data.state || 'Lagos State')
       setProfileRole(data.role)
+      const profileHasCustomScope = Boolean(targetStaff.scope_id && (customScopes || []).some(s => s.id === targetStaff.scope_id))
+      setProfileScopeSelection(profileHasCustomScope ? targetStaff.scope_id! : data.role)
       setProfileHub(data.assigned_hub || facilities[0]?.name || 'Yaba Head Office')
       setProfileDepartment(data.department || '')
       setProfileEmploymentStatus(data.employment_status || 'full_time')
@@ -778,11 +775,26 @@ export const ManageAccountsPage: React.FC = () => {
       setKycInspectionStatus(data.inspection_status || 'Passed & Certified')
 
     }
-  }, [targetStaff, facilities])
+  }, [targetStaff, facilities, customScopes])
 
   const handleSaveProfile = () => {
     if (!targetStaff) return
     const roleConfig = SYSTEM_ROLE_CONFIGS.find(r => r.id === profileRole)
+    const profileCustomScope = (customScopes || []).find(s => s.id === profileScopeSelection)
+    const scopeChanged = profileScopeSelection !== (targetStaff.scope_id || targetStaff.role)
+    const scopeUpdates: Partial<AppUserAccount> = profileCustomScope
+      ? {
+          role: profileCustomScope.baseRole,
+          roleLabel: profileCustomScope.label,
+          scope_id: profileCustomScope.id,
+          ...(scopeChanged ? { permissions: [...(profileCustomScope.permissions || [])] } : {}),
+        }
+      : {
+          role: profileRole,
+          roleLabel: roleConfig?.label || targetStaff.roleLabel,
+          scope_id: undefined,
+          ...(scopeChanged ? { permissions: [...(ROLE_DEFAULT_PERMISSIONS[profileRole] || [])] } : {}),
+        }
     const updates: Partial<AppUserAccount> = {
       name: profileFullName.trim() || targetStaff.name,
       email: profileEmail.trim() || targetStaff.email,
@@ -793,8 +805,7 @@ export const ManageAccountsPage: React.FC = () => {
       residential_address: profileAddress.trim(),
       city: profileCity.trim(),
       state: profileState,
-      role: profileRole,
-      roleLabel: roleConfig?.label || targetStaff.roleLabel,
+      ...scopeUpdates,
       assigned_hub: profileHub,
       department: profileDepartment.trim(),
       employment_status: profileEmploymentStatus,
@@ -1358,6 +1369,7 @@ export const ManageAccountsPage: React.FC = () => {
   // Handlers for Edit Route Page
   const handleEditRoleChange = (newRole: UserRole) => {
     setEditRole(newRole)
+    setEditScopeSelection(newRole)
     const defaults = ROLE_DEFAULT_PERMISSIONS[newRole] || []
     setEditPermissions(defaults)
   }
@@ -1404,14 +1416,16 @@ export const ManageAccountsPage: React.FC = () => {
     if (e) e.preventDefault()
     if (!targetStaff) return
 
+    const matchedCustom = (customScopes || []).find(s => s.id === editScopeSelection)
     const roleConfig = SYSTEM_ROLE_CONFIGS.find((r) => r.id === editRole)
-    const roleLabel = roleConfig ? roleConfig.label : editRole
+    const roleLabel = matchedCustom ? matchedCustom.label : (roleConfig ? roleConfig.label : editRole)
 
     updateAccount(targetStaff.email, {
       name: editName.trim() || targetStaff.name,
       email: editEmail.trim() || targetStaff.email,
-      role: editRole,
+      role: matchedCustom ? matchedCustom.baseRole : editRole,
       roleLabel,
+      scope_id: matchedCustom ? matchedCustom.id : undefined,
       assigned_hub: editOffice,
       assigned_zone: editZone,
       department: editDepartment.trim(),
@@ -1926,14 +1940,23 @@ export const ManageAccountsPage: React.FC = () => {
                 description="Operational role defining system access and baseline permissions"
               >
                 <Select
-                  value={profileRole}
+                  value={profileScopeSelection}
                   onValueChange={(val) => {
-                    const newR = val as UserRole
+                    const chosen = String(val)
+                    if (!chosen) return
+                    const matchedCustom = (customScopes || []).find(s => s.id === chosen)
+                    setProfileScopeSelection(chosen)
+                    if (matchedCustom) {
+                      setProfileRole(matchedCustom.baseRole)
+                      showToast(`Updated scope to ${matchedCustom.label}`, 'info')
+                      return
+                    }
+                    const newR = chosen as UserRole
                     setProfileRole(newR)
                     const rCfg = SYSTEM_ROLE_CONFIGS.find(r => r.id === newR)
                     showToast(`Updated role to ${rCfg?.label || newR}`, 'info')
                   }}
-                  options={SYSTEM_ROLE_CONFIGS.map(r => ({ value: r.id, label: r.label }))}
+                  options={roleScopeOptions.filter(o => o.value !== '')}
                   aria-label="Staff Role Assignment"
                 />
               </ProfileFieldRow>
@@ -2442,19 +2465,29 @@ export const ManageAccountsPage: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="w-full">
                       <Select
-                        value={editRole}
+                        value={editScopeSelection}
                         onValueChange={(val) => {
                           const chosen = String(val)
                           if (!chosen) {
+                            setEditScopeSelection('')
                             setEditRole('' as any)
                             setEditPermissions([])
                             return
                           }
+                          const matchedCustom = (customScopes || []).find(s => s.id === chosen)
+                          if (matchedCustom) {
+                            setEditScopeSelection(matchedCustom.id)
+                            setEditRole(matchedCustom.baseRole)
+                            setEditPermissions([...(matchedCustom.permissions || [])])
+                            showToast(`Assigned ${matchedCustom.label} custom policies`, 'info')
+                            return
+                          }
                           const newRole = chosen as UserRole
+                          setEditScopeSelection(newRole)
                           setEditRole(newRole)
                           const roleConfig = SYSTEM_ROLE_CONFIGS.find(r => r.id === newRole)
                           const roleDefaults = ROLE_DEFAULT_PERMISSIONS[newRole] || []
-                          setEditPermissions(roleDefaults)
+                          setEditPermissions([...roleDefaults])
                           showToast(`Assigned ${roleConfig?.label || newRole} baseline policies`, 'info')
                         }}
                         options={roleScopeOptions}
@@ -2521,7 +2554,7 @@ export const ManageAccountsPage: React.FC = () => {
 
                       {/* Explanatory text */}
                       <p className="text-[13px] text-kumo-default leading-relaxed">
-                        Define what operational permissions <strong className="text-kumo-strong font-semibold">{SYSTEM_ROLE_CONFIGS.find(r => r.id === editRole)?.label || editRole}</strong> should have for <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> within the scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
+                        Define what operational permissions <strong className="text-kumo-strong font-semibold">{(customScopes || []).find(s => s.id === editScopeSelection)?.label || SYSTEM_ROLE_CONFIGS.find(r => r.id === editRole)?.label || editRole}</strong> should have for <strong className="text-kumo-strong font-semibold">{targetStaff.email}</strong> within the scope: <strong className="text-kumo-strong font-semibold">{policyAppliesTo}</strong>.
                       </p>
 
                       {/* Search bar matching Screenshot 1 */}
@@ -3461,15 +3494,6 @@ export const ManageAccountsPage: React.FC = () => {
             >
               Policy & Access
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              leftIcon={<Download className="w-4 h-4" />}
-              className="h-10 px-4 text-[13px] font-medium"
-            >
-              Export CSV
-            </Button>
             {currentAccount.role === 'admin' && (
               <Button
                 variant="primary"
@@ -3516,6 +3540,7 @@ export const ManageAccountsPage: React.FC = () => {
           }
           title="Team Members"
           exportFilename="smokey-team-accounts.csv"
+          enableExport={false}
           enableRowSelection={true}
           onRowClick={(acc) => navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)}
           filterCategories={[
@@ -3541,13 +3566,6 @@ export const ManageAccountsPage: React.FC = () => {
               ],
               activeValue: selectedOfficeFilter,
               onChange: setSelectedOfficeFilter
-            }
-          ]}
-          bulkActions={[
-            {
-              label: 'Export Selected',
-              icon: <Download className="w-3.5 h-3.5" />,
-              onClick: handleBulkExport
             }
           ]}
         />

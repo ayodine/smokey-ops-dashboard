@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { cn } from '@/lib/utils'
+import { cn, formatTime12h } from '@/lib/utils'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, X, ChevronDown } from 'lucide-react'
 
 export interface DateTimePickerProps {
@@ -194,14 +194,14 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const formatSummaryText = (d: Date, t: string): string => {
     const weekday = d.toLocaleDateString('en-US', { weekday: 'long' })
     const monthDay = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-    return `${weekday}, ${monthDay} at ${t}`
+    return `${weekday}, ${monthDay} at ${formatTime12h(t)}`
   }
 
   const handleApply = () => {
     const targetDate = selectedDate || new Date()
     const dateStr = formatIsoDate(targetDate)
-    const combinedString = `${dateStr} ${selectedTime}`
-    onChange?.(combinedString, { date: dateStr, time: selectedTime })
+    const combinedString = `${dateStr} ${formatTime12h(selectedTime)}`
+    onChange?.(combinedString, { date: dateStr, time: formatTime12h(selectedTime) })
     setIsOpen(false)
   }
 
@@ -378,6 +378,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
             >
               {timeSlots.map((time) => {
                 const isTimeActive = time === selectedTime
+                const displayTime = formatTime12h(time)
                 return (
                   <button
                     key={time}
@@ -391,7 +392,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850'
                     )}
                   >
-                    {time}
+                    {displayTime}
                   </button>
                 )
               })}

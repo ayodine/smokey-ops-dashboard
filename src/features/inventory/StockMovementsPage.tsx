@@ -29,7 +29,7 @@ export interface UnifiedStockMovement {
   sku: string
   unit: string
   category: 'raw' | 'packaging' | 'sales'
-  movement_type: 'receipt' | 'consumption' | 'production_output' | 'sale' | 'waste' | 'adjustment' | 'transfer' | 'reversal'
+  movement_type: 'receipt' | 'consumption' | 'production_output' | 'sale' | 'waste' | 'adjustment' | 'transfer' | 'reversal' | 'repackage_deduct' | 'repackage_add' | 'repackage_conversion'
   quantity: number
   unit_cost: number
   value_amount: number
@@ -223,6 +223,9 @@ export const StockMovementsPage: React.FC = () => {
           waste: { status: 'inactive', label: 'waste write-off' },
           transfer: { status: 'pending', label: 'store transfer' },
           reversal: { status: 'inactive', label: 'reversal' },
+          repackage_deduct: { status: 'pending', label: 'repackage deduct' },
+          repackage_add: { status: 'active', label: 'repackage add' },
+          repackage_conversion: { status: 'active', label: 'stock conversion' },
         }
         const b = badgeMap[m.movement_type] || { status: 'pending', label: m.movement_type.toLowerCase().replace(/_/g, ' ') }
         return <StatusBadge status={b.status} label={b.label} />
@@ -231,7 +234,7 @@ export const StockMovementsPage: React.FC = () => {
     },
     {
       key: 'quantity',
-      header: 'Quantity Delta',
+      header: 'Quantity Changed',
       accessor: (m) => (
         <span className={`font-mono font-semibold ${m.quantity > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
           {m.quantity > 0 ? `+${m.quantity}` : m.quantity} {m.unit}
@@ -518,7 +521,7 @@ export const StockMovementsPage: React.FC = () => {
 
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-start text-[13px]">
-                    <span className="w-40 sm:w-52 shrink-0 text-kumo-subtle font-normal">Quantity Delta</span>
+                    <span className="w-40 sm:w-52 shrink-0 text-kumo-subtle font-normal">Quantity Changed</span>
                     <span className={`font-bold font-mono text-sm ${selectedMovement.quantity > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {selectedMovement.quantity > 0 ? `+${selectedMovement.quantity}` : selectedMovement.quantity} {selectedMovement.unit}
                     </span>

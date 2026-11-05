@@ -1018,7 +1018,7 @@ export const RawInventoryPage: React.FC = () => {
     },
     {
       key: 'variance_qty',
-      header: 'Discrepancy (Delta)',
+      header: 'Stock Difference',
       defaultWidth: 200,
       accessor: (v) => (
         <span className={`font-semibold text-xs font-sans whitespace-nowrap shrink-0 ${v.variance_qty < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
@@ -1896,7 +1896,7 @@ export const RawInventoryPage: React.FC = () => {
               <span className="font-medium text-kumo-strong">{selectedVariance?.physical_count} {selectedVariance?.unit}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-kumo-subtle">Discrepancy (Delta):</span>
+              <span className="text-kumo-subtle">Stock Difference:</span>
               <span className="font-bold text-rose-600 text-xs sm:text-sm">
                 {selectedVariance?.variance_qty} {selectedVariance?.unit} ({formatNaira(selectedVariance?.variance_value || 0)})
               </span>

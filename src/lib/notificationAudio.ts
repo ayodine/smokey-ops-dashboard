@@ -38,28 +38,54 @@ export function playAlertChime(type: 'order' | 'warning' | 'info' | 'success' = 
     const now = ctx.currentTime
 
     if (type === 'order') {
-      // Pleasant double-tone chime (F5 -> A5)
-      const osc1 = ctx.createOscillator()
-      const osc2 = ctx.createOscillator()
-      const gain = ctx.createGain()
+      // Prominent, loud, multi-tone kitchen & dispatch alert fanfare (~1.8 seconds)
+      // Notes: E5 (659Hz) -> G#5 (830Hz) -> B5 (987Hz) -> E6 (1318Hz), concluding in an emphatic harmonic chime
+      const masterGain = ctx.createGain()
+      masterGain.gain.setValueAtTime(0, now)
+      masterGain.gain.linearRampToValueAtTime(0.60, now + 0.04) // Loud, clear kitchen alert level
+      masterGain.gain.setValueAtTime(0.60, now + 1.2)
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8)
+      masterGain.connect(ctx.destination)
 
-      osc1.type = 'sine'
-      osc2.type = 'sine'
-      osc1.frequency.setValueAtTime(698.46, now) // F5
-      osc2.frequency.setValueAtTime(880.00, now + 0.12) // A5
+      const notes = [
+        { freq: 659.25, start: 0.00, dur: 0.22 }, // E5
+        { freq: 830.61, start: 0.20, dur: 0.24 }, // G#5
+        { freq: 987.77, start: 0.42, dur: 0.26 }, // B5
+        { freq: 1318.51, start: 0.66, dur: 0.55 }, // E6 (apex)
+        // Sustained harmonic resolution chord
+        { freq: 659.25, start: 1.15, dur: 0.65 }, // E5
+        { freq: 987.77, start: 1.15, dur: 0.65 }, // B5
+        { freq: 1318.51, start: 1.15, dur: 0.65 }, // E6
+      ]
 
-      gain.gain.setValueAtTime(0, now)
-      gain.gain.linearRampToValueAtTime(0.18, now + 0.03)
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45)
+      notes.forEach(({ freq, start, dur }) => {
+        const noteStart = now + start
+        const noteStop = noteStart + dur
 
-      osc1.connect(gain)
-      osc2.connect(gain)
-      gain.connect(ctx.destination)
+        // Primary tone (triangle for fullness)
+        const osc1 = ctx.createOscillator()
+        osc1.type = 'triangle'
+        osc1.frequency.setValueAtTime(freq, noteStart)
 
-      osc1.start(now)
-      osc1.stop(now + 0.14)
-      osc2.start(now + 0.12)
-      osc2.stop(now + 0.45)
+        // Warm harmonic overtone (sine)
+        const osc2 = ctx.createOscillator()
+        osc2.type = 'sine'
+        osc2.frequency.setValueAtTime(freq * 2, noteStart)
+
+        const noteGain = ctx.createGain()
+        noteGain.gain.setValueAtTime(0, noteStart)
+        noteGain.gain.linearRampToValueAtTime(0.85, noteStart + 0.02)
+        noteGain.gain.exponentialRampToValueAtTime(0.01, noteStop)
+
+        osc1.connect(noteGain)
+        osc2.connect(noteGain)
+        noteGain.connect(masterGain)
+
+        osc1.start(noteStart)
+        osc1.stop(noteStop)
+        osc2.start(noteStart)
+        osc2.stop(noteStop)
+      })
     } else if (type === 'warning') {
       // Subtle alert pulse (C5 -> E5 -> C5)
       const osc = ctx.createOscillator()

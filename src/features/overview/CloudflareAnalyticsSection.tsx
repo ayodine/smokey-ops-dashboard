@@ -445,8 +445,8 @@ export const CloudflareAnalyticsSection: React.FC = () => {
 
   // Time labels for 24h
   const timeLabels = useMemo(() => [
-    '00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00',
-    '16:00', '18:00', '20:00', '22:00', '23:59'
+    '12:00 AM', '2:00 AM', '4:00 AM', '6:00 AM', '8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM',
+    '4:00 PM', '6:00 PM', '8:00 PM', '10:00 PM', '11:59 PM'
   ], [])
 
   // Realistic operational curves
@@ -648,11 +648,11 @@ export const CloudflareAnalyticsSection: React.FC = () => {
 
           {/* Bottom Time Range Axis */}
           <div className="flex justify-between text-[10px] text-[#a1a1aa] dark:text-zinc-500 font-mono pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 mt-1 select-none">
-            <span>00:00</span>
-            <span>06:00</span>
-            <span>12:00</span>
-            <span>18:00</span>
-            <span>23:59</span>
+            <span>12:00 AM</span>
+            <span>6:00 AM</span>
+            <span>12:00 PM</span>
+            <span>6:00 PM</span>
+            <span>11:59 PM</span>
           </div>
 
           {/* Drag Resize Handle */}
@@ -744,11 +744,11 @@ export const CloudflareAnalyticsSection: React.FC = () => {
 
           {/* Bottom Time Range Axis */}
           <div className="flex justify-between text-[10px] text-[#a1a1aa] dark:text-zinc-500 font-mono pt-2 border-t border-[#f4f4f5] dark:border-zinc-800 mt-1 select-none">
-            <span>00:00</span>
-            <span>06:00</span>
-            <span>12:00</span>
-            <span>18:00</span>
-            <span>23:59</span>
+            <span>12:00 AM</span>
+            <span>6:00 AM</span>
+            <span>12:00 PM</span>
+            <span>6:00 PM</span>
+            <span>11:59 PM</span>
           </div>
 
           {/* Drag Resize Handle */}

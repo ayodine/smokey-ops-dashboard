@@ -946,26 +946,15 @@ export const ManageOfficesPage: React.FC = () => {
         title="Manage Offices & Facilities"
         subtitle="Register regional operating branches and manage multi-hub kitchen facilities across the network."
         actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              leftIcon={<Download className="w-4 h-4" />}
-              className="h-10 px-4 text-[13px] font-medium shadow-xs"
-            >
-              Export CSV
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/offices/register')}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
-            >
-              Add New Office
-            </Button>
-          </>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate('/offices/register')}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-10 px-4 text-[13px] font-semibold shadow-xs"
+          >
+            Add New Office
+          </Button>
         }
       />
 
@@ -1042,13 +1031,6 @@ export const ManageOfficesPage: React.FC = () => {
               options: cityFilterOptions,
               activeValue: selectedCityFilter,
               onChange: setSelectedCityFilter
-            }
-          ]}
-          bulkActions={[
-            {
-              label: 'Export Selected',
-              icon: <Download className="w-3.5 h-3.5" />,
-              onClick: handleBulkExport
             }
           ]}
         />

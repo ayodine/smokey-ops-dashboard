@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { KumoTabs } from '@/components/ui/Tabs'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, cleanOrderNotes } from '@/lib/utils'
 import { 
   Building, 
   TrendingDown, 
@@ -385,34 +385,19 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
           />
         ) : (
           <div className="space-y-3">
-            {/* Sub-filter pills for Deliveries */}
-            <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] pb-1">
-              {[
-                { key: 'all' as const, label: 'All Deliveries', count: tpDeliveries.length },
-                { key: 'pending' as const, label: 'Pending Audit', count: pendingAuditCount },
-                { key: 'approved' as const, label: 'Approved', count: approvedCount },
-                { key: 'flagged' as const, label: 'Flagged', count: flaggedCount },
-              ].map(f => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setStatusFilter(f.key)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    statusFilter === f.key
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-2xs'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                  }`}
-                >
-                  <span>{f.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    statusFilter === f.key
-                      ? 'bg-zinc-800 text-zinc-100 dark:bg-zinc-200 dark:text-zinc-800'
-                      : 'bg-zinc-200/70 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
-                  }`}>
-                    {f.count}
-                  </span>
-                </button>
-              ))}
+            {/* Sub-filter KumoTabs matching Kumo design system */}
+            <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
+              <KumoTabs
+                size="sm"
+                activeTab={statusFilter}
+                onChange={(val: string) => setStatusFilter(val as any)}
+                tabs={[
+                  { id: 'all', label: 'All Deliveries', badge: tpDeliveries.length },
+                  { id: 'pending', label: 'Pending Audit', badge: pendingAuditCount },
+                  { id: 'approved', label: 'Approved', badge: approvedCount },
+                  { id: 'flagged', label: 'Flagged', badge: flaggedCount },
+                ]}
+              />
             </div>
 
             <DataTable
@@ -565,10 +550,10 @@ export const ThirdPartyLogisticsPage: React.FC = () => {
                     </div>
                   )
                 })()}
-                {selectedDelivery?.notes && (
+                {cleanOrderNotes(selectedDelivery?.notes) && (
                   <div className="flex items-start text-[13px] pt-1 border-t border-zinc-100 dark:border-zinc-800">
                     <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Audit &amp; Dispatch Notes</span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-normal flex-1 leading-snug">{selectedDelivery.notes}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200 font-normal flex-1 leading-snug">{cleanOrderNotes(selectedDelivery?.notes)}</span>
                   </div>
                 )}
               </div>

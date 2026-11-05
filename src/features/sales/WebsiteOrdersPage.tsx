@@ -14,7 +14,7 @@ import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
-import { formatNaira, formatDate, cn } from '@/lib/utils'
+import { formatNaira, formatDate, cleanOrderNotes, cn } from '@/lib/utils'
 import {
   ShoppingBag,
   DollarSign,
@@ -39,7 +39,8 @@ import {
   User,
   UtensilsCrossed,
   CreditCard,
-  Package
+  Package,
+  Printer
 } from 'lucide-react'
 
 export interface WebsiteOrder {
@@ -149,6 +150,342 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     rider_name: raw.delivery_status ? 'Assigned Rider' : 'Pending Rider',
     notes: raw.notes || ''
   }
+}
+
+// Escape user-supplied text before injecting it into the receipt HTML document
+const escapeReceiptHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+// Build receipt line items from raw_items, falling back to parsing items_summary ("2x Item + 1x Other")
+const buildReceiptLineItems = (order: WebsiteOrder): Array<{ name: string; qty: number; amount: number | null }> => {
+  if (Array.isArray(order.raw_items) && order.raw_items.length > 0) {
+    return order.raw_items.map((item: any) => {
+      const qty = Number(item.qty) || 1
+      const price = Number(item.price)
+      return {
+        name: item.name || 'Smokey Product',
+        qty,
+        amount: Number.isFinite(price) && price > 0 ? price * qty : null
+      }
+    })
+  }
+
+  const parts = (order.items_summary || '')
+    .split(' + ')
+    .map(p => p.trim())
+    .filter(Boolean)
+  const parsed = parts.map(part => {
+    const match = part.match(/^(\d+)\s*x\s*(.+)$/i)
+    return match
+      ? { name: match[2].trim(), qty: Number(match[1]) || 1 }
+      : { name: part, qty: 1 }
+  })
+
+  // Without per-item prices, show the full subtotal against a single line; otherwise leave amounts blank
+  const subtotal = Math.max((Number(order.total_amount) || 0) - (Number(order.delivery_fee) || 0), 0)
+  return parsed.map(p => ({
+    ...p,
+    amount: parsed.length === 1 && subtotal > 0 ? subtotal : null
+  }))
+}
+
+// Opens a print-ready receipt window, auto-triggers the native print/PDF dialog and leaves an
+// interactive preview (Print / Save as PDF, Close, Back to orders) once that dialog is dismissed.
+export const printOrderReceipt = (order: WebsiteOrder) => {
+  const naira = (n: number) => '₦' + Math.round(Number(n) || 0).toLocaleString()
+  const lineItems = buildReceiptLineItems(order)
+  const deliveryFee = Number(order.delivery_fee) || 0
+  const total = Number(order.total_amount) || 0
+  const itemsTotal = lineItems.reduce((s, i) => s + (i.amount || 0), 0)
+  const subtotal = itemsTotal > 0 ? itemsTotal : Math.max(total - deliveryFee, 0)
+
+  const created = order.created_at ? new Date(order.created_at) : null
+  const dateStr = created && !isNaN(created.getTime())
+    ? created.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '-'
+
+  const paymentMethod = (order.payment_method || 'Paystack')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+
+  const origin = window.location.origin
+  const logoUrl = `${origin}/logo.svg`
+  const ordersUrl = `${origin}/sales/orders`
+
+  const itemRows = lineItems.map(item => `
+        <tr>
+          <td class="item-name">${escapeReceiptHtml(item.name)}</td>
+          <td class="item-qty">${item.qty}</td>
+          <td class="item-amount">${item.amount !== null ? naira(item.amount) : '—'}</td>
+        </tr>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Receipt ${escapeReceiptHtml(order.order_ref)} — Smokeyhut Delight</title>
+  <style>
+    :root {
+      --font-sf-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif;
+      --font-sf-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #f0f0f3; }
+    body {
+      font-family: var(--font-sf-text);
+      color: #18181b;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-kerning: normal;
+      text-rendering: optimizeLegibility;
+    }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: 8px; align-items: center;
+      padding: 12px 24px;
+      background: #ffffff;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .btn {
+      font-family: var(--font-sf-text);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 36px; padding: 0 14px;
+      font-size: 13px; font-weight: 500; line-height: 1;
+      border-radius: 8px; cursor: pointer; user-select: none;
+      border: 1px solid rgba(24, 24, 27, 0.12);
+      background: #ffffff; color: #18181b;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    }
+    .btn:hover { background: #f4f4f5; }
+    .btn:active { background: #e4e4e7; }
+    .btn:focus-visible { outline: 2px solid #c0201f; outline-offset: 2px; }
+    .btn-primary {
+      background: #c0201f;
+      border-color: #c0201f;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #a01a19;
+      border-color: #a01a19;
+    }
+    .btn-primary:active {
+      opacity: 0.9;
+    }
+    .sheet-wrap { display: flex; justify-content: center; padding: 28px 16px 48px; }
+    .receipt {
+      font-family: var(--font-sf-text);
+      width: 148mm; max-width: 100%;
+      padding: 10mm 12mm 12mm;
+      font-size: 12px; color: #18181b; background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .center { text-align: center; }
+    .logo { width: 32mm; height: auto; display: block; margin: 0 auto 2mm; }
+    .sub { font-size: 11px; color: #71717a; margin-top: 0.8mm; line-height: 1.4; }
+    .divider { border: none; border-top: 1px solid #e4e4e7; margin: 3.5mm 0; }
+    .divider-solid { border: none; border-top: 1px solid #d4d4d8; margin: 3.5mm 0; }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .meta-right {
+      text-align: right;
+    }
+    .meta-date {
+      font-family: var(--font-sf-text);
+      font-size: 12px;
+      font-weight: 500;
+      color: #18181b;
+    }
+    .label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #71717a; margin-bottom: 0.8mm;
+    }
+    .value {
+      font-family: var(--font-sf-display);
+      font-size: 14px; font-weight: 600; color: #18181b; letter-spacing: -0.01em;
+    }
+    .customer-name {
+      font-size: 13px; font-weight: 600; color: #18181b;
+    }
+    .text { font-size: 12px; font-weight: 400; color: #27272a; line-height: 1.45; }
+    .block { margin-bottom: 3mm; }
+    .block:last-of-type { margin-bottom: 0; }
+    table {
+      width: 100%; border-collapse: collapse;
+      border-top: 1px solid #e4e4e7; border-bottom: 1px solid #e4e4e7;
+      margin: 3.5mm 0;
+    }
+    thead tr {
+      background: #fafafa;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    th {
+      font-family: var(--font-sf-text);
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #71717a; padding: 2.2mm 2mm;
+    }
+    tbody tr { border-bottom: 1px solid #f4f4f5; }
+    tbody tr:last-child { border-bottom: none; }
+    td {
+      font-family: var(--font-sf-text);
+      font-size: 12px; padding: 2.4mm 2mm; vertical-align: middle;
+    }
+    .item-name { text-align: left; font-weight: 500; color: #18181b; padding-left: 2.5mm; }
+    .item-qty { width: 16mm; text-align: right; font-weight: 400; color: #27272a; }
+    .item-amount { width: 28mm; text-align: right; font-weight: 400; color: #27272a; padding-right: 2.5mm; }
+    .row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: #52525b; margin-bottom: 1.8mm;
+    }
+    .row span:last-child { color: #18181b; font-weight: 500; }
+    .row.total {
+      font-family: var(--font-sf-display);
+      font-size: 14px; font-weight: 700; color: #18181b;
+      letter-spacing: -0.01em; margin: 0;
+    }
+    .row.total span:last-child {
+      font-size: 15px; font-weight: 700; color: #18181b;
+    }
+    .footer {
+      font-size: 11px; color: #71717a; text-align: center; line-height: 1.6;
+    }
+    .footer strong { color: #18181b; font-weight: 600; }
+    @media print {
+      @page { size: A5 portrait; margin: 0; }
+      html, body { background: #ffffff; }
+      .no-print { display: none !important; }
+      .sheet-wrap { padding: 0; }
+      .receipt { border: none; border-radius: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button type="button" class="btn btn-primary" id="btn-print">Print / Save as PDF</button>
+    <button type="button" class="btn" id="btn-close">Close</button>
+    <button type="button" class="btn" id="btn-back">Back to orders</button>
+  </div>
+
+  <div class="sheet-wrap">
+    <div class="receipt">
+      <div class="center">
+        <img src="${logoUrl}" class="logo" alt="Smokeyhut Delight" onerror="this.style.display='none'" />
+        <div class="sub">13 McNeil St, Yaba, Lagos</div>
+        <div class="sub">smokeyhutdelight.com</div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="meta-row">
+        <div>
+          <div class="label">Receipt</div>
+          <div class="value">${escapeReceiptHtml(order.order_ref)}</div>
+        </div>
+        <div class="meta-right">
+          <div class="label">Date</div>
+          <div class="meta-date">${escapeReceiptHtml(dateStr)}</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="block">
+        <div class="label">Customer</div>
+        <div class="customer-name">${escapeReceiptHtml(order.customer_name)}</div>
+        ${order.phone && order.phone !== 'N/A' ? `<div class="sub">${escapeReceiptHtml(order.phone)}</div>` : ''}
+        ${order.customer_email ? `<div class="sub">${escapeReceiptHtml(order.customer_email)}</div>` : ''}
+      </div>
+      <div class="block">
+        <div class="label">Delivery Address</div>
+        <div class="text">${escapeReceiptHtml(order.address || '—')}</div>
+      </div>
+      <div class="block">
+        <div class="label">Payment</div>
+        <div class="text">${escapeReceiptHtml(paymentMethod)}</div>
+      </div>
+      ${order.channel ? `<div class="block">
+        <div class="label">Channel</div>
+        <div class="text">${escapeReceiptHtml(order.channel)}</div>
+      </div>` : ''}
+
+      <table>
+        <thead>
+          <tr>
+            <th class="item-name">Item</th>
+            <th class="item-qty">Qty</th>
+            <th class="item-amount">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}
+        </tbody>
+      </table>
+
+      <div class="row"><span>Subtotal</span><span>${naira(subtotal)}</span></div>
+      <div class="row"><span>Delivery Fee</span><span>${deliveryFee > 0 ? naira(deliveryFee) : 'Free'}</span></div>
+
+      <hr class="divider" />
+
+      <div class="row total"><span>TOTAL PAID</span><span>${naira(total)}</span></div>
+
+      <hr class="divider" />
+
+      <div class="footer">
+        <p><strong>Thank you for choosing Smokeyhut Delight!</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var ordersUrl = ${JSON.stringify(ordersUrl)};
+      document.getElementById('btn-print').addEventListener('click', function () { window.print(); });
+      document.getElementById('btn-close').addEventListener('click', function () {
+        window.close();
+        // Fallback when the browser refuses to close a tab it did not script-open
+        setTimeout(function () { if (!window.closed) window.location.href = ordersUrl; }, 200);
+      });
+      document.getElementById('btn-back').addEventListener('click', function () {
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.focus();
+            window.close();
+            return;
+          }
+        } catch (e) {}
+        window.location.href = ordersUrl;
+      });
+      var printed = false;
+      function autoPrint() { if (printed) return; printed = true; setTimeout(function () { window.print(); }, 250); }
+      if (document.readyState === 'complete') autoPrint();
+      else window.addEventListener('load', autoPrint);
+    })();
+  </script>
+</body>
+</html>`
+
+  const win = window.open('', '_blank')
+  if (!win) {
+    // Popup blocked — fall back to a blob URL in the same click flow
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    window.location.assign(url)
+    return
+  }
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+  win.focus()
 }
 
 export const WebsiteOrdersPage: React.FC = () => {
@@ -459,7 +796,7 @@ export const WebsiteOrdersPage: React.FC = () => {
             </div>
             <div className="text-[11px] text-kumo-subtle font-mono mt-0.5 flex items-center gap-1">
               <Clock className="w-2.5 h-2.5 shrink-0 opacity-70" />
-              <span>{d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              <span>{d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</span>
             </div>
           </div>
         )
@@ -682,149 +1019,136 @@ export const WebsiteOrdersPage: React.FC = () => {
         />
       </div>
 
-      {/* 4. Historical Search & Dropdown Autocomplete Assist */}
-      <div className="relative font-sans" ref={searchContainerRef}>
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3.5 text-kumo-subtle pointer-events-none z-10" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              setIsSearchOpen(true)
-              setActiveSuggestionIndex(0)
+      {/* Active Query Filter Pill — Clean Desaturated Grey */}
+      {searchQuery.trim() && (
+        <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 font-sans shadow-2xs">
+          <span className="flex items-center gap-1.5">
+            <span>Showing results filtered across sales database for:</span>
+            <strong className="underline underline-offset-2 font-semibold text-zinc-900 dark:text-zinc-100">"{searchQuery.trim()}"</strong>
+            <span className="text-[11px] text-zinc-500 font-mono">({searchedOrders.length} orders found)</span>
+          </span>
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              setIsSearchOpen(false)
             }}
-            onFocus={() => {
-              if (searchQuery.trim().length > 0) setIsSearchOpen(true)
-            }}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search orders as far back as database inception (Order ID, Customer, Phone, Product, Address)..."
-            className="w-full h-11 pl-10 pr-24 rounded-xl border border-kumo-line bg-kumo-card text-xs sm:text-sm text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-zinc-400/20 focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs font-sans"
-          />
-
-          <div className="absolute right-3 flex items-center gap-2">
-            {isSearchingBackend && (
-              <span className="flex items-center gap-1.5 text-[11px] text-kumo-subtle">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
-                <span className="hidden sm:inline">Indexing...</span>
-              </span>
-            )}
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('')
-                  setIsSearchOpen(false)
-                }}
-                className="p-1 rounded-md text-kumo-subtle hover:text-kumo-strong hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                title="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+            className="text-xs font-semibold hover:underline flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            Reset Search Filter
+          </button>
         </div>
+      )}
 
-        {/* Autocomplete Dropdown with Highlighted Suggestions */}
-        {isSearchOpen && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/40 px-3 font-sans">
-              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                Historical Sales Database Matches
-              </span>
-              <span>Use ↑ ↓ to navigate, Enter to view in table</span>
-            </div>
-
-            <div className="max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 p-1">
-              {suggestions.map(({ order, matchType, matchedValue }, idx) => {
-                const isActive = idx === activeSuggestionIndex
-                return (
-                  <div
-                    key={order.id}
-                    onClick={() => handleSelectSuggestion(order)}
-                    onMouseEnter={() => setActiveSuggestionIndex(idx)}
-                    className={cn(
-                      "p-3 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs",
-                      isActive
-                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300"
-                    )}
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                          {matchType}
-                        </span>
-                        <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate">
-                          {highlightSearchMatch(matchedValue, searchQuery)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2 truncate">
-                        <span className="font-mono text-zinc-700 dark:text-zinc-300 font-medium">{order.order_ref}</span>
-                        <span>•</span>
-                        <span>{highlightSearchMatch(order.customer_name, searchQuery)}</span>
-                        <span>•</span>
-                        <span>{order.items_summary}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 font-mono">
-                        {formatNaira(order.total_amount)}
-                      </div>
-                      <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                        {formatDate(order.scheduled_delivery_at || order.created_at)}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Active Query Filter Pill — Clean Desaturated Grey */}
-        {searchQuery.trim() && (
-          <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 font-sans shadow-2xs">
-            <span className="flex items-center gap-1.5">
-              <span>Showing results filtered across sales database for:</span>
-              <strong className="underline underline-offset-2 font-semibold text-zinc-900 dark:text-zinc-100">"{searchQuery.trim()}"</strong>
-              <span className="text-[11px] text-zinc-500 font-mono">({searchedOrders.length} orders found)</span>
-            </span>
-            <button
-              onClick={() => {
-                setSearchQuery('')
-                setIsSearchOpen(false)
-              }}
-              className="text-xs font-semibold hover:underline flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-            >
-              Reset Search Filter
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 5. DataTable with Search, Category filters, and Full Order Data */}
+      {/* 4. DataTable with Unified Search Slot, Category filters, and Full Order Data */}
       <DataTable
         data={searchedOrders}
         columns={columns}
         onRowClick={handleOpenDetails}
-        searchable={false}
         tableId="website_orders_table"
         exportFilename="website_orders.csv"
-        searchFilter={(order, query) => {
-          const q = query.toLowerCase()
-          return (
-            order.order_ref.toLowerCase().includes(q) ||
-            order.customer_name.toLowerCase().includes(q) ||
-            order.phone.toLowerCase().includes(q) ||
-            order.address.toLowerCase().includes(q) ||
-            order.items_summary.toLowerCase().includes(q) ||
-            order.channel.toLowerCase().includes(q) ||
-            order.notes.toLowerCase().includes(q)
-          )
-        }}
+        customSearchSlot={
+          <div className="relative font-sans w-full" ref={searchContainerRef}>
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setIsSearchOpen(true)
+                  setActiveSuggestionIndex(0)
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length > 0) setIsSearchOpen(true)
+                }}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search orders (ID, Customer, Phone, Items, Address)..."
+                className="w-full h-10 pl-10 pr-24 text-sm rounded-lg ring ring-border/60 bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-sans"
+              />
+
+              <div className="absolute right-3 flex items-center gap-2">
+                {isSearchingBackend && (
+                  <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                    <span className="hidden sm:inline">Indexing...</span>
+                  </span>
+                )}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setIsSearchOpen(false)
+                    }}
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Autocomplete Dropdown with Highlighted Suggestions */}
+            {isSearchOpen && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                <div className="p-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/40 px-3 font-sans">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Historical Sales Database Matches
+                  </span>
+                  <span>Use ↑ ↓ to navigate, Enter to view in table</span>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 p-1">
+                  {suggestions.map(({ order, matchType, matchedValue }, idx) => {
+                    const isActive = idx === activeSuggestionIndex
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => handleSelectSuggestion(order)}
+                        onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                        className={cn(
+                          "p-3 rounded-xl cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs",
+                          isActive
+                            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300"
+                        )}
+                      >
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                              {matchType}
+                            </span>
+                            <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate">
+                              {highlightSearchMatch(matchedValue, searchQuery)}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2 truncate">
+                            <span className="font-mono text-zinc-700 dark:text-zinc-300 font-medium">{order.order_ref}</span>
+                            <span>•</span>
+                            <span>{highlightSearchMatch(order.customer_name, searchQuery)}</span>
+                            <span>•</span>
+                            <span>{order.items_summary}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 font-mono">
+                            {formatNaira(order.total_amount)}
+                          </div>
+                          <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                            {formatDate(order.scheduled_delivery_at || order.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        }
       />
 
       {/* 5. Order Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
@@ -860,7 +1184,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                       setRescheduleDate(initialDate)
                       setRescheduleTime(initialTime)
                       setRescheduleDateTime(`${initialDate} ${initialTime}`)
-                      setRescheduleNotes(selectedOrder.notes || '')
+                      setRescheduleNotes(cleanOrderNotes(selectedOrder.notes) || '')
                       setIsRescheduleModalOpen(true)
                     }}
                     leftIcon={<Calendar className="w-3.5 h-3.5 text-zinc-500" />}
@@ -871,13 +1195,10 @@ export const WebsiteOrdersPage: React.FC = () => {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={() => {
-                    setIsDetailsModalOpen(false)
-                    navigate(`/overview?orderId=${encodeURIComponent(selectedOrder.order_ref)}`)
-                  }}
-                  leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
+                  onClick={() => printOrderReceipt(selectedOrder)}
+                  leftIcon={<Printer className="w-3.5 h-3.5" />}
                 >
-                  View in Flow Diagram
+                  Print Receipt
                 </Button>
               </div>
             </div>
@@ -907,7 +1228,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                         const d = selectedOrder.created_at ? new Date(selectedOrder.created_at) : null
                         const isValid = d && !isNaN(d.getTime())
                         if (!isValid) return '-'
-                        return `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                        return `${d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`
                       })()}
                     </span>
                   </div>
@@ -933,7 +1254,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                       <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Timing</span>
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
                         <Calendar className="w-3 h-3 text-blue-500" />
-                        Scheduled: {selectedOrder.scheduled_delivery_at}
+                        Scheduled: {formatDate(selectedOrder.scheduled_delivery_at)}
                       </span>
                     </div>
                   )}
@@ -947,7 +1268,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                       {selectedOrder.payment_method || 'Paystack'}
                       {selectedOrder.paid_at && (
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-normal ml-2">
-                          (Paid on {new Date(selectedOrder.paid_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} at {new Date(selectedOrder.paid_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})
+                          (Paid on {new Date(selectedOrder.paid_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })} at {new Date(selectedOrder.paid_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })})
                         </span>
                       )}
                     </span>
@@ -1074,7 +1395,7 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
 
               {/* Section 5: Order Notes (if present) */}
-              {selectedOrder.notes && (
+              {cleanOrderNotes(selectedOrder.notes) && (
                 <div className="p-4 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/50">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
@@ -1082,7 +1403,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed pt-0.5">
-                    {selectedOrder.notes}
+                    {cleanOrderNotes(selectedOrder.notes)}
                   </p>
                 </div>
               )}

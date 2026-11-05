@@ -24,7 +24,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
-import { useSmokeyOps, type UserRole, type AppUserAccount } from '@/context/SmokeyOpsContext'
+import { KumoTabs } from '@/components/ui/KumoTabs'
+import { useSmokeyOps, type UserRole, type AppUserAccount, ROLE_DEFAULT_PERMISSIONS } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
 import { SYSTEM_ROLE_CONFIGS } from '@/components/layout/ManageAccountsModal'
 import { generateNextStaffId } from '@/lib/staffId'
@@ -63,8 +64,45 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
 
 export const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate()
-  const { currentAccount, createAccount, showToast, availableAccounts } = useSmokeyOps()
+  const { currentAccount, createAccount, showToast, availableAccounts, customScopes } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
+
+  // Account Type Switcher: Team Account (streamlined, no personal KYC) vs Staff Account (Full KYC)
+  const [accountTypeTab, setAccountTypeTab] = useState<'team' | 'staff'>('team')
+
+  // Unified Scope Options (Standard Roles + Custom Scopes)
+  const roleScopeOptions = useMemo(() => {
+    const defaultRoles = SYSTEM_ROLE_CONFIGS.map(r => ({
+      value: r.id,
+      label: `${r.label} (${(ROLE_DEFAULT_PERMISSIONS[r.id] || []).length} baseline policies)`,
+      group: 'Standard Operational Scopes'
+    }))
+
+    const customOptions = (customScopes || []).map(s => ({
+      value: s.id,
+      label: `${s.label} (${(s.permissions || []).length} custom policies)`,
+      group: 'Custom Operational Scopes'
+    }))
+
+    return [
+      ...defaultRoles,
+      ...customOptions
+    ]
+  }, [customScopes])
+
+  // Scope selection state for Staff Account tab
+  const [staffScopeSelection, setStaffScopeSelection] = useState<string>('kitchen')
+
+  // Team Account Form State (Streamlined, strictly non-personal)
+  const [teamName, setTeamName] = useState('')
+  const [teamUsername, setTeamUsername] = useState('')
+  const [teamPassword, setTeamPassword] = useState(() => `Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+  const [teamShowPassword, setTeamShowPassword] = useState(false)
+  const [teamMustChangePassword, setTeamMustChangePassword] = useState(false)
+  const [teamDepartment, setTeamDepartment] = useState('Culinary Production')
+  const [teamHub, setTeamHub] = useState(selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office')
+  const [teamScopeSelection, setTeamScopeSelection] = useState<string>('kitchen')
+  const [teamShiftSchedule, setTeamShiftSchedule] = useState('Morning Cook & Prep (6:00 AM - 3:00 PM)')
 
   // Select dropdown option arrays matching ManageAccountsPage KYC
   const NIGERIAN_STATES = useMemo(() => [
@@ -88,11 +126,11 @@ export const CreateAccountPage: React.FC = () => {
   ], [])
 
   const SHIFT_SCHEDULE_OPTIONS = useMemo(() => [
-    { value: 'Morning Cook & Prep (06:00 - 15:00)', label: 'Morning Cook & Prep (06:00 - 15:00)' },
-    { value: 'Evening Smoke Shift (14:00 - 23:00)', label: 'Evening Smoke Shift (14:00 - 23:00)' },
-    { value: 'Day Delivery Dispatch (08:00 - 18:00)', label: 'Day Delivery Dispatch (08:00 - 18:00)' },
-    { value: 'Morning Intake & Audit (07:00 - 16:00)', label: 'Morning Intake & Audit (07:00 - 16:00)' },
-    { value: 'All-Day Fulfillment (08:00 - 18:00)', label: 'All-Day Fulfillment (08:00 - 18:00)' },
+    { value: 'Morning Cook & Prep (6:00 AM - 3:00 PM)', label: 'Morning Cook & Prep (6:00 AM - 3:00 PM)' },
+    { value: 'Evening Smoke Shift (2:00 PM - 11:00 PM)', label: 'Evening Smoke Shift (2:00 PM - 11:00 PM)' },
+    { value: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)', label: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)' },
+    { value: 'Morning Intake & Audit (7:00 AM - 4:00 PM)', label: 'Morning Intake & Audit (7:00 AM - 4:00 PM)' },
+    { value: 'All-Day Fulfillment (8:00 AM - 6:00 PM)', label: 'All-Day Fulfillment (8:00 AM - 6:00 PM)' },
     { value: 'General Executive Operations', label: 'General Executive Operations' },
   ], [])
 
@@ -129,7 +167,7 @@ export const CreateAccountPage: React.FC = () => {
   const [assignedHub, setAssignedHub] = useState(selectedWarehouse?.name || facilities[0]?.name || 'Yaba Head Office')
   const [role, setRole] = useState<UserRole>('kitchen')
   const [employmentStatus, setEmploymentStatus] = useState<'full_time' | 'contract' | 'probation' | 'part_time'>('full_time')
-  const [shiftSchedule, setShiftSchedule] = useState('Morning Cook & Prep (06:00 - 15:00)')
+  const [shiftSchedule, setShiftSchedule] = useState('Morning Cook & Prep (6:00 AM - 3:00 PM)')
   const [department, setDepartment] = useState('Culinary Production')
 
   // Auto-calculated sequential unique Staff ID for the chosen role
@@ -208,6 +246,72 @@ export const CreateAccountPage: React.FC = () => {
     rider: 'Delivery Fleet Rider',
   }
 
+  const handleCreateTeamAccount = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const rawName = teamName.trim()
+    const rawUsername = teamUsername.trim()
+    if (!rawName) {
+      showToast('Team/Account name is required', 'error')
+      return
+    }
+    if (!rawUsername) {
+      showToast('Sign-in username or email handle is required', 'error')
+      return
+    }
+
+    // Determine email and username
+    const cleanUsername = rawUsername.includes('@')
+      ? rawUsername.split('@')[0].toLowerCase()
+      : rawUsername.toLowerCase().replace(/\s+/g, '.')
+    const effectiveEmail = rawUsername.includes('@')
+      ? rawUsername.toLowerCase()
+      : `${cleanUsername}@smokeyhut.com`
+
+    const finalPassword = teamPassword.trim() || `Smk@${Math.floor(1000 + Math.random() * 9000)}!`
+
+    // Resolve Role & Scope
+    const matchedCustom = (customScopes || []).find(s => s.id === teamScopeSelection)
+    const matchedStandard = SYSTEM_ROLE_CONFIGS.find(r => r.id === teamScopeSelection)
+    const effectiveRole: UserRole = matchedCustom ? matchedCustom.baseRole : (matchedStandard ? (matchedStandard.id as UserRole) : 'kitchen')
+    const effectiveRoleLabel = matchedCustom ? matchedCustom.label : (matchedStandard?.label || roleLabels[effectiveRole])
+    const effectivePermissions = matchedCustom ? matchedCustom.permissions : (ROLE_DEFAULT_PERMISSIONS[effectiveRole] || [])
+    const teamStaffId = `TEAM-${cleanUsername.slice(0, 4).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`
+
+    const newTeamAccount: AppUserAccount = {
+      name: rawName,
+      username: cleanUsername,
+      email: effectiveEmail,
+      role: effectiveRole,
+      roleLabel: effectiveRoleLabel,
+      scope_id: matchedCustom ? matchedCustom.id : undefined,
+      permissions: effectivePermissions,
+      department: teamDepartment.trim() || 'Operations',
+      assigned_hub: teamHub,
+      shift_schedule: teamShiftSchedule,
+      account_type: 'team',
+      must_change_password: teamMustChangePassword,
+      staff_id: teamStaffId,
+      password: finalPassword,
+      temporary_password: finalPassword,
+      status: 'active',
+      last_active: 'Team account registered just now',
+    }
+
+    createAccount(newTeamAccount)
+
+    setCreatedAccount({
+      name: rawName,
+      email: effectiveEmail,
+      username: cleanUsername,
+      tempPass: finalPassword,
+      role: effectiveRoleLabel,
+      staffId: teamStaffId,
+    })
+
+    showToast(`Team account created for ${rawName}`, 'success')
+  }
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -221,12 +325,23 @@ export const CreateAccountPage: React.FC = () => {
     const accName = name.trim()
     const generatedStaffId = staffId.trim() || autoStaffId
 
+    // Resolve Role & Scope for Staff Account
+    const matchedCustom = (customScopes || []).find(s => s.id === staffScopeSelection)
+    const matchedStandard = SYSTEM_ROLE_CONFIGS.find(r => r.id === staffScopeSelection)
+    const effectiveRole: UserRole = matchedCustom ? matchedCustom.baseRole : role
+    const effectiveRoleLabel = matchedCustom ? matchedCustom.label : (matchedStandard?.label || roleLabels[effectiveRole])
+    const effectivePermissions = matchedCustom ? matchedCustom.permissions : (ROLE_DEFAULT_PERMISSIONS[effectiveRole] || [])
+
     const newAccountData: AppUserAccount = {
       email: email.trim().toLowerCase(),
       username: derivedUsername,
       name: accName,
-      role,
-      roleLabel: roleLabels[role],
+      role: effectiveRole,
+      roleLabel: effectiveRoleLabel,
+      scope_id: matchedCustom ? matchedCustom.id : undefined,
+      permissions: effectivePermissions,
+      account_type: 'staff',
+      must_change_password: mustChangePassword,
       phone: phone.trim() || undefined,
       staff_id: generatedStaffId,
       assigned_hub: assignedHub,
@@ -244,10 +359,10 @@ export const CreateAccountPage: React.FC = () => {
       bank_name: bankName.trim() || undefined,
       bank_account_number: bankAccountNumber.trim() || undefined,
       bank_account_name: bankAccountName.trim() || accName,
-      vehicle_type: role === 'rider' ? vehicleType : undefined,
-      plate_number: role === 'rider' ? (plateNumber.trim() || undefined) : undefined,
-      license_number: role === 'rider' ? (licenseNumber.trim() || undefined) : undefined,
-      license_expiry: role === 'rider' ? (licenseExpiry.trim() || undefined) : undefined,
+      vehicle_type: effectiveRole === 'rider' ? vehicleType : undefined,
+      plate_number: effectiveRole === 'rider' ? (plateNumber.trim() || undefined) : undefined,
+      license_number: effectiveRole === 'rider' ? (licenseNumber.trim() || undefined) : undefined,
+      license_expiry: effectiveRole === 'rider' ? (licenseExpiry.trim() || undefined) : undefined,
       password: finalPassword,
       temporary_password: finalPassword,
       status: 'active',
@@ -261,7 +376,7 @@ export const CreateAccountPage: React.FC = () => {
       email: email.trim().toLowerCase(),
       username: derivedUsername,
       tempPass: finalPassword,
-      role: roleLabels[role],
+      role: effectiveRoleLabel,
       staffId: generatedStaffId,
     })
 
@@ -313,16 +428,20 @@ export const CreateAccountPage: React.FC = () => {
           </button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">Staff Profile & KYC</h1>
+              <h1 className="text-xl font-bold text-kumo-strong tracking-tight">
+                {accountTypeTab === 'team' ? 'Provision Team Account' : 'Staff Profile & KYC'}
+              </h1>
               <span className="text-kumo-subtle text-[16px] font-normal">/</span>
               <span className="text-[16px] font-semibold text-kumo-default">
-                {name.trim() || 'New Staff Member'}
+                {accountTypeTab === 'team'
+                  ? (teamName.trim() || 'New Team / Department Account')
+                  : (name.trim() || 'New Staff Member')}
               </span>
             </div>
             <p className="text-[13px] text-kumo-subtle mt-0.5">
-              Manage personal details, branch assignment, emergency contacts, and payroll information for{' '}
-              <strong className="text-kumo-strong">{name.trim() || 'New Staff Member'}</strong>{' '}
-              ({email.trim() || 'staff-onboarding@smokeyhut.com'}).
+              {accountTypeTab === 'team'
+                ? 'Create a shared departmental or station operator account with immediate scope-based policy access. No personal KYC required.'
+                : `Manage personal details, branch assignment, emergency contacts, and payroll information for ${name.trim() || 'New Staff Member'} (${email.trim() || 'staff-onboarding@smokeyhut.com'}).`}
             </p>
           </div>
         </div>
@@ -330,11 +449,33 @@ export const CreateAccountPage: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[13px] text-kumo-subtle font-sans inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base shadow-2xs">
             <Globe className="w-3.5 h-3.5 text-kumo-subtle" />
-            <span>Staff ID:</span>
-            <strong className="text-kumo-strong font-mono">{staffId.trim() || autoStaffId}</strong>
+            <span>{accountTypeTab === 'team' ? 'Account Type:' : 'Staff ID:'}</span>
+            <strong className="text-kumo-strong font-mono">
+              {accountTypeTab === 'team' ? 'Team / Operational' : (staffId.trim() || autoStaffId)}
+            </strong>
           </span>
         </div>
       </div>
+
+      {/* Account Type KumoTabs Switcher */}
+      {!createdAccount && (
+        <div className="flex items-center justify-between gap-4 border-b border-kumo-line pb-4">
+          <KumoTabs
+            tabs={[
+              { id: 'team', label: 'Team Account' },
+              { id: 'staff', label: 'Staff Account (Full KYC)' },
+            ]}
+            activeTab={accountTypeTab}
+            onChange={(tabId) => setAccountTypeTab(tabId as 'team' | 'staff')}
+            size="md"
+          />
+          <span className="text-[12px] text-kumo-subtle hidden sm:inline-block">
+            {accountTypeTab === 'team'
+              ? 'Shared departmental credentials & policy scope only'
+              : 'Individual employee record with statutory KYC & payroll'}
+          </span>
+        </div>
+      )}
 
       {createdAccount ? (
         <div className="border border-kumo-line rounded-2xl bg-kumo-base p-6 sm:p-8 space-y-6 shadow-xs max-w-2xl">
@@ -400,6 +541,204 @@ export const CreateAccountPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      ) : accountTypeTab === 'team' ? (
+        <form onSubmit={handleCreateTeamAccount} className="space-y-6 pb-12">
+          {/* Card 1: Team Account & Sign-in Credentials */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Team Identity & Sign-in Credentials</h3>
+                  <p className="text-[13px] text-kumo-subtle">Shared operational team name and login credentials</p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium text-kumo-subtle bg-kumo-tint px-2.5 py-1 rounded-md border border-kumo-line">
+                No KYC Required
+              </span>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Team / Account Name"
+                description="Display name for this shared or departmental account"
+                required
+              >
+                <Input
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="e.g. Packaging Team, Kitchen Shift Lead, Dispatch Desk"
+                  required
+                  aria-label="Team / Account Name"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Sign-in Username / Handle"
+                description="Username or email handle used to log in (e.g. packaging.team)"
+                required
+              >
+                <Input
+                  value={teamUsername}
+                  onChange={(e) => setTeamUsername(e.target.value)}
+                  placeholder="e.g. packaging.team or packaging@smokeyhut.com"
+                  required
+                  aria-label="Sign-in Username / Handle"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Password"
+                description="Credentials for operators sharing this terminal/station"
+                required
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <div className="relative flex-1">
+                    <Input
+                      type={teamShowPassword ? 'text' : 'password'}
+                      value={teamPassword}
+                      onChange={(e) => setTeamPassword(e.target.value)}
+                      required
+                      aria-label="Password"
+                      className="pr-10 font-mono text-[13px]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setTeamShowPassword(p => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer"
+                      title={teamShowPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {teamShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTeamPassword(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)}
+                    className="shrink-0 h-10 px-3"
+                    title="Generate new password"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    <span>Generate</span>
+                  </Button>
+                </div>
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Require Password Reset"
+                description="Force password update on first login"
+              >
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="teamMustChangePasswordCheck"
+                    checked={teamMustChangePassword}
+                    onChange={(e) => setTeamMustChangePassword(e.target.checked)}
+                    className="rounded border-kumo-line text-primary focus:ring-primary size-4 cursor-pointer accent-[#c0201f]"
+                  />
+                  <label htmlFor="teamMustChangePasswordCheck" className="text-[13px] text-kumo-strong cursor-pointer select-none">
+                    Require password change upon next login
+                  </label>
+                </div>
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Card 2: Department, Facility & Scope */}
+          <div className="border border-kumo-line rounded-2xl bg-kumo-base overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-kumo-line bg-kumo-canvas/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-kumo-canvas text-kumo-subtle border border-kumo-line flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-semibold text-kumo-strong">Department, Facility & Policy Scope</h3>
+                  <p className="text-[13px] text-kumo-subtle">Assigned operating hub, shift roster, and RBAC permission scope</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-kumo-line/60">
+              <ProfileFieldRow
+                label="Operational Department"
+                description="Work group responsible for this shared account"
+              >
+                <Input
+                  value={teamDepartment}
+                  onChange={(e) => setTeamDepartment(e.target.value)}
+                  placeholder="e.g. Packaging & Assembly, Kitchen Operations"
+                  aria-label="Operational Department"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Assigned Operating Facility / Hub"
+                description="Primary physical branch, kitchen, or depot"
+              >
+                <Select
+                  value={teamHub}
+                  onValueChange={(val) => setTeamHub(String(val))}
+                  options={facilities.map(f => ({ value: f.name, label: f.name }))}
+                  aria-label="Assigned Operating Facility / Hub"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Assigned Shift Schedule"
+                description="Operating shift window"
+              >
+                <Select
+                  value={teamShiftSchedule}
+                  onValueChange={(val) => setTeamShiftSchedule(String(val))}
+                  options={SHIFT_SCHEDULE_OPTIONS}
+                  aria-label="Assigned Shift Schedule"
+                />
+              </ProfileFieldRow>
+
+              <ProfileFieldRow
+                label="Policy & Access Scope"
+                description="Standard operational role or custom scope granting system permissions"
+                required
+              >
+                <Select
+                  value={teamScopeSelection}
+                  onValueChange={(val) => setTeamScopeSelection(String(val))}
+                  options={roleScopeOptions}
+                  aria-label="Policy & Access Scope"
+                />
+              </ProfileFieldRow>
+            </div>
+          </div>
+
+          {/* Bottom Action Bar for Team Account */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-kumo-base border border-kumo-line rounded-xl shadow-2xs gap-3 mt-8">
+            <div className="flex items-center gap-2 text-[13px] text-kumo-subtle">
+              <ShieldCheck className="w-4 h-4 text-kumo-subtle shrink-0" />
+              <span>Team account credentials and policy permissions will be active immediately.</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                onClick={() => navigate('/accounts')}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+              >
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                <span>Create Team Account</span>
+              </Button>
+            </div>
+          </div>
+        </form>
       ) : (
         <form onSubmit={handleCreate} className="space-y-6 pb-12">
           {/* Card 1: Personal Details & Identity */}
@@ -614,20 +953,23 @@ export const CreateAccountPage: React.FC = () => {
               </ProfileFieldRow>
 
               <ProfileFieldRow
-                label="Staff Role Assignment"
-                description="Operational role defining system access and baseline permissions"
+                label="Staff Role & Scope Assignment"
+                description="Operational role or custom scope defining system access and policies"
               >
                 <Select
-                  value={role}
+                  value={staffScopeSelection}
                   onValueChange={(val) => {
-                    const newRole = val as UserRole
+                    const chosen = String(val)
+                    setStaffScopeSelection(chosen)
+                    const matchedCustom = (customScopes || []).find(s => s.id === chosen)
+                    const newRole = matchedCustom ? matchedCustom.baseRole : (chosen as UserRole)
                     setRole(newRole)
                     if (!isStaffIdCustom) {
                       setStaffId(generateNextStaffId(newRole, availableAccounts))
                     }
                   }}
-                  options={SYSTEM_ROLE_CONFIGS.map(r => ({ value: r.id, label: r.label }))}
-                  aria-label="Staff Role Assignment"
+                  options={roleScopeOptions}
+                  aria-label="Staff Role & Scope Assignment"
                 />
               </ProfileFieldRow>
 

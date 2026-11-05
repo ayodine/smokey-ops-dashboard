@@ -44,6 +44,7 @@ export interface DataTableProps<T> {
   columns: ColumnDef<T>[]
   keyExtractor?: (item: T) => string
   searchable?: boolean
+  customSearchSlot?: React.ReactNode
   searchPlaceholder?: string
   searchablePlaceholder?: string
   searchFilter?: (item: T, query: string) => boolean
@@ -76,6 +77,8 @@ export interface DataTableProps<T> {
   isLoading?: boolean
   emptyMessage?: string
   exportFilename?: string
+  /** Show the Export (CSV / JSON) dropdown in the toolbar. Defaults to true. */
+  enableExport?: boolean
   itemsPerPageOptions?: number[]
   initialSortKey?: string
   initialSortDirection?: 'asc' | 'desc'
@@ -96,6 +99,7 @@ export function DataTable<T>({
   columns,
   keyExtractor = (item: any) => String(item?.id ?? item?.sku ?? item?.batch_ref ?? item?.order_ref ?? item?.delivery_ref ?? item?.task_ref ?? item?.week_start ?? item?.key ?? Math.random()),
   searchable = true,
+  customSearchSlot,
   searchPlaceholder,
   searchablePlaceholder = 'Search records...',
   searchFilter,
@@ -109,6 +113,7 @@ export function DataTable<T>({
   isLoading = false,
   emptyMessage = 'No records found matching your criteria.',
   exportFilename = 'records.csv',
+  enableExport = true,
   itemsPerPageOptions = [10, 25, 50],
   initialSortKey,
   initialSortDirection = 'asc',
@@ -506,7 +511,11 @@ export function DataTable<T>({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Left: Wide Search Bar & Category Filters */}
         <div className="flex items-center gap-2.5 flex-1 max-w-2xl">
-          {searchable && (
+          {customSearchSlot ? (
+            <div className="relative flex-1">
+              {customSearchSlot}
+            </div>
+          ) : searchable ? (
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -520,7 +529,7 @@ export function DataTable<T>({
                 className="w-full h-10 pl-10 pr-4 text-sm rounded-lg ring ring-border/60 bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               />
             </div>
-          )}
+          ) : null}
 
           {filterCategories && (
             <div className="flex items-center gap-2 flex-wrap shrink-0">
@@ -615,6 +624,7 @@ export function DataTable<T>({
           </div>
 
           {/* Export Dropdown Menu */}
+          {enableExport && (
           <div className="relative">
             <button 
               type="button"
@@ -662,6 +672,7 @@ export function DataTable<T>({
               </>
             )}
           </div>
+          )}
 
           {secondaryAction && (
             <Button

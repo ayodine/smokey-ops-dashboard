@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
-import { PackagingQueueOrder, PackagingMaterialDaily, getSuggestedPackaging } from '@/lib/smokeyData'
+import { PackagingQueueOrder, PackagingMaterialDaily } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { formatNaira, formatDate, cn } from '@/lib/utils'
+import { formatNaira, formatDate, cleanOrderNotes, cn } from '@/lib/utils'
 import { 
   Package, 
   ShoppingBag, 
@@ -26,7 +26,8 @@ import {
   Check,
   Sparkles,
   Eye,
-  ArrowRightLeft
+  ArrowRightLeft,
+  RotateCcw
 } from 'lucide-react'
 
 export const PackagingExecutionPage: React.FC = () => {
@@ -38,6 +39,7 @@ export const PackagingExecutionPage: React.FC = () => {
     confirmPackagingOrder,
     addPackagingQueueOrder,
     issuePackagingFromCentral,
+    returnPackagingToCentral,
     currentAccount,
     hasPermission
   } = useSmokeyOps()
@@ -46,16 +48,42 @@ export const PackagingExecutionPage: React.FC = () => {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false)
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  
+  // Shift Requisition State
   const [isRequisitionModalOpen, setIsRequisitionModalOpen] = useState(false)
+  const [requisitionMode, setRequisitionMode] = useState<'single' | 'multiple'>('single')
   const [requisitionProductId, setRequisitionProductId] = useState<number>(packagingProducts[0]?.id || 93)
   const [requisitionQty, setRequisitionQty] = useState<number>(30)
+  const [multipleRequisitionItems, setMultipleRequisitionItems] = useState<Array<{ productId: number; quantity: number }>>([
+    { productId: packagingProducts[0]?.id || 93, quantity: 25 },
+    { productId: packagingProducts[1]?.id || 94, quantity: 25 }
+  ])
   const [requisitionNotes, setRequisitionNotes] = useState<string>('Bench stock top-up for active shift orders')
+
+  // End of Day Return & Wastage State
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
+  const [returnItems, setReturnItems] = useState<Array<{ productId: number; returnQty: number; damagedQty: number }>>([])
+  const [returnNotes, setReturnNotes] = useState<string>('EOD return of unused packaging materials')
+  const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>('')
+
   const [selectedOrder, setSelectedOrder] = useState<PackagingQueueOrder | null>(null)
   const [selectedDetailsOrder, setSelectedDetailsOrder] = useState<PackagingQueueOrder | null>(null)
 
   const handleOpenDetails = (order: PackagingQueueOrder) => {
     setSelectedDetailsOrder(order)
     setIsDetailsModalOpen(true)
+  }
+
+  // Open EOD Return modal with active bench products
+  const handleOpenReturnModal = () => {
+    setReturnItems(packagingProducts.map(p => ({
+      productId: p.id,
+      returnQty: 0,
+      damagedQty: 0
+    })))
+    setReturnVerifiedBy(currentAccount?.name || 'Shift Supervisor')
+    setReturnNotes('EOD shift return and packaging materials reconciliation')
+    setIsReturnModalOpen(true)
   }
 
   // Manual Order Form State
@@ -69,12 +97,6 @@ export const PackagingExecutionPage: React.FC = () => {
     payment_status: 'paid' as 'paid' | 'pending'
   })
 
-  // Compulsory packaging selection state
-  const [pickedItems, setPickedItems] = useState<Array<{ packaging_name: string; quantity: number }>>([
-    { packaging_name: 'BRANDED POLYBAG', quantity: 1 },
-    { packaging_name: '1 LITER FOOD BOWL & LID', quantity: 1 }
-  ])
-
   // Filter queues
   const readyOrders = packagingQueue.filter(o => o.order_status === 'ready_for_fulfillment')
   const inPackagingOrders = packagingQueue.filter(o => o.order_status === 'in_packaging')
@@ -85,32 +107,13 @@ export const PackagingExecutionPage: React.FC = () => {
 
   const handleOpenStartModal = (order: PackagingQueueOrder) => {
     setSelectedOrder(order)
-    // Section 10.1: Zero-Touch Menu-to-Packaging SKU Mapping
-    const suggested = getSuggestedPackaging(
-      order.items && order.items.length > 0 
-        ? order.items 
-        : [{ product_name: order.items_summary, quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }]
-    )
-    setPickedItems(suggested)
     setIsStartModalOpen(true)
-  }
-
-  const handleAddPackagingItem = () => {
-    setPickedItems(prev => [...prev, { packaging_name: packagingProducts[0]?.name || 'BRANDED POLYBAG', quantity: 1 }])
-  }
-
-  const handleRemovePackagingItem = (idx: number) => {
-    setPickedItems(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  const handleUpdatePackagingItem = (idx: number, field: 'packaging_name' | 'quantity', val: any) => {
-    setPickedItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item))
   }
 
   const handleConfirmStart = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedOrder) return
-    startPackagingOrder(selectedOrder.id, pickedItems)
+    startPackagingOrder(selectedOrder.id, [])
     setIsStartModalOpen(false)
     setActiveTab('in_packaging')
   }
@@ -410,19 +413,27 @@ export const PackagingExecutionPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Packaging Execution & Kitchen Pack-Out"
-        subtitle="The operational bridge between kitchen cooking and logistics. Select packaging materials to deduct consumables before releasing orders for dispatch."
+        subtitle="The operational bridge between kitchen cooking and logistics. Requisition shift packaging materials in bulk from Central Store, pack active orders, and reconcile returns & wastage at end-of-day."
         actions={
           hasPermission('perm_packout') ? (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsRequisitionModalOpen(true)}
-                leftIcon={<ArrowRightLeft className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />}
+                onClick={handleOpenReturnModal}
+                leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
                 className="h-10 px-3.5 text-xs font-medium"
               >
-                Requisition from Central
+                EOD Return &amp; Wastage
               </Button>
+              <button
+                type="button"
+                onClick={() => setIsRequisitionModalOpen(true)}
+                className="h-10 px-4 text-xs font-semibold bg-[#c0201f] text-white hover:bg-[#a81b1a] border-0 shadow-2xs cursor-pointer flex items-center gap-2 rounded-xl transition-all"
+              >
+                <ArrowRightLeft className="w-4 h-4 text-white" />
+                <span>Requisition from Central</span>
+              </button>
             </div>
           ) : undefined
         }
@@ -519,123 +530,58 @@ export const PackagingExecutionPage: React.FC = () => {
         )}
       </div>
 
-      {/* COMPULSORY PICKING MODAL: fpPackagingStartModal */}
+      {/* 1. START PACKAGING MODAL: Simple, clean, and straightforward */}
       <Dialog
         isOpen={isStartModalOpen}
         onClose={() => setIsStartModalOpen(false)}
-        title={`Compulsory Material Pick: Order ${selectedOrder?.order_ref}`}
-        description="Select the exact food packaging materials used for this order. Quantities will be deducted from Packaging Inventory."
-        maxWidth="lg"
+        title={`Start Packaging: Order ${selectedOrder?.order_ref}`}
+        description="Verify the customer destination and ordered meal items before beginning kitchen pack-out."
+        maxWidth="md"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
               Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="start-packaging-form">
-              Deduct Materials & Start Packaging
+              Confirm &amp; Start Packaging
             </Button>
           </div>
         }
       >
         <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
-          {/* Master Divided Card Container (stacked label and value) */}
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans text-xs">
             <div className="p-3.5 space-y-1">
-              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Customer</span>
-              <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder?.customer_name}</span>
+              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Customer Name &amp; Contact</span>
+              <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder?.customer_name} • {selectedOrder?.phone}</span>
             </div>
             <div className="p-3.5 space-y-1">
-              <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Ordered Items</span>
+              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Delivery Destination</span>
+              <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px]">{selectedOrder?.address || 'Lagos Delivery'}</span>
+            </div>
+            <div className="p-3.5 space-y-1">
+              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Meal Items to Pack</span>
               <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px] leading-snug">{selectedOrder?.items_summary}</span>
             </div>
-          </div>
-
-          <div className="space-y-2.5 pt-2 border-t border-kumo-line">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider font-sans">
-                Packaging Materials Consumed
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                onClick={handleAddPackagingItem}
-              >
-                Add Material
-              </Button>
-            </div>
-
-            {/* Column Header labels for alignment */}
-            <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-kumo-subtle uppercase tracking-wider font-sans">
-              <div className="flex-1">Packaging Consumable</div>
-              <div className="w-24">Quantity</div>
-              <div className="w-8"></div>
-            </div>
-
-            <div className="space-y-2">
-              {pickedItems.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <Select
-                      value={item.packaging_name}
-                      onChange={(e) => handleUpdatePackagingItem(idx, 'packaging_name', e.target.value)}
-                      options={packagingProducts.map(p => ({
-                        value: p.name,
-                        label: `${p.name} (Bench: ${p.bench_stock_qty ?? 0} ${p.unit} | Central: ${p.central_stock_qty ?? p.stock_qty} ${p.unit})`
-                      }))}
-                      buttonClassName="h-9 text-xs sm:text-[13px] font-normal font-sans rounded-lg"
-                    />
-                  </div>
-                  <div className="w-24 shrink-0">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => handleUpdatePackagingItem(idx, 'quantity', Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="w-8 flex justify-center shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePackagingItem(idx)}
-                      className="p-1.5 text-kumo-subtle hover:text-red-500 rounded-lg hover:bg-kumo-fill transition-colors cursor-pointer"
-                      title="Remove item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {pickedItems.some(it => {
-              const p = packagingProducts.find(x => x.name.toLowerCase() === it.packaging_name.toLowerCase())
-              return p && (p.bench_stock_qty ?? 0) < it.quantity
-            }) && (
-              <div className="p-3 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-zinc-700 dark:text-zinc-300 shadow-2xs">
-                <span className="font-medium">Selected quantity exceeds active Packaging Bench stock.</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsRequisitionModalOpen(true)}
-                  className="shrink-0 self-start sm:self-auto text-xs font-semibold h-8 px-3 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                >
-                  Request from Central Store
-                </Button>
+            {cleanOrderNotes(selectedOrder?.notes) && (
+              <div className="p-3.5 space-y-1 bg-amber-50/50 dark:bg-amber-950/20">
+                <span className="block text-amber-700 dark:text-amber-400 font-medium">Order Notes / Kitchen Instructions</span>
+                <span className="block text-zinc-800 dark:text-zinc-200 font-normal text-[12px]">{cleanOrderNotes(selectedOrder?.notes)}</span>
               </div>
             )}
+          </div>
+          
+          <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-600 dark:text-zinc-400 font-sans">
+            Packaging containers and branded bags are drawn directly from active shift bench stock. Confirming will move this order to <strong>Packing Now</strong>.
           </div>
         </form>
       </Dialog>
 
-      {/* Quick Requisition from Central Store Modal */}
+      {/* 2. REQUISITION MODAL: Single vs Multiple materials via KumoTabs */}
       <Dialog
         isOpen={isRequisitionModalOpen}
         onClose={() => setIsRequisitionModalOpen(false)}
         title="Requisition Packaging from Central Store"
-        description="Request stock replenishment from Central Store reserve directly to the Packaging Bench."
+        description="Request packaging supplies from Central Store warehouse directly to the Packaging Bench."
         maxWidth="lg"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -647,8 +593,13 @@ export const PackagingExecutionPage: React.FC = () => {
               size="md"
               type="button"
               onClick={() => {
+                const itemsToIssue = requisitionMode === 'single'
+                  ? [{ productId: requisitionProductId, quantity: requisitionQty }]
+                  : multipleRequisitionItems.filter(it => it.quantity > 0)
+                
+                if (itemsToIssue.length === 0) return
                 const ok = issuePackagingFromCentral(
-                  [{ productId: requisitionProductId, quantity: requisitionQty }],
+                  itemsToIssue,
                   'Packaging Execution Bench',
                   requisitionNotes
                 )
@@ -661,28 +612,128 @@ export const PackagingExecutionPage: React.FC = () => {
         }
       >
         <div className="space-y-4 font-sans text-xs">
-          <Select
-            label="Packaging Material Needed"
-            value={requisitionProductId}
-            onChange={(e) => {
-              const pid = Number(e.target.value)
-              setRequisitionProductId(pid)
-              const p = packagingProducts.find(x => x.id === pid)
-              if (p) setRequisitionQty(Math.min(30, p.central_stock_qty ?? p.stock_qty))
-            }}
-            options={packagingProducts.map(p => ({
-              value: p.id,
-              label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
-            }))}
-          />
+          {/* Mode Switcher: Single vs Multiple */}
+          <div className="pb-1">
+            <KumoTabs
+              size="sm"
+              activeTab={requisitionMode}
+              onChange={(val) => setRequisitionMode(val as 'single' | 'multiple')}
+              tabs={[
+                { id: 'single', label: 'Single Material' },
+                { id: 'multiple', label: `Multiple Materials (${multipleRequisitionItems.length})` },
+              ]}
+            />
+          </div>
 
-          <Input
-            label="Quantity Needed"
-            type="number"
-            min="1"
-            value={requisitionQty}
-            onChange={(e) => setRequisitionQty(Number(e.target.value))}
-          />
+          {requisitionMode === 'single' ? (
+            <div className="space-y-3">
+              <Select
+                label="Packaging Material Needed"
+                value={requisitionProductId}
+                onChange={(e) => {
+                  const pid = Number(e.target.value)
+                  setRequisitionProductId(pid)
+                  const p = packagingProducts.find(x => x.id === pid)
+                  if (p) setRequisitionQty(Math.min(30, p.central_stock_qty ?? p.stock_qty))
+                }}
+                options={packagingProducts.map(p => ({
+                  value: p.id,
+                  label: `${p.name} [${p.sku}] — Central Store: ${p.central_stock_qty ?? p.stock_qty} ${p.unit} (Bench: ${p.bench_stock_qty ?? 0})`
+                }))}
+              />
+
+              <Input
+                label="Quantity Needed"
+                type="number"
+                min="1"
+                value={requisitionQty}
+                onChange={(e) => setRequisitionQty(Number(e.target.value))}
+              />
+
+              <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
+                <div className="flex justify-between">
+                  <span className="text-kumo-subtle">Central Store Stock Available:</span>
+                  <span className="font-mono font-semibold text-kumo-strong">
+                    {packagingProducts.find(p => p.id === requisitionProductId)?.central_stock_qty ?? 0} units
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-kumo-subtle">Bench Stock After Requisition:</span>
+                  <span className="font-mono font-semibold text-emerald-700">
+                    {(packagingProducts.find(p => p.id === requisitionProductId)?.bench_stock_qty ?? 0) + requisitionQty} units
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-kumo-strong uppercase tracking-wider">
+                  Requested Materials List
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  onClick={() => {
+                    setMultipleRequisitionItems(prev => [
+                      ...prev,
+                      { productId: packagingProducts[0]?.id || 93, quantity: 20 }
+                    ])
+                  }}
+                >
+                  Add Material
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {multipleRequisitionItems.map((item, idx) => {
+                  return (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                      <div className="flex-1 min-w-0">
+                        <Select
+                          value={item.productId}
+                          onChange={(e) => {
+                            const newId = Number(e.target.value)
+                            setMultipleRequisitionItems(prev => prev.map((it, i) => i === idx ? { ...it, productId: newId } : it))
+                          }}
+                          options={packagingProducts.map(p => ({
+                            value: p.id,
+                            label: `${p.name} (Central: ${p.central_stock_qty ?? p.stock_qty} | Bench: ${p.bench_stock_qty ?? 0})`
+                          }))}
+                          buttonClassName="h-9 text-xs font-normal rounded-lg"
+                        />
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const val = Number(e.target.value)
+                            setMultipleRequisitionItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: val } : it))
+                          }}
+                        />
+                      </div>
+                      <div className="w-8 flex justify-center shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMultipleRequisitionItems(prev => prev.filter((_, i) => i !== idx))
+                          }}
+                          className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                          title="Remove material"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <Input
             label="Requester"
@@ -695,20 +746,102 @@ export const PackagingExecutionPage: React.FC = () => {
             value={requisitionNotes}
             onChange={(e) => setRequisitionNotes(e.target.value)}
           />
+        </div>
+      </Dialog>
 
-          <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1 font-sans">
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle">Central Store Stock Available:</span>
-              <span className="font-mono font-semibold text-kumo-strong">
-                {packagingProducts.find(p => p.id === requisitionProductId)?.central_stock_qty ?? 0} units
-              </span>
+      {/* 3. END OF DAY RETURN & WASTAGE MODAL */}
+      <Dialog
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        title="End of Day Packaging Return & Wastage"
+        description="Return unused packaging materials from the packing bench back to Central Store and account for any damaged or wasted units."
+        maxWidth="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsReturnModalOpen(false)}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="button"
+              onClick={() => {
+                const itemsToProcess = returnItems.filter(it => (it.returnQty > 0 || it.damagedQty > 0))
+                returnPackagingToCentral(itemsToProcess, returnNotes, returnVerifiedBy || currentAccount?.name || 'Shift Supervisor')
+                setIsReturnModalOpen(false)
+              }}
+            >
+              Confirm Return &amp; Reconciliation
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 font-sans text-xs">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 grid grid-cols-12 gap-2 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              <span className="col-span-5">Material (Bench Stock)</span>
+              <span className="col-span-3">Return to Central</span>
+              <span className="col-span-4">Damaged / Wasted</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-kumo-subtle">Bench Stock After Requisition:</span>
-              <span className="font-mono font-semibold text-emerald-700">
-                {(packagingProducts.find(p => p.id === requisitionProductId)?.bench_stock_qty ?? 0) + requisitionQty} units
-              </span>
+
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-72 overflow-y-auto">
+              {returnItems.map((item, idx) => {
+                const prod = packagingProducts.find(p => p.id === item.productId)
+                const benchQty = prod?.bench_stock_qty ?? 0
+                return (
+                  <div key={item.productId} className="p-3 grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-5 min-w-0">
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-xs">{prod?.name || 'Material'}</div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                        <span className="font-mono">{prod?.sku}</span>
+                        <span>•</span>
+                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Bench: {benchQty} {prod?.unit || 'units'}</span>
+                      </div>
+                    </div>
+                    <div className="col-span-3">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={benchQty}
+                        value={item.returnQty}
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value))
+                          setReturnItems(prev => prev.map((it, i) => i === idx ? { ...it, returnQty: val } : it))
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={item.damagedQty}
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value))
+                          setReturnItems(prev => prev.map((it, i) => i === idx ? { ...it, damagedQty: val } : it))
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Reconciliation Supervisor / Verified By"
+              value={returnVerifiedBy}
+              onChange={(e) => setReturnVerifiedBy(e.target.value)}
+              placeholder="Shift Supervisor"
+            />
+            <Input
+              label="Return &amp; Reconciliation Notes"
+              value={returnNotes}
+              onChange={(e) => setReturnNotes(e.target.value)}
+              placeholder="e.g. End of evening shift surplus return"
+            />
           </div>
         </div>
       </Dialog>
