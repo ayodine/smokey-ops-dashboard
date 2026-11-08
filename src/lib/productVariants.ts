@@ -375,3 +375,4 @@ export function matchOrderItemToSalesProduct(
   // 4. Direct case-insensitive name match against salesProducts
   return salesProducts.find(sp => sp.name.toLowerCase().trim() === rawName)
 }
+

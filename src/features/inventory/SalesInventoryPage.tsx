@@ -49,6 +49,7 @@ export interface LiveSalesProduct extends SalesProduct {
   variantSummaryText?: string
   min_price?: number
   max_price?: number
+  variants?: Array<LiveSalesProduct & { variant_label: string; variant_sort_order: number }>
 }
 
 export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
@@ -243,27 +244,22 @@ export const SalesInventoryPage: React.FC = () => {
           variantSummaryText: variantLabels,
           min_price: item.min_price,
           max_price: item.max_price,
+          variants: item.variants.map(v => ({
+            ...(v as LiveSalesProduct),
+            isVariantChildRow: true,
+            parent_group_key: item.parent_group_key,
+            parent_name: item.parent_name,
+            variant_label: v.variant_label,
+            variant_sort_order: v.variant_sort_order,
+          })),
         })
-
-        const isExpanded = expandedParents[item.parent_group_key] !== false
-        if (isExpanded) {
-          for (const v of item.variants) {
-            rows.push({
-              ...(v as LiveSalesProduct),
-              isVariantChildRow: true,
-              parent_group_key: item.parent_group_key,
-              parent_name: item.parent_name,
-              variant_label: v.variant_label,
-            })
-          }
-        }
       } else {
         rows.push(item.product as LiveSalesProduct)
       }
     }
 
     return rows
-  }, [displayProducts, getEstimatedQtyForProduct, expandedParents])
+  }, [displayProducts, getEstimatedQtyForProduct])
 
   // Conversion Helpers
   const selectedSourceProd = React.useMemo(() => {
@@ -527,22 +523,8 @@ export const SalesInventoryPage: React.FC = () => {
       defaultWidth: 320,
       accessor: (p) => {
         if (p.isParentGroupRow && p.parent_group_key) {
-          const isExpanded = expandedParents[p.parent_group_key] !== false
           return (
-            <div
-              className="flex items-center gap-3 font-sans py-0.5 cursor-pointer select-none"
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleParentGroup(p.parent_group_key!)
-              }}
-            >
-              <button
-                type="button"
-                className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
-                aria-label={isExpanded ? 'Collapse variants' : 'Expand variants'}
-              >
-                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              </button>
+            <div className="flex items-center gap-3 font-sans py-0.5 select-none">
               <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
                 {p.image ? (
                   <img
@@ -567,53 +549,6 @@ export const SalesInventoryPage: React.FC = () => {
                 </div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
                   {p.variantSummaryText}
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        if (p.isVariantChildRow) {
-          return (
-            <div className="flex items-center gap-3 font-sans pl-7 relative">
-              <div
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-4 border-l-2 border-b-2 border-zinc-300 dark:border-zinc-700 rounded-bl"
-                aria-hidden="true"
-              />
-              <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.display = 'none'
-                      const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
-                      if (fallback) fallback.style.display = 'flex'
-                    }}
-                  />
-                ) : null}
-                <div
-                  className={cn(
-                    "w-full h-full flex items-center justify-center text-zinc-400",
-                    p.image ? "hidden" : "flex"
-                  )}
-                >
-                  <Package className="w-3.5 h-3.5 opacity-50" />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                    {p.variant_label}
-                  </span>
-                  <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 truncate">
-                    {p.name}
-                  </span>
-                </div>
-                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {p.sku} • {p.unit.toUpperCase()} {p.is_active === 0 ? '• Hidden' : ''}
                 </div>
               </div>
             </div>
@@ -1029,8 +964,174 @@ export const SalesInventoryPage: React.FC = () => {
             columns={inventoryColumns}
             searchable={true}
             searchPlaceholder="Search parent product, variant, finished food item or SKU..."
+            searchFilter={(item, query) => {
+              const q = query.toLowerCase().trim()
+              if (
+                item.name.toLowerCase().includes(q) ||
+                item.sku.toLowerCase().includes(q) ||
+                (item.variantSummaryText && item.variantSummaryText.toLowerCase().includes(q))
+              ) {
+                return true
+              }
+              if (item.variants && item.variants.length > 0) {
+                return item.variants.some(
+                  v =>
+                    v.name.toLowerCase().includes(q) ||
+                    v.sku.toLowerCase().includes(q) ||
+                    v.variant_label.toLowerCase().includes(q)
+                )
+              }
+              return false
+            }}
             title="Sales Product"
             exportFilename="smokey-sales-inventory"
+            isRowExpandable={(p) => Boolean(p.isParentGroupRow && p.variants && p.variants.length > 0)}
+            isRowExpanded={(p) => Boolean(p.parent_group_key && expandedParents[p.parent_group_key] !== false)}
+            onToggleExpand={(p) => {
+              if (p.parent_group_key) toggleParentGroup(p.parent_group_key)
+            }}
+            renderExpandedSubTable={(parent) => {
+              if (!parent.variants || parent.variants.length === 0) return null
+              return (
+                <div className="w-full min-w-[780px] font-sans">
+                  {/* Rounded Soft-Gray Nested Sub-Table Header Bar */}
+                  <div className="rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 px-4 py-2.5 grid grid-cols-12 gap-3 items-center text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    <div className="col-span-2">SKU number</div>
+                    <div className="col-span-3">Variant &amp; catalogue dish</div>
+                    <div className="col-span-1 text-right">Price</div>
+                    <div className="col-span-1 text-right">Physical</div>
+                    <div className="col-span-1 text-right">In-Oven</div>
+                    <div className="col-span-1 text-right">Sellable</div>
+                    <div className="col-span-1 text-right">Valuation</div>
+                    <div className="col-span-1">Status</div>
+                    <div className="col-span-1 text-right">Action</div>
+                  </div>
+
+                  {/* Variant Sub-Table Rows with Clean Horizontal Dividers */}
+                  <div className="divide-y divide-zinc-200/70 dark:divide-zinc-800/70">
+                    {parent.variants.map(v => {
+                      const incomingQty = getEstimatedQtyForProduct(v)
+                      const sellable = Math.max(0, v.stock_qty + incomingQty - (v.qty_allocated || 0))
+                      const valuation = v.stock_qty * v.selling_price
+                      const isOut = sellable <= 0
+                      const isLow = !isOut && sellable <= (v.reorder_level || 10)
+
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenDetails(v)
+                          }}
+                          className="px-4 py-3 grid grid-cols-12 gap-3 items-center text-xs hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                        >
+                          {/* SKU number */}
+                          <div className="col-span-2 font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                            {v.sku}
+                          </div>
+
+                          {/* Variant & catalogue dish */}
+                          <div className="col-span-3 flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center">
+                              {v.image ? (
+                                <img
+                                  src={v.image}
+                                  alt={v.variant_label}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <Package className="w-3.5 h-3.5 text-zinc-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                {v.variant_label}
+                              </div>
+                              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                                {v.name}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Selling Price */}
+                          <div className="col-span-1 text-right font-medium text-zinc-800 dark:text-zinc-200">
+                            {formatNaira(v.selling_price)}
+                          </div>
+
+                          {/* Physical Stock */}
+                          <div className="col-span-1 text-right font-medium text-zinc-800 dark:text-zinc-200">
+                            {formatQuantity(v.stock_qty)} {v.unit}s
+                          </div>
+
+                          {/* In-Oven Incoming */}
+                          <div className="col-span-1 text-right text-zinc-500 dark:text-zinc-400">
+                            {incomingQty > 0 ? `+${formatQuantity(incomingQty)} ${v.unit}s` : '—'}
+                          </div>
+
+                          {/* Total Sellable */}
+                          <div className="col-span-1 text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                            {formatQuantity(sellable)} {v.unit}s
+                          </div>
+
+                          {/* Retail Valuation */}
+                          <div className="col-span-1 text-right font-medium text-zinc-800 dark:text-zinc-200">
+                            {formatNaira(valuation)}
+                          </div>
+
+                          {/* Status with Colored Dot Indicator */}
+                          <div className="col-span-1 flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'w-2 h-2 rounded-full shrink-0',
+                                isOut
+                                  ? 'bg-rose-400 dark:bg-rose-500'
+                                  : isLow
+                                    ? 'bg-amber-400 dark:bg-amber-500'
+                                    : 'bg-emerald-400 dark:bg-emerald-500'
+                              )}
+                            />
+                            <span className="text-zinc-800 dark:text-zinc-200 font-medium truncate">
+                              {isOut ? 'Out of stock' : isLow ? 'Low stock' : 'Available'}
+                            </span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div
+                            className="col-span-1 flex items-center justify-end gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {hasPermission('perm_sales_catalog') ? (
+                              <>
+                                <TableActionButton
+                                  variant="outline"
+                                  onClick={() => handleOpenAdjust(v)}
+                                >
+                                  Adjust
+                                </TableActionButton>
+                                <TableActionButton
+                                  variant="primary"
+                                  onClick={() => handleOpenEdit(v)}
+                                >
+                                  Edit
+                                </TableActionButton>
+                              </>
+                            ) : (
+                              <TableActionButton
+                                variant="outline"
+                                onClick={() => handleOpenDetails(v)}
+                              >
+                                View
+                              </TableActionButton>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }}
             onRowClick={(p) => {
               if (p.isParentGroupRow && p.parent_group_key) {
                 toggleParentGroup(p.parent_group_key)

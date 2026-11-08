@@ -17,6 +17,7 @@ import {
   Plus,
   MoreHorizontal,
   ChevronDown,
+  ChevronUp,
   Calendar,
   Check,
   Minus,
@@ -92,6 +93,10 @@ export interface DataTableProps<T> {
   enableDateFilter?: boolean
   dateField?: (item: T) => string | undefined
   onDateRangeChange?: (range: DateRange) => void
+  isRowExpandable?: (item: T) => boolean
+  isRowExpanded?: (item: T) => boolean
+  onToggleExpand?: (item: T) => void
+  renderExpandedSubTable?: (item: T) => React.ReactNode
 }
 
 export function DataTable<T>({
@@ -128,6 +133,10 @@ export function DataTable<T>({
   enableDateFilter = true,
   dateField,
   onDateRangeChange,
+  isRowExpandable,
+  isRowExpanded,
+  onToggleExpand,
+  renderExpandedSubTable,
 }: DataTableProps<T>) {
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -777,6 +786,13 @@ export function DataTable<T>({
                 </div>
               )}
 
+              {renderExpandedSubTable && (
+                <div
+                  className="flex items-center justify-center border-r border-border px-2.5 py-3 shrink-0"
+                  style={{ width: 48 }}
+                />
+              )}
+
               {columns.map(col => {
                 const currentWidth = columnWidths[col.key] || 180
                 const isColSortable = col.sortable !== false
@@ -896,19 +912,23 @@ export function DataTable<T>({
                   paginatedData.map(item => {
                     const id = keyExtractor(item)
                     const isSelected = selectedIds.has(id)
+                    const expandable = Boolean(renderExpandedSubTable && isRowExpandable?.(item))
+                    const expanded = Boolean(expandable && isRowExpanded?.(item))
 
                     return (
                       <div
                         key={id}
-                        className="w-full min-w-full"
+                        className="w-full min-w-full border-b border-border"
                       >
                         <div
                           onClick={() => onRowClick?.(item)}
                           className={cn(
-                            'w-max min-w-full group relative transition-all duration-150 border-b border-border flex items-stretch',
+                            'w-max min-w-full group relative transition-all duration-150 flex items-stretch',
                             isSelected 
                               ? 'bg-muted/30' 
-                              : 'bg-muted/5 hover:bg-muted/20',
+                              : expanded
+                                ? 'bg-background'
+                                : 'bg-muted/5 hover:bg-muted/20',
                             onRowClick && 'cursor-pointer'
                           )}
                         >
@@ -934,6 +954,29 @@ export function DataTable<T>({
                                   <Check className="w-3.5 h-3.5 text-[#c0201f] stroke-[2.5]" />
                                 )}
                               </button>
+                            </div>
+                          )}
+
+                          {renderExpandedSubTable && (
+                            <div
+                              className="flex items-center justify-center border-r border-border px-2.5 py-3 shrink-0"
+                              style={{ width: 48 }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {expandable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleExpand?.(item)}
+                                  aria-label={expanded ? 'Collapse variants' : 'Expand variants'}
+                                  className="w-7 h-7 rounded-lg bg-zinc-100/90 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 transition-colors cursor-pointer shadow-2xs"
+                                >
+                                  {expanded ? (
+                                    <ChevronUp className="w-3.5 h-3.5 stroke-[2.2]" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5 stroke-[2.2]" />
+                                  )}
+                                </button>
+                              ) : null}
                             </div>
                           )}
 
@@ -991,6 +1034,15 @@ export function DataTable<T>({
                             </div>
                           )}
                         </div>
+
+                        {expanded && renderExpandedSubTable && (
+                          <div
+                            className="w-full bg-background pb-4 pr-4 pt-1"
+                            style={{ paddingLeft: (enableRowSelection ? (columnWidths.checkbox || 48) : 0) + 48 }}
+                          >
+                            {renderExpandedSubTable(item)}
+                          </div>
+                        )}
                       </div>
                     )
                   })
@@ -1027,6 +1079,8 @@ export function DataTable<T>({
         ) : (
           paginatedData.map(item => {
             const id = keyExtractor(item)
+            const expandable = Boolean(renderExpandedSubTable && isRowExpandable?.(item))
+            const expanded = Boolean(expandable && isRowExpanded?.(item))
             return (
               <div
                 key={id}
@@ -1036,10 +1090,21 @@ export function DataTable<T>({
                   mobileRender(item)
                 ) : (
                   <>
-                    <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="font-semibold text-xs text-foreground">
-                        {columns[0]?.accessor(item)}
-                      </span>
+                    <div className="flex items-center justify-between border-b border-border pb-2 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {expandable && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleExpand?.(item)}
+                            className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 shrink-0"
+                          >
+                            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <span className="font-semibold text-xs text-foreground truncate">
+                          {columns[0]?.accessor(item)}
+                        </span>
+                      </div>
                       {hasRowAction && (
                         rowActions ? rowActions(item) : (
                           <button type="button" className="p-1 text-muted-foreground">
@@ -1060,6 +1125,11 @@ export function DataTable<T>({
                         </div>
                       ))}
                     </div>
+                    {expanded && renderExpandedSubTable && (
+                      <div className="pt-2 border-t border-border/60 overflow-x-auto">
+                        {renderExpandedSubTable(item)}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
