@@ -340,13 +340,26 @@ export const CloudflareAnalyticsSection: React.FC = () => {
     const queuedCount = packagingQueue.length
     const packagingRate = packagingQueue.length > 0
       ? Math.round((packagingQueue.filter(q => q.order_status === 'packaged').length / packagingQueue.length) * 1000) / 10
-      : 100
+      : 0
 
     // 4. Sales Inventory Turnover Rate (%)
-    const turnoverPercent = 94.2
+    const totalSalesUnitsSold = (dailySales || []).reduce((sum, d) => sum + (d.qty_sold || 0), 0)
+    const totalPhysicalStock = (rawProducts || []).reduce((sum, p) => sum + (p.stock_qty || 0), 0)
+    const turnoverPercent = totalPhysicalStock > 0
+      ? Math.min(100, Math.round((totalSalesUnitsSold / totalPhysicalStock) * 1000) / 10)
+      : 0.0
 
     // 5. Logistics: Average Delivery Duration (in minutes)
-    const avgDeliveryTime = 24.8
+    const completedWithTimes = (logisticsDeliveries || []).filter(d => d.status === 'delivered' && d.delivered_at && (d.pickup_at || d.dispatch_date))
+    const totalMins = completedWithTimes.reduce((acc, d) => {
+      const start = new Date(d.pickup_at || d.dispatch_date || '').getTime()
+      const end = new Date(d.delivered_at || '').getTime()
+      const diff = Math.max(0, (end - start) / (1000 * 60))
+      return acc + diff
+    }, 0)
+    const avgDeliveryTime = completedWithTimes.length > 0
+      ? Math.round((totalMins / completedWithTimes.length) * 10) / 10
+      : 0
 
     // 6. Rider Payouts: Settled Financial Clearance
     const totalPayouts = riders.reduce((sum, r) => sum + (r.paid_total || 0), 0)
@@ -449,12 +462,53 @@ export const CloudflareAnalyticsSection: React.FC = () => {
     '4:00 PM', '6:00 PM', '8:00 PM', '10:00 PM', '11:59 PM'
   ], [])
 
-  // Realistic operational curves
-  const orderVolumePoints = [12, 18, 14, 45, 68, 110, 85, 95, 78, 62, 88, 120, 145, 130, 95, 88, 72, 60, 85, 110, 75, 45, 30, 18]
-  const kitchenYieldPoints = [10, 15, 20, 70, 95, 140, 110, 85, 60, 40, 80, 120, 135, 90, 70, 50, 40, 60, 110, 125, 60, 30, 15, 10]
-  const packagingPoints = [15, 20, 18, 50, 75, 120, 130, 95, 80, 70, 90, 130, 140, 115, 85, 75, 65, 70, 95, 115, 70, 40, 25, 15]
-  const turnoverPoints = [88, 89, 90, 92, 94, 95, 94, 93, 94, 95, 96, 95, 94, 93, 94, 95, 95, 94, 93, 94, 95, 94, 93, 94]
-  const deliveryTransitPoints = [32, 28, 25, 24, 26, 29, 31, 28, 25, 24, 26, 27, 28, 26, 25, 24, 25, 26, 27, 28, 26, 25, 26, 25]
+  // Live dynamic operational curves
+  const orderVolumePoints = useMemo(() => {
+    if (websiteOrders.length === 0) return new Array(13).fill(0)
+    const counts = new Array(13).fill(0)
+    websiteOrders.forEach(o => {
+      const dt = new Date(o.created_at)
+      if (!isNaN(dt.getTime())) {
+        const slot = Math.min(12, Math.floor(dt.getHours() / 2))
+        counts[slot]++
+      }
+    })
+    return counts
+  }, [websiteOrders])
+
+  const kitchenYieldPoints = useMemo(() => {
+    if (productionBatches.length === 0) return new Array(13).fill(0)
+    const counts = new Array(13).fill(0)
+    productionBatches.forEach(b => {
+      const dt = new Date(b.created_at || (b as any).started_at)
+      if (!isNaN(dt.getTime())) {
+        const slot = Math.min(12, Math.floor(dt.getHours() / 2))
+        counts[slot] += (b.actual_output || b.expected_output || 0)
+      }
+    })
+    return counts
+  }, [productionBatches])
+
+  const packagingPoints = useMemo(() => {
+    if (packagingQueue.length === 0) return new Array(13).fill(0)
+    const counts = new Array(13).fill(0)
+    packagingQueue.forEach(q => {
+      const dt = new Date((q as any).queued_at || (q as any).created_at || (q as any).date || new Date().toISOString())
+      if (!isNaN(dt.getTime())) {
+        const slot = Math.min(12, Math.floor(dt.getHours() / 2))
+        counts[slot]++
+      }
+    })
+    return counts
+  }, [packagingQueue])
+
+  const turnoverPoints = useMemo(() => {
+    return new Array(13).fill(stats.turnoverPercent)
+  }, [stats.turnoverPercent])
+
+  const deliveryTransitPoints = useMemo(() => {
+    return new Array(13).fill(stats.avgDeliveryTime)
+  }, [stats.avgDeliveryTime])
 
   // SVG Line Path Generator
   const generateSvgPath = (points: number[], maxVal: number, width: number, height: number): string => {
@@ -606,10 +660,6 @@ export const CloudflareAnalyticsSection: React.FC = () => {
               <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.totalOrderQty.toLocaleString()}
               </span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
-                <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>18.4%</span>
-              </span>
               <span className="text-xs text-[#71717a] dark:text-zinc-400 font-normal ml-auto">
                 {formatNaira(stats.totalRevenue)} gross
               </span>
@@ -702,10 +752,6 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.totalBatchKg.toFixed(1)} kg
-              </span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
-                <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>12.6%</span>
               </span>
               <span className="text-xs text-[#71717a] dark:text-zinc-400 font-normal ml-auto">
                 {stats.activeBatchesCount} batches on smoking grill
@@ -803,10 +849,6 @@ export const CloudflareAnalyticsSection: React.FC = () => {
               <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.queuedCount} packs
               </span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
-                <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>8.2%</span>
-              </span>
             </div>
           </div>
 
@@ -875,10 +917,6 @@ export const CloudflareAnalyticsSection: React.FC = () => {
               <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.turnoverPercent}%
               </span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
-                <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>4.1%</span>
-              </span>
             </div>
           </div>
 
@@ -946,10 +984,6 @@ export const CloudflareAnalyticsSection: React.FC = () => {
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-[32px] font-semibold tracking-tight text-[#18181b] dark:text-zinc-100 leading-none">
                 {stats.avgDeliveryTime} m
-              </span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#16a34a]">
-                <TrendingDown className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>14.3% faster</span>
               </span>
             </div>
           </div>

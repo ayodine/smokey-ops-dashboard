@@ -11,11 +11,17 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useSmokeyOps } from "@/context/SmokeyOpsContext";
+import { stopOrderRingtone } from "@/lib/notificationAudio";
 
 export default function AuthSectionThree() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, currentAccount, loginWithCredentials } = useSmokeyOps();
+
+  // Ensure any active operational ringtone is immediately silenced on the sign-in screen
+  useEffect(() => {
+    stopOrderRingtone();
+  }, []);
 
   // Form fields
   const [identifier, setIdentifier] = useState("");

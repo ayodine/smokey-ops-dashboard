@@ -183,6 +183,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
           { label: 'Third Party Delivery', href: '/logistics/third-party', badge: thirdPartyCount > 0 ? thirdPartyCount : undefined },
         ],
       },
+      {
+        id: 'administration',
+        title: 'ADMINISTRATION',
+        icon: ShieldCheck,
+        defaultHref: '/accounts',
+        items: [
+          { label: 'Team Accounts', href: '/accounts', badge: availableAccounts.length },
+          { label: 'Role & Permission Matrix', href: '/accounts/matrix' },
+          { label: 'Operating Offices', href: '/offices', badge: facilities.length },
+        ],
+      },
     ]
 
     // Strict RBAC: Filter each item by isRouteAllowed, and exclude sections with 0 visible items
@@ -208,6 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
     interStationTransfers.length,
     suppliers.length,
     facilities.length,
+    availableAccounts.length,
     productionBatches,
     kitchenTasks,
     packagingQueue,
@@ -228,6 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
       production: true,
       packaging: true,
       logistic: true,
+      administration: true,
     }
     if (saved) {
       try {
@@ -445,7 +458,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
                           onClick={() => {
                             switchAccount(acc.email)
                             setIsAccountMenuOpen(false)
-                            const targetLanding = getRoleDefaultLandingPath(acc.role)
+                            const targetLanding = getRoleDefaultLandingPath(acc.role, acc)
                             navigate(targetLanding, { replace: true })
                           }}
                           className={cn(

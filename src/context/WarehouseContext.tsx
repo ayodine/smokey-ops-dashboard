@@ -26,7 +26,7 @@ export const INITIAL_FACILITY: FacilityOption = {
   type: 'central_kitchen',
   total_skus: 31,
   capacity_utilization: 68,
-  manager_name: 'Ayobami Michael Olowookere',
+  manager_name: 'Operations Lead',
   contact_phone: '09110382689',
   isPrimary: true,
   is_active: true

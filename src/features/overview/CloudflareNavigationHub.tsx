@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import {
   Link2,
   ChevronRight,
@@ -17,6 +18,7 @@ interface HubItem {
 
 export const CloudflareNavigationHub: React.FC = () => {
   const navigate = useNavigate()
+  const { isRouteAllowed } = useSmokeyOps()
 
   const inventoryItems: HubItem[] = [
     { id: 'raw', title: 'Raw Inventory', path: '/inventory/raw' },
@@ -24,22 +26,25 @@ export const CloudflareNavigationHub: React.FC = () => {
     { id: 'sales', title: 'Sales Inventory', path: '/inventory/sales' },
     { id: 'movements', title: 'Stock Movements', path: '/inventory/movements' },
     { id: 'suppliers', title: 'Suppliers & Vendors', path: '/inventory/suppliers' }
-  ]
+  ].filter(item => isRouteAllowed(item.path))
 
   const productionItems: HubItem[] = [
     { id: 'batches', title: 'Production Batches', path: '/production/batches' },
     { id: 'pkg-exec', title: 'Packaging Execution', path: '/production/packaging' },
     { id: 'kitchen', title: 'Kitchen Shift Tasks', path: '/production/tasks' },
-    { id: 'smoker', title: 'Smoking Grill Supervisor Status', path: '/production/batches' }
-  ]
+    { id: 'orders', title: 'Website Orders Intake', path: '/sales/orders' },
+    { id: 'dispatch', title: 'Logistics Dispatch Board', path: '/logistics/board' }
+  ].filter(item => isRouteAllowed(item.path))
 
   const recentItems: HubItem[] = [
-    { id: 'r1', title: '', path: '/inventory/raw', breadcrumbPrefix: 'Inventory / ', breadcrumbBold: 'Raw Inventory' },
+    { id: 'r5', title: '', path: '/sales/orders', breadcrumbPrefix: 'Sales / ', breadcrumbBold: 'Website Orders' },
     { id: 'r2', title: '', path: '/production/batches', breadcrumbPrefix: 'Production / ', breadcrumbBold: 'Production Batches' },
+    { id: 'r6', title: '', path: '/production/packaging', breadcrumbPrefix: 'Packaging / ', breadcrumbBold: 'Packaging Execution' },
+    { id: 'r7', title: '', path: '/logistics/board', breadcrumbPrefix: 'Logistics / ', breadcrumbBold: 'Dispatch Board' },
     { id: 'r3', title: '', path: '/logistics/riders', breadcrumbPrefix: 'Logistics / ', breadcrumbBold: 'In-House Riders' },
-    { id: 'r4', title: '', path: '/accounts', breadcrumbPrefix: 'Manage account / ', breadcrumbBold: 'Members' },
-    { id: 'r5', title: '', path: '/sales/orders', breadcrumbPrefix: 'Sales / ', breadcrumbBold: 'Website Orders' }
-  ]
+    { id: 'r1', title: '', path: '/inventory/raw', breadcrumbPrefix: 'Inventory / ', breadcrumbBold: 'Raw Inventory' },
+    { id: 'r4', title: '', path: '/accounts', breadcrumbPrefix: 'Administration / ', breadcrumbBold: 'Team Accounts' }
+  ].filter(item => isRouteAllowed(item.path)).slice(0, 5)
 
   return (
     <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10 pt-2 pb-4">
@@ -49,7 +54,7 @@ export const CloudflareNavigationHub: React.FC = () => {
         <div className="flex items-center justify-between pb-2.5 border-b border-[#f0f0f3] dark:border-zinc-800">
           <button
             type="button"
-            onClick={() => navigate('/inventory/raw')}
+            onClick={() => inventoryItems[0] && navigate(inventoryItems[0].path)}
             className="group flex items-center gap-1.5 text-[15px] font-medium text-[#18181b] dark:text-zinc-100 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
           >
             <span>Inventory Control</span>
@@ -87,16 +92,16 @@ export const CloudflareNavigationHub: React.FC = () => {
         </div>
       </div>
 
-      {/* COLUMN 2: PRODUCTION RUNS */}
+      {/* COLUMN 2: PRODUCTION & FULFILLMENT */}
       <div className="flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[#f0f0f3] dark:border-zinc-800">
           <button
             type="button"
-            onClick={() => navigate('/production/batches')}
+            onClick={() => productionItems[0] && navigate(productionItems[0].path)}
             className="group flex items-center gap-1.5 text-[15px] font-medium text-[#18181b] dark:text-zinc-100 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
           >
-            <span>Production Runs</span>
+            <span>Production & Fulfillment</span>
             <ChevronRight className="w-4 h-4 text-[#71717a] dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200 transition-colors" />
           </button>
         </div>
@@ -131,7 +136,7 @@ export const CloudflareNavigationHub: React.FC = () => {
         </div>
       </div>
 
-      {/* COLUMN 3: RECENTS */}
+      {/* COLUMN 3: QUICK SHORTCUTS */}
       <div className="flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[#f0f0f3] dark:border-zinc-800">

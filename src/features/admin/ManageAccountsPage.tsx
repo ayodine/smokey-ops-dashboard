@@ -56,7 +56,15 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { Select } from '@/components/ui/Select'
 import { Toggle, ToggleSwitch } from '@/components/ui/Toggle'
-import { useSmokeyOps, AppUserAccount, UserRole, ROLE_DEFAULT_PERMISSIONS, getStaffKycData } from '@/context/SmokeyOpsContext'
+import {
+  useSmokeyOps,
+  AppUserAccount,
+  UserRole,
+  ROLE_DEFAULT_PERMISSIONS,
+  HOME_OVERVIEW_SUB_PERMISSIONS,
+  normalizePermissionsList,
+  getStaffKycData
+} from '@/context/SmokeyOpsContext'
 import { useWarehouse, INITIAL_FACILITY } from '@/context/WarehouseContext'
 import { cn, formatNaira } from '@/lib/utils'
 import {
@@ -64,6 +72,72 @@ import {
   SYSTEM_ROLE_CONFIGS,
   SystemPermissionItem
 } from '@/components/layout/ManageAccountsModal'
+
+const ACTION_TO_PAGE_VIEW_PERMISSION: Record<string, string> = {
+  // Sales
+  'Edit & Reschedule Website Orders': 'View Website Orders Page',
+  'View Order KPI Metric Cards & Analytics Graphs': 'View Website Orders Page',
+  'Export Website Order & Revenue Reports': 'View Website Orders Page',
+  'Edit Sales Inventory, Pricing & Menu Catalog': 'View Sales Inventory Page',
+  // Packaging
+  'Execute Order Pack-out & Deduct Consumables': 'View Packaging Execution Page',
+  'Manage Packaging Stock, Receipts & Reconciliations': 'View Packaging Materials Page',
+  // Production
+  'Start, Update & Complete Cooking Batches': 'View Production Batches Page',
+  'Manage Master Recipes (BOMs) & Purge Batches': 'View Production Batches Page',
+  'Raw Materials Depletion': 'View Production Batches Page',
+  'Waste & Spoilage Incident Reports': 'View Production Batches Page',
+  'Create, Assign & Complete Kitchen Tasks': 'View Kitchen Shift Tasks Page',
+  // Inventory
+  'Record Raw Stock Intake & Issue Requisitions': 'View Raw Inventory Page',
+  'Physical Stocktake Adjustments & Edit Raw Items': 'View Raw Inventory Page',
+  'Lot Expiry Monitoring': 'View Raw Inventory Page',
+  'Inventory Threshold Overrides': 'View Raw Inventory Page',
+  'Record Manual Transfers & Export Movements': 'View Stock Movements Ledger Page',
+  'Manage Suppliers & Verify Vendor Invoices': 'View Suppliers & Vendors Page',
+  // Logistics
+  'Assign Riders & Control Dispatch Queue': 'View Dispatch Board Page',
+  'Logistics Dispatch Controls': 'View Dispatch Board Page',
+  'Manage & Dispatch Scheduled Orders': 'View Delivery Schedule Page',
+  'Manage Rider Roster, Shifts & Payout Disbursements': 'View In-House Riders Page',
+  'Staff Shift Assignments': 'View In-House Riders Page',
+  'Verify Collector & Complete Pickup Handover': 'View Store Pickup Counter Page',
+  'Book 3PL Couriers & Verify Surge Fee Evidence': 'View Third-Party Delivery Page',
+  'Rider: Accept Dispatches & Start Transit': 'Access Mobile Rider Portal (My Trips)',
+  'Rider: Confirm Customer Drop-off Handover': 'Access Mobile Rider Portal (My Trips)',
+  'Rider: View Wallet & Earnings Ledger': 'Access Mobile Rider Portal (My Trips)',
+  // Home Overview Sub-Permissions
+  'Home Overview: View KPI Summary Cards': 'View Executive Operations Overview',
+  'Home Overview: View Quick Navigation & Action Links': 'View Executive Operations Overview',
+  'Home Overview: View Live Order Flow Diagram': 'View Executive Operations Overview',
+  'Home Overview: View Operational Analytics & Trend Charts': 'View Executive Operations Overview',
+}
+
+const applySmartPermissionToggle = (prev: string[], permLabel: string): string[] => {
+  const isCurrentlyEnabled = prev.includes(permLabel)
+  if (isCurrentlyEnabled) {
+    // Turning OFF
+    if (permLabel === 'View Executive Operations Overview') {
+      return prev.filter(p => p !== permLabel && !(HOME_OVERVIEW_SUB_PERMISSIONS as readonly string[]).includes(p))
+    }
+    return prev.filter(p => p !== permLabel)
+  } else {
+    // Turning ON
+    const next = new Set(prev)
+    next.add(permLabel)
+    if (permLabel === 'View Executive Operations Overview') {
+      const hasAnySub = HOME_OVERVIEW_SUB_PERMISSIONS.some(sub => next.has(sub))
+      if (!hasAnySub) {
+        HOME_OVERVIEW_SUB_PERMISSIONS.forEach(sub => next.add(sub))
+      }
+    }
+    const parentPagePerm = ACTION_TO_PAGE_VIEW_PERMISSION[permLabel]
+    if (parentPagePerm) {
+      next.add(parentPagePerm)
+    }
+    return Array.from(next)
+  }
+}
 
 // Enterprise Policy Groupings matching the Cloudflare screenshots
 export interface PolicyCategoryGroup {
@@ -76,59 +150,43 @@ export interface PolicyCategoryGroup {
 const AccountActionDropdown: React.FC<{
   isOpen: boolean
   onClose: () => void
-  buttonRef: React.RefObject<HTMLButtonElement | null>
+  anchorRect: DOMRect | null
   children: React.ReactNode
-}> = ({ isOpen, onClose, buttonRef, children }) => {
+}> = ({ isOpen, onClose, anchorRect, children }) => {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const getPosition = useCallback(() => {
-    if (!buttonRef.current) return { right: 12, openUp: false }
-    const rect = buttonRef.current.getBoundingClientRect()
-    const menuHeight = menuRef.current?.offsetHeight || 250
-    const spaceBelow = window.innerHeight - rect.bottom
-    const spaceAbove = rect.top
+    if (!anchorRect) return { right: 16, top: 100, openUp: false, maxHeight: 300 }
+    const menuHeight = menuRef.current?.offsetHeight || 220
+    const spaceBelow = window.innerHeight - anchorRect.bottom
+    const spaceAbove = anchorRect.top
 
     // Open upwards if not enough space below, and there is more space above
     const openUp = spaceBelow < menuHeight + 12 && spaceAbove > spaceBelow
 
     if (openUp) {
       return {
-        bottom: Math.max(8, window.innerHeight - rect.top + 4),
-        right: Math.max(12, window.innerWidth - rect.right),
+        bottom: Math.max(8, window.innerHeight - anchorRect.top + 4),
+        right: Math.max(12, window.innerWidth - anchorRect.right),
         openUp: true,
-        maxHeight: Math.max(160, rect.top - 16),
+        maxHeight: Math.max(160, anchorRect.top - 16),
       }
     }
     return {
-      top: rect.bottom + 4,
-      right: Math.max(12, window.innerWidth - rect.right),
+      top: anchorRect.bottom + 4,
+      right: Math.max(12, window.innerWidth - anchorRect.right),
       openUp: false,
       maxHeight: Math.max(160, spaceBelow - 16),
     }
-  }, [buttonRef])
+  }, [anchorRect])
 
   const [position, setPosition] = useState(getPosition)
 
   useEffect(() => {
-    if (!isOpen || !buttonRef.current) return
+    setPosition(getPosition())
+  }, [getPosition])
 
-    const update = () => {
-      setPosition(getPosition())
-    }
-
-    update()
-    const animId = requestAnimationFrame(update)
-
-    window.addEventListener('scroll', update, true)
-    window.addEventListener('resize', update)
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener('scroll', update, true)
-      window.removeEventListener('resize', update)
-    }
-  }, [isOpen, buttonRef, getPosition])
-
-  if (!isOpen) return null
+  if (!isOpen || !anchorRect) return null
 
   return createPortal(
     <>
@@ -165,32 +223,13 @@ const AccountActionDropdown: React.FC<{
 
 const AccountRowActionCell: React.FC<{
   acc: AppUserAccount
-  activeAccountEmail: string
-  availableAccounts: AppUserAccount[]
-  openMenuEmail: string | null
-  setOpenMenuEmail: (email: string | null) => void
   onEditProfile: (email: string) => void
-  onChangeRole: (acc: AppUserAccount) => void
-  onInspectPermissions: (acc: AppUserAccount) => void
-  onChangePassword: (acc: AppUserAccount) => void
-  onSwitchAccount: (email: string) => void
-  onDeleteAccount: (acc: AppUserAccount) => void
+  onOpenMenu: (acc: AppUserAccount, rect: DOMRect) => void
 }> = ({
   acc,
-  activeAccountEmail,
-  availableAccounts,
-  openMenuEmail,
-  setOpenMenuEmail,
   onEditProfile,
-  onChangeRole,
-  onInspectPermissions,
-  onChangePassword,
-  onSwitchAccount,
-  onDeleteAccount
+  onOpenMenu
 }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const isOpen = openMenuEmail === acc.email
-
   return (
     <div className="flex items-center justify-end gap-1.5 relative">
       <Tooltip content="Edit staff profile and verified KYC dossier">
@@ -207,87 +246,18 @@ const AccountRowActionCell: React.FC<{
       </Tooltip>
 
       <button
-        ref={buttonRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          setOpenMenuEmail(isOpen ? null : acc.email)
+          e.preventDefault()
+          const rect = e.currentTarget.getBoundingClientRect()
+          onOpenMenu(acc, rect)
         }}
         className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer"
         aria-label={`Options for ${acc.name}`}
       >
         <MoreVertical className="w-3.5 h-3.5" />
       </button>
-
-      <AccountActionDropdown
-        isOpen={isOpen}
-        onClose={() => setOpenMenuEmail(null)}
-        buttonRef={buttonRef}
-      >
-        <div className="py-0.5 space-y-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuEmail(null)
-              onEditProfile(acc.email)
-            }}
-            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
-          >
-            Edit Profile & KYC
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuEmail(null)
-              onChangeRole(acc)
-            }}
-            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
-          >
-            Change Role & Permissions
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuEmail(null)
-              onChangePassword(acc)
-            }}
-            className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
-          >
-            Change Password
-          </button>
-          {acc.email.toLowerCase() !== activeAccountEmail.toLowerCase() && (
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuEmail(null)
-                onSwitchAccount(acc.email)
-              }}
-              className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
-            >
-              Switch to Account
-            </button>
-          )}
-        </div>
-        <div className="py-0.5 pt-1">
-          <button
-            type="button"
-            disabled={availableAccounts.length <= 1}
-            onClick={() => {
-              setOpenMenuEmail(null)
-              onDeleteAccount(acc)
-            }}
-            className={cn(
-              'w-full text-left px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap',
-              availableAccounts.length <= 1
-                ? 'opacity-40 cursor-not-allowed text-zinc-400'
-                : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
-            )}
-          >
-            <Trash2 className="w-3.5 h-3.5 shrink-0" />
-            <span>Remove</span>
-          </button>
-        </div>
-      </AccountActionDropdown>
     </div>
   )
 }
@@ -380,13 +350,15 @@ const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: 
       ]
     }
   ],
-  'Production Batches & Kitchen Tasks': [
+  'Kitchen & Production Operations': [
     {
       label: 'Production Batches Only',
       permLabels: [
         'View Production Batches Page',
         'Start, Update & Complete Cooking Batches',
-        'Manage Master Recipes (BOMs) & Purge Batches'
+        'Manage Master Recipes (BOMs) & Purge Batches',
+        'Raw Materials Depletion',
+        'Waste & Spoilage Incident Reports'
       ]
     },
     {
@@ -410,7 +382,9 @@ const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: 
       permLabels: [
         'View Raw Inventory Page',
         'Record Raw Stock Intake & Issue Requisitions',
-        'Physical Stocktake Adjustments & Edit Raw Items'
+        'Physical Stocktake Adjustments & Edit Raw Items',
+        'Lot Expiry Monitoring',
+        'Inventory Threshold Overrides'
       ]
     },
     {
@@ -436,12 +410,13 @@ const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: 
       ]
     }
   ],
-  'Riders & Logistics Operations': [
+  'Logistics & Fleet Dispatch': [
     {
       label: 'Dispatch Board Only',
       permLabels: [
         'View Dispatch Board Page',
-        'Assign Riders & Control Dispatch Queue'
+        'Assign Riders & Control Dispatch Queue',
+        'Logistics Dispatch Controls'
       ]
     },
     {
@@ -482,6 +457,49 @@ const OPERATIONAL_CATEGORY_PRESETS: Record<string, { label: string; permLabels: 
         'View In-House Riders Page',
         'View Store Pickup Counter Page',
         'View Third-Party Delivery Page'
+      ]
+    }
+  ],
+  'Executive Overview & Administration': [
+    {
+      label: 'Full Home Overview (KPIs + Flow + Links + Analytics)',
+      permLabels: [
+        'View Executive Operations Overview',
+        'Home Overview: View KPI Summary Cards',
+        'Home Overview: View Quick Navigation & Action Links',
+        'Home Overview: View Live Order Flow Diagram',
+        'Home Overview: View Operational Analytics & Trend Charts'
+      ]
+    },
+    {
+      label: 'Order Flow Diagram & Links Only',
+      permLabels: [
+        'View Executive Operations Overview',
+        'Home Overview: View Quick Navigation & Action Links',
+        'Home Overview: View Live Order Flow Diagram'
+      ]
+    },
+    {
+      label: 'KPIs & Order Flow Only (No Links)',
+      permLabels: [
+        'View Executive Operations Overview',
+        'Home Overview: View KPI Summary Cards',
+        'Home Overview: View Live Order Flow Diagram'
+      ]
+    },
+    {
+      label: 'Full Admin & Overview',
+      permLabels: [
+        'View Executive Operations Overview',
+        'Home Overview: View KPI Summary Cards',
+        'Home Overview: View Quick Navigation & Action Links',
+        'Home Overview: View Live Order Flow Diagram',
+        'Home Overview: View Operational Analytics & Trend Charts',
+        'Finance & Payout Remittances',
+        'Manage Staff Accounts & KYC Onboarding',
+        'Manage Role Scopes & Permission Policies',
+        'Manage Operating Offices & Regional Hubs',
+        'Full Database & Records Access'
       ]
     }
   ]
@@ -525,7 +543,10 @@ export const ManageAccountsPage: React.FC = () => {
   const [selectedOfficeFilter, setSelectedOfficeFilter] = useState<string>('all')
 
   // Sub-modal states
-  const [openMenuEmail, setOpenMenuEmail] = useState<string | null>(null)
+  const [activeActionMenu, setActiveActionMenu] = useState<{
+    account: AppUserAccount
+    rect: DOMRect
+  } | null>(null)
   const [accountToChangePassword, setAccountToChangePassword] = useState<AppUserAccount | null>(null)
   const [accountToDelete, setAccountToDelete] = useState<AppUserAccount | null>(null)
 
@@ -591,8 +612,8 @@ export const ManageAccountsPage: React.FC = () => {
     'Packaging Execution & Materials': true,
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
-    'Logistics & Fleet Dispatch': false,
-    'Executive Overview & Administration': false,
+    'Logistics & Fleet Dispatch': true,
+    'Executive Overview & Administration': true,
   })
 
   // Handle auto-selecting scope from query string (e.g. ?scope=...)
@@ -604,9 +625,12 @@ export const ManageAccountsPage: React.FC = () => {
     }
   }, [location.search, customScopes])
 
+  const initializedRouteEmailRef = useRef<string | null>(null)
+
   // Initialize Edit Route State when target staff changes
   useEffect(() => {
-    if (targetStaff) {
+    if (targetStaff && initializedRouteEmailRef.current !== targetStaff.email.toLowerCase()) {
+      initializedRouteEmailRef.current = targetStaff.email.toLowerCase()
       setEditRole(targetStaff.role)
       const hasCustomScope = Boolean(targetStaff.scope_id && (customScopes || []).some(s => s.id === targetStaff.scope_id))
       setEditScopeSelection(hasCustomScope ? targetStaff.scope_id! : targetStaff.role)
@@ -624,7 +648,12 @@ export const ManageAccountsPage: React.FC = () => {
       setEditShiftSchedule(targetStaff.shift_schedule || 'Morning Cook & Prep (6:00 AM - 3:00 PM)')
       setPolicyScope('Operating Office')
       setPolicyAppliesTo(officeName)
-      setEditPermissions(targetStaff.permissions || ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || [])
+      const normalizedPerms = normalizePermissionsList(
+        Array.isArray(targetStaff.permissions) ? targetStaff.permissions : (ROLE_DEFAULT_PERMISSIONS[targetStaff.role] || []),
+        targetStaff.role,
+        Boolean(targetStaff.overview_granular_configured)
+      )
+      setEditPermissions(normalizedPerms)
       setIsEditingPolicy(true)
     }
   }, [targetStaff, facilities, customScopes])
@@ -855,8 +884,8 @@ export const ManageAccountsPage: React.FC = () => {
     'Packaging Execution & Materials': true,
     'Kitchen & Production Operations': true,
     'Inventory & Warehouse Control': true,
-    'Logistics & Fleet Dispatch': false,
-    'Executive Overview & Administration': false,
+    'Logistics & Fleet Dispatch': true,
+    'Executive Overview & Administration': true,
   })
 
   // Create Custom Scope Form State
@@ -899,15 +928,10 @@ export const ManageAccountsPage: React.FC = () => {
   }
 
   const toggleCreateScopePolicy = (policyLabel: string) => {
-    setNewScopeForm(prev => {
-      const exists = prev.permissions.includes(policyLabel)
-      return {
-        ...prev,
-        permissions: exists
-          ? prev.permissions.filter(p => p !== policyLabel)
-          : [...prev.permissions, policyLabel]
-      }
-    })
+    setNewScopeForm(prev => ({
+      ...prev,
+      permissions: applySmartPermissionToggle(prev.permissions, policyLabel)
+    }))
   }
 
   const handleOpenCreateScopeModal = () => {
@@ -925,12 +949,12 @@ export const ManageAccountsPage: React.FC = () => {
     setMatrixScope(scopeId)
     const customMatch = (customScopes || []).find(s => s.id === scopeId)
     if (customMatch) {
-      setMatrixPermissions(customMatch.permissions || [])
+      setMatrixPermissions(normalizePermissionsList(customMatch.permissions || [], customMatch.baseRole || 'manager', true))
       return
     }
     const matchedRole = SYSTEM_ROLE_CONFIGS.find(r => r.id === scopeId)
     if (matchedRole) {
-      setMatrixPermissions(ROLE_DEFAULT_PERMISSIONS[matchedRole.id] || [])
+      setMatrixPermissions([...(ROLE_DEFAULT_PERMISSIONS[matchedRole.id] || [])])
     } else {
       setMatrixPermissions([])
     }
@@ -1283,6 +1307,30 @@ export const ManageAccountsPage: React.FC = () => {
             description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.'
           },
           {
+            id: 'perm_overview_kpis',
+            label: 'Home Overview: View KPI Summary Cards',
+            category: 'Administration',
+            description: 'Display the 4 real-time KPI summary cards (Active Orders, Sales Stock, Production Batches, Logistics & Riders) on /overview.'
+          },
+          {
+            id: 'perm_overview_links',
+            label: 'Home Overview: View Quick Navigation & Action Links',
+            category: 'Administration',
+            description: 'Display quick navigation department cards, deep-link buttons, and workflow action links on /overview.'
+          },
+          {
+            id: 'perm_overview_flow_diagram',
+            label: 'Home Overview: View Live Order Flow Diagram',
+            category: 'Administration',
+            description: 'Display the interactive End-to-End Order Flow & Operations Pipeline diagram and order search tracker on /overview.'
+          },
+          {
+            id: 'perm_overview_analytics',
+            label: 'Home Overview: View Operational Analytics & Trend Charts',
+            category: 'Administration',
+            description: 'Display cross-department analytics charts, throughput distribution, and regional breakdown on /overview.'
+          },
+          {
             id: 'perm_finance',
             label: 'Finance & Payout Remittances',
             category: 'Finance',
@@ -1375,9 +1423,7 @@ export const ManageAccountsPage: React.FC = () => {
   }
 
   const togglePolicyPermission = (permLabel: string) => {
-    setEditPermissions(prev =>
-      prev.includes(permLabel) ? prev.filter(p => p !== permLabel) : [...prev, permLabel]
-    )
+    setEditPermissions(prev => applySmartPermissionToggle(prev, permLabel))
   }
 
   const toggleCategoryGroup = (categoryPerms: string[], allActive: boolean) => {
@@ -1431,6 +1477,7 @@ export const ManageAccountsPage: React.FC = () => {
       department: editDepartment.trim(),
       shift_schedule: editShiftSchedule,
       permissions: editPermissions,
+      overview_granular_configured: true,
     })
 
     showToast(`Saved role and policies for ${targetStaff.name || targetStaff.email}`, 'success')
@@ -1445,9 +1492,7 @@ export const ManageAccountsPage: React.FC = () => {
 
   // Handlers for Role Matrix Page
   const toggleMatrixPolicy = (permLabel: string) => {
-    setMatrixPermissions(prev =>
-      prev.includes(permLabel) ? prev.filter(p => p !== permLabel) : [...prev, permLabel]
-    )
+    setMatrixPermissions(prev => applySmartPermissionToggle(prev, permLabel))
   }
 
   const toggleMatrixCategory = (categoryPerms: string[], allActive: boolean) => {
@@ -1513,7 +1558,7 @@ export const ManageAccountsPage: React.FC = () => {
     if (!accountToDelete) return
     deleteAccount(accountToDelete.email)
     setAccountToDelete(null)
-    setOpenMenuEmail(null)
+    setActiveActionMenu(null)
   }
 
   // Export CSV Handler
@@ -1700,26 +1745,12 @@ export const ManageAccountsPage: React.FC = () => {
       accessor: (acc) => (
         <AccountRowActionCell
           acc={acc}
-          activeAccountEmail={activeAccountEmail}
-          availableAccounts={availableAccounts}
-          openMenuEmail={openMenuEmail}
-          setOpenMenuEmail={setOpenMenuEmail}
           onEditProfile={(email) => navigate(`/accounts/profile/${encodeURIComponent(email)}`)}
-          onChangeRole={(account) => navigate(`/accounts/route/${encodeURIComponent(account.email)}`)}
-          onInspectPermissions={(account) => navigate(`/accounts/matrix`)}
-          onChangePassword={(account) => {
-            setAccountToChangePassword(account)
-            setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+          onOpenMenu={(account, rect) => {
+            setActiveActionMenu((prev) =>
+              prev?.account.email === account.email ? null : { account, rect }
+            )
           }}
-          onSwitchAccount={(email) => {
-            switchAccount(email)
-            const targetAcc = availableAccounts.find(a => a.email.toLowerCase() === email.toLowerCase())
-            if (targetAcc) {
-              const targetLanding = getRoleDefaultLandingPath(targetAcc.role, targetAcc)
-              navigate(targetLanding, { replace: true })
-            }
-          }}
-          onDeleteAccount={(account) => setAccountToDelete(account)}
         />
       ),
     },
@@ -3706,6 +3737,91 @@ export const ManageAccountsPage: React.FC = () => {
           </div>
         )}
       </Dialog>
+
+      {/* SINGLE PORTAL ACTION DROPDOWN */}
+      <AccountActionDropdown
+        isOpen={Boolean(activeActionMenu)}
+        onClose={() => setActiveActionMenu(null)}
+        anchorRect={activeActionMenu?.rect ?? null}
+      >
+        {activeActionMenu && (
+          <>
+            <div className="py-0.5 space-y-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const acc = activeActionMenu.account
+                  setActiveActionMenu(null)
+                  navigate(`/accounts/profile/${encodeURIComponent(acc.email)}`)
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
+              >
+                Edit Profile & KYC
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const acc = activeActionMenu.account
+                  setActiveActionMenu(null)
+                  navigate(`/accounts/route/${encodeURIComponent(acc.email)}`)
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
+              >
+                Change Role & Permissions
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const acc = activeActionMenu.account
+                  setActiveActionMenu(null)
+                  setAccountToChangePassword(acc)
+                  setNewPasswordVal(`Smk@${Math.floor(1000 + Math.random() * 9000)}!`)
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
+              >
+                Change Password
+              </button>
+              {activeActionMenu.account.email.toLowerCase() !== activeAccountEmail.toLowerCase() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const email = activeActionMenu.account.email
+                    setActiveActionMenu(null)
+                    switchAccount(email)
+                    const targetAcc = availableAccounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+                    if (targetAcc) {
+                      const targetLanding = getRoleDefaultLandingPath(targetAcc.role, targetAcc)
+                      navigate(targetLanding, { replace: true })
+                    }
+                  }}
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors whitespace-nowrap block"
+                >
+                  Switch to Account
+                </button>
+              )}
+            </div>
+            <div className="py-0.5 pt-1">
+              <button
+                type="button"
+                disabled={availableAccounts.length <= 1}
+                onClick={() => {
+                  const acc = activeActionMenu.account
+                  setActiveActionMenu(null)
+                  setAccountToDelete(acc)
+                }}
+                className={cn(
+                  'w-full text-left px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap',
+                  availableAccounts.length <= 1
+                    ? 'opacity-40 cursor-not-allowed text-zinc-400'
+                    : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
+                )}
+              >
+                Remove Account
+              </button>
+            </div>
+          </>
+        )}
+      </AccountActionDropdown>
     </div>
   )
 }

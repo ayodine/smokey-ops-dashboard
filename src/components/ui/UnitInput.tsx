@@ -65,9 +65,12 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   // Local text state so the field can be temporarily empty while typing,
-  // instead of snapping back to "0" (which caused "010").
-  const toDisplay = (v: number | string | undefined | null) =>
-    v === undefined || v === null || v === '' || Number(v) === 0 ? '' : String(v)
+  // while preserving valid 0 values when min <= 0 and stripping leading zeros ("010" -> "10").
+  const toDisplay = (v: number | string | undefined | null) => {
+    if (v === undefined || v === null || v === '') return ''
+    if (Number(v) === 0 && min !== undefined && min > 0) return ''
+    return String(v)
+  }
   const [displayVal, setDisplayVal] = useState<string>(() => toDisplay(value))
   const [isFocused, setIsFocused] = useState(false)
 

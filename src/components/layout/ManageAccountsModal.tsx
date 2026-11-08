@@ -117,6 +117,10 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
 
   // Finance & Executive Overview
   { id: 'perm_overview_view', label: 'View Executive Operations Overview', category: 'Administration', pageRoute: '/overview', description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.' },
+  { id: 'perm_overview_kpis', label: 'Home Overview: View KPI Summary Cards', category: 'Administration', description: 'Display the 4 real-time KPI summary cards (Active Orders, Sales Stock, Production Batches, Logistics & Riders) on /overview.' },
+  { id: 'perm_overview_links', label: 'Home Overview: View Quick Navigation & Action Links', category: 'Administration', description: 'Display quick navigation department cards, deep-link buttons, and workflow action links on /overview.' },
+  { id: 'perm_overview_flow_diagram', label: 'Home Overview: View Live Order Flow Diagram', category: 'Administration', description: 'Display the interactive End-to-End Order Flow & Operations Pipeline diagram and order search tracker on /overview.' },
+  { id: 'perm_overview_analytics', label: 'Home Overview: View Operational Analytics & Trend Charts', category: 'Administration', description: 'Display cross-department analytics charts, throughput distribution, and regional breakdown on /overview.' },
   { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
 
   // Administration & Security

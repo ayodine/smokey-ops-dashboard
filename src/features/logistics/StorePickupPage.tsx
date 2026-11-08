@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 
 export const StorePickupPage: React.FC = () => {
-  const { storePickups, markPickupCollected, hasPermission } = useSmokeyOps()
+  const { storePickups, markPickupCollected, hasPermission, currentAccount } = useSmokeyOps()
   const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'collected'>('all')
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -32,6 +32,7 @@ export const StorePickupPage: React.FC = () => {
   const [collectedByName, setCollectedByName] = useState('')
   const [collectorPhone, setCollectorPhone] = useState('')
   const [handoverStaff, setHandoverStaff] = useState('')
+  const [handoverError, setHandoverError] = useState('')
 
   const handleOpenDetails = (p: StorePickupOrder) => {
     setSelectedDetailsPickup(p)
@@ -53,6 +54,7 @@ export const StorePickupPage: React.FC = () => {
     setCollectedByName('')
     setCollectorPhone('')
     setHandoverStaff('')
+    setHandoverError('')
     setIsCollectModalOpen(true)
   }
 
@@ -63,8 +65,20 @@ export const StorePickupPage: React.FC = () => {
     const cleanCollectorPhone = collectorPhone.trim()
     const cleanStaff = handoverStaff.trim()
 
-    if (!cleanCollectorName || !cleanCollectorPhone || !cleanStaff) return
+    if (!cleanCollectorName) {
+      setHandoverError('Please enter the full name of the person collecting the order.')
+      return
+    }
+    if (!cleanCollectorPhone) {
+      setHandoverError('Please enter the phone number of the person collecting the order.')
+      return
+    }
+    if (!cleanStaff) {
+      setHandoverError('Please enter the handover staff member name.')
+      return
+    }
 
+    setHandoverError('')
     markPickupCollected(selectedPickup.id, cleanCollectorName, cleanStaff, cleanCollectorPhone)
     setIsCollectModalOpen(false)
   }
@@ -215,6 +229,7 @@ export const StorePickupPage: React.FC = () => {
         title="Pickup Order"
         exportFilename="smokey-storefront-pickups"
         onRowClick={(p) => handleOpenDetails(p)}
+        emptyMessage="Store pickup orders ready for customer collection will appear here."
       />
 
       {/* Collect Modal */}
@@ -264,7 +279,10 @@ export const StorePickupPage: React.FC = () => {
             label="Name of Person Collecting"
             placeholder="Enter full name of person picking up..."
             value={collectedByName}
-            onChange={(e) => setCollectedByName(e.target.value)}
+            onChange={(e) => {
+              setCollectedByName(e.target.value)
+              if (handoverError) setHandoverError('')
+            }}
             required
             autoComplete="off"
             autoFocus
@@ -277,7 +295,10 @@ export const StorePickupPage: React.FC = () => {
             type="tel"
             placeholder="Enter active phone number..."
             value={collectorPhone}
-            onChange={(e) => setCollectorPhone(e.target.value)}
+            onChange={(e) => {
+              setCollectorPhone(e.target.value)
+              if (handoverError) setHandoverError('')
+            }}
             required
             autoComplete="off"
           />
@@ -286,12 +307,21 @@ export const StorePickupPage: React.FC = () => {
             id="pickup-handover-staff"
             name="handover_counter_staff"
             label="Handover Counter Staff"
-            placeholder="Enter your staff name..."
+            placeholder="Enter staff name"
             value={handoverStaff}
-            onChange={(e) => setHandoverStaff(e.target.value)}
+            onChange={(e) => {
+              setHandoverStaff(e.target.value)
+              if (handoverError) setHandoverError('')
+            }}
             required
             autoComplete="off"
           />
+
+          {handoverError && (
+            <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-xs font-medium text-red-600 dark:text-red-400">
+              {handoverError}
+            </div>
+          )}
         </form>
       </Dialog>
 

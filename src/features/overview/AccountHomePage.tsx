@@ -18,8 +18,14 @@ import { OrderWorkflowCanvasOverlay } from './OrderWorkflowCanvasOverlay'
 
 export const AccountHomePage: React.FC = () => {
   const navigate = useNavigate()
-  const { rawProducts, inventoryLots } = useSmokeyOps()
+  const { rawProducts, inventoryLots, hasPermission, isRouteAllowed } = useSmokeyOps()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const canViewKpis = hasPermission('perm_overview_kpis')
+  const canViewLinks = hasPermission('perm_overview_links')
+  const canViewFlowDiagram = hasPermission('perm_overview_flow_diagram')
+  const canViewAnalytics = hasPermission('perm_overview_analytics')
+  const canNavigateToRaw = canViewLinks && isRouteAllowed('/inventory/raw')
 
   // Operational KPI calculations computed from raw products and inventory lots
   const {
@@ -89,107 +95,115 @@ export const AccountHomePage: React.FC = () => {
       />
 
       {/* =========================================================================
-          SECTION 1: KPI CARDS (De-saturated to Clean Grey / Neutral Palette)
+          SECTION 1: KPI CARDS (Controlled by perm_overview_kpis)
          ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: TOTAL STOCK VALUE */}
-        <div
-          onClick={() => navigate('/inventory/raw')}
-          className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 cursor-pointer hover:border-[#d4d4d8] transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Total stock value
-            </span>
+      {canViewKpis && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Metric 1: TOTAL STOCK VALUE */}
+          <div
+            onClick={() => canNavigateToRaw && navigate('/inventory/raw')}
+            className={`p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 transition-colors ${canNavigateToRaw ? 'cursor-pointer hover:border-[#d4d4d8]' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
+                Total stock value
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
+                {formatNaira(totalValuation)}
+              </span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {totalItemCount} items
+              </span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
-              {formatNaira(totalValuation)}
-            </span>
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {totalItemCount} items
-            </span>
-          </div>
-        </div>
 
-        {/* Metric 2: RUNNING LOW */}
-        <div
-          onClick={() => navigate('/inventory/raw')}
-          className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 cursor-pointer hover:border-[#d4d4d8] transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Running low
-            </span>
+          {/* Metric 2: RUNNING LOW */}
+          <div
+            onClick={() => canNavigateToRaw && navigate('/inventory/raw')}
+            className={`p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 transition-colors ${canNavigateToRaw ? 'cursor-pointer hover:border-[#d4d4d8]' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
+                Running low
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
+                {lowStockCount}
+              </span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                needs reorder
+              </span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
-              {lowStockCount}
-            </span>
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              needs reorder
-            </span>
-          </div>
-        </div>
 
-        {/* Metric 3: EXPIRING SOON */}
-        <div
-          onClick={() => navigate('/inventory/raw')}
-          className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 cursor-pointer hover:border-[#d4d4d8] transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Expiring soon
-            </span>
+          {/* Metric 3: EXPIRING SOON */}
+          <div
+            onClick={() => canNavigateToRaw && navigate('/inventory/raw')}
+            className={`p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 transition-colors ${canNavigateToRaw ? 'cursor-pointer hover:border-[#d4d4d8]' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
+                Expiring soon
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
+                {expiringCount}
+              </span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                within 7 days
+              </span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
-              {expiringCount}
-            </span>
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              within 7 days
-            </span>
-          </div>
-        </div>
 
-        {/* Metric 4: OUT OF STOCK */}
-        <div
-          onClick={() => navigate('/inventory/raw')}
-          className="p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 cursor-pointer hover:border-[#d4d4d8] transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
-              Out of stock
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
-              {outOfStockCount}
-            </span>
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              needs supplier order
-            </span>
+          {/* Metric 4: OUT OF STOCK */}
+          <div
+            onClick={() => canNavigateToRaw && navigate('/inventory/raw')}
+            className={`p-4 rounded-xl border border-kumo-line bg-kumo-base shadow-2xs space-y-3 transition-colors ${canNavigateToRaw ? 'cursor-pointer hover:border-[#d4d4d8]' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-wider text-kumo-subtle uppercase">
+                Out of stock
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-2xl sm:text-3xl font-bold tracking-[-0.012em] text-kumo-strong font-display">
+                {outOfStockCount}
+              </span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                needs supplier order
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* =========================================================================
-          SECTION 2: CLOUDFLARE NAVIGATION SECTION (3-COLUMN HUB)
-          - Inventory Control
-          - Production Runs (with clean production icon)
-          - Recents
+          SECTION 2: CLOUDFLARE NAVIGATION SECTION (Controlled by perm_overview_links)
          ========================================================================= */}
-      <CloudflareNavigationHub />
+      {canViewLinks && <CloudflareNavigationHub />}
 
       {/* =========================================================================
-          SECTION 3: ORDER TRACKING FLOWCHART DIAGRAM
+          SECTION 3: ORDER TRACKING FLOWCHART DIAGRAM (Controlled by perm_overview_flow_diagram)
          ========================================================================= */}
-      <OrderWorkflowCanvasOverlay />
+      {canViewFlowDiagram && <OrderWorkflowCanvasOverlay />}
 
       {/* =========================================================================
-          SECTION 4: ANALYTICS SECTION (METRIC GRAPH & LIGHT-MODE INTERACTIVE TOOLTIP)
+          SECTION 4: ANALYTICS SECTION (Controlled by perm_overview_analytics)
          ========================================================================= */}
-      <CloudflareAnalyticsSection />
+      {canViewAnalytics && <CloudflareAnalyticsSection />}
+
+      {!canViewKpis && !canViewLinks && !canViewFlowDiagram && !canViewAnalytics && (
+        <div className="p-10 rounded-xl border border-kumo-line bg-kumo-base text-center space-y-2">
+          <p className="text-sm font-semibold text-kumo-strong">No Home Overview Sections Enabled</p>
+          <p className="text-xs text-kumo-subtle">
+            Your account has access to the Home Overview page, but all individual overview widgets (KPI Cards, Quick Navigation Links, Live Order Flow Diagram, and Operational Analytics) are currently toggled off in your role policy.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

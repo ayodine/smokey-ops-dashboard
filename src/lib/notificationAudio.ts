@@ -37,10 +37,29 @@ if (typeof window !== 'undefined') {
 
 let lastChimeTime = 0
 let currentOrderRingtone: {
-  masterGain: GainNode
   stopTimer: number
   stop: () => void
 } | null = null
+
+/**
+ * Verify that a user is currently authenticated and not on the sign-in / auth page
+ * before playing any operational audio alert or sending desktop notifications.
+ */
+export function isUserSignedInAndOnDashboard(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const pathname = window.location.pathname || ''
+    if (pathname === '/login' || pathname === '/auth' || pathname.startsWith('/login/') || pathname.startsWith('/auth/')) {
+      return false
+    }
+    const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
+    if (!sessionRaw) return false
+    const parsed = JSON.parse(sessionRaw)
+    return Boolean(parsed && parsed.email && parsed.sessionToken)
+  } catch {
+    return false
+  }
+}
 
 /**
  * Manually stop any currently playing order ringtone immediately
@@ -62,9 +81,12 @@ export function isOrderRingtonePlaying(): boolean {
 }
 
 /**
- * Plays a loud, distinct, rhythmic hospitality order ringtone that loops for exactly 5.0 seconds and stops automatically.
+ * Plays the original 5-second melodic chime from Smokey Admin using Web Audio API:
+ * Ascending then descending triangle-wave melody [880Hz, 1100Hz, 1320Hz, 1100Hz, 880Hz]
+ * with dynamics compression.
  */
 export function playOrderRingtone5s() {
+  if (!isUserSignedInAndOnDashboard()) return
   try {
     const ctx = getAudioContext()
     if (!ctx) return
@@ -72,71 +94,37 @@ export function playOrderRingtone5s() {
     // Stop any existing playing ringtone first to prevent overlapping noise
     stopOrderRingtone()
 
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.connect(ctx.destination)
+
     const now = ctx.currentTime
     const totalDuration = 5.0 // exactly 5 seconds
 
-    const masterGain = ctx.createGain()
-    masterGain.gain.setValueAtTime(0, now)
-    masterGain.gain.linearRampToValueAtTime(0.75, now + 0.05) // Loud restaurant kitchen alert volume
-    masterGain.connect(ctx.destination)
-
     const oscillators: OscillatorNode[] = []
 
-    // Helper to schedule a harmonic dual-tone chime note
-    const scheduleNote = (freq: number, startOffset: number, duration: number, peakGain = 0.85) => {
-      const noteStart = now + startOffset
-      const noteStop = noteStart + duration
+    // Original 5-second chime: ascending then descending melody [freq, startSec, durationSec]
+    const notes: [number, number, number][] = [
+      [880,  0.0,  0.8],
+      [1100, 0.9,  0.8],
+      [1320, 1.8,  0.8],
+      [1100, 2.7,  0.8],
+      [880,  3.6,  1.4],
+    ]
 
-      // Triangle for acoustic body and sharpness
-      const osc1 = ctx.createOscillator()
-      osc1.type = 'triangle'
-      osc1.frequency.setValueAtTime(freq, noteStart)
-
-      // Sine overtone for resonance and bell-like ring
-      const osc2 = ctx.createOscillator()
-      osc2.type = 'sine'
-      osc2.frequency.setValueAtTime(freq * 2, noteStart)
-
-      const noteGain = ctx.createGain()
-      noteGain.gain.setValueAtTime(0, noteStart)
-      noteGain.gain.linearRampToValueAtTime(peakGain, noteStart + 0.02)
-      noteGain.gain.exponentialRampToValueAtTime(0.001, noteStop)
-
-      osc1.connect(noteGain)
-      osc2.connect(noteGain)
-      noteGain.connect(masterGain)
-
-      osc1.start(noteStart)
-      osc1.stop(noteStop)
-      osc2.start(noteStart)
-      osc2.stop(noteStop)
-
-      oscillators.push(osc1, osc2)
-    }
-
-    // 5-second rhythmic ring sequence:
-    // 4 rhythmic double-pulse ringing bursts (at 0.0s, 1.0s, 2.0s, 3.0s) + 1 grand resolving chime (4.0s - 5.0s)
-    const bursts = [0.0, 1.0, 2.0, 3.0]
-    bursts.forEach((burstStart) => {
-      // Pulse 1: G5 (783.99Hz) + C6 (1046.50Hz)
-      scheduleNote(783.99, burstStart + 0.00, 0.28, 0.70)
-      scheduleNote(1046.50, burstStart + 0.00, 0.28, 0.85)
-
-      // Pulse 2: A5 (880.00Hz) + E6 (1318.51Hz)
-      scheduleNote(880.00, burstStart + 0.32, 0.32, 0.75)
-      scheduleNote(1318.51, burstStart + 0.32, 0.35, 0.90)
+    notes.forEach(([freq, start, dur]) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(compressor)
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, now + start)
+      gain.gain.setValueAtTime(0.0001, now + start)
+      gain.gain.linearRampToValueAtTime(1.0, now + start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur)
+      osc.start(now + start)
+      osc.stop(now + start + dur + 0.05)
+      oscillators.push(osc)
     })
-
-    // Grand Finale Resolution Chord at 4.0s, sustaining and decaying cleanly to zero at 5.0s
-    const finalStart = 4.0
-    scheduleNote(523.25, finalStart, 0.95, 0.70)  // C5
-    scheduleNote(783.99, finalStart, 0.95, 0.75)  // G5
-    scheduleNote(1046.50, finalStart, 0.95, 0.85) // C6
-    scheduleNote(1318.51, finalStart, 0.95, 0.90) // E6
-
-    // Master volume envelope: taper off smoothly to 0 at exactly 5.0 seconds
-    masterGain.gain.setValueAtTime(0.75, now + 4.6)
-    masterGain.gain.exponentialRampToValueAtTime(0.001, now + totalDuration)
 
     // Set auto-cutoff timer
     const stopTimer = window.setTimeout(() => {
@@ -144,28 +132,19 @@ export function playOrderRingtone5s() {
     }, totalDuration * 1000)
 
     currentOrderRingtone = {
-      masterGain,
       stopTimer,
       stop: () => {
         window.clearTimeout(stopTimer)
         try {
-          const cutTime = ctx.currentTime
-          masterGain.gain.cancelScheduledValues(cutTime)
-          masterGain.gain.setValueAtTime(masterGain.gain.value, cutTime)
-          masterGain.gain.linearRampToValueAtTime(0.001, cutTime + 0.05)
-          setTimeout(() => {
-            try {
-              masterGain.disconnect()
-              oscillators.forEach(osc => {
-                try { osc.stop() } catch {}
-              })
-            } catch {}
-          }, 60)
+          oscillators.forEach(osc => {
+            try { osc.stop() } catch {}
+          })
+          try { compressor.disconnect() } catch {}
         } catch {}
       }
     }
-  } catch {
-    // Gracefully ignore audio failures (e.g. autoplay permissions)
+  } catch (err) {
+    console.warn('[Audio] Could not play notification chime:', err)
   }
 }
 
@@ -173,6 +152,7 @@ export function playOrderRingtone5s() {
  * Play an operational sound effect (orders use the 5-second ringtone, alerts use short pings)
  */
 export function playAlertChime(type: 'order' | 'warning' | 'info' | 'success' = 'order') {
+  if (!isUserSignedInAndOnDashboard()) return
   try {
     if (type === 'order') {
       // Plays the 5-second ringtone sound
@@ -235,6 +215,7 @@ export function playAlertChime(type: 'order' | 'warning' | 'info' | 'success' = 
  */
 export function sendDesktopNotification(title: string, options?: NotificationOptions) {
   if (typeof window === 'undefined' || !('Notification' in window)) return
+  if (!isUserSignedInAndOnDashboard()) return
 
   try {
     if (Notification.permission === 'granted') {

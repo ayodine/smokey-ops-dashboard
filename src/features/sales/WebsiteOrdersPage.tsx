@@ -11,10 +11,10 @@ import { Input } from '@/components/ui/Input'
 import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
-import { useSmokeyOps, getOfficeOpeningHourForDate } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
-import { formatNaira, formatDate, cleanOrderNotes, cn } from '@/lib/utils'
+import { formatNaira, formatDate, cleanOrderNotes, parseOrderNotes, cn } from '@/lib/utils'
 import {
   ShoppingBag,
   DollarSign,
@@ -45,6 +45,7 @@ import {
   VolumeX
 } from 'lucide-react'
 import { playOrderRingtone5s, stopOrderRingtone, isOrderRingtonePlaying } from '@/lib/notificationAudio'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
 
 export interface WebsiteOrder {
   id: string | number
@@ -95,7 +96,7 @@ export const highlightSearchMatch = (text: string, query: string) => {
 export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   const status = String(raw.delivery_status || raw.status || '').toLowerCase()
   let fulfillment_status: WebsiteOrder['fulfillment_status'] = 'in_intake'
-  if (status.includes('deliver')) {
+  if (status.includes('deliver') || status.includes('collect') || Boolean(raw.delivered_at)) {
     fulfillment_status = 'delivered'
   } else if (status.includes('transit') || status.includes('dispatch') || status.includes('shipped') || status.includes('out_for_delivery') || status.includes('on_road')) {
     fulfillment_status = 'in_transit'
@@ -132,9 +133,12 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     }
   }
 
+  const canonicalRef = getCanonicalOrderRef(raw)
+  const numericId = extractNumericOrderId(raw.id ?? canonicalRef, 10000)
+
   return {
-    id: raw.id,
-    order_ref: String(raw.id || ''),
+    id: numericId,
+    order_ref: canonicalRef,
     customer_name: raw.customer_name || 'Storefront Customer',
     customer_email: raw.customer_email || '',
     phone: raw.customer_phone || 'N/A',
@@ -150,7 +154,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     created_at: raw.created_at || raw.scheduled_delivery_date || new Date().toISOString(),
     scheduled_delivery_at: scheduledAt,
     paid_at: raw.paid_at || '',
-    rider_name: raw.delivery_status ? 'Assigned Rider' : 'Pending Rider',
+    rider_name: raw.rider_name || (raw.delivery_status ? 'Assigned Rider' : 'Pending Rider'),
     notes: raw.notes || ''
   }
 }
@@ -219,6 +223,7 @@ export const printOrderReceipt = (order: WebsiteOrder) => {
   const origin = window.location.origin
   const logoUrl = `${origin}/logo.svg`
   const ordersUrl = `${origin}/sales/orders`
+  const parsedNotes = parseOrderNotes(order.notes)
 
   const itemRows = lineItems.map(item => `
         <tr>
@@ -412,6 +417,12 @@ export const printOrderReceipt = (order: WebsiteOrder) => {
       <div class="block">
         <div class="label">Delivery Address</div>
         <div class="text">${escapeReceiptHtml(order.address || '—')}</div>
+        ${parsedNotes.deliveryNote ? `
+          <div style="margin-top: 5px; padding: 5px 8px; background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 6px;">
+            <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; color: #52525b; letter-spacing: 0.05em; margin-bottom: 2px;">Delivery Note</div>
+            <div style="font-size: 11px; font-weight: 600; color: #18181b; line-height: 1.4;">${escapeReceiptHtml(parsedNotes.deliveryNote)}</div>
+          </div>
+        ` : ''}
       </div>
       <div class="block">
         <div class="label">Payment</div>
@@ -501,6 +512,7 @@ export const WebsiteOrdersPage: React.FC = () => {
     logisticsDeliveries,
     packagingQueue,
     scheduledOrders,
+    storePickups,
     rescheduleOrderDelivery,
     hasPermission
   } = useSmokeyOps()
@@ -553,24 +565,15 @@ export const WebsiteOrdersPage: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSearchingBackend(true)
       try {
-        const res = await fetch(`/api/live-orders?q=${encodeURIComponent(q)}`)
-        if (res.ok) {
-          const json = await res.json()
-          if (json.data && Array.isArray(json.data)) {
-            setBackendSuggestions(json.data.map(mapSupabaseOrderToWebsiteOrder))
-          }
-        } else {
-          // Direct fallback to Supabase
-          const { data } = await supabase
-            .from('orders')
-            .select('*, order_items(*)')
-            .is('deleted_at', null)
-            .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
-            .order('created_at', { ascending: false })
-            .limit(30)
-          if (Array.isArray(data)) {
-            setBackendSuggestions(data.map(mapSupabaseOrderToWebsiteOrder))
-          }
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .is('deleted_at', null)
+          .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (!error && Array.isArray(data)) {
+          setBackendSuggestions(data.map(mapSupabaseOrderToWebsiteOrder))
         }
       } catch (err) {
         console.warn('Historical search error:', err)
@@ -587,22 +590,23 @@ export const WebsiteOrdersPage: React.FC = () => {
     const q = searchQuery.toLowerCase().trim()
     if (!q) return []
 
-    const map = new Map<string | number, { order: WebsiteOrder; matchType: string; matchedValue: string }>()
+    const map = new Map<string, { order: WebsiteOrder; matchType: string; matchedValue: string }>()
 
     const evaluateOrder = (o: WebsiteOrder) => {
-      if (map.has(o.id)) return
-      if (o.order_ref.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Order ID', matchedValue: o.order_ref })
+      const ref = getCanonicalOrderRef(o)
+      if (!ref || map.has(ref)) return
+      if (ref.toLowerCase().includes(q) || o.order_ref.toLowerCase().includes(q)) {
+        map.set(ref, { order: o, matchType: 'Order ID', matchedValue: ref })
       } else if (o.customer_name.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Customer', matchedValue: o.customer_name })
+        map.set(ref, { order: o, matchType: 'Customer', matchedValue: o.customer_name })
       } else if (o.phone.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Phone', matchedValue: o.phone })
+        map.set(ref, { order: o, matchType: 'Phone', matchedValue: o.phone })
       } else if (o.items_summary.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Product', matchedValue: o.items_summary })
+        map.set(ref, { order: o, matchType: 'Product', matchedValue: o.items_summary })
       } else if (o.address.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Address', matchedValue: o.address })
+        map.set(ref, { order: o, matchType: 'Address', matchedValue: o.address })
       } else if (o.notes.toLowerCase().includes(q)) {
-        map.set(o.id, { order: o, matchType: 'Notes', matchedValue: o.notes })
+        map.set(ref, { order: o, matchType: 'Notes', matchedValue: o.notes })
       }
     }
 
@@ -616,11 +620,12 @@ export const WebsiteOrdersPage: React.FC = () => {
   }, [searchQuery, orders, backendSuggestions])
 
   const handleSelectSuggestion = (order: WebsiteOrder) => {
-    setSearchQuery(order.order_ref)
+    const canonicalRef = getCanonicalOrderRef(order)
+    setSearchQuery(canonicalRef || order.order_ref)
     setIsSearchOpen(false)
     // If not in current orders list (e.g. from 6 months ago), prepend it so table displays it!
     setOrders((prev) => {
-      if (prev.some((o) => o.id === order.id)) return prev
+      if (prev.some((o) => getCanonicalOrderRef(o) === canonicalRef)) return prev
       return [order, ...prev]
     })
   }
@@ -662,35 +667,56 @@ export const WebsiteOrdersPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Enrich orders with live operational workflow state from SmokeyOpsContext (logistics, packaging, and scheduled pipeline)
+  // Enrich orders with live operational workflow state from SmokeyOpsContext (logistics, store pickup, packaging, and scheduled pipeline)
   const displayOrders = useMemo(() => {
-    const deliveryMap = new Map(logisticsDeliveries.map(d => [d.order_ref, d]))
-    const packagingMap = new Map(packagingQueue.map(p => [p.order_ref, p]))
-    const scheduledMap = new Map(scheduledOrders.map(s => [s.order_ref, s]))
+    const deliveryMap = new Map(logisticsDeliveries.map(d => [getCanonicalOrderRef(d), d]))
+    const pickupMap = new Map(storePickups.map(p => [getCanonicalOrderRef(p), p]))
+    const packagingMap = new Map(packagingQueue.map(p => [getCanonicalOrderRef(p), p]))
+    const scheduledMap = new Map(scheduledOrders.map(s => [getCanonicalOrderRef(s), s]))
 
-    const enriched = orders.map(ord => {
-      const activeDelivery = deliveryMap.get(ord.order_ref)
-      const activePkg = packagingMap.get(ord.order_ref)
-      const activeSched = scheduledMap.get(ord.order_ref)
+    const uniqueOrders = deduplicateByOrderRef(orders)
+
+    const enriched = uniqueOrders.map(ord => {
+      const ref = getCanonicalOrderRef(ord)
+      const activeDelivery = deliveryMap.get(ref)
+      const activePickup = pickupMap.get(ref)
+      const activePkg = packagingMap.get(ref)
+      const activeSched = scheduledMap.get(ref)
 
       let fulfillment_status: WebsiteOrder['fulfillment_status'] = ord.fulfillment_status
       let rider_name = ord.rider_name
 
-      if (activeDelivery) {
+      if (activePickup && activePickup.order_status === 'collected') {
+        fulfillment_status = 'delivered'
+        rider_name = activePickup.collected_by
+          ? `Collected by ${activePickup.collected_by}`
+          : 'Store Pickup — Collected'
+      } else if (activeDelivery) {
         if (activeDelivery.status === 'delivered') {
           fulfillment_status = 'delivered'
           rider_name = activeDelivery.assigned_rider || 'Delivered'
-        } else if (activeDelivery.status === 'in_transit' || activeDelivery.status === 'out_for_delivery' || activeDelivery.status === 'assigned') {
+        } else if (activeDelivery.status === 'in_transit' || activeDelivery.status === 'out_for_delivery') {
           fulfillment_status = 'in_transit'
+          rider_name = activeDelivery.assigned_rider || 'Assigned Rider'
+        } else if (activeDelivery.status === 'assigned') {
+          fulfillment_status = 'ready_for_dispatch'
           rider_name = activeDelivery.assigned_rider || 'Assigned Rider'
         } else if (activeDelivery.status === 'pending') {
           fulfillment_status = 'ready_for_dispatch'
           rider_name = 'Awaiting Rider Assignment'
         }
+      } else if (ord.fulfillment_status === 'delivered') {
+        fulfillment_status = 'delivered'
+        if (!rider_name || rider_name === 'Pending Rider' || rider_name === 'Packaged — Ready for Dispatch') {
+          rider_name = activePickup ? 'Store Pickup — Collected' : 'Delivered'
+        }
+      } else if (activePickup && activePickup.order_status === 'ready_for_pickup' && (!activePkg || activePkg.order_status === 'packaged')) {
+        fulfillment_status = 'ready_for_dispatch'
+        rider_name = 'Ready at Pickup Counter'
       } else if (activePkg) {
         if (activePkg.order_status === 'packaged') {
           fulfillment_status = 'ready_for_dispatch'
-          rider_name = 'Packaged — Ready for Dispatch'
+          rider_name = activePickup ? 'Ready at Pickup Counter' : 'Packaged — Ready for Dispatch'
         } else if (activePkg.order_status === 'in_packaging') {
           fulfillment_status = 'packaging'
           rider_name = 'Packing in Progress'
@@ -705,18 +731,23 @@ export const WebsiteOrdersPage: React.FC = () => {
 
       return {
         ...ord,
+        order_ref: ref || ord.order_ref,
         fulfillment_status,
         rider_name,
         scheduled_delivery_at: activeSched?.scheduled_delivery_at || ord.scheduled_delivery_at
       }
     })
 
+    const enrichedRefs = new Set(enriched.map(o => getCanonicalOrderRef(o)))
+
     // Also include any scheduled pre-orders from scheduledOrders so they show under Order Intake
     scheduledOrders.forEach(so => {
-      if (!enriched.some(o => o.order_ref === so.order_ref)) {
+      const schedRef = getCanonicalOrderRef(so)
+      if (schedRef && !enrichedRefs.has(schedRef)) {
+        enrichedRefs.add(schedRef)
         enriched.push({
           id: so.id,
-          order_ref: so.order_ref,
+          order_ref: schedRef,
           customer_name: so.customer_name,
           phone: so.phone,
           address: so.address,
@@ -735,7 +766,7 @@ export const WebsiteOrdersPage: React.FC = () => {
     })
 
     return enriched
-  }, [orders, logisticsDeliveries, packagingQueue, scheduledOrders])
+  }, [orders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
 
   // KPIs
   const totalOrdersCount = displayOrders.length
@@ -763,12 +794,18 @@ export const WebsiteOrdersPage: React.FC = () => {
     }
   }, [displayOrders, activeTab])
 
-  // Combined searched orders matching search query
+  // Combined searched orders matching search query (includes live queue and historical database matches)
   const searchedOrders = useMemo(() => {
     if (!searchQuery.trim()) return tabFilteredOrders
     const q = searchQuery.toLowerCase().trim()
-    return tabFilteredOrders.filter((o) => {
-      return (
+    const map = new Map<string, WebsiteOrder>()
+
+    // 1. Live matching orders in active operational queues
+    tabFilteredOrders.forEach((o) => {
+      const ref = getCanonicalOrderRef(o)
+      if (!ref) return
+      if (
+        ref.toLowerCase().includes(q) ||
         o.order_ref.toLowerCase().includes(q) ||
         o.customer_name.toLowerCase().includes(q) ||
         o.phone.toLowerCase().includes(q) ||
@@ -776,9 +813,21 @@ export const WebsiteOrdersPage: React.FC = () => {
         o.items_summary.toLowerCase().includes(q) ||
         o.channel.toLowerCase().includes(q) ||
         o.notes.toLowerCase().includes(q)
-      )
+      ) {
+        map.set(ref, o)
+      }
     })
-  }, [tabFilteredOrders, searchQuery])
+
+    // 2. Deep historical database matches (by Customer Name, Order ID, Phone, Address)
+    backendSuggestions.forEach((bo) => {
+      const ref = getCanonicalOrderRef(bo)
+      if (ref && !map.has(ref)) {
+        map.set(ref, bo)
+      }
+    })
+
+    return Array.from(map.values())
+  }, [tabFilteredOrders, searchQuery, backendSuggestions])
 
   const handleOpenDetails = (order: WebsiteOrder) => {
     setSelectedOrder(order)
@@ -855,12 +904,23 @@ export const WebsiteOrdersPage: React.FC = () => {
       key: 'address',
       header: 'Delivery Location',
       defaultWidth: 220,
-      accessor: (o) => (
-        <div className="flex items-start gap-1 text-xs text-kumo-default">
-          <MapPin className="w-3.5 h-3.5 text-kumo-subtle shrink-0 mt-0.5" />
-          <span className="line-clamp-1">{o.address}</span>
-        </div>
-      ),
+      accessor: (o) => {
+        const parsed = parseOrderNotes(o.notes)
+        return (
+          <div>
+            <div className="flex items-start gap-1 text-xs text-kumo-default">
+              <MapPin className="w-3.5 h-3.5 text-kumo-subtle shrink-0 mt-0.5" />
+              <span className="line-clamp-1">{o.address}</span>
+            </div>
+            {parsed.deliveryNote && (
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate mt-0.5 flex items-center gap-1 font-sans" title={`Delivery Note: ${parsed.deliveryNote}`}>
+                <FileText className="w-3 h-3 shrink-0 text-zinc-500" />
+                <span className="truncate">Note: {parsed.deliveryNote}</span>
+              </div>
+            )}
+          </div>
+        )
+      },
       sortValue: (o) => o.address
     },
     {
@@ -991,7 +1051,6 @@ export const WebsiteOrdersPage: React.FC = () => {
           title="Total Gross Revenue"
           value={loading ? '...' : formatNaira(totalGrossRevenue)}
           description="Customer payment settlement"
-          trend={{ value: 12.5, isPositive: true }}
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
           isLocked={!canViewKPIs}
           lockedMessage="Confidential Revenue"
@@ -1069,10 +1128,16 @@ export const WebsiteOrdersPage: React.FC = () => {
       {/* 4. DataTable with Unified Search Slot, Category filters, and Full Order Data */}
       <DataTable
         data={searchedOrders}
+        keyExtractor={(o) => getCanonicalOrderRef(o)}
         columns={columns}
         onRowClick={handleOpenDetails}
         tableId="website_orders_table"
         exportFilename="website_orders.csv"
+        emptyMessage={
+          searchQuery.trim()
+            ? `No orders found matching "${searchQuery}". Check spelling or search by Order ID (e.g. SHD-00002) or phone.`
+            : "Live storefront orders will stream here in real time as customers order. Search by Customer Name, Order ID, or Phone above to view any historical record."
+        }
         customSearchSlot={
           <div className="relative font-sans w-full" ref={searchContainerRef}>
             <div className="relative flex items-center">
@@ -1132,7 +1197,7 @@ export const WebsiteOrdersPage: React.FC = () => {
                     const isActive = idx === activeSuggestionIndex
                     return (
                       <div
-                        key={order.id}
+                        key={getCanonicalOrderRef(order) || order.id}
                         onClick={() => handleSelectSuggestion(order)}
                         onMouseEnter={() => setActiveSuggestionIndex(idx)}
                         className={cn(
@@ -1231,7 +1296,10 @@ export const WebsiteOrdersPage: React.FC = () => {
             </div>
           }
         >
-          <div className="space-y-4 font-sans text-xs">
+          {(() => {
+            const selectedOrderNotes = parseOrderNotes(selectedOrder.notes)
+            return (
+              <div className="space-y-4 font-sans text-xs">
             {/* Master Divided Card Container (Desaturated Grey matching Image 2) */}
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
               
@@ -1300,6 +1368,14 @@ export const WebsiteOrdersPage: React.FC = () => {
                       )}
                     </span>
                   </div>
+                  {selectedOrderNotes.transferName && (
+                    <div className="flex items-start text-[13px]">
+                      <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Transfer Sender</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
+                        {selectedOrderNotes.transferName}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1336,6 +1412,22 @@ export const WebsiteOrdersPage: React.FC = () => {
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
                     <span className="flex-1 text-zinc-900 dark:text-zinc-100 font-medium block leading-snug">{selectedOrder.address}</span>
+                  </div>
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Note</span>
+                    {selectedOrderNotes.deliveryNote ? (
+                      <div className="flex-1 bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700/80 rounded-lg p-2.5 text-zinc-900 dark:text-zinc-100">
+                        <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 font-semibold text-[11px] uppercase tracking-wider mb-1">
+                          <FileText className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
+                          <span>Customer Instructions</span>
+                        </div>
+                        <p className="text-[12.5px] font-medium leading-relaxed whitespace-pre-wrap text-zinc-900 dark:text-zinc-100">
+                          {selectedOrderNotes.deliveryNote}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-zinc-400 dark:text-zinc-500 italic text-[12px]">None</span>
+                    )}
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Assigned Courier</span>
@@ -1422,20 +1514,22 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
 
               {/* Section 5: Order Notes (if present) */}
-              {cleanOrderNotes(selectedOrder.notes) && (
+              {selectedOrderNotes.fullCleanNote && (
                 <div className="p-4 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/50">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                       Order Notes
                     </span>
                   </div>
-                  <p className="text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed pt-0.5">
-                    {cleanOrderNotes(selectedOrder.notes)}
+                  <p className="text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed pt-0.5 whitespace-pre-wrap">
+                    {selectedOrderNotes.fullCleanNote}
                   </p>
                 </div>
               )}
             </div>
           </div>
+            )
+          })()}
         </Dialog>
       )}
 

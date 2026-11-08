@@ -260,6 +260,7 @@ export const DeliverySchedulePage: React.FC = () => {
         exportFilename="smokey-delivery-schedules"
         onDateRangeChange={setDateRange}
         onRowClick={(o) => handleOpenDetails(o)}
+        emptyMessage="Advance pre-orders scheduled by customers for future dates will appear here."
       />
 
       {/* Scheduled Order Details Modal */}

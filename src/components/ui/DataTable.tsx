@@ -20,7 +20,8 @@ import {
   Calendar,
   Check,
   Minus,
-  ArrowDownWideNarrow
+  ArrowDownWideNarrow,
+  Inbox
 } from 'lucide-react'
 import { Tooltip } from './Tooltip'
 import { DateRangePicker, type DateRange } from './DateRangePicker'
@@ -48,6 +49,7 @@ export interface DataTableProps<T> {
   searchPlaceholder?: string
   searchablePlaceholder?: string
   searchFilter?: (item: T, query: string) => boolean
+  onSearchChange?: (query: string) => void
   onRowClick?: (item: T) => void
   primaryAction?: {
     label: string
@@ -75,7 +77,7 @@ export interface DataTableProps<T> {
   actionHeader?: string
   rowActions?: (item: T) => React.ReactNode
   isLoading?: boolean
-  emptyMessage?: string
+  emptyMessage?: React.ReactNode
   exportFilename?: string
   /** Show the Export (CSV / JSON) dropdown in the toolbar. Defaults to true. */
   enableExport?: boolean
@@ -103,6 +105,7 @@ export function DataTable<T>({
   searchPlaceholder,
   searchablePlaceholder = 'Search records...',
   searchFilter,
+  onSearchChange,
   onRowClick,
   primaryAction,
   secondaryAction,
@@ -111,7 +114,7 @@ export function DataTable<T>({
   actionHeader = '',
   rowActions,
   isLoading = false,
-  emptyMessage = 'No records found matching your criteria.',
+  emptyMessage = 'Live operational queue is clear. Fresh incoming storefront orders will stream here in real time.',
   exportFilename = 'records.csv',
   enableExport = true,
   itemsPerPageOptions = [10, 25, 50],
@@ -522,8 +525,10 @@ export function DataTable<T>({
                 type="text"
                 value={searchQuery}
                 onChange={e => {
-                  setSearchQuery(e.target.value)
+                  const val = e.target.value
+                  setSearchQuery(val)
                   setCurrentPage(1)
+                  onSearchChange?.(val)
                 }}
                 placeholder={searchPlaceholder || searchablePlaceholder}
                 className="w-full h-10 pl-10 pr-4 text-sm rounded-lg ring ring-border/60 bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
@@ -870,8 +875,22 @@ export function DataTable<T>({
                     </div>
                   ))
                 ) : paginatedData.length === 0 ? (
-                  <div className="py-12 px-6 text-center text-sm text-muted-foreground w-full">
-                    {emptyMessage}
+                  <div className="py-16 px-6 text-center w-full flex flex-col items-center justify-center">
+                    {typeof emptyMessage === 'string' ? (
+                      <div className="max-w-md mx-auto flex flex-col items-center text-center">
+                        <div className="w-12 h-12 rounded-full bg-muted/40 border border-border/80 flex items-center justify-center mb-3 text-muted-foreground/80">
+                          {Boolean(searchQuery.trim()) ? <Search className="w-5 h-5 text-primary" /> : <Inbox className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+                        </div>
+                        <h4 className="text-sm font-semibold text-foreground mb-1">
+                          {Boolean(searchQuery.trim()) ? 'No Matching Records' : 'Active Queue Clear'}
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {emptyMessage}
+                        </p>
+                      </div>
+                    ) : (
+                      emptyMessage
+                    )}
                   </div>
                 ) : (
                   paginatedData.map(item => {
@@ -988,8 +1007,22 @@ export function DataTable<T>({
             Loading data...
           </div>
         ) : paginatedData.length === 0 ? (
-          <div className="p-6 bg-background border border-border/60 rounded-lg text-center text-sm text-muted-foreground">
-            {emptyMessage}
+          <div className="p-8 bg-background border border-border/60 rounded-xl text-center w-full flex flex-col items-center justify-center">
+            {typeof emptyMessage === 'string' ? (
+              <div className="max-w-xs mx-auto flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-full bg-muted/40 border border-border/80 flex items-center justify-center mb-2.5 text-muted-foreground/80">
+                  {Boolean(searchQuery.trim()) ? <Search className="w-4 h-4 text-primary" /> : <Inbox className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                </div>
+                <h4 className="text-xs font-semibold text-foreground mb-1">
+                  {Boolean(searchQuery.trim()) ? 'No Matching Records' : 'Active Queue Clear'}
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {emptyMessage}
+                </p>
+              </div>
+            ) : (
+              emptyMessage
+            )}
           </div>
         ) : (
           paginatedData.map(item => {

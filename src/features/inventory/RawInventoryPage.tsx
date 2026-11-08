@@ -150,16 +150,18 @@ export const RawInventoryPage: React.FC = () => {
   const [isRejectMode, setIsRejectMode] = useState<boolean>(false)
 
   // Adjust Form State with Direction & Magnitude
-  const [adjustDirection, setAdjustDirection] = useState<'deduct' | 'add'>('deduct')
+  const [adjustDirection, setAdjustDirection] = useState<'deduct' | 'add' | 'set'>('add')
   const [adjustMagnitude, setAdjustMagnitude] = useState<number>(1)
-  const [adjustReason, setAdjustReason] = useState<string>('Kitchen Waste & Trimmings')
+  const [adjustReason, setAdjustReason] = useState<string>('Physical Count Correction')
   const [adjustNotes, setAdjustNotes] = useState('')
+  const [adjustError, setAdjustError] = useState<string | null>(null)
 
   // Product Form State
   const [productForm, setProductForm] = useState({
     name: '',
     sku: '',
     unit: 'PIECES',
+    stock_qty: 0,
     unit_cost: 5000,
     reorder_level: 20,
     is_perishable: false,
@@ -258,9 +260,16 @@ export const RawInventoryPage: React.FC = () => {
 
   const handleOpenAdjust = (product: RawProduct) => {
     setSelectedProduct(product)
-    setAdjustDirection('deduct')
-    setAdjustMagnitude(1)
-    setAdjustReason('Kitchen Waste & Trimmings')
+    setAdjustError(null)
+    if ((product.stock_qty || 0) <= 0) {
+      setAdjustDirection('add')
+      setAdjustMagnitude(10)
+      setAdjustReason('Physical Count Correction')
+    } else {
+      setAdjustDirection('add')
+      setAdjustMagnitude(1)
+      setAdjustReason('Physical Count Correction')
+    }
     setAdjustNotes('')
     setIsAdjustModalOpen(true)
   }
@@ -280,6 +289,7 @@ export const RawInventoryPage: React.FC = () => {
         name: product.name,
         sku: product.sku,
         unit: product.unit,
+        stock_qty: Number(product.stock_qty ?? 0),
         unit_cost: product.unit_cost,
         reorder_level: product.reorder_level,
         is_perishable: product.is_perishable || false,
@@ -293,6 +303,7 @@ export const RawInventoryPage: React.FC = () => {
         name: '',
         sku: `SKU-${String(rawProducts.length + 101).padStart(5, '0')}`,
         unit: 'PIECES',
+        stock_qty: 0,
         unit_cost: 5000,
         reorder_level: 20,
         is_perishable: true,
@@ -330,8 +341,34 @@ export const RawInventoryPage: React.FC = () => {
   const handleSubmitAdjust = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return
-    const signedDelta = adjustDirection === 'deduct' ? -Math.abs(adjustMagnitude) : Math.abs(adjustMagnitude)
-    adjustRawStock(selectedProduct.id, signedDelta, adjustNotes, adjustReason)
+    setAdjustError(null)
+    const rawVal = Number(adjustMagnitude)
+    if (Number.isNaN(rawVal) || rawVal < 0) {
+      setAdjustError('Please enter a valid non-negative stock quantity.')
+      return
+    }
+    const currentStock = Number(selectedProduct.stock_qty || 0)
+    if (adjustDirection === 'deduct') {
+      if (rawVal <= 0) {
+        setAdjustError('Please enter a quantity greater than zero to deduct.')
+        return
+      }
+      if (rawVal > currentStock) {
+        setAdjustError(`Cannot deduct ${rawVal} ${selectedProduct.unit}. Current on-hand stock is ${currentStock} ${selectedProduct.unit}.`)
+        return
+      }
+    }
+    if (adjustDirection === 'add' && rawVal <= 0) {
+      setAdjustError('Please enter a quantity greater than zero to add.')
+      return
+    }
+    const signedDelta =
+      adjustDirection === 'set'
+        ? rawVal - currentStock
+        : adjustDirection === 'deduct'
+          ? -Math.abs(rawVal)
+          : Math.abs(rawVal)
+    adjustRawStock(selectedProduct.id, signedDelta, adjustNotes.trim() || adjustReason, adjustReason)
     setIsAdjustModalOpen(false)
   }
 
@@ -342,6 +379,7 @@ export const RawInventoryPage: React.FC = () => {
       name: productForm.name,
       sku: productForm.sku,
       unit: productForm.unit,
+      stock_qty: Math.max(0, Number(productForm.stock_qty ?? 0)),
       unit_cost: Number(productForm.unit_cost),
       reorder_level: Number(productForm.reorder_level),
       is_perishable: productForm.is_perishable,
@@ -1608,12 +1646,44 @@ export const RawInventoryPage: React.FC = () => {
 
           <div className="space-y-1.5 font-sans">
             <label className="block text-xs font-semibold text-kumo-strong">Adjustment Action</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdjustDirection('add')
+                  setAdjustError(null)
+                  setAdjustReason('Physical Count Correction')
+                }}
+                className={`h-9 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustDirection === 'add'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                    : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
+                }`}
+              >
+                <span>Add Stock (+)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdjustDirection('set')
+                  setAdjustError(null)
+                  setAdjustMagnitude(Number(selectedProduct?.stock_qty || 0))
+                  setAdjustReason('Physical Count Correction')
+                }}
+                className={`h-9 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  adjustDirection === 'set'
+                    ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                    : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
+                }`}
+              >
+                <span>Set Exact Count (=)</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setAdjustDirection('deduct')
-                  if (adjustReason === 'Audit Reconciliation Surplus' || adjustReason === 'Supplier Bonus / Extra Units') {
+                  setAdjustError(null)
+                  if (adjustReason === 'Audit Reconciliation Surplus' || adjustReason === 'Supplier Bonus / Extra Units' || adjustReason === 'Physical Count Correction') {
                     setAdjustReason('Kitchen Waste & Trimmings')
                   }
                 }}
@@ -1625,22 +1695,14 @@ export const RawInventoryPage: React.FC = () => {
               >
                 <span>Deduct / Waste (-)</span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdjustDirection('add')
-                  setAdjustReason('Audit Reconciliation Surplus')
-                }}
-                className={`h-9 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
-                  adjustDirection === 'add'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                    : 'bg-kumo-surface text-kumo-subtle border-kumo-line hover:bg-kumo-control'
-                }`}
-              >
-                <span>Add / Stock Surplus (+)</span>
-              </button>
             </div>
           </div>
+
+          {adjustError && (
+            <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300">
+              {adjustError}
+            </div>
+          )}
 
           <Select
             label="Adjustment Reason"
@@ -1656,34 +1718,44 @@ export const RawInventoryPage: React.FC = () => {
                     { value: 'Expired / Past Date', label: 'Expired / Past Date' }
                   ]
                 : [
+                    { value: 'Physical Count Correction', label: 'Physical Count Correction' },
                     { value: 'Audit Reconciliation Surplus', label: 'Audit Reconciliation Surplus' },
-                    { value: 'Supplier Bonus / Extra Units', label: 'Supplier Bonus / Extra Units' },
-                    { value: 'Physical Count Correction', label: 'Physical Count Correction' }
+                    { value: 'Supplier Bonus / Extra Units', label: 'Supplier Bonus / Extra Units' }
                   ]
             }
           />
 
           <UnitInput
-            label={`Quantity to ${adjustDirection === 'deduct' ? 'Deduct' : 'Add'}`}
+            label={
+              adjustDirection === 'set'
+                ? 'New Exact On-Hand Quantity'
+                : adjustDirection === 'deduct'
+                  ? 'Quantity to Deduct'
+                  : 'Quantity to Add'
+            }
             value={adjustMagnitude}
-            onChangeValue={setAdjustMagnitude}
+            onChangeValue={(val) => {
+              setAdjustMagnitude(val)
+              if (adjustError) setAdjustError(null)
+            }}
             unit={selectedProduct?.unit || 'units'}
             helperText={`Projected Balance: ${
-              adjustDirection === 'deduct'
-                ? Math.max(0, (selectedProduct?.stock_qty || 0) - Number(adjustMagnitude))
-                : (selectedProduct?.stock_qty || 0) + Number(adjustMagnitude)
+              adjustDirection === 'set'
+                ? Math.max(0, Number(adjustMagnitude || 0))
+                : adjustDirection === 'deduct'
+                  ? Math.max(0, (selectedProduct?.stock_qty || 0) - Number(adjustMagnitude || 0))
+                  : (selectedProduct?.stock_qty || 0) + Number(adjustMagnitude || 0)
             } ${selectedProduct?.unit}`}
-            min={0.1}
+            min={adjustDirection === 'set' ? 0 : 0.1}
             step="any"
             required
           />
 
           <Input
-            label="Audit Notes & Approver"
-            placeholder="e.g. Authorized by QC Lead after carcass inspection"
+            label="Audit Notes & Approver (Optional)"
+            placeholder="e.g. Authorized by QC Lead after physical shelf count"
             value={adjustNotes}
             onChange={(e) => setAdjustNotes(e.target.value)}
-            required
           />
         </form>
       </Dialog>
@@ -1788,6 +1860,16 @@ export const RawInventoryPage: React.FC = () => {
               />
             )}
           </div>
+
+          <UnitInput
+            label="Physical Stock (On-Hand)"
+            value={productForm.stock_qty}
+            onChangeValue={(val) => setProductForm(prev => ({ ...prev, stock_qty: Math.max(0, Number(val || 0)) }))}
+            unit={productForm.unit || 'units'}
+            min={0}
+            step="any"
+            required
+          />
 
           <Input
             label="Standard Unit Cost (₦)"

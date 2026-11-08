@@ -24,7 +24,9 @@ import {
   LifeBuoy,
 } from 'lucide-react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { supabase } from '@/lib/supabase'
 import { formatNaira } from '@/lib/utils'
+import { getCanonicalOrderRef } from '@/lib/orderCanonical'
 
 export interface CommandItem {
   id: string
@@ -60,6 +62,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
 
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [backendOrderItems, setBackendOrderItems] = useState<CommandItem[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -68,9 +71,47 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
     if (isOpen) {
       setQuery('')
       setSelectedIndex(0)
+      setBackendOrderItems([])
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [isOpen])
+
+  // Debounced deep historical lookup when searching orders in global Command Menu
+  useEffect(() => {
+    const q = query.trim()
+    if (!q || q.length < 2) {
+      setBackendOrderItems([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, customer_name, customer_phone, total_amount, delivery_address, status, traffic_source')
+          .is('deleted_at', null)
+          .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%`)
+          .order('created_at', { ascending: false })
+          .limit(10)
+        const rawOrders = (!error && Array.isArray(data)) ? data : []
+
+        const items: CommandItem[] = rawOrders.map(raw => ({
+          id: `backend-order-${raw.id}`,
+          title: `Order #${raw.id}: ${raw.customer_name || 'Customer'}`,
+          subtitle: `${formatNaira(raw.total_amount || 0)} • ${raw.delivery_address || 'Lagos'} • ${raw.customer_phone || ''}`,
+          category: 'Deliveries & Orders' as const,
+          href: `/sales/orders?order=${encodeURIComponent(raw.id)}`,
+          icon: ShoppingBag,
+          badge: String(raw.status || 'CONFIRMED').toUpperCase(),
+        }))
+        setBackendOrderItems(items)
+      } catch (err) {
+        console.warn('Backend order lookup error in CommandMenu:', err)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [query])
 
   // Build tailored command items list reflecting authentic live operational state
   const commandItems = useMemo<CommandItem[]>(() => {
@@ -341,13 +382,30 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose }) => 
   const filteredItems = useMemo(() => {
     if (!query.trim()) return commandItems
     const q = query.toLowerCase().trim()
-    return commandItems.filter(
+    const base = commandItems.filter(
       item =>
         item.title.toLowerCase().includes(q) ||
         (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
         item.category.toLowerCase().includes(q)
     )
-  }, [query, commandItems])
+    const existingOrderRefs = new Set(
+      base
+        .filter(i => i.category === 'Deliveries & Orders')
+        .map(i => {
+          const match = i.title.match(/#([A-Z0-9-]+):/i)
+          return match ? getCanonicalOrderRef(match[1]) : i.id
+        })
+    )
+    const seenExtraRefs = new Set<string>()
+    const extraOrders = backendOrderItems.filter(i => {
+      const match = i.title.match(/#([A-Z0-9-]+):/i)
+      const ref = match ? getCanonicalOrderRef(match[1]) : i.id
+      if (existingOrderRefs.has(ref) || seenExtraRefs.has(ref)) return false
+      seenExtraRefs.add(ref)
+      return true
+    })
+    return [...base, ...extraOrders]
+  }, [query, commandItems, backendOrderItems])
 
   // Reset selectedIndex when filter changes
   useEffect(() => {

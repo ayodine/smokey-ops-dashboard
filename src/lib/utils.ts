@@ -66,19 +66,50 @@ export function formatShortDate(dateString: string | Date): string {
   }).format(d)
 }
 
+export interface ParsedOrderNotes {
+  deliveryNote: string
+  transferName?: string
+  fullCleanNote: string
+}
+
 /**
- * Sanitizes order and dispatch notes by stripping internal attribution and system tags
- * such as "[via WhatsApp Menu]", "[Source: Instagram Link | Medium: referral]",
- * "[Delivery Promo]", and "[Scheduled Delivery: ...]", returning only pure operational notes.
+ * Parses raw order notes, separating customer delivery instructions from system metadata
+ * and payment transfer sender details.
  */
-export function cleanOrderNotes(notes?: string | null): string {
-  if (!notes) return ''
-  return notes
+export function parseOrderNotes(rawNotes?: string | null): ParsedOrderNotes {
+  if (!rawNotes) return { deliveryNote: '', transferName: '', fullCleanNote: '' }
+
+  // Strip all bracketed system & attribution tags
+  const cleaned = rawNotes
     .replace(/\[via\s+[^\]]+\]/gi, '')
     .replace(/\[Source:[^\]]+\]/gi, '')
     .replace(/\[Delivery\s+Promo\]/gi, '')
     .replace(/\[Scheduled\s+Delivery:[^\]]+\]/gi, '')
     .replace(/\[Promo:[^\]]+\]/gi, '')
+    .replace(/\[Pre-?Order:[^\]]+\]/gi, '')
+    .replace(/\[Dedicated\s+Dispatch[^\]]*\]/gi, '')
+    .replace(/\[Rescheduled[^\]]*\]/gi, '')
+    .replace(/\[attr:[^\]]+\]/gi, '')
+    .trim()
+
+  let transferName = ''
+  const transferMatch = cleaned.match(/Transfer Name:\s*([^\r\n]+)/i)
+  if (transferMatch) {
+    transferName = transferMatch[1].trim()
+  }
+
+  const deliveryNote = cleaned
+    .replace(/Transfer Name:\s*[^\r\n]+/gi, '')
     .replace(/^\s*[\r\n]+/gm, '')
     .trim()
+
+  return { deliveryNote, transferName, fullCleanNote: cleaned }
+}
+
+/**
+ * Sanitizes order and dispatch notes by stripping internal attribution and system tags,
+ * returning only pure human operational notes.
+ */
+export function cleanOrderNotes(notes?: string | null): string {
+  return parseOrderNotes(notes).fullCleanNote
 }

@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { PackagingQueueOrder, PackagingMaterialDaily } from '@/lib/smokeyData'
+import { getCanonicalOrderRef, deduplicateByOrderRef } from '@/lib/orderCanonical'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -33,6 +34,8 @@ import {
 export const PackagingExecutionPage: React.FC = () => {
   const {
     packagingQueue,
+    logisticsDeliveries,
+    storePickups,
     packagingProducts,
     packagingMaterialsDaily,
     startPackagingOrder,
@@ -97,10 +100,34 @@ export const PackagingExecutionPage: React.FC = () => {
     payment_status: 'paid' as 'paid' | 'pending'
   })
 
-  // Filter queues
-  const readyOrders = packagingQueue.filter(o => o.order_status === 'ready_for_fulfillment')
-  const inPackagingOrders = packagingQueue.filter(o => o.order_status === 'in_packaging')
-  const historyOrders = packagingQueue.filter(o => o.order_status === 'packaged')
+  // Filter queues with defensive invariant: any order already on the Dispatch Board or Store Pickup Counter cannot appear in Ready/In-Packaging
+  const dispatchedOrPickupRefs = useMemo(() => {
+    const refs = new Set<string>()
+    logisticsDeliveries.forEach(d => {
+      const ref = getCanonicalOrderRef(d)
+      if (ref) refs.add(ref)
+    })
+    storePickups.forEach(p => {
+      const ref = getCanonicalOrderRef(p)
+      if (ref) refs.add(ref)
+    })
+    return refs
+  }, [logisticsDeliveries, storePickups])
+
+  const uniquePackagingQueue = useMemo(() => deduplicateByOrderRef(packagingQueue), [packagingQueue])
+
+  const readyOrders = useMemo(
+    () => uniquePackagingQueue.filter(o => o.order_status === 'ready_for_fulfillment' && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
+    [uniquePackagingQueue, dispatchedOrPickupRefs]
+  )
+  const inPackagingOrders = useMemo(
+    () => uniquePackagingQueue.filter(o => o.order_status === 'in_packaging' && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
+    [uniquePackagingQueue, dispatchedOrPickupRefs]
+  )
+  const historyOrders = useMemo(
+    () => uniquePackagingQueue.filter(o => o.order_status === 'packaged' || dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
+    [uniquePackagingQueue, dispatchedOrPickupRefs]
+  )
 
   // KPIs
   const totalDailyMaterials = packagingMaterialsDaily.reduce((acc, m) => acc + m.total_consumed, 0)
@@ -499,24 +526,28 @@ export const PackagingExecutionPage: React.FC = () => {
         {activeTab === 'ready' && (
           <DataTable
             data={readyOrders}
+            keyExtractor={(o) => getCanonicalOrderRef(o)}
             columns={readyColumns}
             searchable={true}
             searchPlaceholder="Search order ref or customer..."
             title="Order Ready for Pack"
             exportFilename="smokey-orders-ready-to-pack"
             onRowClick={(o) => handleOpenDetails(o)}
+            emptyMessage="Fresh orders awaiting packing will appear here in real time as payments are verified."
           />
         )}
 
         {activeTab === 'in_packaging' && (
           <DataTable
             data={inPackagingOrders}
+            keyExtractor={(o) => getCanonicalOrderRef(o)}
             columns={inPackagingColumns}
             searchable={true}
             searchPlaceholder="Search packing orders..."
             title="Order in Packaging"
             exportFilename="smokey-orders-in-packaging"
             onRowClick={(o) => handleOpenDetails(o)}
+            emptyMessage="Orders currently being packed will show here."
           />
         )}
 
@@ -533,12 +564,14 @@ export const PackagingExecutionPage: React.FC = () => {
         {activeTab === 'history' && (
           <DataTable
             data={historyOrders}
+            keyExtractor={(o) => getCanonicalOrderRef(o)}
             columns={historyColumns}
             searchable={true}
             searchPlaceholder="Search packaged audit..."
             title="Packaged Order"
             exportFilename="smokey-packaging-history"
             onRowClick={(o) => handleOpenDetails(o)}
+            emptyMessage="Packaged orders handed over to dispatch will appear here."
           />
         )}
       </div>

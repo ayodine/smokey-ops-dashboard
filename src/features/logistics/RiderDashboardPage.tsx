@@ -674,8 +674,8 @@ export const RiderDashboardPage: React.FC = () => {
             />
             <MetricCard
               title="Payment Verification"
-              value="100% Prepaid"
-              description="Prepaid online before dispatch"
+              value={assignedOrders.length > 0 ? `${assignedOrders.length} Prepaid` : 'All Settled'}
+              description={assignedOrders.length > 0 ? "Prepaid online before dispatch" : "No pending order intake"}
               icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
@@ -703,15 +703,15 @@ export const RiderDashboardPage: React.FC = () => {
               icon={<DollarSign className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Cash Handling"
+              title="Cash On Delivery"
               value="₦0 (Prepaid)"
-              description="Zero cash to collect or remit"
+              description="Zero cash remittance expected"
               icon={<Receipt className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Active Load"
-              value={`${inTransitOrders.length} ${inTransitOrders.length === 1 ? 'Package' : 'Packages'}`}
-              description="Packages currently in delivery bag"
+              title="Drop-off Addresses"
+              value={`${new Set(inTransitOrders.map(o => o.address).filter(Boolean)).size} Locations`}
+              description="Distinct customer destinations"
               icon={<Clock className="w-4 h-4 text-zinc-500" />}
             />
           </>
@@ -727,9 +727,9 @@ export const RiderDashboardPage: React.FC = () => {
               icon={<CheckCircle2 className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard
-              title="Delivered in Ledger"
-              value={`${completedOrders.length} Trips`}
-              description="Historical trips recorded"
+              title="Delivered Today"
+              value={`${completedOrders.filter(o => o.delivered_at && new Date(o.delivered_at).toDateString() === new Date().toDateString()).length} Today`}
+              description="Doorstep completions today"
               icon={<Layers className="w-4 h-4 text-zinc-500" />}
             />
             <MetricCard

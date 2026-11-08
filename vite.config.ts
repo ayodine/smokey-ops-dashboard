@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     liveOrders: any[] | null
     products: any[] | null
     rawInventory: any[] | null
+    salesInventory: any[] | null
     packagingInventory: any[] | null
     suppliers: any[] | null
     fleetRiders: any[] | null
@@ -26,6 +27,7 @@ export default defineConfig(({ mode }) => {
     liveOrders: null,
     products: null,
     rawInventory: null,
+    salesInventory: null,
     packagingInventory: null,
     suppliers: null,
     fleetRiders: null,
@@ -42,7 +44,10 @@ export default defineConfig(({ mode }) => {
           .from('orders')
           .select('*, order_items(*)')
           .is('deleted_at', null)
+          .gte('created_at', '2026-11-06T02:00:00.000Z')
           .neq('status', 'pending_payment')
+          .neq('status', 'cancelled')
+          .neq('status', 'refunded')
           .order('created_at', { ascending: false })
           .limit(200),
         sb
@@ -55,6 +60,7 @@ export default defineConfig(({ mode }) => {
           .select('key, value')
           .in('key', [
             'inventory_raw',
+            'inventory_sales',
             'inventory_packaging',
             'suppliers',
             'fleet_riders',
@@ -72,6 +78,7 @@ export default defineConfig(({ mode }) => {
       if (!settingsRes.error && Array.isArray(settingsRes.data)) {
         const settingsMap = new Map(settingsRes.data.map((r: any) => [r.key, r.value]))
         if (settingsMap.has('inventory_raw')) serverCache.rawInventory = settingsMap.get('inventory_raw') || []
+        if (settingsMap.has('inventory_sales')) serverCache.salesInventory = settingsMap.get('inventory_sales') || []
         if (settingsMap.has('inventory_packaging')) serverCache.packagingInventory = settingsMap.get('inventory_packaging') || []
         if (settingsMap.has('suppliers')) serverCache.suppliers = settingsMap.get('suppliers') || []
         if (settingsMap.has('fleet_riders')) serverCache.fleetRiders = settingsMap.get('fleet_riders') || []
@@ -112,6 +119,7 @@ export default defineConfig(({ mode }) => {
             liveOrders: serverCache.liveOrders || [],
             products: serverCache.products || [],
             rawInventory: serverCache.rawInventory || [],
+            salesInventory: serverCache.salesInventory || [],
             packagingInventory: serverCache.packagingInventory || [],
             suppliers: serverCache.suppliers || [],
             fleetRiders: serverCache.fleetRiders || [],
@@ -152,16 +160,21 @@ export default defineConfig(({ mode }) => {
                   .from('orders')
                   .select('*, order_items(*)')
                   .is('deleted_at', null)
-                  .neq('status', 'pending_payment')
                   .order('created_at', { ascending: false })
 
                 if (query) {
-                  // Search historical records across all fields without limit restriction
+                  // Search historical records across all fields without cutoff restriction
                   queryBuilder = queryBuilder
                     .or(`customer_name.ilike.%${query}%,customer_phone.ilike.%${query}%,delivery_address.ilike.%${query}%,id.ilike.%${query}%,notes.ilike.%${query}%`)
                     .limit(50)
                 } else {
-                  queryBuilder = queryBuilder.limit(200)
+                  // Default live operations queue: strictly fresh orders only
+                  queryBuilder = queryBuilder
+                    .gte('created_at', '2026-11-06T02:00:00.000Z')
+                    .neq('status', 'pending_payment')
+                    .neq('status', 'cancelled')
+                    .neq('status', 'refunded')
+                    .limit(200)
                 }
 
                 const { data, error } = await queryBuilder
@@ -476,11 +489,13 @@ export default defineConfig(({ mode }) => {
                         return
                       }
                       if (key === 'inventory_raw') serverCache.rawInventory = value
+                      if (key === 'inventory_sales') serverCache.salesInventory = value
                       if (key === 'inventory_packaging') serverCache.packagingInventory = value
                       if (key === 'suppliers') serverCache.suppliers = value
                       if (key === 'fleet_riders') serverCache.fleetRiders = value
                       if (key === 'staff_accounts') serverCache.staffAccounts = value
                       if (key === 'facilities') serverCache.facilities = value
+                      serverCache.lastUpdated = Date.now()
                       res.statusCode = 200
                       res.setHeader('Content-Type', 'application/json')
                       res.end(JSON.stringify({ ok: true }))

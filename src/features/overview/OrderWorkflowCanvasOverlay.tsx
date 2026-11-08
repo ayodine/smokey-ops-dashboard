@@ -26,6 +26,10 @@ import {
   CornerDownLeft
 } from 'lucide-react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import {
+  getCanonicalOrderRef,
+  deduplicateByOrderRef
+} from '@/lib/orderCanonical'
 import { cn, formatNaira } from '@/lib/utils'
 
 export type PipelineStage =
@@ -48,11 +52,14 @@ export interface PipelineOrder {
   totalAmount: number
   portions: number
   channel: 'Website Storefront' | 'In Store Checkout' | 'Direct WhatsApp'
+  fulfillmentMode?: 'Instant Delivery' | 'Scheduled Pre-order' | 'Store Pick-up' | '3rd-Party Courier (3PL)'
   hasStock: boolean
   currentStage: PipelineStage
   paymentRef: string
   batchId?: string
   riderName?: string
+  riderType?: 'in_house' | 'third_party' | 'store_pickup'
+  isPayoutCleared?: boolean
   destinationAddress: string
   etaMinutes?: number
   otpCode: string
@@ -236,6 +243,13 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
   actionTitle = 'Attend to pending action'
 }) => {
   const navigate = useNavigate()
+  const { hasPermission, isRouteAllowed } = useSmokeyOps()
+
+  const canFollowLink = Boolean(
+    actionUrl &&
+    hasPermission('perm_overview_links') &&
+    isRouteAllowed(actionUrl)
+  )
 
   const figmaState: FigmaBadgeState =
     status === 'Done'
@@ -245,7 +259,17 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
       : 'draft'
 
   return (
-    <div className="relative px-3.5 py-2.5 flex items-center justify-between hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60 transition-colors group select-none">
+    <div
+      onClick={() => {
+        if (canFollowLink && actionUrl) {
+          navigate(actionUrl)
+        }
+      }}
+      className={cn(
+        'relative px-3.5 py-2.5 flex items-center justify-between hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60 transition-colors group select-none',
+        canFollowLink ? 'cursor-pointer' : ''
+      )}
+    >
       {/* Tiny Process Indicator Dot at Top Right Corner of Container: Grey for Automatic, Red for Action Required */}
       <span
         title={isAutomatic ? 'Automatic Process' : 'Action Required'}
@@ -260,7 +284,7 @@ export const WorkflowTaskRow: React.FC<WorkflowTaskRowProps> = ({
         <span className="text-[#374151] dark:text-zinc-200 font-normal text-[13.5px] truncate">
           {title}
         </span>
-        {actionUrl && (
+        {canFollowLink && actionUrl && (
           <button
             type="button"
             onClick={(e) => {
@@ -290,22 +314,22 @@ export const getStageLabel = (stage?: PipelineStage): string => {
     case 'p1_inventory_deduct':
       return 'Sales Stock Allocated'
     case 'p1_production_batch':
-      return 'Production Batch Running'
+      return 'Production Batch Smoking'
     case 'p2_in_packaging':
-      return 'Added to Packaging Queue'
+      return 'Queued for Packaging'
     case 'p2_materials_picked':
-      return 'In Packaging'
+      return 'In Packaging (Picking Materials)'
     case 'p2_dispatched':
-      return 'Packaged for Dispatch'
+      return 'Packaged • Ready for Dispatch'
     case 'p3_delivery_assigned':
-      return 'Rider Assigned'
+      return 'Rider / 3PL Courier Assigned'
     case 'p3_in_transit':
-      return 'In Transit'
+      return 'In Transit to Customer'
     case 'p3_doorstep_handover':
     case 'p3_delivered':
-      return 'Delivered'
+      return 'Delivered / Collected'
     case 'p3_settled_closed':
-      return 'Rider Payout Cleared'
+      return 'Completed & Payout Cleared'
     default:
       return 'Order Processing'
   }
@@ -352,7 +376,11 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     packagingQueue,
     logisticsDeliveries,
     scheduledOrders,
-    productionBatches
+    storePickups,
+    productionBatches,
+    liveSalesProducts,
+    salesProducts,
+    riders
   } = useSmokeyOps()
 
   // Full canvas collapse/expand state (matching Screenshot 2 bottom chevron)
@@ -365,32 +393,116 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   const [isAutoStreamActive, setIsAutoStreamActive] = useState<boolean>(false)
 
   const mapRowToPipelineOrder = (row: any): PipelineOrder => {
-    const orderRef = String(row.order_ref || row.id)
-    const status = String(row.fulfillment_status || 'delivered').toLowerCase()
+    const orderRef = getCanonicalOrderRef(row) || String(row.order_ref || row.id)
+    const status = String(row.fulfillment_status || row.order_status || row.status || 'in_intake').toLowerCase()
 
-    // Cross-reference live operational queues from SmokeyOpsContext
-    const matchedDelivery = logisticsDeliveries?.find((d) => String(d.order_ref) === orderRef)
-    const matchedPkg = packagingQueue?.find((p) => String(p.order_ref) === orderRef)
-    const matchedSched = scheduledOrders?.find((s) => String(s.order_ref) === orderRef)
+    // Cross-reference live operational queues from SmokeyOpsContext using canonical order reference
+    const matchedDelivery = logisticsDeliveries?.find((d) => getCanonicalOrderRef(d) === orderRef)
+    const matchedPkg = packagingQueue?.find((p) => getCanonicalOrderRef(p) === orderRef)
+    const matchedSched = scheduledOrders?.find((s) => getCanonicalOrderRef(s) === orderRef)
+    const matchedPickup = storePickups?.find((p) => getCanonicalOrderRef(p) === orderRef)
 
-    let currentStage: PipelineStage = 'p3_settled_closed'
-    let history: PipelineStage[] = [
-      'p1_ingestion',
-      'p1_inventory_deduct',
-      'p2_in_packaging',
-      'p2_materials_picked',
-      'p2_dispatched',
-      'p3_delivery_assigned',
-      'p3_in_transit',
-      'p3_doorstep_handover',
-      'p3_delivered',
-      'p3_settled_closed'
-    ]
+    const rawDeliveryType = String(row.delivery_type || row.fulfillment_type || '').toLowerCase()
+    const isPickupOrder =
+      Boolean(matchedPickup) ||
+      rawDeliveryType.includes('pickup') ||
+      rawDeliveryType.includes('pick-up') ||
+      rawDeliveryType.includes('pick_up') ||
+      status === 'ready_for_pickup' ||
+      status === 'picked_up'
 
-    if (matchedDelivery) {
-      if (matchedDelivery.status === 'delivered') {
+    const isThirdPartyOrder =
+      matchedDelivery?.rider_type === 'third_party' ||
+      rawDeliveryType.includes('third_party') ||
+      rawDeliveryType.includes('3pl')
+
+    const isScheduledOrder =
+      Boolean(matchedSched) ||
+      rawDeliveryType.includes('scheduled') ||
+      status === 'scheduled'
+
+    const fulfillmentMode: PipelineOrder['fulfillmentMode'] = isPickupOrder
+      ? 'Store Pick-up'
+      : isThirdPartyOrder
+      ? '3rd-Party Courier (3PL)'
+      : isScheduledOrder
+      ? 'Scheduled Pre-order'
+      : 'Instant Delivery'
+
+    const assignedRiderName =
+      matchedDelivery?.assigned_rider ||
+      row.rider_name ||
+      row.assigned_rider ||
+      (isPickupOrder ? 'Store Counter Pickup' : 'Unassigned')
+
+    // Determine whether rider payout or 3PL courier fee is verified/cleared
+    const matchedRiderObj = riders?.find(
+      (r) => String(r.rider_name || '').toLowerCase() === String(assignedRiderName).toLowerCase()
+    )
+    const isPayoutCleared = isPickupOrder
+      ? true
+      : isThirdPartyOrder
+      ? matchedDelivery?.fee_verify_status === 'approved' || Boolean((matchedDelivery as any)?.payout_cleared)
+      : matchedDelivery
+      ? Boolean((matchedDelivery as any)?.payout_cleared) ||
+        (matchedRiderObj ? Number(matchedRiderObj.pending_payout || 0) === 0 : true)
+      : true
+
+    // Check if products have available stock in Sales Stock
+    const activeStockList = (liveSalesProducts && liveSalesProducts.length > 0 ? liveSalesProducts : salesProducts) || []
+    const hasStock = activeStockList.length === 0
+      ? true
+      : activeStockList.some((p: any) => Number(p.available_portions ?? p.stock ?? 1) > 0)
+
+    let currentStage: PipelineStage = 'p1_ingestion'
+    let history: PipelineStage[] = ['p1_ingestion']
+
+    if (matchedPickup) {
+      const pStatus = String(matchedPickup.order_status || (matchedPickup as any).status || '').toLowerCase()
+      if (pStatus === 'collected' || pStatus === 'picked_up' || pStatus === 'completed' || pStatus === 'delivered') {
         currentStage = 'p3_settled_closed'
-      } else if (matchedDelivery.status === 'in_transit' || matchedDelivery.status === 'out_for_delivery') {
+        history = [
+          'p1_ingestion',
+          'p1_inventory_deduct',
+          'p2_in_packaging',
+          'p2_materials_picked',
+          'p2_dispatched',
+          'p3_delivery_assigned',
+          'p3_in_transit',
+          'p3_doorstep_handover',
+          'p3_delivered',
+          'p3_settled_closed'
+        ]
+      } else if (pStatus === 'ready_for_pickup' || pStatus === 'packaged') {
+        currentStage = 'p2_dispatched'
+        history = [
+          'p1_ingestion',
+          'p1_inventory_deduct',
+          'p2_in_packaging',
+          'p2_materials_picked',
+          'p2_dispatched'
+        ]
+      } else {
+        currentStage = 'p2_in_packaging'
+        history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
+      }
+    } else if (matchedDelivery) {
+      const dStatus = String(matchedDelivery.status || '').toLowerCase()
+      if (dStatus === 'delivered' || dStatus === 'completed') {
+        currentStage = isPayoutCleared ? 'p3_settled_closed' : 'p3_delivered'
+        history = [
+          'p1_ingestion',
+          'p1_inventory_deduct',
+          'p2_in_packaging',
+          'p2_materials_picked',
+          'p2_dispatched',
+          'p3_delivery_assigned',
+          'p3_in_transit',
+          'p3_doorstep_handover',
+          'p3_delivered',
+          ...(isPayoutCleared ? (['p3_settled_closed'] as PipelineStage[]) : [])
+        ]
+      } else if (dStatus === 'in_transit' || dStatus === 'out_for_delivery') {
         currentStage = 'p3_in_transit'
         history = [
           'p1_ingestion',
@@ -401,7 +513,7 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           'p3_delivery_assigned',
           'p3_in_transit'
         ]
-      } else if (matchedDelivery.status === 'assigned') {
+      } else if (dStatus === 'assigned') {
         currentStage = 'p3_delivery_assigned'
         history = [
           'p1_ingestion',
@@ -421,11 +533,9 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           'p2_dispatched'
         ]
       }
-    } else if (matchedSched) {
-      currentStage = 'p1_inventory_deduct'
-      history = ['p1_ingestion', 'p1_inventory_deduct']
     } else if (matchedPkg) {
-      if (matchedPkg.order_status === 'packaged') {
+      const pkgStatus = String(matchedPkg.order_status || '').toLowerCase()
+      if (pkgStatus === 'packaged' || pkgStatus === 'ready_for_dispatch') {
         currentStage = 'p2_dispatched'
         history = [
           'p1_ingestion',
@@ -434,32 +544,37 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           'p2_materials_picked',
           'p2_dispatched'
         ]
-      } else if (matchedPkg.order_status === 'in_packaging') {
+      } else if (pkgStatus === 'in_packaging') {
         currentStage = 'p2_materials_picked'
         history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging', 'p2_materials_picked']
       } else {
         currentStage = 'p2_in_packaging'
         history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
       }
-    } else if (status === 'in_intake') {
-      currentStage = 'p1_ingestion'
-      history = ['p1_ingestion']
-    } else if (status === 'cooking') {
-      currentStage = 'p1_production_batch'
-      history = ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
-    } else if (status === 'packaging') {
-      currentStage = 'p2_in_packaging'
-      history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
-    } else if (status === 'ready_for_dispatch') {
-      currentStage = 'p2_dispatched'
+    } else if (matchedSched) {
+      const schedStatus = String(matchedSched.order_status || (matchedSched as any).status || '').toLowerCase()
+      if (schedStatus === 'dispatched' || schedStatus === 'sent_to_packaging') {
+        currentStage = 'p2_in_packaging'
+        history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
+      } else {
+        currentStage = 'p1_inventory_deduct'
+        history = ['p1_ingestion', 'p1_inventory_deduct']
+      }
+    } else if (status === 'delivered' || status === 'picked_up' || status === 'completed') {
+      currentStage = isPayoutCleared ? 'p3_settled_closed' : 'p3_delivered'
       history = [
         'p1_ingestion',
         'p1_inventory_deduct',
         'p2_in_packaging',
         'p2_materials_picked',
-        'p2_dispatched'
+        'p2_dispatched',
+        'p3_delivery_assigned',
+        'p3_in_transit',
+        'p3_doorstep_handover',
+        'p3_delivered',
+        ...(isPayoutCleared ? (['p3_settled_closed'] as PipelineStage[]) : [])
       ]
-    } else if (status === 'in_transit') {
+    } else if (status === 'in_transit' || status === 'out_for_delivery') {
       currentStage = 'p3_in_transit'
       history = [
         'p1_ingestion',
@@ -470,39 +585,85 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         'p3_delivery_assigned',
         'p3_in_transit'
       ]
+    } else if (status === 'assigned') {
+      currentStage = 'p3_delivery_assigned'
+      history = [
+        'p1_ingestion',
+        'p1_inventory_deduct',
+        'p2_in_packaging',
+        'p2_materials_picked',
+        'p2_dispatched',
+        'p3_delivery_assigned'
+      ]
+    } else if (status === 'ready_for_dispatch' || status === 'ready_for_pickup' || status === 'packaged') {
+      currentStage = 'p2_dispatched'
+      history = [
+        'p1_ingestion',
+        'p1_inventory_deduct',
+        'p2_in_packaging',
+        'p2_materials_picked',
+        'p2_dispatched'
+      ]
+    } else if (status === 'in_packaging') {
+      currentStage = 'p2_materials_picked'
+      history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging', 'p2_materials_picked']
+    } else if (status === 'packaging' || status === 'awaiting_packaging') {
+      currentStage = 'p2_in_packaging'
+      history = ['p1_ingestion', 'p1_inventory_deduct', 'p2_in_packaging']
+    } else if (status === 'cooking' || status === 'smoking' || status === 'in_production') {
+      currentStage = 'p1_production_batch'
+      history = ['p1_ingestion', 'p1_inventory_deduct', 'p1_production_batch']
+    } else if (status === 'scheduled') {
+      currentStage = 'p1_inventory_deduct'
+      history = ['p1_ingestion', 'p1_inventory_deduct']
+    } else {
+      currentStage = 'p1_ingestion'
+      history = ['p1_ingestion']
     }
 
     const ch = String(row.channel || '').toLowerCase()
+    const totalPortionsFromPkg = matchedPkg?.items?.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0) || 0
     return {
       id: orderRef,
-      customerName: row.customer_name || 'Customer',
-      dishName: row.items_summary || 'Smokey Order Product',
-      totalAmount: Number(row.total_amount ?? row.total) || 0,
-      portions: 1,
+      customerName: row.customer_name || matchedDelivery?.customer_name || matchedPkg?.customer_name || matchedPickup?.customer_name || 'Customer',
+      dishName: row.items_summary || matchedPkg?.items_summary || matchedDelivery?.items_summary || matchedPickup?.items_summary || 'Smokey Order Product',
+      totalAmount: Number(row.total_amount ?? row.total ?? matchedDelivery?.total_amount ?? matchedPickup?.total_amount) || 0,
+      portions: Number(row.portions || totalPortionsFromPkg) || 1,
       channel:
         ch.includes('whatsapp')
           ? 'Direct WhatsApp'
           : ch.includes('pos') || ch.includes('in_store') || ch.includes('walk-in')
           ? 'In Store Checkout'
           : 'Website Storefront',
-      hasStock: true,
+      fulfillmentMode,
+      hasStock,
       currentStage,
       paymentRef: row.payment_reference || `pay_${orderRef.toLowerCase()}`,
-      riderName: matchedDelivery?.assigned_rider || row.rider_name || 'Unassigned',
-      destinationAddress: row.address || row.delivery_address || 'Lagos, Nigeria',
-      otpCode: '5842',
-      deliveryFee: Number(row.delivery_fee) || 3000,
+      riderName: assignedRiderName,
+      riderType: isPickupOrder ? 'store_pickup' : isThirdPartyOrder ? 'third_party' : 'in_house',
+      isPayoutCleared,
+      destinationAddress: row.address || row.delivery_address || matchedDelivery?.address || (isPickupOrder ? 'In-Store Pickup Counter' : 'Lagos, Nigeria'),
+      otpCode: String((matchedPickup as any)?.pickup_code || '5842'),
+      deliveryFee: Number(row.delivery_fee ?? matchedDelivery?.delivery_fee) || 0,
       history
     }
   }
 
-  // Orders in pipeline state — pre-populated from context websiteOrders without fake fallback orders
-  const [orders, setOrders] = useState<PipelineOrder[]>(() => {
-    if (websiteOrders && websiteOrders.length > 0) {
-      return websiteOrders.map(mapRowToPipelineOrder)
-    }
-    return []
-  })
+  const buildUnifiedPipelineOrders = (): PipelineOrder[] => {
+    const combinedRaw = [
+      ...(websiteOrders || []),
+      ...(scheduledOrders || []),
+      ...(packagingQueue || []),
+      ...(storePickups || []),
+      ...(logisticsDeliveries || [])
+    ]
+    if (combinedRaw.length === 0) return []
+    const deduplicated = deduplicateByOrderRef(combinedRaw)
+    return deduplicated.map(mapRowToPipelineOrder)
+  }
+
+  // Orders in pipeline state — unified & deduplicated across all live operational queues
+  const [orders, setOrders] = useState<PipelineOrder[]>(() => buildUnifiedPipelineOrders())
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [orderSearchInput, setOrderSearchInput] = useState<string>('')
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false)
@@ -515,17 +676,23 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
   useEffect(() => {
     const paramId = searchParams.get('orderId')
     if (paramId) {
-      setSelectedOrderId(paramId)
+      setSelectedOrderId(getCanonicalOrderRef({ order_ref: paramId }) || paramId)
     }
   }, [searchParams])
 
   // Keep in sync when websiteOrders or operational queues update in context
   useEffect(() => {
-    if (websiteOrders && websiteOrders.length > 0) {
-      const mapped = websiteOrders.map(mapRowToPipelineOrder)
-      setOrders(mapped)
-    }
-  }, [websiteOrders, packagingQueue, logisticsDeliveries, scheduledOrders])
+    setOrders(buildUnifiedPipelineOrders())
+  }, [
+    websiteOrders,
+    packagingQueue,
+    logisticsDeliveries,
+    scheduledOrders,
+    storePickups,
+    productionBatches,
+    liveSalesProducts,
+    riders
+  ])
 
   // Close search suggestions on click outside
   useEffect(() => {
@@ -769,16 +936,201 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
     return orders.find((o) => o.id === selectedOrderId) || null
   }, [orders, selectedOrderId])
 
+  // Dynamic deep-link URLs matching the active order's fulfillment mode and stage
+  const dynamicWorkflowLinks = useMemo(() => {
+    const q = activeOrder ? `?search=${encodeURIComponent(activeOrder.id)}` : ''
+    const isPickup = activeOrder?.fulfillmentMode === 'Store Pick-up'
+    const is3PL = activeOrder?.fulfillmentMode === '3rd-Party Courier (3PL)'
+    const isScheduled = activeOrder?.fulfillmentMode === 'Scheduled Pre-order'
+
+    return {
+      intakeOrders: `/sales/orders${q}`,
+      scheduleOrQueue: isPickup
+        ? `/logistics/pickup${q}`
+        : isScheduled
+        ? `/logistics/schedule${q}`
+        : activeOrder
+        ? `/production/packaging${q}`
+        : '/logistics/schedule',
+      salesStock: '/inventory/sales',
+      productionBatches: '/production/batches',
+      packagingQueue: `/production/packaging${q}`,
+      logisticsDispatch: isPickup
+        ? `/logistics/pickup${q}`
+        : is3PL
+        ? `/logistics/third-party${q}`
+        : `/logistics/board${q}`,
+      payoutSettlement: is3PL
+        ? `/logistics/third-party${q}`
+        : isPickup
+        ? `/logistics/pickup${q}`
+        : '/logistics/riders'
+    }
+  }, [activeOrder])
+
   // Sub-group status and count metrics for all main categories
   const pipelineMetrics = useMemo(() => {
-    const isFulfilled =
-      activeOrder?.currentStage === 'p3_delivered' ||
+    // When no single order is selected, compute Live Aggregate Pipeline Metrics across all active operational queues
+    if (!activeOrder) {
+      const hasAnyOrders = orders.length > 0
+      const hasOrdersInIntake = orders.some(
+        (o) => o.currentStage === 'p1_ingestion' || o.currentStage === 'p1_inventory_deduct'
+      )
+      const intakeValidation: 'Done' | 'In Progress' | 'Pending' = hasAnyOrders ? 'Done' : 'Pending'
+      const intakePayment: 'Done' | 'In Progress' | 'Pending' = hasAnyOrders ? 'Done' : 'Pending'
+      const intakeChannel: 'Done' | 'In Progress' | 'Pending' = hasOrdersInIntake
+        ? 'In Progress'
+        : hasAnyOrders
+        ? 'Done'
+        : 'Pending'
+      const intakeDoneCount = [intakeValidation, intakePayment, intakeChannel].filter((s) => s === 'Done').length
+
+      const activeStockItems = (liveSalesProducts && liveSalesProducts.length > 0 ? liveSalesProducts : salesProducts) || []
+      const hasAvailableStock = activeStockItems.some((p: any) => Number(p.available_portions ?? p.stock ?? 0) > 0)
+      const invStock: 'Done' | 'In Progress' | 'Pending' = hasAvailableStock ? 'Done' : 'Pending'
+      const invAllocation: 'Done' | 'In Progress' | 'Pending' = orders.some((o) => o.currentStage === 'p1_inventory_deduct')
+        ? 'In Progress'
+        : orders.some((o) => o.history.includes('p1_inventory_deduct'))
+        ? 'Done'
+        : 'Pending'
+      const invIngredients: 'Done' | 'In Progress' | 'Pending' = orders.some(
+        (o) => o.history.includes('p2_in_packaging') || o.history.includes('p3_delivered')
+      )
+        ? 'Done'
+        : 'Pending'
+      const invDoneCount = [invStock, invAllocation, invIngredients].filter((s) => s === 'Done').length
+
+      const batchesList = productionBatches || []
+      const hasActiveBatch = batchesList.some((b: any) => {
+        const s = String(b.status || '').toLowerCase()
+        return s === 'in_progress' || s === 'smoking' || s === 'cooking' || s === 'pending'
+      })
+      const hasCompletedBatch = batchesList.some((b: any) => String(b.status || '').toLowerCase() === 'completed')
+      const cookSchedule: 'Done' | 'In Progress' | 'Pending' =
+        batchesList.length > 0 || hasAvailableStock ? 'Done' : 'Pending'
+      const cookCooking: 'Done' | 'In Progress' | 'Pending' = hasActiveBatch
+        ? 'In Progress'
+        : hasCompletedBatch || hasAvailableStock
+        ? 'Done'
+        : 'Pending'
+      const cookOutput: 'Done' | 'In Progress' | 'Pending' =
+        hasCompletedBatch || hasAvailableStock ? 'Done' : hasActiveBatch ? 'In Progress' : 'Pending'
+      const cookDoneCount = [cookSchedule, cookCooking, cookOutput].filter((s) => s === 'Done').length
+
+      const pkgList = packagingQueue || []
+      const hasAwaitingPkg = pkgList.some((p) => p.order_status === 'ready_for_fulfillment')
+      const hasInPkg = pkgList.some((p) => p.order_status === 'in_packaging')
+      const hasPackaged =
+        pkgList.some((p) => p.order_status === 'packaged') ||
+        orders.some((o) => o.history.includes('p2_dispatched'))
+      const pkgQueue: 'Done' | 'In Progress' | 'Pending' = hasAwaitingPkg
+        ? 'In Progress'
+        : pkgList.length > 0 || orders.some((o) => o.history.includes('p2_in_packaging'))
+        ? 'Done'
+        : 'Pending'
+      const pkgDeduction: 'Done' | 'In Progress' | 'Pending' = hasInPkg
+        ? 'In Progress'
+        : hasPackaged
+        ? 'Done'
+        : 'Pending'
+      const pkgSealing: 'Done' | 'In Progress' | 'Pending' = hasPackaged
+        ? 'Done'
+        : hasInPkg
+        ? 'In Progress'
+        : 'Pending'
+      const pkgDoneCount = [pkgQueue, pkgDeduction, pkgSealing].filter((s) => s === 'Done').length
+
+      const delList = logisticsDeliveries || []
+      const pickupList = storePickups || []
+      const hasAwaitingRider = delList.some(
+        (d) => d.status === 'pending' || !d.assigned_rider || d.assigned_rider === 'Unassigned'
+      )
+      const hasAssignedOrInTransit =
+        delList.some((d) => d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery') ||
+        pickupList.some((p) => p.order_status === 'ready_for_pickup')
+      const hasDeliveredOrders =
+        delList.some((d) => d.status === 'delivered') ||
+        pickupList.some((p) => p.order_status === 'collected') ||
+        orders.some((o) => o.history.includes('p3_delivered'))
+      const hasPendingPayoutOrFee =
+        (riders || []).some((r) => Number(r.pending_payout || 0) > 0) ||
+        delList.some((d) => d.rider_type === 'third_party' && d.fee_verify_status === 'pending')
+
+      const delDriver: 'Done' | 'In Progress' | 'Pending' = hasAwaitingRider
+        ? 'In Progress'
+        : hasAssignedOrInTransit || hasDeliveredOrders
+        ? 'Done'
+        : 'Pending'
+      const delPickup: 'Done' | 'In Progress' | 'Pending' = hasAssignedOrInTransit
+        ? 'In Progress'
+        : hasDeliveredOrders
+        ? 'Done'
+        : 'Pending'
+      const delDelivered: 'Done' | 'In Progress' | 'Pending' = hasDeliveredOrders
+        ? 'Done'
+        : hasAssignedOrInTransit
+        ? 'In Progress'
+        : 'Pending'
+      const delPayout: 'Done' | 'In Progress' | 'Pending' = hasPendingPayoutOrFee
+        ? 'In Progress'
+        : hasDeliveredOrders
+        ? 'Done'
+        : 'Pending'
+      const delDoneCount = [delDriver, delPickup, delDelivered, delPayout].filter((s) => s === 'Done').length
+
+      return {
+        isFulfilled: false,
+        intake: {
+          validation: intakeValidation,
+          payment: intakePayment,
+          channel: intakeChannel,
+          doneCount: intakeDoneCount,
+          totalCount: 3,
+          badgeLabel: `${intakeDoneCount}/3`
+        },
+        inventory: {
+          stock: invStock,
+          allocation: invAllocation,
+          ingredients: invIngredients,
+          doneCount: invDoneCount,
+          totalCount: 3,
+          badgeLabel: `${invDoneCount}/3`
+        },
+        cooking: {
+          schedule: cookSchedule,
+          cooking: cookCooking,
+          output: cookOutput,
+          doneCount: cookDoneCount,
+          totalCount: 3,
+          badgeLabel: `${cookDoneCount}/3`
+        },
+        packaging: {
+          queue: pkgQueue,
+          materials: pkgDeduction,
+          deduction: pkgDeduction,
+          sealing: pkgSealing,
+          doneCount: pkgDoneCount,
+          totalCount: 3,
+          badgeLabel: `${pkgDoneCount}/3`
+        },
+        delivery: {
+          driver: delDriver,
+          pickup: delPickup,
+          delivered: delDelivered,
+          payout: delPayout,
+          doneCount: delDoneCount,
+          totalCount: 4,
+          badgeLabel: `${delDoneCount}/4`
+        }
+      }
+    }
+
+    const isSettledAndFulfilled =
       activeOrder?.currentStage === 'p3_settled_closed' ||
-      activeOrder?.history.includes('p3_delivered') ||
       activeOrder?.history.includes('p3_settled_closed')
 
-    // If order has been delivered and fulfilled, mark all pipeline nodes as completed
-    if (isFulfilled) {
+    // If order has been delivered AND rider payout/fee is cleared, mark all pipeline nodes as completed
+    if (isSettledAndFulfilled) {
       return {
         isFulfilled: true,
         intake: {
@@ -994,7 +1346,17 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
         badgeLabel: `${delDoneCount}/4`
       }
     }
-  }, [activeOrder])
+  }, [
+    activeOrder,
+    orders,
+    liveSalesProducts,
+    salesProducts,
+    productionBatches,
+    packagingQueue,
+    logisticsDeliveries,
+    storePickups,
+    riders
+  ])
 
   // Individual items extracted from dishName for showing each item's flow diagram
   const orderItems = useMemo(() => {
@@ -1491,6 +1853,36 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
           </div>
         </div>
 
+        {/* QUICK-SELECT ACTIVE ORDERS BAR WHEN NO SINGLE ORDER IS SELECTED */}
+        {!activeOrder && orders.length > 0 && (
+          <div className="mb-5 flex flex-wrap items-center gap-2 text-xs font-sans">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mr-1">
+              Recent / Active Orders:
+            </span>
+            {orders.slice(0, 6).map((ord) => {
+              const isCompleted =
+                ord.currentStage === 'p3_delivered' || ord.currentStage === 'p3_settled_closed'
+              return (
+                <button
+                  key={ord.id}
+                  type="button"
+                  onClick={() => handleSelectOrder(ord)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors cursor-pointer',
+                    isCompleted
+                      ? 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                      : 'border-amber-200 dark:border-amber-800/70 bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100/70 dark:hover:bg-amber-950/50'
+                  )}
+                >
+                  <span className="font-mono font-semibold">{ord.id}</span>
+                  <span className="text-zinc-400">•</span>
+                  <span className="truncate max-w-[120px]">{ord.customerName}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* ACTIVE ORDER & ITEM FLOW SUMMARY BANNER (VISIBLE ONLY WHEN AN ORDER HAS BEEN SEARCHED / SELECTED) */}
         {activeOrder && (
           <div className="mb-6 p-4 rounded-xl border border-kumo-line bg-kumo-canvas/40 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-sans">
@@ -1506,10 +1898,15 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-kumo-tint text-kumo-subtle border border-kumo-line">
                   {activeOrder.channel}
                 </span>
+                {activeOrder.fulfillmentMode && (
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                    {activeOrder.fulfillmentMode}
+                  </span>
+                )}
                 {pipelineMetrics.isFulfilled ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                    Fulfilled & Delivered
+                    Fulfilled & Settled
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
@@ -1747,20 +2144,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                             title="Website Order Received"
                             status={pipelineMetrics.intake.validation}
                             isAutomatic={true}
-                            actionUrl="/sales/orders"
+                            actionUrl={dynamicWorkflowLinks.intakeOrders}
                             actionTitle="View Website Orders"
                           />
                           <WorkflowTaskRow
                             title="Payment Confirmed"
                             status={pipelineMetrics.intake.payment}
                             isAutomatic={true}
+                            actionUrl={dynamicWorkflowLinks.intakeOrders}
+                            actionTitle="Verify Order Payment in Website Orders"
                           />
                           <WorkflowTaskRow
                             title="Schedule or Send to Queue"
                             status={pipelineMetrics.intake.channel}
                             isAutomatic={true}
-                            actionUrl="/logistics/schedule"
-                            actionTitle="View Delivery Schedule"
+                            actionUrl={dynamicWorkflowLinks.scheduleOrQueue}
+                            actionTitle="Open Delivery Schedule or Queue"
                           />
                         </div>
                       )}
@@ -1791,18 +2190,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                             title="Check Available Sales Stock"
                             status={pipelineMetrics.inventory.stock}
                             isAutomatic={true}
-                            actionUrl="/inventory/sales"
+                            actionUrl={dynamicWorkflowLinks.salesStock}
                             actionTitle="View Sales Stock"
                           />
                           <WorkflowTaskRow
                             title="Allocate Stock to Order"
                             status={pipelineMetrics.inventory.allocation}
                             isAutomatic={true}
+                            actionUrl={dynamicWorkflowLinks.salesStock}
+                            actionTitle="View Allocated Stock"
                           />
                           <WorkflowTaskRow
                             title="Deduct Stock on Fulfillment"
                             status={pipelineMetrics.inventory.ingredients}
                             isAutomatic={true}
+                            actionUrl={dynamicWorkflowLinks.salesStock}
+                            actionTitle="View Sales Stock Deduction"
                           />
 
                           {/* Individual Product Allocation Flow */}
@@ -1864,21 +2267,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                             title="Create Production Batch"
                             status={pipelineMetrics.cooking.schedule}
                             isAutomatic={false}
-                            actionUrl="/production/batches"
+                            actionUrl={dynamicWorkflowLinks.productionBatches}
                             actionTitle="Create Batch in Production Batches"
                           />
                           <WorkflowTaskRow
                             title="Start Smoking Batch"
                             status={pipelineMetrics.cooking.cooking}
                             isAutomatic={false}
-                            actionUrl="/production/batches"
+                            actionUrl={dynamicWorkflowLinks.productionBatches}
                             actionTitle="Start Smoking in Production Batches"
                           />
                           <WorkflowTaskRow
                             title="Complete Batch & Add to Stock"
                             status={pipelineMetrics.cooking.output}
                             isAutomatic={false}
-                            actionUrl="/production/batches"
+                            actionUrl={dynamicWorkflowLinks.productionBatches}
                             actionTitle="Complete Batch in Production Batches"
                           />
                         </div>
@@ -1914,19 +2317,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                             title="Order Added to Packaging Queue"
                             status={pipelineMetrics.packaging.queue}
                             isAutomatic={true}
+                            actionUrl={dynamicWorkflowLinks.packagingQueue}
+                            actionTitle="View Packaging Queue"
                           />
                           <WorkflowTaskRow
                             title="Start Packaging & Deduct Materials"
                             status={pipelineMetrics.packaging.deduction}
                             isAutomatic={false}
-                            actionUrl="/production/packaging"
+                            actionUrl={dynamicWorkflowLinks.packagingQueue}
                             actionTitle="Start Packaging in Packaging Execution"
                           />
                           <WorkflowTaskRow
                             title="Confirm Packaged for Dispatch"
                             status={pipelineMetrics.packaging.sealing}
                             isAutomatic={false}
-                            actionUrl="/production/packaging"
+                            actionUrl={dynamicWorkflowLinks.packagingQueue}
                             actionTitle="Confirm Packaged in Packaging Execution"
                           />
 
@@ -1993,29 +2398,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                             title="Assign Rider or External Courier"
                             status={pipelineMetrics.delivery.driver}
                             isAutomatic={false}
-                            actionUrl="/logistics/board"
-                            actionTitle="Assign Rider on Dispatch Board"
+                            actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                            actionTitle="Assign Rider or Courier on Logistics Board"
                           />
                           <WorkflowTaskRow
                             title="Confirm Rider Pickup (In Transit)"
                             status={pipelineMetrics.delivery.pickup}
                             isAutomatic={false}
-                            actionUrl="/logistics/board"
-                            actionTitle="Confirm Rider Pickup on Dispatch Board"
+                            actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                            actionTitle="Confirm Pickup on Logistics Board"
                           />
                           <WorkflowTaskRow
                             title="Mark Delivered or Store Handover"
                             status={pipelineMetrics.delivery.delivered}
                             isAutomatic={false}
-                            actionUrl="/logistics/board"
-                            actionTitle="Mark Delivered on Dispatch Board"
+                            actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                            actionTitle="Mark Delivered or Store Handover"
                           />
                           <WorkflowTaskRow
                             title="Clear Rider Payout or Courier Fee"
                             status={pipelineMetrics.delivery.payout}
                             isAutomatic={false}
-                            actionUrl="/logistics/riders"
-                            actionTitle="Clear Rider Payout in Delivery Team"
+                            actionUrl={dynamicWorkflowLinks.payoutSettlement}
+                            actionTitle="Clear Rider Payout or Verify 3PL Fee"
                           />
                         </div>
                       )}
@@ -2052,20 +2457,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         title="Website Order Received"
                         status={pipelineMetrics.intake.validation}
                         isAutomatic={true}
-                        actionUrl="/sales/orders"
+                        actionUrl={dynamicWorkflowLinks.intakeOrders}
                         actionTitle="View Website Orders"
                       />
                       <WorkflowTaskRow
                         title="Payment Confirmed"
                         status={pipelineMetrics.intake.payment}
                         isAutomatic={true}
+                        actionUrl={dynamicWorkflowLinks.intakeOrders}
+                        actionTitle="Verify Order Payment in Website Orders"
                       />
                       <WorkflowTaskRow
                         title="Schedule or Send to Queue"
                         status={pipelineMetrics.intake.channel}
                         isAutomatic={true}
-                        actionUrl="/logistics/schedule"
-                        actionTitle="View Delivery Schedule"
+                        actionUrl={dynamicWorkflowLinks.scheduleOrQueue}
+                        actionTitle="Open Delivery Schedule or Queue"
                       />
                     </div>
                   )}
@@ -2101,18 +2508,22 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         title="Check Available Sales Stock"
                         status={pipelineMetrics.inventory.stock}
                         isAutomatic={true}
-                        actionUrl="/inventory/sales"
+                        actionUrl={dynamicWorkflowLinks.salesStock}
                         actionTitle="View Sales Stock"
                       />
                       <WorkflowTaskRow
                         title="Allocate Stock to Order"
                         status={pipelineMetrics.inventory.allocation}
                         isAutomatic={true}
+                        actionUrl={dynamicWorkflowLinks.salesStock}
+                        actionTitle="View Allocated Stock"
                       />
                       <WorkflowTaskRow
                         title="Deduct Stock on Fulfillment"
                         status={pipelineMetrics.inventory.ingredients}
                         isAutomatic={true}
+                        actionUrl={dynamicWorkflowLinks.salesStock}
+                        actionTitle="View Sales Stock Deduction"
                       />
 
                       {/* Product Allocation Flow in Tree View */}
@@ -2179,21 +2590,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         title="Create Production Batch"
                         status={pipelineMetrics.cooking.schedule}
                         isAutomatic={false}
-                        actionUrl="/production/batches"
+                        actionUrl={dynamicWorkflowLinks.productionBatches}
                         actionTitle="Create Batch in Production Batches"
                       />
                       <WorkflowTaskRow
                         title="Start Smoking Batch"
                         status={pipelineMetrics.cooking.cooking}
                         isAutomatic={false}
-                        actionUrl="/production/batches"
+                        actionUrl={dynamicWorkflowLinks.productionBatches}
                         actionTitle="Start Smoking in Production Batches"
                       />
                       <WorkflowTaskRow
                         title="Complete Batch & Add to Stock"
                         status={pipelineMetrics.cooking.output}
                         isAutomatic={false}
-                        actionUrl="/production/batches"
+                        actionUrl={dynamicWorkflowLinks.productionBatches}
                         actionTitle="Complete Batch in Production Batches"
                       />
                     </div>
@@ -2230,19 +2641,21 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         title="Order Added to Packaging Queue"
                         status={pipelineMetrics.packaging.queue}
                         isAutomatic={true}
+                        actionUrl={dynamicWorkflowLinks.packagingQueue}
+                        actionTitle="View Packaging Queue"
                       />
                       <WorkflowTaskRow
                         title="Start Packaging & Deduct Materials"
                         status={pipelineMetrics.packaging.deduction}
                         isAutomatic={false}
-                        actionUrl="/production/packaging"
+                        actionUrl={dynamicWorkflowLinks.packagingQueue}
                         actionTitle="Start Packaging in Packaging Execution"
                       />
                       <WorkflowTaskRow
                         title="Confirm Packaged for Dispatch"
                         status={pipelineMetrics.packaging.sealing}
                         isAutomatic={false}
-                        actionUrl="/production/packaging"
+                        actionUrl={dynamicWorkflowLinks.packagingQueue}
                         actionTitle="Confirm Packaged in Packaging Execution"
                       />
 
@@ -2310,29 +2723,29 @@ export const OrderWorkflowCanvasOverlay: React.FC = () => {
                         title="Assign Rider or External Courier"
                         status={pipelineMetrics.delivery.driver}
                         isAutomatic={false}
-                        actionUrl="/logistics/board"
-                        actionTitle="Assign Rider on Dispatch Board"
+                        actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                        actionTitle="Assign Rider or Courier on Logistics Board"
                       />
                       <WorkflowTaskRow
                         title="Confirm Rider Pickup (In Transit)"
                         status={pipelineMetrics.delivery.pickup}
                         isAutomatic={false}
-                        actionUrl="/logistics/board"
-                        actionTitle="Confirm Rider Pickup on Dispatch Board"
+                        actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                        actionTitle="Confirm Pickup on Logistics Board"
                       />
                       <WorkflowTaskRow
                         title="Mark Delivered or Store Handover"
                         status={pipelineMetrics.delivery.delivered}
                         isAutomatic={false}
-                        actionUrl="/logistics/board"
-                        actionTitle="Mark Delivered on Dispatch Board"
+                        actionUrl={dynamicWorkflowLinks.logisticsDispatch}
+                        actionTitle="Mark Delivered or Store Handover"
                       />
                       <WorkflowTaskRow
                         title="Clear Rider Payout or Courier Fee"
                         status={pipelineMetrics.delivery.payout}
                         isAutomatic={false}
-                        actionUrl="/logistics/riders"
-                        actionTitle="Clear Rider Payout in Delivery Team"
+                        actionUrl={dynamicWorkflowLinks.payoutSettlement}
+                        actionTitle="Clear Rider Payout or Verify 3PL Fee"
                       />
                     </div>
                   )}

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { LogisticsDelivery } from '@/lib/smokeyData'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -14,7 +15,7 @@ import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
-import { formatNaira, formatDate } from '@/lib/utils'
+import { formatNaira, formatDate, parseOrderNotes } from '@/lib/utils'
 import { 
   Truck, 
   CheckCircle2, 
@@ -37,6 +38,8 @@ import {
 } from 'lucide-react'
 import { openImageSafe, downloadImage } from '@/lib/imageUtils'
 import { cn } from '@/lib/utils'
+import { getCanonicalOrderRef, extractNumericOrderId } from '@/lib/orderCanonical'
+import { OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
 
 export const LogisticsBoardPage: React.FC = () => {
   const {
@@ -72,6 +75,109 @@ export const LogisticsBoardPage: React.FC = () => {
 
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
+  // Search State with Full Historical Supabase Querying
+  const [searchQuery, setSearchQuery] = useState('')
+  const [backendDeliveries, setBackendDeliveries] = useState<LogisticsDelivery[]>([])
+  const [isSearchingBackend, setIsSearchingBackend] = useState(false)
+
+  // Debounced Historical Backend Search for Deliveries
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q || q.length < 2) {
+      setBackendDeliveries([])
+      setIsSearchingBackend(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingBackend(true)
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .is('deleted_at', null)
+          .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        const rawOrders = (!error && Array.isArray(data)) ? data : []
+
+        const mapped: LogisticsDelivery[] = rawOrders
+          .filter(raw => {
+            const status = String(raw.status || '').toLowerCase()
+            if (status === 'pending_payment' || status === 'cancelled' || status === 'refunded') return false
+            // For fresh operational orders, only include orders that have completed packaging or entered dispatch
+            if (raw.created_at && raw.created_at >= OPS_FRESH_START_CUTOFF) {
+              const pkg = String(raw.packaging_status || '').toLowerCase()
+              const deliv = String(raw.delivery_status || '').toLowerCase()
+              const hasRider = Boolean(raw.rider_name && String(raw.rider_name).trim() !== '' && raw.rider_name !== 'Unassigned')
+              const isEligibleForDispatch =
+                pkg === 'packaged' ||
+                Boolean(raw.packaged_at) ||
+                Boolean(raw.pickup_at) ||
+                Boolean(raw.delivered_at) ||
+                hasRider ||
+                deliv.includes('ready') ||
+                deliv.includes('packaged') ||
+                deliv.includes('assigned') ||
+                deliv.includes('transit') ||
+                deliv.includes('deliver') ||
+                status === 'delivered'
+              return isEligibleForDispatch
+            }
+            return true
+          })
+          .map((raw, idx) => {
+            const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
+              ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Item'}`).join(', ')
+              : (raw.items_summary || 'Assorted Items')
+            const st = String(raw.delivery_status || raw.status || '').toLowerCase()
+            const rawRider = raw.rider_name && String(raw.rider_name).trim() !== '' && raw.rider_name !== 'Unassigned'
+              ? String(raw.rider_name).trim()
+              : null
+            let status: LogisticsDelivery['status'] = 'pending'
+            if (st.includes('deliver') || Boolean(raw.delivered_at)) status = 'delivered'
+            else if ((st.includes('transit') || st.includes('out_for_delivery') || Boolean(raw.pickup_at)) && rawRider) status = 'in_transit'
+            else if ((st.includes('assigned') || rawRider) && rawRider) status = 'assigned'
+
+            const canonicalRef = getCanonicalOrderRef(raw)
+            const numericId = extractNumericOrderId(raw.id ?? canonicalRef, 10000 + idx)
+
+            return {
+              id: numericId,
+              delivery_ref: `DEL-${numericId}`,
+              order_id: numericId,
+              order_ref: canonicalRef,
+              customer_name: raw.customer_name || 'Customer',
+              phone: raw.customer_phone || 'N/A',
+              address: raw.delivery_address || 'Lagos',
+              assigned_rider: rawRider || 'Unassigned',
+              assigned_rider_id: raw.rider_id ? Number(raw.rider_id) : undefined,
+              rider_type: raw.rider_type || 'internal',
+              third_party_provider: raw.third_party_provider || null,
+              booked_fee: raw.booked_fee ? Number(raw.booked_fee) : null,
+              total_amount: Number(raw.total ?? raw.total_amount) || 0,
+              status,
+              delivery_fee: Number(raw.delivery_fee) || 0,
+              dispatch_date: (raw.created_at || new Date().toISOString()).split('T')[0],
+              pickup_at: raw.pickup_at || null,
+              delivered_at: raw.delivered_at || null,
+              fee_evidence_path: raw.fee_evidence_path || null,
+              fee_verify_status: raw.fee_verify_status || 'none',
+              items_summary: items,
+              notes: raw.notes || '',
+            }
+          })
+        setBackendDeliveries(mapped)
+      } catch (err) {
+        console.warn('Backend search error in Logistics:', err)
+      } finally {
+        setIsSearchingBackend(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   // Dynamic KPIs and Tables reflecting custom date range
   const activeDeliveriesForKPI = useMemo(() => {
     if (!dateRange) return logisticsDeliveries
@@ -104,6 +210,68 @@ export const LogisticsBoardPage: React.FC = () => {
     }
     return activeDeliveries
   }, [activeDeliveries, activeSubTab])
+
+  // Merge client fresh orders with deep backend search results when operator searches
+  const searchedUnassignedDeliveries = useMemo(() => {
+    if (!searchQuery.trim()) return unassignedDeliveries
+    const q = searchQuery.toLowerCase().trim()
+    const map = new Map<string, LogisticsDelivery>()
+    const assignedRefs = new Set(activeDeliveries.map(d => getCanonicalOrderRef(d)))
+
+    unassignedDeliveries.forEach(d => {
+      const ref = getCanonicalOrderRef(d)
+      if (!ref) return
+      if (
+        ref.toLowerCase().includes(q) ||
+        d.order_ref.toLowerCase().includes(q) ||
+        d.customer_name.toLowerCase().includes(q) ||
+        d.phone.toLowerCase().includes(q) ||
+        d.address.toLowerCase().includes(q)
+      ) {
+        map.set(ref, d)
+      }
+    })
+    backendDeliveries.forEach(d => {
+      const ref = getCanonicalOrderRef(d)
+      if (!ref || assignedRefs.has(ref) || map.has(ref)) return
+      if (d.status === 'pending' || !d.assigned_rider || d.assigned_rider === 'Unassigned') {
+        map.set(ref, d)
+      }
+    })
+    return Array.from(map.values())
+  }, [unassignedDeliveries, activeDeliveries, searchQuery, backendDeliveries])
+
+  const searchedActiveDeliveries = useMemo(() => {
+    if (!searchQuery.trim()) return filteredActiveDeliveries
+    const q = searchQuery.toLowerCase().trim()
+    const map = new Map<string, LogisticsDelivery>()
+    const unassignedRefs = new Set(unassignedDeliveries.map(d => getCanonicalOrderRef(d)))
+
+    filteredActiveDeliveries.forEach(d => {
+      const ref = getCanonicalOrderRef(d)
+      if (!ref) return
+      if (
+        ref.toLowerCase().includes(q) ||
+        d.order_ref.toLowerCase().includes(q) ||
+        d.customer_name.toLowerCase().includes(q) ||
+        d.phone.toLowerCase().includes(q) ||
+        d.address.toLowerCase().includes(q) ||
+        (d.assigned_rider && d.assigned_rider.toLowerCase().includes(q))
+      ) {
+        map.set(ref, d)
+      }
+    })
+    backendDeliveries.forEach(d => {
+      const ref = getCanonicalOrderRef(d)
+      if (!ref || unassignedRefs.has(ref) || map.has(ref)) return
+      if (d.status !== 'pending' && d.assigned_rider && d.assigned_rider !== 'Unassigned') {
+        if (activeSubTab === 'in_transit' && d.status !== 'in_transit' && d.status !== 'out_for_delivery') return
+        if (activeSubTab === 'delivered' && d.status !== 'delivered') return
+        map.set(ref, d)
+      }
+    })
+    return Array.from(map.values())
+  }, [filteredActiveDeliveries, unassignedDeliveries, searchQuery, backendDeliveries, activeSubTab])
 
   const deliveredTodayCount = activeDeliveriesForKPI.filter(d => d.status === 'delivered').length
   const totalFeesCollected = activeDeliveriesForKPI.reduce((acc, d) => acc + d.delivery_fee, 0)
@@ -395,7 +563,8 @@ export const LogisticsBoardPage: React.FC = () => {
       <div>
         {activeTab === 'unassigned' ? (
           <DataTable
-            data={unassignedDeliveries}
+            data={searchedUnassignedDeliveries}
+            keyExtractor={(d) => getCanonicalOrderRef(d)}
             columns={unassignedColumns}
             searchable={true}
             searchPlaceholder="Search order ref, customer, or address..."
@@ -403,6 +572,12 @@ export const LogisticsBoardPage: React.FC = () => {
             exportFilename="smokey-unassigned-deliveries"
             onRowClick={(d) => handleOpenDetails(d)}
             onDateRangeChange={setDateRange}
+            onSearchChange={setSearchQuery}
+            emptyMessage={
+              searchQuery.trim()
+                ? `No unassigned deliveries found matching "${searchQuery}".`
+                : "Packaged orders ready for dispatch will appear here in real time. Search by Customer Name, Order ID, or Phone to locate any record."
+            }
           />
         ) : (
           <div className="space-y-4">
@@ -419,7 +594,8 @@ export const LogisticsBoardPage: React.FC = () => {
             </div>
 
             <DataTable
-              data={filteredActiveDeliveries}
+              data={searchedActiveDeliveries}
+              keyExtractor={(d) => getCanonicalOrderRef(d)}
               columns={assignedColumns}
               searchable={true}
               searchPlaceholder="Search active deliveries or riders..."
@@ -433,6 +609,12 @@ export const LogisticsBoardPage: React.FC = () => {
               }
               exportFilename={`smokey-active-deliveries-${activeSubTab}`}
               onDateRangeChange={setDateRange}
+              onSearchChange={setSearchQuery}
+              emptyMessage={
+                searchQuery.trim()
+                  ? `No active trips found matching "${searchQuery}".`
+                  : "Assigned deliveries will appear here as drivers are dispatched. Search by Customer Name, Order ID, or Rider to locate any record."
+              }
             />
           </div>
         )}
@@ -667,6 +849,20 @@ export const LogisticsBoardPage: React.FC = () => {
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Address</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.address}</span>
                 </div>
+                {parseOrderNotes(selectedDetailsDelivery.notes).deliveryNote && (
+                  <div className="flex items-start text-[13px]">
+                    <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Delivery Note</span>
+                    <div className="flex-1 bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700/80 rounded-lg p-2.5 text-zinc-900 dark:text-zinc-100">
+                      <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 font-semibold text-[11px] uppercase tracking-wider mb-1">
+                        <FileText className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
+                        <span>Customer Instructions</span>
+                      </div>
+                      <p className="text-[12.5px] font-medium leading-relaxed whitespace-pre-wrap text-zinc-900 dark:text-zinc-100">
+                        {parseOrderNotes(selectedDetailsDelivery.notes).deliveryNote}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start text-[13px]">
                   <span className="w-40 sm:w-52 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Meal Pack</span>
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium">{selectedDetailsDelivery.items_summary}</span>

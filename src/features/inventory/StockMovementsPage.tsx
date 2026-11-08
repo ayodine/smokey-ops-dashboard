@@ -339,9 +339,9 @@ export const StockMovementsPage: React.FC = () => {
       {/* KPI Strip with honest live metrics and no hallucinated deltas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          title={activeTab === 'transfers' ? "Station Transfers" : "Ledger Audit Entries"}
-          value={activeTab === 'transfers' ? totalTransfersCount : totalMovementsCount}
-          description={activeTab === 'transfers' ? "Internal transit vouchers" : "Logged inventory movements"}
+          title="Ledger Audit Entries"
+          value={totalMovementsCount}
+          description="Logged inventory movements"
           icon={<Activity className="w-4 h-4 text-primary" />}
         />
         <MetricCard

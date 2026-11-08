@@ -92,6 +92,20 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   // Check if this card represents a "No data" state
   const isExplicitNoData = noData === true || value === undefined || value === null || value === ''
 
+  // Check if this card represents a true verified zero state
+  const isZeroValue =
+    value === 0 ||
+    value === '0' ||
+    value === '₦0' ||
+    value === '0.00' ||
+    value === '0 units' ||
+    value === '0 Trips' ||
+    value === '0 Runs' ||
+    value === '0 kg/L' ||
+    value === '0 vouchers' ||
+    value === '0 Delivered' ||
+    (typeof value === 'string' && /^(₦\s*)?0(\.0+)?(\s*(units?|trips?|runs?|kg\/l|vouchers?|packages?|delivered|riders?))?$/i.test(value.trim()))
+
   // Only display delta if explicitly provided via delta or trend props — no hallucinated fallback
   const effectiveDelta = delta || (trend ? { value: `${trend.isPositive ? '+' : ''}${trend.value}%`, isPositive: trend.isPositive, period: 'vs last month' } : undefined)
 
@@ -105,11 +119,12 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   const isNoData = isExplicitNoData
 
-  const points = sparkline ?? (isNoData ? [0, 0, 0, 0, 0] : generateDeterministicPoints(title, value, sparklineType))
+  // Truthful points: if data is explicitly noData or zero, never hallucinate wavy/spiky curves
+  const points = sparkline ?? (isNoData || isZeroValue ? [0, 0, 0, 0, 0] : generateDeterministicPoints(title, value, sparklineType))
 
   // Render SVG Sparkline
   const renderSparkline = () => {
-    if (isNoData || points.every(p => p === 0)) {
+    if (isExplicitNoData) {
       return (
         <div className="relative w-full h-8 flex items-center">
           <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 32">
@@ -129,6 +144,26 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               No data
             </span>
           </div>
+        </div>
+      )
+    }
+
+    if (isZeroValue || points.every(p => p === 0)) {
+      return (
+        <div className="relative w-full h-8 flex items-end">
+          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 32">
+            <line
+              x1="0"
+              y1="28"
+              x2="100"
+              y2="28"
+              stroke="currentColor"
+              className="text-kumo-line"
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
         </div>
       )
     }

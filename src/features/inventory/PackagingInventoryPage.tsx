@@ -107,7 +107,7 @@ export const PackagingInventoryPage: React.FC = () => {
   }, [packagingReconciliations, todayStr])
 
   // KPIs
-  const totalValuation = packagingProducts.reduce((acc, p) => acc + p.inventory_value, 0)
+  const totalValuation = packagingProducts.reduce((acc, p) => acc + (p.inventory_value || ((p.stock_qty || 0) * (p.unit_cost || 0)) || 0), 0)
   const totalCentralStock = packagingProducts.reduce((acc, p) => acc + (p.central_stock_qty ?? p.stock_qty), 0)
   const totalBenchStock = packagingProducts.reduce((acc, p) => acc + (p.bench_stock_qty ?? 0), 0)
   const lowStockCount = packagingProducts.filter(p => p.stock_qty <= p.reorder_level).length
@@ -595,7 +595,7 @@ export const PackagingInventoryPage: React.FC = () => {
         />
         <MetricCard
           title="Daily Shift Reconciliation"
-          value={latestReconciliation?.status === 'balanced' ? 'Balanced (0 Variance)' : 'Discrepancy Logged'}
+          value={latestReconciliation ? (latestReconciliation.status === 'balanced' ? 'Balanced (0 Variance)' : 'Discrepancy Logged') : 'No Shifts Logged'}
           description="Issued = Used + Returned + Damaged"
           icon={<Scale className="w-4 h-4 text-emerald-600" />}
         />

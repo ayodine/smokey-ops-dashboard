@@ -34,12 +34,21 @@ import {
   Eye,
   ArrowRightLeft,
   Check,
-  Layers
+  Layers,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
+import { groupSalesInventoryByParent, resolveProductVariantMeta } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
   image?: string | null
   category_name?: string
+  isParentGroupRow?: boolean
+  isVariantChildRow?: boolean
+  variantsCount?: number
+  variantSummaryText?: string
+  min_price?: number
+  max_price?: number
 }
 
 export const mapSupabaseProductToSalesProduct = (p: any): LiveSalesProduct => {
@@ -155,8 +164,23 @@ export const SalesInventoryPage: React.FC = () => {
   }
 
   // Adjust Form
+  const [adjustMode, setAdjustMode] = useState<'add' | 'set' | 'deduct'>('add')
   const [adjustDelta, setAdjustDelta] = useState<number>(5)
   const [adjustNotes, setAdjustNotes] = useState<string>('Kitchen yield manual deposit')
+
+  // Expandable Parent Product Groups state (default expanded so variants are immediately visible)
+  const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({
+    'smokey-guinea-fowl': true,
+    'king-size-smokey-guinea-fowl': true,
+    'smokey-chicken': true,
+  })
+
+  const toggleParentGroup = (parentGroupKey: string) => {
+    setExpandedParents(prev => ({
+      ...prev,
+      [parentGroupKey]: prev[parentGroupKey] === false ? true : false,
+    }))
+  }
 
   // Product Form
   const [productForm, setProductForm] = useState({
@@ -175,6 +199,71 @@ export const SalesInventoryPage: React.FC = () => {
 
   // Active products list
   const displayProducts = liveProducts.length > 0 ? liveProducts : salesProducts
+
+  // Build hierarchical Parent Product + Variant rows for the Sales Inventory table
+  const getEstimatedQtyForProduct = React.useCallback(
+    (p: SalesProduct) => {
+      const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
+      return incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+    },
+    [incomingByDish]
+  )
+
+  const groupedInventoryTableRows = React.useMemo<LiveSalesProduct[]>(() => {
+    const grouped = groupSalesInventoryByParent(displayProducts, getEstimatedQtyForProduct)
+    const rows: LiveSalesProduct[] = []
+
+    for (const item of grouped) {
+      if (item.type === 'parent_group') {
+        const primaryThumb = (item.variants.find(v => (v as LiveSalesProduct).image) as LiveSalesProduct | undefined)?.image || null
+        const variantLabels = item.variants.map(v => v.variant_label).join(' • ')
+
+        rows.push({
+          id: -Math.abs(item.variants[0]?.id || 9000),
+          sku: item.parent_group_key.toUpperCase(),
+          name: item.parent_name,
+          product_type: 'sales',
+          unit: item.unit,
+          reorder_level: item.total_reorder_level,
+          unit_cost: item.variants[0]?.unit_cost || 0,
+          selling_price: item.min_price,
+          stock_qty: item.total_physical_qty,
+          qty_allocated: item.total_allocated_qty,
+          qty_available: Math.max(0, item.total_physical_qty - item.total_allocated_qty),
+          estimated_incoming_qty: item.total_estimated_qty,
+          sellable_qty: item.total_sellable_qty,
+          inventory_value: item.total_retail_valuation,
+          is_active: item.variants.some(v => v.is_active !== 0) ? 1 : 0,
+          image: primaryThumb,
+          category_name: item.parent_group_key,
+          isParentGroupRow: true,
+          parent_group_key: item.parent_group_key,
+          parent_name: item.parent_name,
+          variantsCount: item.variants.length,
+          variantSummaryText: variantLabels,
+          min_price: item.min_price,
+          max_price: item.max_price,
+        })
+
+        const isExpanded = expandedParents[item.parent_group_key] !== false
+        if (isExpanded) {
+          for (const v of item.variants) {
+            rows.push({
+              ...(v as LiveSalesProduct),
+              isVariantChildRow: true,
+              parent_group_key: item.parent_group_key,
+              parent_name: item.parent_name,
+              variant_label: v.variant_label,
+            })
+          }
+        }
+      } else {
+        rows.push(item.product as LiveSalesProduct)
+      }
+    }
+
+    return rows
+  }, [displayProducts, getEstimatedQtyForProduct, expandedParents])
 
   // Conversion Helpers
   const selectedSourceProd = React.useMemo(() => {
@@ -256,8 +345,9 @@ export const SalesInventoryPage: React.FC = () => {
 
   const handleOpenAdjust = (p: LiveSalesProduct) => {
     setSelectedProduct(p)
-    setAdjustDelta(5)
-    setAdjustNotes('Batch production yield intake')
+    setAdjustMode(p.stock_qty <= 0 ? 'set' : 'add')
+    setAdjustDelta(p.stock_qty <= 0 ? 10 : 5)
+    setAdjustNotes(p.stock_qty <= 0 ? 'Physical stock count update' : 'Batch production yield intake')
     setIsAdjustModalOpen(true)
   }
 
@@ -299,7 +389,15 @@ export const SalesInventoryPage: React.FC = () => {
   const handleConfirmAdjust = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return
-    const nextStock = Math.max(0, selectedProduct.stock_qty + Number(adjustDelta))
+    const inputVal = Math.max(0, Number(adjustDelta) || 0)
+    const currentStock = Number(selectedProduct.stock_qty || 0)
+    const nextStock =
+      adjustMode === 'set'
+        ? inputVal
+        : adjustMode === 'deduct'
+          ? Math.max(0, currentStock - inputVal)
+          : currentStock + inputVal
+    const signedDelta = nextStock - currentStock
 
     // 1. Optimistic local update
     setLiveProducts(prev =>
@@ -316,7 +414,7 @@ export const SalesInventoryPage: React.FC = () => {
     )
 
     // 2. Standalone ops sales stock ledger update (persisted via ops context)
-    adjustSalesStock(selectedProduct.id, Number(adjustDelta), adjustNotes)
+    adjustSalesStock(selectedProduct.id, signedDelta, adjustNotes)
     setIsAdjustModalOpen(false)
   }
 
@@ -426,50 +524,156 @@ export const SalesInventoryPage: React.FC = () => {
     {
       key: 'name',
       header: 'Product / Dish',
-      defaultWidth: 280,
-      accessor: (p) => (
-        <div className="flex items-center gap-3 font-sans">
-          <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
-            {p.image ? (
-              <img
-                src={p.image}
-                alt={p.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  ;(e.currentTarget as HTMLElement).style.display = 'none'
-                  const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
-                  if (fallback) fallback.style.display = 'flex'
-                }}
-              />
-            ) : null}
+      defaultWidth: 320,
+      accessor: (p) => {
+        if (p.isParentGroupRow && p.parent_group_key) {
+          const isExpanded = expandedParents[p.parent_group_key] !== false
+          return (
             <div
-              className={cn(
-                "w-full h-full flex items-center justify-center text-zinc-400",
-                p.image ? "hidden" : "flex"
-              )}
+              className="flex items-center gap-3 font-sans py-0.5 cursor-pointer select-none"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleParentGroup(p.parent_group_key!)
+              }}
             >
-              <Package className="w-4 h-4 opacity-50" />
+              <button
+                type="button"
+                className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                aria-label={isExpanded ? 'Collapse variants' : 'Expand variants'}
+              >
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              </button>
+              <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <Layers className="w-4 h-4 text-primary" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-xs text-zinc-900 dark:text-zinc-100 truncate">
+                    {p.name}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                    <Layers className="w-2.5 h-2.5" />
+                    {p.variantsCount} Variants
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                  {p.variantSummaryText}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        if (p.isVariantChildRow) {
+          return (
+            <div className="flex items-center gap-3 font-sans pl-7 relative">
+              <div
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-4 border-l-2 border-b-2 border-zinc-300 dark:border-zinc-700 rounded-bl"
+                aria-hidden="true"
+              />
+              <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.display = 'none'
+                      const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
+                      if (fallback) fallback.style.display = 'flex'
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={cn(
+                    "w-full h-full flex items-center justify-center text-zinc-400",
+                    p.image ? "hidden" : "flex"
+                  )}
+                >
+                  <Package className="w-3.5 h-3.5 opacity-50" />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                    {p.variant_label}
+                  </span>
+                  <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 truncate">
+                    {p.name}
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {p.sku} • {p.unit.toUpperCase()} {p.is_active === 0 ? '• Hidden' : ''}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div className="flex items-center gap-3 font-sans">
+            <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center relative">
+              {p.image ? (
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.display = 'none'
+                    const fallback = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+              ) : null}
+              <div
+                className={cn(
+                  "w-full h-full flex items-center justify-center text-zinc-400",
+                  p.image ? "hidden" : "flex"
+                )}
+              >
+                <Package className="w-4 h-4 opacity-50" />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-xs text-zinc-800 dark:text-zinc-200 truncate">{p.name}</div>
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {p.sku} • {p.unit.toUpperCase()}
+              </div>
             </div>
           </div>
-          <div className="min-w-0">
-            <div className="font-medium text-xs text-zinc-800 dark:text-zinc-200 truncate">{p.name}</div>
-            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-              {p.sku} • {p.unit.toUpperCase()}
-            </div>
-          </div>
-        </div>
-      ),
-      sortValue: (p) => p.name,
+        )
+      },
+      sortValue: (p) => `${p.parent_name || p.name} ${p.variant_label || ''}`,
     },
     {
       key: 'stock_qty',
       header: 'Physical (On-Hand)',
       defaultWidth: 150,
       accessor: (p) => (
-        <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">
-          {formatQuantity(p.stock_qty)} {p.unit}s
-        </span>
+        <div className="font-sans">
+          <span className={cn(
+            "text-xs",
+            p.isParentGroupRow
+              ? "font-bold text-zinc-900 dark:text-zinc-100"
+              : "font-medium text-zinc-700 dark:text-zinc-300"
+          )}>
+            {formatQuantity(p.stock_qty)} {p.unit}s
+          </span>
+          {p.isParentGroupRow && (
+            <span className="block text-[10px] text-zinc-400">Combined across {p.variantsCount} variants</span>
+          )}
+        </div>
       ),
       sortValue: (p) => p.stock_qty,
     },
@@ -478,95 +682,138 @@ export const SalesInventoryPage: React.FC = () => {
       header: 'Estimated (In-Oven)',
       defaultWidth: 150,
       accessor: (p) => {
-        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
-        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
+        const incomingQty = p.isParentGroupRow
+          ? (p.estimated_incoming_qty || 0)
+          : getEstimatedQtyForProduct(p)
 
         return (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">
+          <span className={cn(
+            "text-xs font-sans",
+            p.isParentGroupRow ? "font-semibold text-zinc-600 dark:text-zinc-300" : "text-zinc-500 dark:text-zinc-400"
+          )}>
             {incomingQty > 0 ? `+${formatQuantity(incomingQty)} ${p.unit}s` : '—'}
           </span>
         )
       },
-      sortValue: (p) => {
-        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
-        return incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
-      },
+      sortValue: (p) => p.isParentGroupRow ? (p.estimated_incoming_qty || 0) : getEstimatedQtyForProduct(p),
     },
     {
       key: 'sellable_qty',
       header: 'Total Sellable (Online)',
       defaultWidth: 165,
       accessor: (p) => {
-        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
-        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
-        const allocated = p.qty_allocated || 0
-        const sellable = Math.max(0, p.stock_qty + incomingQty - allocated)
+        const sellable = p.isParentGroupRow
+          ? (p.sellable_qty || 0)
+          : Math.max(0, p.stock_qty + getEstimatedQtyForProduct(p) - (p.qty_allocated || 0))
 
         return (
-          <span className="font-medium text-xs text-zinc-700 dark:text-zinc-300 font-sans">
+          <span className={cn(
+            "text-xs font-sans",
+            p.isParentGroupRow
+              ? "font-bold text-zinc-900 dark:text-zinc-100"
+              : "font-medium text-zinc-700 dark:text-zinc-300"
+          )}>
             {formatQuantity(sellable)} {p.unit}s
           </span>
         )
       },
       sortValue: (p) => {
-        const incomingInfo = incomingByDish[String(p.id)] || incomingByDish[p.name.toLowerCase().trim()]
-        const incomingQty = incomingInfo ? incomingInfo.qty : (p.estimated_incoming_qty || 0)
-        return Math.max(0, p.stock_qty + incomingQty - (p.qty_allocated || 0))
+        return p.isParentGroupRow
+          ? (p.sellable_qty || 0)
+          : Math.max(0, p.stock_qty + getEstimatedQtyForProduct(p) - (p.qty_allocated || 0))
       },
     },
     {
       key: 'selling_price',
       header: 'Selling Price',
-      accessor: (p) => <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(p.selling_price)}</span>,
+      accessor: (p) => {
+        if (p.isParentGroupRow && p.min_price !== undefined && p.max_price !== undefined) {
+          return (
+            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 font-sans">
+              {p.min_price === p.max_price
+                ? formatNaira(p.min_price)
+                : `${formatNaira(p.min_price)} – ${formatNaira(p.max_price)}`}
+            </span>
+          )
+        }
+        return <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(p.selling_price)}</span>
+      },
       sortValue: (p) => p.selling_price,
     },
     {
       key: 'unit_cost',
       header: 'Cost Benchmark',
-      accessor: (p) => <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">{formatNaira(p.unit_cost)}</span>,
+      accessor: (p) => {
+        if (p.isParentGroupRow) {
+          return <span className="text-xs text-zinc-400 font-sans">Per variant</span>
+        }
+        return <span className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">{formatNaira(p.unit_cost)}</span>
+      },
       sortValue: (p) => p.unit_cost,
     },
     {
       key: 'inventory_value',
       header: 'Retail Valuation',
-      accessor: (p) => <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">{formatNaira(p.stock_qty * p.selling_price)}</span>,
-      sortValue: (p) => p.stock_qty * p.selling_price,
+      accessor: (p) => (
+        <span className={cn(
+          "text-xs font-sans",
+          p.isParentGroupRow ? "font-bold text-zinc-900 dark:text-zinc-100" : "font-medium text-zinc-700 dark:text-zinc-300"
+        )}>
+          {formatNaira(p.isParentGroupRow ? p.inventory_value : p.stock_qty * p.selling_price)}
+        </span>
+      ),
+      sortValue: (p) => p.isParentGroupRow ? p.inventory_value : p.stock_qty * p.selling_price,
     },
     {
       key: 'actions',
       header: 'Action',
       defaultWidth: 160,
-      accessor: (p) => (
-        <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
-          {hasPermission('perm_sales_catalog') ? (
-            <>
-              <Tooltip content="Manually adjust on-hand stock">
-                <TableActionButton
-                  variant="outline"
-                  onClick={() => handleOpenAdjust(p)}
-                >
-                  Adjust
-                </TableActionButton>
-              </Tooltip>
-              <Tooltip content="Edit product pricing and reorder levels">
-                <TableActionButton
-                  variant="primary"
-                  onClick={() => handleOpenEdit(p)}
-                >
-                  Edit
-                </TableActionButton>
-              </Tooltip>
-            </>
-          ) : (
-            <TableActionButton
-              variant="outline"
-              onClick={() => handleOpenDetails(p)}
-            >
-              View
-            </TableActionButton>
-          )}
-        </div>
-      ),
+      accessor: (p) => {
+        if (p.isParentGroupRow && p.parent_group_key) {
+          const isExpanded = expandedParents[p.parent_group_key] !== false
+          return (
+            <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
+              <TableActionButton
+                variant="outline"
+                onClick={() => toggleParentGroup(p.parent_group_key!)}
+              >
+                {isExpanded ? 'Hide Variants' : `Show Variants (${p.variantsCount})`}
+              </TableActionButton>
+            </div>
+          )
+        }
+        return (
+          <div className="flex items-center gap-1.5 font-sans shrink-0" onClick={e => e.stopPropagation()}>
+            {hasPermission('perm_sales_catalog') ? (
+              <>
+                <Tooltip content="Manually adjust on-hand stock for this variant">
+                  <TableActionButton
+                    variant="outline"
+                    onClick={() => handleOpenAdjust(p)}
+                  >
+                    Adjust
+                  </TableActionButton>
+                </Tooltip>
+                <Tooltip content="Edit variant pricing and reorder levels">
+                  <TableActionButton
+                    variant="primary"
+                    onClick={() => handleOpenEdit(p)}
+                  >
+                    Edit
+                  </TableActionButton>
+                </Tooltip>
+              </>
+            ) : (
+              <TableActionButton
+                variant="outline"
+                onClick={() => handleOpenDetails(p)}
+              >
+                View
+              </TableActionButton>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -757,7 +1004,6 @@ export const SalesInventoryPage: React.FC = () => {
           title="Gross Sales Today"
           value={formatNaira(totalRealizationToday)}
           description="Daily sales realization"
-          trend={{ value: 12.4, isPositive: true }}
           icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
         />
       </div>
@@ -779,13 +1025,19 @@ export const SalesInventoryPage: React.FC = () => {
       <div>
         {activeTab === 'inventory' ? (
           <DataTable
-            data={displayProducts}
+            data={groupedInventoryTableRows}
             columns={inventoryColumns}
             searchable={true}
-            searchPlaceholder="Search finished food item or SKU..."
+            searchPlaceholder="Search parent product, variant, finished food item or SKU..."
             title="Sales Product"
             exportFilename="smokey-sales-inventory"
-            onRowClick={(p) => handleOpenDetails(p)}
+            onRowClick={(p) => {
+              if (p.isParentGroupRow && p.parent_group_key) {
+                toggleParentGroup(p.parent_group_key)
+                return
+              }
+              handleOpenDetails(p)
+            }}
           />
         ) : activeTab === 'daily' ? (
           <DataTable
@@ -827,6 +1079,14 @@ export const SalesInventoryPage: React.FC = () => {
       >
         <form id="sales-adjust-form" onSubmit={handleConfirmAdjust} className="space-y-4">
           <div className="p-3 bg-kumo-surface border border-kumo-line rounded-lg text-xs space-y-1.5 font-sans">
+            {selectedProduct?.variant_label && (
+              <div className="flex justify-between items-center">
+                <span className="text-kumo-subtle font-medium">Parent / Variant:</span>
+                <span className="font-semibold text-kumo-strong text-xs">
+                  {selectedProduct.parent_name} — {selectedProduct.variant_label}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="text-kumo-subtle font-medium">Current Stock:</span>
               <span className="font-semibold text-kumo-strong text-xs">{selectedProduct?.stock_qty} {selectedProduct?.unit}s</span>
@@ -837,12 +1097,67 @@ export const SalesInventoryPage: React.FC = () => {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-kumo-strong block">Adjustment Mode</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setAdjustMode('add')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
+                  adjustMode === 'add'
+                    ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-kumo-surface border-kumo-line text-kumo-subtle hover:text-kumo-strong'
+                )}
+              >
+                + Add Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustMode('set')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
+                  adjustMode === 'set'
+                    ? 'bg-blue-500/10 border-blue-500 text-blue-700 dark:text-blue-400'
+                    : 'bg-kumo-surface border-kumo-line text-kumo-subtle hover:text-kumo-strong'
+                )}
+              >
+                = Set Exact Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustMode('deduct')}
+                className={cn(
+                  'py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
+                  adjustMode === 'deduct'
+                    ? 'bg-rose-500/10 border-rose-500 text-rose-700 dark:text-rose-400'
+                    : 'bg-kumo-surface border-kumo-line text-kumo-subtle hover:text-kumo-strong'
+                )}
+              >
+                − Deduct Stock
+              </button>
+            </div>
+          </div>
+
           <UnitInput
-            label="Quantity to Add or Remove"
+            label={
+              adjustMode === 'set'
+                ? 'New Exact On-Hand Quantity'
+                : adjustMode === 'deduct'
+                  ? 'Quantity to Deduct'
+                  : 'Quantity to Add'
+            }
             value={adjustDelta}
             onChangeValue={setAdjustDelta}
             unit={selectedProduct?.unit || 'packs'}
-            helperText={`Projected Balance: ${Math.max(0, (selectedProduct?.stock_qty || 0) + Number(adjustDelta))} ${selectedProduct?.unit || 'packs'} (use minus sign e.g. -2 to deduct)`}
+            min={0}
+            helperText={`Projected Balance: ${
+              adjustMode === 'set'
+                ? Math.max(0, Number(adjustDelta) || 0)
+                : adjustMode === 'deduct'
+                  ? Math.max(0, (selectedProduct?.stock_qty || 0) - Math.max(0, Number(adjustDelta) || 0))
+                  : (selectedProduct?.stock_qty || 0) + Math.max(0, Number(adjustDelta) || 0)
+            } ${selectedProduct?.unit || 'packs'}`}
             required
           />
 

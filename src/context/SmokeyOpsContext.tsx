@@ -71,7 +71,9 @@ import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
-import { playAlertChime, sendDesktopNotification, stopOrderRingtone } from '@/lib/notificationAudio'
+import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
   image?: string | null
@@ -79,24 +81,34 @@ export interface LiveSalesProduct extends SalesProduct {
 }
 
 export const mapSupabaseProductToSalesProduct = (p: any, existingOpsProduct?: any): LiveSalesProduct => {
-  if (p && p.product_type === 'sales' && typeof p.selling_price === 'number') {
-    return p as LiveSalesProduct
+  if (p && p.product_type === 'sales' && typeof p.selling_price === 'number' && !existingOpsProduct) {
+    const vMeta = resolveProductVariantMeta(p)
+    return {
+      ...(p as LiveSalesProduct),
+      ...(vMeta ? {
+        parent_group_key: vMeta.parent_group_key,
+        parent_name: vMeta.parent_name,
+        variant_label: vMeta.variant_label,
+        variant_order: vMeta.sort_order,
+      } : {}),
+    }
   }
   // Standalone Ops Stock: Never adopt storefront products.stock as ops stock.
   // Use existing ops stock if available, or p.stock_qty if p is an internal ops product, defaulting to 0.
   const stock = Number(existingOpsProduct?.stock_qty ?? p.stock_qty ?? 0)
-  const price = Number(p.price ?? p.selling_price ?? 0)
+  const price = Number(p.price ?? p.selling_price ?? existingOpsProduct?.selling_price ?? 0)
   const cost = Number(existingOpsProduct?.unit_cost ?? p.cost_price ?? p.unit_cost ?? Math.round(price * 0.45))
   const reorder = Number(existingOpsProduct?.reorder_level ?? p.reorder_level ?? 10)
   const allocated = Number(existingOpsProduct?.qty_allocated ?? p.qty_allocated ?? 0)
   const available = Math.max(0, stock - allocated)
+  const vMeta = resolveProductVariantMeta(p)
 
   return {
     id: p.id,
-    sku: p.sku || `SMK-${String(p.id).padStart(4, '0')}`,
+    sku: existingOpsProduct?.sku || p.sku || `SMK-${String(p.id).padStart(4, '0')}`,
     name: p.name,
     product_type: 'sales',
-    unit: p.unit || 'unit',
+    unit: existingOpsProduct?.unit || p.unit || 'unit',
     reorder_level: reorder,
     unit_cost: cost,
     selling_price: price,
@@ -105,14 +117,24 @@ export const mapSupabaseProductToSalesProduct = (p: any, existingOpsProduct?: an
     qty_available: available,
     inventory_value: stock * price,
     is_active: p.is_active !== false && p.is_active !== 0 ? 1 : 0,
-    image: p.image || null,
-    category_name: p.category_id || p.category_name || 'Product'
+    image: p.image || existingOpsProduct?.image || null,
+    category_name: p.category_id || p.category_name || existingOpsProduct?.category_name || 'Product',
+    ...(vMeta ? {
+      parent_group_key: vMeta.parent_group_key,
+      parent_name: vMeta.parent_name,
+      variant_label: vMeta.variant_label,
+      variant_order: vMeta.sort_order,
+    } : {}),
   }
 }
 
 export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   if (raw && raw.order_ref && raw.items_summary && raw.fulfillment_status && !Array.isArray(raw.order_items)) {
-    return raw as WebsiteOrder
+    return {
+      ...(raw as WebsiteOrder),
+      id: extractNumericOrderId(raw.id ?? raw.order_ref, 10000),
+      order_ref: getCanonicalOrderRef(raw)
+    }
   }
   const delivStatus = String(raw.delivery_status || '').toLowerCase()
   const pkgStatus = String(raw.packaging_status || '').toLowerCase()
@@ -124,7 +146,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     fulfillment_status = 'delivered'
   } else if ((Boolean(raw.pickup_at) || delivStatus.includes('transit')) && hasRider) {
     fulfillment_status = 'in_transit'
-  } else if (pkgStatus === 'packaged' || delivStatus.includes('ready') || delivStatus.includes('packaged') || (delivStatus.includes('assigned') && hasRider)) {
+  } else if (pkgStatus === 'packaged' || Boolean(raw.packaged_at) || delivStatus.includes('ready') || delivStatus.includes('packaged') || (delivStatus.includes('assigned') && hasRider) || hasRider) {
     fulfillment_status = 'ready_for_dispatch'
   } else if (pkgStatus === 'in_packaging' || String(raw.status || '').toLowerCase() === 'processing') {
     fulfillment_status = 'packaging'
@@ -157,9 +179,12 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     }
   }
 
+  const canonicalRef = getCanonicalOrderRef(raw)
+  const numericId = extractNumericOrderId(raw.id ?? canonicalRef, 10000)
+
   return {
-    id: raw.id,
-    order_ref: String(raw.order_ref || raw.id || ''),
+    id: numericId,
+    order_ref: canonicalRef,
     customer_name: raw.customer_name || 'Storefront Customer',
     customer_email: raw.customer_email || '',
     phone: raw.customer_phone || raw.phone || 'N/A',
@@ -556,6 +581,8 @@ export interface AppUserAccount {
   temporary_password?: string
   created_at?: string
   permissions?: string[]
+  overview_granular_configured?: boolean
+  updated_at_ms?: number
 
   // Personal Identity & Address KYC
   residential_address?: string
@@ -683,6 +710,10 @@ export type PermissionId =
   | 'perm_finance'
   // Overview & Administration
   | 'perm_overview_view'
+  | 'perm_overview_kpis'
+  | 'perm_overview_links'
+  | 'perm_overview_flow_diagram'
+  | 'perm_overview_analytics'
   | 'perm_records'
   | 'perm_users'
   | 'perm_rbac'
@@ -753,8 +784,12 @@ export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> =
   // Finance
   perm_finance: { id: 'perm_finance', label: 'Finance & Payout Remittances', category: 'Finance', description: 'Process batch payouts, approve cash disbursements, and clear ledgers.' },
 
-  // Executive & Administration
-  perm_overview_view: { id: 'perm_overview_view', label: 'View Executive Operations Overview', category: 'Administration', pageRoute: '/overview', isPageView: true, description: 'Access /overview for executive KPIs, order flow diagram, and cross-department analytics.' },
+  // Executive Overview & Administration
+  perm_overview_view: { id: 'perm_overview_view', label: 'View Executive Operations Overview', category: 'Administration', pageRoute: '/overview', isPageView: true, description: 'Access /overview for executive KPIs, quick navigation links, order flow diagram, and operational analytics.' },
+  perm_overview_kpis: { id: 'perm_overview_kpis', label: 'Home Overview: View KPI Summary Cards', category: 'Administration', pageRoute: '/overview', description: 'Turn ON/OFF the top KPI metric summary cards (stock valuation, running low, expiring lots, out of stock, and live order metrics) on the Home Overview page.' },
+  perm_overview_links: { id: 'perm_overview_links', label: 'Home Overview: View Quick Navigation & Action Links', category: 'Administration', pageRoute: '/overview', description: 'Turn ON/OFF the Quick Navigation Hub (Inventory Control, Production Runs, Quick Shortcuts) and interactive workflow deep links on the Home Overview page.' },
+  perm_overview_flow_diagram: { id: 'perm_overview_flow_diagram', label: 'Home Overview: View Live Order Flow Diagram', category: 'Administration', pageRoute: '/overview', description: 'Turn ON/OFF the interactive end-to-end Order Tracking Flowchart Diagram on the Home Overview page.' },
+  perm_overview_analytics: { id: 'perm_overview_analytics', label: 'Home Overview: View Operational Analytics & Trend Charts', category: 'Administration', pageRoute: '/overview', description: 'Turn ON/OFF the Operational Analytics & Trend Charts section on the Home Overview page.' },
   perm_records: { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Master database records and operational raw data access.' },
   perm_users: { id: 'perm_users', label: 'Manage Staff Accounts & KYC Onboarding', category: 'Administration', pageRoute: '/accounts', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
   perm_rbac: { id: 'perm_rbac', label: 'Manage Role Scopes & Permission Policies', category: 'Administration', pageRoute: '/accounts/matrix', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
@@ -804,26 +839,28 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'Manage Master Recipes (BOMs) & Purge Batches': ['Batch Scheduling & Cook Approvals'],
   perm_tasks_view: ['Start & Complete Batches', 'Kitchen Tasks'],
   'View Kitchen Shift Tasks Page': ['Start & Complete Batches', 'Kitchen Tasks'],
-  perm_tasks_edit: ['Staff Shift Assignments'],
-  'Create, Assign & Complete Kitchen Tasks': ['Staff Shift Assignments'],
+  perm_tasks_edit: ['Kitchen Shift Delegation'],
+  'Create, Assign & Complete Kitchen Tasks': ['Kitchen Shift Delegation'],
+  perm_spoilage: ['Waste & Spoilage Write-offs'],
+  'Waste & Spoilage Incident Reports': ['Waste & Spoilage Write-offs'],
 
   // Inventory
-  perm_raw_view: ['Stock Intake PO Receipts', 'Periodic Cycle Counts'],
-  'View Raw Inventory Page': ['Stock Intake PO Receipts', 'Periodic Cycle Counts'],
+  perm_raw_view: ['Stock Intake PO Receipts', 'Periodic Cycle Counts', 'Variance Reconciliation'],
+  'View Raw Inventory Page': ['Stock Intake PO Receipts', 'Periodic Cycle Counts', 'Variance Reconciliation'],
   perm_intake: ['Stock Intake PO Receipts'],
   'Record Raw Stock Intake & Issue Requisitions': ['Stock Intake PO Receipts'],
-  perm_cycle_counts: ['Periodic Cycle Counts'],
-  'Physical Stocktake Adjustments & Edit Raw Items': ['Periodic Cycle Counts'],
-  perm_movements_view: ['Periodic Cycle Counts', 'Stock Movements'],
-  'View Stock Movements Ledger Page': ['Periodic Cycle Counts', 'Stock Movements'],
+  perm_cycle_counts: ['Periodic Cycle Counts', 'Variance Reconciliation'],
+  'Physical Stocktake Adjustments & Edit Raw Items': ['Periodic Cycle Counts', 'Variance Reconciliation'],
+  perm_movements_view: ['Periodic Cycle Counts', 'Stock Movements', 'Variance Reconciliation'],
+  'View Stock Movements Ledger Page': ['Periodic Cycle Counts', 'Stock Movements', 'Variance Reconciliation'],
   perm_suppliers_view: ['Supplier Invoice Verification', 'Suppliers'],
   'View Suppliers & Vendors Page': ['Supplier Invoice Verification', 'Suppliers'],
   perm_invoices: ['Supplier Invoice Verification'],
   'Manage Suppliers & Verify Vendor Invoices': ['Supplier Invoice Verification'],
 
   // Logistics & Riders
-  perm_dispatch_view: ['Dispatch Queue Assignment', 'Logistics Dispatch Controls'],
-  'View Dispatch Board Page': ['Dispatch Queue Assignment', 'Logistics Dispatch Controls'],
+  perm_dispatch_view: ['Dispatch Queue Assignment'],
+  'View Dispatch Board Page': ['Dispatch Queue Assignment'],
   perm_queue_assign: ['Dispatch Queue Assignment'],
   'Assign Riders & Control Dispatch Queue': ['Dispatch Queue Assignment'],
   perm_schedule_view: ['Dispatch Queue Assignment', 'Delivery Schedule'],
@@ -852,8 +889,8 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'Rider: View Wallet & Earnings Ledger': ['Wallet & Payout History'],
 
   // Overview & Admin
-  perm_overview_view: ['Full Database & Records Access', 'Operations Overview'],
-  'View Executive Operations Overview': ['Full Database & Records Access', 'Operations Overview'],
+  perm_overview_view: ['Operations Overview'],
+  'View Executive Operations Overview': ['Operations Overview'],
   perm_users: ['User Onboarding & Deletion'],
   'Manage Staff Accounts & KYC Onboarding': ['User Onboarding & Deletion'],
   perm_rbac: ['Role & Permission Management'],
@@ -864,10 +901,21 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'Full Database & Records Access': ['Full Database & Records Access']
 }
 
+export const HOME_OVERVIEW_SUB_PERMISSIONS = [
+  'Home Overview: View KPI Summary Cards',
+  'Home Overview: View Quick Navigation & Action Links',
+  'Home Overview: View Live Order Flow Diagram',
+  'Home Overview: View Operational Analytics & Trend Charts',
+] as const
+
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   admin: Object.values(PERMISSION_DEFINITIONS).map(d => d.label),
   manager: [
     'View Executive Operations Overview',
+    'Home Overview: View KPI Summary Cards',
+    'Home Overview: View Quick Navigation & Action Links',
+    'Home Overview: View Live Order Flow Diagram',
+    'Home Overview: View Operational Analytics & Trend Charts',
     'View Website Orders Page',
     'Edit & Reschedule Website Orders',
     'View Order KPI Metric Cards & Analytics Graphs',
@@ -969,6 +1017,110 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   ]
 }
 
+/**
+ * Normalizes any list of permission strings (canonical labels, `perm_*` IDs, or legacy strings)
+ * into clean, deduplicated canonical `PERMISSION_DEFINITIONS` labels.
+ */
+export const normalizePermissionsList = (
+  rawPermissions?: string[],
+  fallbackRole?: UserRole,
+  preserveExplicitOverviewSubToggles = false
+): string[] => {
+  if (!Array.isArray(rawPermissions)) {
+    return fallbackRole ? [...(ROLE_DEFAULT_PERMISSIONS[fallbackRole] || [])] : []
+  }
+  if (rawPermissions.length === 0) {
+    return []
+  }
+
+  const canonicalSet = new Set<string>()
+  let hadLegacyOnlySeed = false
+  const legacySeedMarkers = new Set([
+    'Batch Scheduling & Cook Approvals',
+    'Variance Reconciliation',
+    'Supplier Invoice Verification',
+    'Waste & Spoilage Write-offs',
+    'Accept & Transit Delivery',
+    'Customer OTP Drop-off Sign-off',
+    'Wallet & Payout History',
+    'User Onboarding & Deletion',
+    'Role & Permission Management',
+  ])
+
+  for (const raw of rawPermissions) {
+    if (!raw || typeof raw !== 'string') continue
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+
+    if (legacySeedMarkers.has(trimmed)) {
+      hadLegacyOnlySeed = true
+    }
+
+    // 1. Exact canonical label
+    if (PERMISSION_LABEL_TO_ID[trimmed]) {
+      canonicalSet.add(trimmed)
+      continue
+    }
+
+    // 2. Exact permission ID
+    if (PERMISSION_ID_TO_LABEL[trimmed]) {
+      canonicalSet.add(PERMISSION_ID_TO_LABEL[trimmed])
+      continue
+    }
+
+    // 3. Case-insensitive canonical label match
+    const ciDef = Object.values(PERMISSION_DEFINITIONS).find(
+      d => d.label.toLowerCase() === trimmed.toLowerCase() || d.id.toLowerCase() === trimmed.toLowerCase()
+    )
+    if (ciDef) {
+      canonicalSet.add(ciDef.label)
+      continue
+    }
+
+    // 4. Legacy alias lookup
+    for (const def of Object.values(PERMISSION_DEFINITIONS)) {
+      const aliases = LEGACY_PERMISSION_ALIASES[def.id] || LEGACY_PERMISSION_ALIASES[def.label] || []
+      if (aliases.some(a => a.toLowerCase() === trimmed.toLowerCase())) {
+        canonicalSet.add(def.label)
+      }
+    }
+  }
+
+  // If this account was still carrying the un-migrated 4-5 item legacy seed array from early versions,
+  // merge in its role defaults so existing toggles in ManageAccountsPage reflect the full role baseline.
+  const hasAnyModernPageView = Object.values(PERMISSION_DEFINITIONS)
+    .filter(d => d.isPageView)
+    .some(d => rawPermissions.includes(d.label) || rawPermissions.includes(d.id))
+
+  if (hadLegacyOnlySeed && !hasAnyModernPageView && fallbackRole) {
+    for (const defLabel of ROLE_DEFAULT_PERMISSIONS[fallbackRole] || []) {
+      canonicalSet.add(defLabel)
+    }
+  }
+
+  // If 'View Executive Operations Overview' is present on a pre-existing account that hasn't explicitly
+  // configured the 4 granular Home Overview toggles yet, enable all 4 by default.
+  const hasOverviewPage = canonicalSet.has('View Executive Operations Overview')
+  const hasAnyOverviewSub = HOME_OVERVIEW_SUB_PERMISSIONS.some(sub => canonicalSet.has(sub))
+  if (hasOverviewPage && !hasAnyOverviewSub && !preserveExplicitOverviewSubToggles) {
+    HOME_OVERVIEW_SUB_PERMISSIONS.forEach(sub => canonicalSet.add(sub))
+  }
+  // Conversely, if any Home Overview sub-toggle is enabled, ensure the page view permission is enabled
+  if (hasAnyOverviewSub && !hasOverviewPage) {
+    canonicalSet.add('View Executive Operations Overview')
+  }
+
+  return Array.from(canonicalSet)
+}
+
+export const normalizeAccountRecord = (acc: AppUserAccount): AppUserAccount => {
+  if (!acc) return acc
+  return {
+    ...acc,
+    permissions: normalizePermissionsList(acc.permissions, acc.role, Boolean((acc as any).overview_granular_configured))
+  }
+}
+
 export interface RouteAccessRule {
   prefix: string
   exact?: boolean
@@ -978,19 +1130,21 @@ export interface RouteAccessRule {
 }
 
 export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
-  // Super Admin only routes
-  { prefix: '/accounts', allowedRoles: ['admin'], requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
-  { prefix: '/admin/accounts', allowedRoles: ['admin'], requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
-  { prefix: '/offices', allowedRoles: ['admin'], requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
-  { prefix: '/admin/offices', allowedRoles: ['admin'], requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
+  // Administration & Account/Office Management routes (accessible to Admin or any staff granted explicit permission)
+  { prefix: '/accounts/matrix', requiredPermissions: ['perm_rbac', 'perm_users', 'Manage Role Scopes & Permission Policies', 'Manage Staff Accounts & KYC Onboarding'], title: 'Role & Permission Matrix' },
+  { prefix: '/accounts/scopes', requiredPermissions: ['perm_rbac', 'perm_users', 'Manage Role Scopes & Permission Policies', 'Manage Staff Accounts & KYC Onboarding'], title: 'Role & Permission Matrix' },
+  { prefix: '/accounts', requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
+  { prefix: '/admin/accounts', requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
+  { prefix: '/offices', requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
+  { prefix: '/admin/offices', requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
 
   // Dedicated Rider Portal
-  { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff'], title: 'Rider Delivery Portal' },
-  { prefix: '/rider', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff'], title: 'Rider Delivery Portal' },
+  { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff', 'perm_wallet'], title: 'Rider Delivery Portal' },
+  { prefix: '/rider', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff', 'perm_wallet'], title: 'Rider Delivery Portal' },
 
   // 1. Sales domain
-  { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'View Website Orders Page', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
-  { prefix: '/sales', exact: true, requiredPermissions: ['perm_orders_view', 'View Website Orders Page', 'View Storefront & Website Orders', 'View Customer Orders'], title: 'Website Orders' },
+  { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders', 'View Order KPI Metric Cards & Analytics Graphs', 'Export Website Order & Revenue Reports'], title: 'Website Orders' },
+  { prefix: '/sales', exact: true, requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders'], title: 'Website Orders' },
   { prefix: '/inventory/sales', requiredPermissions: ['perm_sales_inventory_view', 'View Sales Inventory Page', 'perm_sales_catalog', 'Edit Sales Inventory, Pricing & Menu Catalog'], title: 'Sales Inventory' },
 
   // 2. Packaging domain
@@ -998,26 +1152,42 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { prefix: '/inventory/packaging', requiredPermissions: ['perm_packaging_materials_view', 'View Packaging Materials Page', 'perm_transfers', 'Manage Packaging Stock, Receipts & Reconciliations'], title: 'Packaging Materials' },
 
   // 3. Production domain
-  { prefix: '/production/batches', requiredPermissions: ['perm_batches_view', 'View Production Batches Page', 'perm_cook', 'Start, Update & Complete Cooking Batches', 'perm_batches', 'Manage Master Recipes (BOMs) & Purge Batches'], title: 'Production Batches' },
+  { prefix: '/production/batches', requiredPermissions: ['perm_batches_view', 'View Production Batches Page', 'perm_cook', 'Start, Update & Complete Cooking Batches', 'perm_batches', 'Manage Master Recipes (BOMs) & Purge Batches', 'perm_raw_deplete', 'perm_spoilage'], title: 'Production Batches' },
   { prefix: '/production/tasks', requiredPermissions: ['perm_tasks_view', 'View Kitchen Shift Tasks Page', 'perm_tasks_edit', 'Create, Assign & Complete Kitchen Tasks'], title: 'Kitchen Shift Tasks' },
   { prefix: '/production', exact: true, requiredPermissions: ['perm_batches_view', 'View Production Batches Page', 'perm_packaging_exec_view', 'perm_tasks_view'], title: 'Production Domain' },
 
   // 4. Inventory domain
-  { prefix: '/inventory/raw', requiredPermissions: ['perm_raw_view', 'View Raw Inventory Page', 'perm_intake', 'Record Raw Stock Intake & Issue Requisitions', 'perm_cycle_counts'], title: 'Raw Inventory' },
+  { prefix: '/inventory/raw', requiredPermissions: ['perm_raw_view', 'View Raw Inventory Page', 'perm_intake', 'Record Raw Stock Intake & Issue Requisitions', 'perm_cycle_counts', 'Physical Stocktake Adjustments & Edit Raw Items', 'perm_expiry', 'perm_thresholds'], title: 'Raw Inventory' },
   { prefix: '/inventory/movements', requiredPermissions: ['perm_movements_view', 'View Stock Movements Ledger Page', 'perm_movements_edit', 'Record Manual Transfers & Export Movements'], title: 'Stock Movements Ledger' },
   { prefix: '/inventory/suppliers', requiredPermissions: ['perm_suppliers_view', 'View Suppliers & Vendors Page', 'perm_invoices', 'Manage Suppliers & Verify Vendor Invoices'], title: 'Suppliers & Vendors' },
   { prefix: '/inventory', exact: true, requiredPermissions: ['perm_raw_view', 'perm_sales_inventory_view', 'perm_packaging_materials_view', 'perm_movements_view', 'perm_suppliers_view'], title: 'Inventory Domain' },
 
   // 5. Logistics domain
-  { prefix: '/logistics/board', requiredPermissions: ['perm_dispatch_view', 'View Dispatch Board Page', 'perm_queue_assign', 'Assign Riders & Control Dispatch Queue'], title: 'Dispatch Board' },
+  { prefix: '/logistics/board', requiredPermissions: ['perm_dispatch_view', 'View Dispatch Board Page', 'perm_queue_assign', 'Assign Riders & Control Dispatch Queue', 'perm_dispatch_ctrl', 'Logistics Dispatch Controls'], title: 'Dispatch Board' },
   { prefix: '/logistics/schedule', requiredPermissions: ['perm_schedule_view', 'View Delivery Schedule Page', 'perm_schedule_edit', 'Manage & Dispatch Scheduled Orders'], title: 'Delivery Schedule' },
-  { prefix: '/logistics/riders', requiredPermissions: ['perm_tracking', 'View In-House Riders Page', 'perm_rider_payout', 'Manage Rider Roster, Shifts & Payout Disbursements'], title: 'In-House Riders' },
+  { prefix: '/logistics/riders', requiredPermissions: ['perm_tracking', 'View In-House Riders Page', 'perm_rider_payout', 'Manage Rider Roster, Shifts & Payout Disbursements', 'perm_shifts', 'perm_finance'], title: 'In-House Riders' },
   { prefix: '/logistics/pickup', requiredPermissions: ['perm_pickup_view', 'View Store Pickup Counter Page', 'perm_pickup_edit', 'Verify Collector & Complete Pickup Handover'], title: 'Store Pickup Counter' },
   { prefix: '/logistics/third-party', requiredPermissions: ['perm_3pl_view', 'View Third-Party Delivery Page', 'perm_3pl', 'Book 3PL Couriers & Verify Surge Fee Evidence'], title: 'Third Party Delivery' },
   { prefix: '/logistics', exact: true, requiredPermissions: ['perm_dispatch_view', 'perm_schedule_view', 'perm_tracking', 'perm_pickup_view', 'perm_3pl_view'], title: 'Logistics Domain' },
 
-  // Operations Overview (Executive)
-  { prefix: '/overview', requiredPermissions: ['perm_overview_view', 'View Executive Operations Overview', 'Full Database & Records Access'], title: 'Operations Overview' },
+  // Operations Overview (Executive & Pipeline Tracking)
+  {
+    prefix: '/overview',
+    requiredPermissions: [
+      'perm_overview_view',
+      'perm_overview_kpis',
+      'perm_overview_links',
+      'perm_overview_flow_diagram',
+      'perm_overview_analytics',
+      'View Executive Operations Overview',
+      'Home Overview: View KPI Summary Cards',
+      'Home Overview: View Quick Navigation & Action Links',
+      'Home Overview: View Live Order Flow Diagram',
+      'Home Overview: View Operational Analytics & Trend Charts',
+      'Full Database & Records Access'
+    ],
+    title: 'Operations Overview'
+  },
 
   // Support Help Desk (Universal for all authenticated staff)
   { prefix: '/support', title: 'Support & Help Desk' },
@@ -1026,7 +1196,7 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
 export const APP_ACCOUNTS: AppUserAccount[] = [
   {
     email: 'fivedigita@gmail.com',
-    name: 'AYOBAMI OLOWOKERE',
+    name: 'Super Admin',
     role: 'admin',
     roleLabel: 'Super Admin',
     staff_id: 'SHD-ADM-001',
@@ -1036,14 +1206,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active now',
     created_at: '10 Jan 2026',
-    permissions: [
-      'Full Database & Records Access',
-      'User Onboarding & Deletion',
-      'Role & Permission Management',
-      'Finance & Payout Remittances',
-      'Inventory Threshold Overrides',
-      'Logistics Dispatch Controls'
-    ]
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.admin]
   },
   {
     email: 'Smokeyhut04@gmail.com',
@@ -1057,14 +1220,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '1h ago',
     created_at: '18 Apr 2026',
-    permissions: [
-      'Full Database & Records Access',
-      'User Onboarding & Deletion',
-      'Role & Permission Management',
-      'Finance & Payout Remittances',
-      'Inventory Threshold Overrides',
-      'Logistics Dispatch Controls'
-    ]
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.admin]
   },
   {
     email: 'Opleadsmokeyhut001@gmail.com',
@@ -1078,13 +1234,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: '15m ago',
     created_at: '12 May 2026',
-    permissions: [
-      'Batch Scheduling & Cook Approvals',
-      'Variance Reconciliation',
-      'Staff Shift Assignments',
-      'Supplier Invoice Verification',
-      'Waste & Spoilage Write-offs'
-    ]
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.manager]
   },
   {
     email: 'Smokeyhutpackagingteam@gmail.com',
@@ -1184,7 +1334,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyabu@gmail.com',
@@ -1199,7 +1349,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyaminu@gmail.com',
@@ -1214,7 +1364,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyidris@gmail.com',
@@ -1229,7 +1379,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyhutjoshua@gmail.com',
@@ -1244,7 +1394,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyhutprince@gmail.com',
@@ -1259,7 +1409,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyhutsam@gmail.com',
@@ -1274,7 +1424,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeysunday@gmail.com',
@@ -1289,7 +1439,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyhutwasiu@gmail.com',
@@ -1304,7 +1454,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   },
   {
     email: 'ridersmokeyyusuf@gmail.com',
@@ -1319,7 +1469,7 @@ export const APP_ACCOUNTS: AppUserAccount[] = [
     status: 'active',
     last_active: 'Active',
     created_at: '01 Jun 2026',
-    permissions: ['Accept & Transit Delivery', 'Customer OTP Drop-off Sign-off', 'Wallet & Payout History']
+    permissions: [...ROLE_DEFAULT_PERMISSIONS.rider]
   }
 ]
 
@@ -1364,10 +1514,23 @@ const readLocalCache = <T,>(key: string): T | null => {
   }
 }
 
+// Immediate module-level eviction of all legacy unversioned caches before any React useState initializers run
+if (typeof window !== 'undefined') {
+  try {
+    const legacyKeys = Object.keys(localStorage).filter(k => 
+      !k.includes('_v4_') && 
+      (k.startsWith('smokey_live_cache_') || k.startsWith('smokey_order_pipeline_state_') || k.startsWith('smokey_app_setting_'))
+    )
+    legacyKeys.forEach(k => localStorage.removeItem(k))
+  } catch (err) {
+    console.warn('Failed to clear legacy caches:', err)
+  }
+}
+
 const readAppSettingCache = <T,>(key: string, fallback: T): T => {
   if (typeof window === 'undefined') return fallback
   try {
-    const raw = localStorage.getItem(`smokey_app_setting_${key}`)
+    const raw = localStorage.getItem(`smokey_app_setting_v4_${key}`)
     if (!raw) return fallback
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? (parsed as unknown as T) : fallback
@@ -1385,50 +1548,122 @@ const writeLocalCache = (key: string, value: any) => {
   }
 }
 
-const persistAppSetting = (key: string, value: any) => {
+// Serialization cache and debounce timers to stop redundant upserts and 405 floods
+const lastPersistedHash = new Map<string, string>()
+const persistDebounceTimers = new Map<string, any>()
+
+const persistAppSetting = (key: string, value: any, immediate = false) => {
   if (typeof window === 'undefined') return
-  writeLocalCache(`smokey_app_setting_${key}`, value)
-  const upsertDirect = () =>
-    supabase
-      .from('app_settings')
-      .upsert({ key, value }, { onConflict: 'key' })
-      .then(({ error }) => {
+  writeLocalCache(`smokey_app_setting_v4_${key}`, value)
+
+  let jsonStr = ''
+  try {
+    jsonStr = JSON.stringify(value)
+  } catch {
+    return
+  }
+
+  // Value unchanged since last remote sync? Skip network request completely
+  if (lastPersistedHash.get(key) === jsonStr) {
+    return
+  }
+
+  const doUpsert = () => {
+    lastPersistedHash.set(key, jsonStr)
+    const isLocalDev = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+    const upsertDirect = async () => {
+      try {
+        const { error } = await supabase
+          .from('app_settings')
+          .upsert({ key, value }, { onConflict: 'key' })
         if (error) console.error(`[app_settings] Failed to persist "${key}":`, error.message)
+      } catch (err: unknown) {
+        console.error(`[app_settings] Exception persisting "${key}":`, err)
+      }
+    }
+
+    // On local dev, keep local dev middleware cache warm; on static hosting (Cloudflare Pages),
+    // write directly to Supabase to avoid 405 Method Not Allowed storm.
+    if (isLocalDev) {
+      fetch('/api/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
       })
-  // Prefer the dev middleware (keeps its server cache warm); fall back to a direct
-  // Supabase upsert when the endpoint is unavailable (e.g. static production hosting).
-  fetch('/api/app-settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, value }),
-  })
-    .then(res => {
-      const isJson = (res.headers.get('content-type') || '').includes('application/json')
-      if (!res.ok || !isJson) return upsertDirect()
-    })
-    .catch(() => upsertDirect())
+        .then(res => {
+          const isJson = (res.headers.get('content-type') || '').includes('application/json')
+          if (!res.ok || !isJson) return upsertDirect()
+        })
+        .catch(() => upsertDirect())
+    } else {
+      upsertDirect()
+    }
+  }
+
+  if (immediate) {
+    if (persistDebounceTimers.has(key)) {
+      clearTimeout(persistDebounceTimers.get(key))
+      persistDebounceTimers.delete(key)
+    }
+    doUpsert()
+    return
+  }
+
+  // Coalesce rapid local updates into a single debounced remote write
+  if (persistDebounceTimers.has(key)) {
+    clearTimeout(persistDebounceTimers.get(key))
+  }
+  const timer = setTimeout(() => {
+    persistDebounceTimers.delete(key)
+    doUpsert()
+  }, 1500)
+  persistDebounceTimers.set(key, timer)
 }
 
 /** Fetch a set of app_settings keys, via the dev middleware or directly from Supabase. */
 const fetchAppSettings = async (keys: string[]): Promise<Record<string, any>> => {
   const toMap = (rows: Array<{ key: string; value: any }> | null | undefined) => {
     const map: Record<string, any> = {}
-    ;(rows || []).forEach(r => { if (r?.key) map[r.key] = r.value })
+    ;(rows || []).forEach(r => {
+      if (r?.key) {
+        map[r.key] = r.value
+        try {
+          lastPersistedHash.set(r.key, JSON.stringify(r.value))
+        } catch {}
+      }
+    })
     return map
   }
-  try {
-    const res = await fetch(`/api/app-settings?keys=${keys.join(',')}`)
-    const isJson = (res.headers.get('content-type') || '').includes('application/json')
-    if (res.ok && isJson) {
-      const json = await res.json()
-      if (Array.isArray(json?.data)) return toMap(json.data)
+
+  const isLocalDev = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+  if (isLocalDev) {
+    try {
+      const res = await fetch(`/api/app-settings?keys=${keys.join(',')}`)
+      const isJson = (res.headers.get('content-type') || '').includes('application/json')
+      if (res.ok && isJson) {
+        const json = await res.json()
+        if (Array.isArray(json?.data)) return toMap(json.data)
+      }
+    } catch {
+      // fall through to direct Supabase read
     }
-  } catch {
-    // fall through to direct Supabase read
   }
-  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys)
-  if (error) throw error
-  return toMap(data as any)
+
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys)
+    if (error) {
+      console.warn('[app_settings] Remote read error:', error.message)
+      return {}
+    }
+    return toMap(data as any)
+  } catch (err) {
+    console.error('Error fetching app settings directly from Supabase:', err)
+    return {}
+  }
 }
 
 const DELETED_ACCOUNTS_STORAGE_KEY = 'smokey_deleted_accounts'
@@ -1481,24 +1716,117 @@ export const calculateRiderRating = (
   return { rating, onTimeRate }
 }
 
+const getOrderStatusRank = (status?: string): number => {
+  const norm = String(status || '').toLowerCase().trim()
+  if (norm === 'packaged') return 2
+  if (norm === 'in_packaging') return 1
+  return 0
+}
+
+const getDeliveryStatusRank = (status?: string): number => {
+  const norm = String(status || '').toLowerCase().trim().replace(/\s+/g, '_')
+  if (norm === 'delivered' || norm === 'collected') return 4
+  if (norm === 'in_transit' || norm === 'out_for_delivery') return 3
+  if (norm === 'assigned') return 2
+  if (norm === 'pending' || norm === 'ready_for_dispatch') return 1
+  return 0
+}
+
+const getFulfillmentStatusRank = (status?: WebsiteOrder['fulfillment_status']): number => {
+  if (status === 'delivered') return 4
+  if (status === 'in_transit') return 3
+  if (status === 'ready_for_dispatch') return 2
+  if (status === 'packaging') return 1
+  return 0
+}
+
+const isFreshPipelineOrderKey = (key: string): boolean => {
+  const num = extractNumericOrderId(key, 0)
+  return num >= 11110
+}
+
+const sanitizePipelineEntry = (entry: OrderPipelineOverride): OrderPipelineOverride => {
+  if (
+    entry.fee_evidence_path &&
+    (entry.fee_evidence_path.startsWith('data:') || entry.fee_evidence_path.length > 1024)
+  ) {
+    return { ...entry, fee_evidence_path: 'uploaded_verified' }
+  }
+  return entry
+}
+
+const mergeOrderPipelineEntry = (
+  a: OrderPipelineOverride = {},
+  b: OrderPipelineOverride = {},
+  allowIntentionalUnassign = false
+): OrderPipelineOverride => {
+  const merged: OrderPipelineOverride = sanitizePipelineEntry({ ...a, ...b })
+
+  // Monotonically preserve highest packaging stage
+  const bestOrderRank = Math.max(getOrderStatusRank(a.order_status), getOrderStatusRank(b.order_status))
+  if (bestOrderRank === 2) merged.order_status = 'packaged'
+  else if (bestOrderRank === 1) merged.order_status = 'in_packaging'
+  else if (a.order_status || b.order_status) merged.order_status = 'ready_for_fulfillment'
+
+  // If either entry reached a dispatch/delivery stage or has a rider, packaging is guaranteed complete
+  const rankA = getDeliveryStatusRank(a.delivery_status)
+  const rankB = getDeliveryStatusRank(b.delivery_status)
+  const hasCollected = Boolean(a.collected_at || b.collected_at || a.collected_by || b.collected_by)
+  if (rankA >= 1 || rankB >= 1 || a.packaged_at || b.packaged_at || a.delivered_at || b.delivered_at || hasCollected) {
+    merged.order_status = 'packaged'
+  }
+
+  // Monotonically preserve highest delivery stage unless b is an explicit unassign/decline
+  if (allowIntentionalUnassign && b.delivery_status === 'pending' && b.assigned_rider === 'Unassigned') {
+    merged.delivery_status = 'pending'
+    merged.assigned_rider = 'Unassigned'
+    merged.assigned_rider_id = undefined
+    merged.pickup_at = null
+  } else {
+    const bestDelivRank = hasCollected ? 4 : Math.max(rankA, rankB)
+    if (bestDelivRank === 4) merged.delivery_status = 'delivered'
+    else if (bestDelivRank === 3) merged.delivery_status = 'in_transit'
+    else if (bestDelivRank === 2) merged.delivery_status = 'assigned'
+    else if (bestDelivRank === 1) merged.delivery_status = 'pending'
+
+    const validRiderB = b.assigned_rider && b.assigned_rider !== 'Unassigned' && b.assigned_rider !== 'Dispatched Courier' ? b.assigned_rider : undefined
+    const validRiderA = a.assigned_rider && a.assigned_rider !== 'Unassigned' && a.assigned_rider !== 'Dispatched Courier' ? a.assigned_rider : undefined
+    if (validRiderB || validRiderA) {
+      merged.assigned_rider = validRiderB || validRiderA
+      merged.assigned_rider_id = validRiderB ? (b.assigned_rider_id ?? a.assigned_rider_id) : (a.assigned_rider_id ?? b.assigned_rider_id)
+    }
+  }
+
+  merged.packaged_at = b.packaged_at || a.packaged_at
+  merged.packaged_by_name = b.packaged_by_name || a.packaged_by_name
+  merged.pickup_at = b.pickup_at || a.pickup_at
+  merged.delivered_at = b.delivered_at || a.delivered_at || b.collected_at || a.collected_at
+  merged.collected_at = b.collected_at || a.collected_at
+  merged.collected_by = b.collected_by || a.collected_by
+  merged.handover_staff = b.handover_staff || a.handover_staff
+  merged.collector_phone = b.collector_phone || a.collector_phone
+  return merged
+}
+
 const readOrderPipelineState = (): Record<string, OrderPipelineOverride> => {
   if (typeof window === 'undefined') return {}
   try {
-    const rawLocal = localStorage.getItem('smokey_order_pipeline_state_v1')
-    const rawAppSetting = localStorage.getItem('smokey_app_setting_order_pipeline_state')
+    const rawLocal = localStorage.getItem('smokey_order_pipeline_state_v4')
+    const rawAppSetting = localStorage.getItem('smokey_app_setting_v4_order_pipeline_state')
     const parsedLocal = rawLocal ? JSON.parse(rawLocal) : {}
     const parsedApp = rawAppSetting ? JSON.parse(rawAppSetting) : {}
     const localObj = (typeof parsedLocal === 'object' && parsedLocal && !Array.isArray(parsedLocal)) ? parsedLocal : {}
     const appObj = (typeof parsedApp === 'object' && parsedApp && !Array.isArray(parsedApp)) ? parsedApp : {}
 
-    // Deep merge: local first, remote appObj on top so authoritative backend settings win
     const mergedKeys = Array.from(new Set([...Object.keys(localObj), ...Object.keys(appObj)]))
     const result: Record<string, OrderPipelineOverride> = {}
     for (const key of mergedKeys) {
-      result[key] = {
-        ...(localObj[key] || {}),
-        ...(appObj[key] || {})
-      }
+      const canonicalKey = getCanonicalOrderRef(key) || key
+      if (!isFreshPipelineOrderKey(canonicalKey)) continue
+      const combined = mergeOrderPipelineEntry(localObj[key] || {}, appObj[key] || {})
+      result[canonicalKey] = result[canonicalKey]
+        ? mergeOrderPipelineEntry(result[canonicalKey], combined)
+        : combined
     }
     return result
   } catch {
@@ -1506,26 +1834,80 @@ const readOrderPipelineState = (): Record<string, OrderPipelineOverride> => {
   }
 }
 
+const pendingIntentionalUnassignRefs = new Set<string>()
+let pipelineRemoteSyncTimer: ReturnType<typeof setTimeout> | null = null
+
 const updateOrderPipelineState = (orderRef: string, patch: Partial<OrderPipelineOverride>) => {
   if (typeof window === 'undefined' || !orderRef) return
+  const canonicalRef = getCanonicalOrderRef(orderRef) || orderRef
+  if (!isFreshPipelineOrderKey(canonicalRef)) return
+  const sanitizedPatch = sanitizePipelineEntry(patch as OrderPipelineOverride)
+  const isIntentionalUnassign = sanitizedPatch.delivery_status === 'pending' && sanitizedPatch.assigned_rider === 'Unassigned'
+  if (isIntentionalUnassign) {
+    pendingIntentionalUnassignRefs.add(canonicalRef)
+  } else if (sanitizedPatch.assigned_rider && sanitizedPatch.assigned_rider !== 'Unassigned') {
+    pendingIntentionalUnassignRefs.delete(canonicalRef)
+  }
+
   try {
     const current = readOrderPipelineState()
-    current[orderRef] = { ...(current[orderRef] || {}), ...patch }
-    localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(current))
-    persistAppSetting('order_pipeline_state', current)
+    current[canonicalRef] = mergeOrderPipelineEntry(current[canonicalRef] || {}, sanitizedPatch, isIntentionalUnassign)
+    localStorage.setItem('smokey_order_pipeline_state_v4', JSON.stringify(current))
+    writeLocalCache('smokey_app_setting_v4_order_pipeline_state', current)
+
+    // Coalesce remote order_pipeline_state read-modify-writes with a 2s debounce
+    if (pipelineRemoteSyncTimer) {
+      clearTimeout(pipelineRemoteSyncTimer)
+    }
+    pipelineRemoteSyncTimer = setTimeout(() => {
+      pipelineRemoteSyncTimer = null
+      Promise.resolve(
+        supabase.from('app_settings').select('value').eq('key', 'order_pipeline_state').single()
+      ).then(({ data }) => {
+        const remoteObj = (data?.value && typeof data.value === 'object' && !Array.isArray(data.value))
+          ? (data.value as Record<string, OrderPipelineOverride>)
+          : {}
+        const latestLocal = readOrderPipelineState()
+        const allKeys = Array.from(new Set([...Object.keys(remoteObj), ...Object.keys(latestLocal)]))
+        const reconciled: Record<string, OrderPipelineOverride> = {}
+        for (const k of allKeys) {
+          const cKey = getCanonicalOrderRef(k) || k
+          if (!isFreshPipelineOrderKey(cKey)) continue
+          const unassignFlag = pendingIntentionalUnassignRefs.has(cKey)
+          reconciled[cKey] = mergeOrderPipelineEntry(remoteObj[k] || {}, latestLocal[cKey] || {}, unassignFlag)
+        }
+        pendingIntentionalUnassignRefs.clear()
+        localStorage.setItem('smokey_order_pipeline_state_v4', JSON.stringify(reconciled))
+        writeLocalCache('smokey_app_setting_v4_order_pipeline_state', reconciled)
+        persistAppSetting('order_pipeline_state', reconciled)
+      }).catch(() => {
+        persistAppSetting('order_pipeline_state', readOrderPipelineState())
+      })
+    }, 2000)
   } catch {
     // Ignore quota errors
   }
 }
 
-const persistOrderUpdateToBackend = (orderRef: string, updates: Record<string, any>) => {
-  if (!orderRef) return
+const persistOrderUpdateToBackend = async (orderRef: string, updates: Record<string, any>): Promise<boolean> => {
+  if (!orderRef) return false
+  const canonicalRef = getCanonicalOrderRef(orderRef) || orderRef
   fetch('/api/update-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: orderRef, updates }),
+    body: JSON.stringify({ id: canonicalRef, updates }),
   }).catch(() => {})
-  Promise.resolve(supabase.from('orders').update(updates).eq('id', orderRef)).catch(() => {})
+  try {
+    const { error } = await supabase.from('orders').update(updates).eq('id', canonicalRef)
+    if (error) {
+      console.error(`[orders] Failed to update order ${canonicalRef}:`, error.message)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error(`[orders] Exception updating order ${canonicalRef}:`, err)
+    return false
+  }
 }
 
 const persistProductUpdateToBackend = (productId: number, updates: Record<string, any>) => {
@@ -1542,21 +1924,33 @@ const persistProductUpdateToBackend = (productId: number, updates: Record<string
 }
 
 const mapRawInventoryItems = (list: any[]): RawProduct[] => {
-  const mapped: RawProduct[] = list.map((p: any) => ({
-    id: p.id,
-    sku: p.sku,
-    name: p.name,
-    product_type: 'raw' as const,
-    unit: p.unit || 'PIECES',
-    reorder_level: parseFloat(p.reorder_level || 10),
-    unit_cost: parseFloat(p.unit_cost || 0),
-    stock_qty: parseFloat(p.stock_qty || 0),
-    qty_allocated: 0,
-    qty_available: parseFloat(p.stock_qty || 0),
-    qty_quarantine: 0,
-    inventory_value: parseFloat(p.inventory_value || (parseFloat(p.stock_qty || 0) * parseFloat(p.unit_cost || 0))),
-    is_active: p.is_active ? 1 : 0
-  }))
+  const mapped: RawProduct[] = list.map((p: any) => {
+    const stockQty = Number.isFinite(Number(p.stock_qty)) ? Number(p.stock_qty) : 0
+    const unitCost = Number.isFinite(Number(p.unit_cost)) ? Number(p.unit_cost) : 0
+    const reorderLevel = Number.isFinite(Number(p.reorder_level)) ? Number(p.reorder_level) : 10
+    const allocated = Number.isFinite(Number(p.qty_allocated)) ? Number(p.qty_allocated) : 0
+    const quarantine = Number.isFinite(Number(p.qty_quarantine)) ? Number(p.qty_quarantine) : 0
+    const available = Math.max(0, stockQty - allocated - quarantine)
+    return {
+      id: p.id,
+      sku: p.sku,
+      name: p.name,
+      product_type: 'raw' as const,
+      unit: p.unit || 'PIECES',
+      reorder_level: reorderLevel,
+      unit_cost: unitCost,
+      last_purchase_cost: p.last_purchase_cost !== undefined ? Number(p.last_purchase_cost) : undefined,
+      cost_change_delta: p.cost_change_delta !== undefined ? Number(p.cost_change_delta) : undefined,
+      stock_qty: stockQty,
+      qty_allocated: allocated,
+      qty_available: available,
+      qty_quarantine: quarantine,
+      inventory_value: stockQty * unitCost,
+      is_active: p.is_active !== false && p.is_active !== 0 ? 1 : 0,
+      is_perishable: Boolean(p.is_perishable),
+      expiry_date: p.expiry_date || undefined,
+    }
+  })
   const existingIds = new Set(mapped.map(m => m.id))
   const supplemental = SEED_RAW_PRODUCTS.filter(sp => !existingIds.has(sp.id))
   return [...mapped, ...supplemental]
@@ -1636,18 +2030,51 @@ const mapFleetRidersItems = (list: any[]): RiderPayout[] => {
     })
 }
 
+export const OPS_FRESH_START_CUTOFF = '2026-11-06T02:00:00.000Z'
+
+export const isFreshOrder = (order: any): boolean => {
+  if (!order || typeof order !== 'object') return false
+  const createdAt = order.created_at || order.createdAt
+  if (!createdAt || typeof createdAt !== 'string') return false
+  if (createdAt < OPS_FRESH_START_CUTOFF) return false
+  if (order.deleted_at || order.deletedAt) return false
+  const status = String(order.status || '').toLowerCase()
+  if (status === 'pending_payment' || status === 'abandoned' || status === 'draft') return false
+  const paymentStatus = String(order.payment_status || '').toLowerCase()
+  if (status === 'cancelled' || status === 'refunded' || paymentStatus === 'refunded') return false
+  return true
+}
+
 const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
   const now = Date.now()
   const pipelineOverrides = readOrderPipelineState()
+  const cachedPickups = [
+    ...(readLocalCache<StorePickupOrder[]>('smokey_live_cache_v4_store_pickups') || []),
+    ...(readLocalCache<StorePickupOrder[]>('smokey_app_setting_v4_store_pickups') || []),
+  ]
+  const cachedPickupByRef = new Map<string, StorePickupOrder>()
+  cachedPickups.forEach(p => {
+    const ref = getCanonicalOrderRef(p)
+    if (!ref) return
+    const existing = cachedPickupByRef.get(ref)
+    if (!existing || p.order_status === 'collected') {
+      cachedPickupByRef.set(ref, p)
+    }
+  })
+
   const newPackagingItems: PackagingQueueOrder[] = []
   const newScheduledItems: ScheduledOrder[] = []
   const deliveredDeliveries: LogisticsDelivery[] = []
   const newStorePickups: StorePickupOrder[] = []
 
-  rawOrders.forEach((o: any, idx: number) => {
-    const numericId = parseInt(String(o.id).replace(/\D/g, '')) || (10700 + idx)
-    const orderRef = String(o.order_ref || o.id || `SHD-${numericId}`)
+  // Strictly filter out any historical or non-fresh orders prior to fresh-start cutoff
+  const liveOrdersOnly = rawOrders.filter(isFreshOrder)
+
+  liveOrdersOnly.forEach((o: any, idx: number) => {
+    const orderRef = getCanonicalOrderRef(o) || `SHD-${10700 + idx}`
+    const numericId = extractNumericOrderId(o.id ?? orderRef, 10700 + idx)
     const override = pipelineOverrides[orderRef]
+    const cachedPickup = cachedPickupByRef.get(orderRef)
     const customerName = o.customer_name || 'Storefront Customer'
     const phone = o.customer_phone || o.phone || 'N/A'
     const address = o.delivery_address || o.address || 'Storefront Counter Pickup'
@@ -1657,14 +2084,25 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     const notes = override?.notes || o.notes || ''
 
     const normDelivStatus = String(o.delivery_status || '').toLowerCase().trim().replace(/\s+/g, '_')
-    const rawRiderName = o.rider_name || override?.assigned_rider
-    const hasRider = Boolean(rawRiderName && rawRiderName !== 'Unassigned' && rawRiderName !== 'Dispatched Courier' && rawRiderName.trim() !== '')
+    const normPkgStatus = String(o.packaging_status || '').toLowerCase().trim()
+    const dbRiderName = o.rider_name && String(o.rider_name).trim() !== '' && o.rider_name !== 'Unassigned' && o.rider_name !== 'Dispatched Courier'
+      ? String(o.rider_name).trim()
+      : null
+    const overrideRiderName = override?.assigned_rider && override.assigned_rider.trim() !== '' && override.assigned_rider !== 'Unassigned' && override.assigned_rider !== 'Dispatched Courier'
+      ? override.assigned_rider.trim()
+      : null
+    const rawRiderName = dbRiderName || overrideRiderName
+    const hasRider = Boolean(rawRiderName)
 
-    // Standalone Ops Fulfillment: derived strictly from ops lifecycle fields & overrides.
-    // Ignored admin o.status so actions in Smokey-React/admin never force in_transit or skip packaging.
+    // Standalone Ops Fulfillment: derived monotonically from ops lifecycle fields & overrides so no stage can regress.
     const isDelivered =
       override?.delivery_status === 'delivered' ||
+      Boolean(override?.collected_at) ||
+      Boolean(override?.collected_by) ||
+      cachedPickup?.order_status === 'collected' ||
       normDelivStatus === 'delivered' ||
+      normDelivStatus === 'collected' ||
+      String(o.status || '').toLowerCase() === 'delivered' ||
       Boolean(o.delivered_at)
 
     const isInTransit =
@@ -1674,13 +2112,26 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         Boolean(o.pickup_at)
       )
 
+    const isAssigned =
+      !isDelivered && !isInTransit && hasRider && (
+        override?.delivery_status === 'assigned' ||
+        normDelivStatus === 'assigned' ||
+        Boolean(dbRiderName)
+      )
+
     const isPackaged =
       isDelivered ||
       isInTransit ||
-      o.packaging_status === 'packaged' ||
+      isAssigned ||
+      hasRider ||
+      Boolean(o.packaged_at) ||
+      normPkgStatus === 'packaged' ||
       override?.order_status === 'packaged' ||
       normDelivStatus === 'ready_for_dispatch' ||
-      normDelivStatus === 'packaged'
+      normDelivStatus === 'packaged' ||
+      normDelivStatus === 'assigned' ||
+      override?.delivery_status === 'pending' ||
+      override?.delivery_status === 'assigned'
 
     const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
       ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
@@ -1688,6 +2139,10 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
 
     const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
       ? o.order_items.map((i: any) => ({
+          product_id: i.product_id ? Number(i.product_id) : (i.variant_id ? Number(i.variant_id) : undefined),
+          variant_id: i.variant_id ? Number(i.variant_id) : (i.product_id ? Number(i.product_id) : undefined),
+          parent_name: i.parent_name || undefined,
+          variant_label: i.variant_label || undefined,
           product_name: i.name || 'Smokey Product',
           quantity: Number(i.qty) || 1,
           unit_price: Number(i.price) || 0,
@@ -1751,7 +2206,9 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
       const pkgStatus: 'ready_for_fulfillment' | 'in_packaging' | 'packaged' =
         isPackaged
           ? 'packaged'
-          : (o.packaging_status || override?.order_status || 'ready_for_fulfillment')
+          : (normPkgStatus === 'in_packaging' || override?.order_status === 'in_packaging'
+              ? 'in_packaging'
+              : 'ready_for_fulfillment')
 
       newPackagingItems.push({
         id: numericId,
@@ -1785,6 +2242,9 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         const isCollected =
           isDelivered ||
           override?.delivery_status === 'delivered' ||
+          Boolean(override?.collected_at) ||
+          Boolean(override?.collected_by) ||
+          cachedPickup?.order_status === 'collected' ||
           normDelivStatus === 'collected' ||
           normDelivStatus === 'delivered' ||
           Boolean(o.delivered_at)
@@ -1797,11 +2257,11 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           total_amount: totalAmount,
           payment_status: 'paid',
           order_status: isCollected ? 'collected' : 'ready_for_pickup',
-          packaged_at: o.packaged_at || override?.packaged_at || createdAt,
-          collected_at: isCollected ? (o.delivered_at || override?.delivered_at || override?.collected_at || createdAt) : null,
-          collected_by: override?.collected_by || (isCollected ? customerName : null),
-          handover_staff: override?.handover_staff || null,
-          collector_phone: override?.collector_phone || phone,
+          packaged_at: o.packaged_at || override?.packaged_at || cachedPickup?.packaged_at || createdAt,
+          collected_at: isCollected ? (o.delivered_at || override?.delivered_at || override?.collected_at || cachedPickup?.collected_at || createdAt) : null,
+          collected_by: override?.collected_by || cachedPickup?.collected_by || (isCollected ? customerName : null),
+          handover_staff: override?.handover_staff || cachedPickup?.handover_staff || null,
+          collector_phone: override?.collector_phone || cachedPickup?.collector_phone || phone,
           items_summary: itemsList
         })
       } else if (isDelivered || isInTransit || isPackaged) {
@@ -1809,7 +2269,7 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
           ? 'delivered'
           : (isInTransit
               ? 'in_transit'
-              : (override?.delivery_status === 'assigned' || normDelivStatus === 'assigned' || hasRider
+              : (isAssigned || override?.delivery_status === 'assigned' || normDelivStatus === 'assigned' || hasRider
                   ? 'assigned'
                   : 'pending'))
 
@@ -1868,60 +2328,126 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     }
   })
 
-  const mappedWebsiteOrders = rawOrders.map(o => {
+  const mappedWebsiteOrders = deduplicateByOrderRef(liveOrdersOnly.map((o: any) => {
     const base = mapSupabaseOrderToWebsiteOrder(o)
     const override = pipelineOverrides[base.order_ref]
-    if (!override) return base
-    let fulfillment_status = base.fulfillment_status
-    if (override.delivery_status === 'delivered') fulfillment_status = 'delivered'
-    else if (override.delivery_status === 'in_transit' || override.delivery_status === 'assigned') fulfillment_status = 'in_transit'
-    else if (override.order_status === 'packaged') fulfillment_status = 'ready_for_dispatch'
-    else if (override.order_status === 'in_packaging') fulfillment_status = 'packaging'
+    const cachedPickup = cachedPickupByRef.get(base.order_ref)
+    const isCollectedPickup = Boolean(
+      cachedPickup?.order_status === 'collected' ||
+      override?.collected_at ||
+      override?.collected_by
+    )
+
+    if (!override && !isCollectedPickup) return base
+
+    let candidateStatus: WebsiteOrder['fulfillment_status'] = base.fulfillment_status
+    if (override?.delivery_status === 'delivered' || isCollectedPickup) candidateStatus = 'delivered'
+    else if (override?.delivery_status === 'in_transit') candidateStatus = 'in_transit'
+    else if (override?.delivery_status === 'assigned' || override?.order_status === 'packaged') candidateStatus = 'ready_for_dispatch'
+    else if (override?.order_status === 'in_packaging') candidateStatus = 'packaging'
+
+    // Never allow a stale override to downgrade the authoritative database fulfillment stage
+    const fulfillment_status = getFulfillmentStatusRank(candidateStatus) >= getFulfillmentStatusRank(base.fulfillment_status)
+      ? candidateStatus
+      : base.fulfillment_status
+
+    const collectorLabel = (override?.collected_by || cachedPickup?.collected_by)
+      ? `Collected by ${override?.collected_by || cachedPickup?.collected_by}`
+      : (isCollectedPickup ? 'Store Pickup — Collected' : undefined)
+    const validOverrideRider = override?.assigned_rider && override.assigned_rider !== 'Unassigned' ? override.assigned_rider : undefined
+    const validBaseRider = base.rider_name && base.rider_name !== 'Unassigned' && base.rider_name !== 'Pending Rider' ? base.rider_name : undefined
+
     return {
       ...base,
       fulfillment_status,
-      rider_name: override.assigned_rider || base.rider_name
+      rider_name: collectorLabel || validBaseRider || validOverrideRider || base.rider_name || 'Unassigned'
     }
-  })
+  }))
 
   return {
     websiteOrders: mappedWebsiteOrders,
-    newPackagingItems,
-    newScheduledItems,
-    deliveredDeliveries,
-    newStorePickups
+    newPackagingItems: deduplicateByOrderRef(newPackagingItems),
+    newScheduledItems: deduplicateByOrderRef(newScheduledItems),
+    deliveredDeliveries: deduplicateByOrderRef(deliveredDeliveries),
+    newStorePickups: deduplicateByOrderRef(newStorePickups)
   }
 }
 
 export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Evict legacy v1, v2, v3 caches on boot while preserving v4 app settings
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const legacyKeys = Object.keys(localStorage).filter(k => 
+          (k.startsWith("smokey_live_cache_") && !k.startsWith("smokey_live_cache_v4_")) ||
+          (k.startsWith("smokey_order_pipeline_state_") && !k.startsWith("smokey_order_pipeline_state_v4")) ||
+          (k.startsWith("smokey_app_setting_") && !k.startsWith("smokey_app_setting_v4_"))
+        )
+        legacyKeys.forEach(k => localStorage.removeItem(k))
+
+        // Clean up any stale pre-cutoff orders from local storage cache
+        const orderCacheKeys = [
+          'smokey_live_cache_v4_orders_raw',
+          'smokey_live_cache_v4_website_orders',
+          'smokey_live_cache_v4_packaging_queue',
+          'smokey_live_cache_v4_logistics_deliveries',
+          'smokey_live_cache_v4_scheduled_orders',
+          'smokey_live_cache_v4_store_pickups'
+        ]
+        orderCacheKeys.forEach(key => {
+          try {
+            const item = localStorage.getItem(key)
+            if (item) {
+              const parsed = JSON.parse(item)
+              if (Array.isArray(parsed)) {
+                const cleaned = parsed.filter(isFreshOrder)
+                if (cleaned.length !== parsed.length) {
+                  localStorage.setItem(key, JSON.stringify(cleaned))
+                }
+              }
+            }
+          } catch {}
+        })
+      } catch (err) {
+        console.warn("Failed to clear legacy cache:", err)
+      }
+    }
+  }, [])
+
   const initialOrdersBundle = useMemo(() => {
     const boot = getLiveBootstrap()
-    if (boot?.liveOrders && Array.isArray(boot.liveOrders) && boot.liveOrders.length > 0) {
+    if (boot?.liveOrders && Array.isArray(boot.liveOrders)) {
       return deriveQueuesFromRawOrders(boot.liveOrders)
     }
-    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v3_orders_raw')
-    if (cachedRaw && cachedRaw.length > 0) {
+    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+    if (cachedRaw && Array.isArray(cachedRaw)) {
       return deriveQueuesFromRawOrders(cachedRaw)
     }
-    return null
+    return deriveQueuesFromRawOrders([])
   }, [])
 
   // Website Orders & Live Storefront Products (Centralized)
   const [websiteOrders, setWebsiteOrders] = useState<WebsiteOrder[]>(() => {
-    if (initialOrdersBundle) return initialOrdersBundle.websiteOrders
-    const cached = readLocalCache<WebsiteOrder[]>('smokey_live_cache_v3_website_orders')
-    return cached || SEED_WEBSITE_ORDERS
+    return initialOrdersBundle.websiteOrders
   })
   const [isOrdersRefreshing, setIsOrdersRefreshing] = useState<boolean>(false)
 
   const [liveSalesProducts, setLiveSalesProducts] = useState<LiveSalesProduct[]>(() => {
     const boot = getLiveBootstrap()
+    const existingList =
+      (Array.isArray(boot?.salesInventory) && boot.salesInventory.length > 0 ? boot.salesInventory : null) ||
+      readLocalCache<SalesProduct[]>('smokey_live_cache_v4_inventory_sales') ||
+      readAppSettingCache<SalesProduct[]>('inventory_sales', []) ||
+      SEED_SALES_PRODUCTS
+    const existingMap = new Map<number, any>((existingList || []).map((sp: any) => [Number(sp.id), sp]))
+
     if (boot?.products && Array.isArray(boot.products) && boot.products.length > 0) {
-      return boot.products.map(p => mapSupabaseProductToSalesProduct(p))
+      return boot.products.map(p => mapSupabaseProductToSalesProduct(p, existingMap.get(Number(p.id))))
     }
-    const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
+    const cached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v4_inventory_sales') ||
+                   readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v4_sales_products')
     if (cached && cached.length > 0) return cached
-    return SEED_SALES_PRODUCTS.map(p => ({ ...p, image: null }))
+    return SEED_SALES_PRODUCTS.map(p => mapSupabaseProductToSalesProduct(p, existingMap.get(Number(p.id))))
   })
   const [isSalesProductsRefreshing, setIsSalesProductsRefreshing] = useState<boolean>(false)
 
@@ -1931,7 +2457,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (boot?.rawInventory && Array.isArray(boot.rawInventory) && boot.rawInventory.length > 0) {
       return mapRawInventoryItems(boot.rawInventory)
     }
-    const cached = readLocalCache<RawProduct[]>('smokey_live_cache_v3_raw_products')
+    const cached = readLocalCache<RawProduct[]>('smokey_live_cache_v4_raw_products')
     return cached || SEED_RAW_PRODUCTS
   })
   const [rawDeliveries, setRawDeliveries] = useState<RawDelivery[]>(() =>
@@ -1971,7 +2497,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (boot?.packagingInventory && Array.isArray(boot.packagingInventory) && boot.packagingInventory.length > 0) {
       return mapPackagingInventoryItems(boot.packagingInventory)
     }
-    const cached = readLocalCache<PackagingProduct[]>('smokey_live_cache_v3_packaging_products')
+    const cached = readLocalCache<PackagingProduct[]>('smokey_live_cache_v4_packaging_products')
     return cached || SEED_PACKAGING_PRODUCTS
   })
   const [packagingReceiptsTotals, setPackagingReceiptsTotals] = useState<PackagingReceiptTotal[]>(() =>
@@ -1991,9 +2517,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   )
 
   const [salesProducts, setSalesProducts] = useState<SalesProduct[]>(() => {
-    const cached = readLocalCache<SalesProduct[]>('smokey_live_cache_v3_inventory_sales')
+    const boot = getLiveBootstrap()
+    if (boot?.salesInventory && Array.isArray(boot.salesInventory) && boot.salesInventory.length > 0) {
+      return boot.salesInventory.map((sp: any) => mapSupabaseProductToSalesProduct(sp, sp))
+    }
+    const cached = readLocalCache<SalesProduct[]>('smokey_live_cache_v4_inventory_sales')
     if (cached && cached.length > 0) return cached
-    const oldCached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v3_sales_products')
+    const oldCached = readLocalCache<LiveSalesProduct[]>('smokey_live_cache_v4_sales_products')
     return oldCached && oldCached.length > 0 ? oldCached : SEED_SALES_PRODUCTS
   })
 
@@ -2004,7 +2534,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [liveSalesProducts])
 
-  // Compute dailySales dynamically from real websiteOrders
+  // Compute dailySales dynamically from real websiteOrders (variant-aware)
   const dailySales = useMemo<DailySalesItem[]>(() => {
     const map = new Map<string, DailySalesItem>()
     websiteOrders.forEach(order => {
@@ -2012,11 +2542,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const items = Array.isArray(order.raw_items) ? order.raw_items : []
       items.forEach((item: any) => {
         const name = String(item.name || '').trim()
-        if (!name) return
+        if (!name && !item.product_id && !item.variant_id) return
         const qty = Number(item.qty || item.quantity || 1)
         const price = Number(item.price || item.unit_price || 0)
-        const key = name.toLowerCase()
-        const matchedProd = liveSalesProducts.find(p => p.name.toLowerCase().trim() === key)
+        const matchedProd = matchOrderItemToSalesProduct(item, liveSalesProducts)
+        const key = matchedProd ? `id:${matchedProd.id}` : name.toLowerCase()
         const existing = map.get(key)
         if (existing) {
           existing.qty_sold += qty
@@ -2025,7 +2555,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           existing.total_value += qty * price
         } else {
           map.set(key, {
-            product_id: matchedProd?.id || Number(item.product_id || 0),
+            product_id: matchedProd?.id || Number(item.variant_id || item.product_id || 0),
             product_name: matchedProd?.name || name,
             sku: matchedProd?.sku || `SMK-${String(matchedProd?.id || 1).padStart(4, '0')}`,
             unit: matchedProd?.unit || 'unit',
@@ -2062,7 +2592,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (boot?.suppliers && Array.isArray(boot.suppliers) && boot.suppliers.length > 0) {
       return mapSuppliersItems(boot.suppliers)
     }
-    const cached = readLocalCache<Supplier[]>('smokey_live_cache_v3_suppliers')
+    const cached = readLocalCache<Supplier[]>('smokey_live_cache_v4_suppliers')
     return cached || SEED_SUPPLIERS
   })
   const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(() =>
@@ -2112,11 +2642,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })
   })
   const [packagingQueue, setPackagingQueue] = useState<PackagingQueueOrder[]>(() => {
-    if (initialOrdersBundle && initialOrdersBundle.newPackagingItems.length > 0) {
-      return initialOrdersBundle.newPackagingItems
-    }
-    const cached = readLocalCache<PackagingQueueOrder[]>('smokey_live_cache_v3_packaging_queue')
-    return cached || SEED_PACKAGING_QUEUE
+    return initialOrdersBundle.newPackagingItems
   })
   const [packagingMaterialsDaily, setPackagingMaterialsDaily] = useState<PackagingMaterialDaily[]>(() =>
     readAppSettingCache('packaging_materials_daily', SEED_PACKAGING_MATERIALS_DAILY)
@@ -2163,59 +2689,44 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Logistics Domain
   const [logisticsDeliveries, setLogisticsDeliveries] = useState<LogisticsDelivery[]>(() => {
-    if (initialOrdersBundle && initialOrdersBundle.deliveredDeliveries.length > 0) {
-      return initialOrdersBundle.deliveredDeliveries
-    }
-    const cached = readLocalCache<LogisticsDelivery[]>('smokey_live_cache_v3_logistics_deliveries')
-    return cached || SEED_LOGISTICS_DELIVERIES
+    return initialOrdersBundle.deliveredDeliveries
   })
   const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrder[]>(() => {
-    if (initialOrdersBundle && initialOrdersBundle.newScheduledItems.length > 0) {
-      return initialOrdersBundle.newScheduledItems
-    }
-    const cached = readLocalCache<ScheduledOrder[]>('smokey_live_cache_v3_scheduled_orders')
-    return cached || SEED_SCHEDULED_ORDERS
+    return initialOrdersBundle.newScheduledItems
   })
   const [riders, setRiders] = useState<RiderPayout[]>(() => {
+    const cached = readLocalCache<RiderPayout[]>('smokey_live_cache_v4_riders') ||
+                   readLocalCache<RiderPayout[]>('smokey_app_setting_v4_fleet_riders')
     const boot = getLiveBootstrap()
-    if (boot?.fleetRiders && Array.isArray(boot.fleetRiders) && boot.fleetRiders.length > 0) {
-      return mapFleetRidersItems(boot.fleetRiders)
-    }
-    const cached = readLocalCache<RiderPayout[]>('smokey_live_cache_v3_riders')
+    const bootRiders = (boot?.fleetRiders && Array.isArray(boot.fleetRiders) && boot.fleetRiders.length > 0)
+      ? mapFleetRidersItems(boot.fleetRiders)
+      : SEED_RIDER_PAYOUTS
+
     if (cached && cached.length > 0) {
-      return cached.filter(r => r.rider_user_id !== 583 && (r.email || '').toLowerCase() !== 'johndoe@streetmba.com')
+      const map = new Map<number, RiderPayout>()
+      bootRiders.forEach(r => map.set(Number(r.rider_user_id), r))
+      cached.forEach(r => {
+        if (r.rider_user_id !== 583 && (r.email || '').toLowerCase() !== 'johndoe@streetmba.com') {
+          map.set(Number(r.rider_user_id), r)
+        }
+      })
+      return Array.from(map.values())
     }
-    return SEED_RIDER_PAYOUTS
+    return bootRiders
   })
   const [riderTasks, setRiderTasks] = useState<RiderTask[]>(() =>
     readAppSettingCache('rider_tasks', SEED_RIDER_TASKS)
   )
   const [storePickups, setStorePickups] = useState<StorePickupOrder[]>(() => {
-    if (initialOrdersBundle && initialOrdersBundle.newStorePickups.length > 0) {
-      const cached = readAppSettingCache<StorePickupOrder[]>('store_pickups', [])
-      if (cached && cached.length > 0) {
-        const cachedMap = new Map(cached.map(c => [c.order_ref, c]))
-        return initialOrdersBundle.newStorePickups.map(item => {
-          const c = cachedMap.get(item.order_ref)
-          if (c) {
-            return {
-              ...item,
-              order_status: c.order_status === 'collected' ? 'collected' : item.order_status,
-              collected_at: c.collected_at || item.collected_at,
-              collected_by: c.collected_by || item.collected_by,
-              handover_staff: c.handover_staff || item.handover_staff,
-              collector_phone: c.collector_phone || item.collector_phone
-            }
-          }
-          return item
-        })
-      }
-      return initialOrdersBundle.newStorePickups
-    }
-    const cached = readAppSettingCache<StorePickupOrder[]>('store_pickups', SEED_STORE_PICKUPS)
-    if (cached && cached.length > 0) return cached
-    return SEED_STORE_PICKUPS
+    return initialOrdersBundle.newStorePickups
   })
+
+  // Guarantee that storePickups is strictly in-sync with active website orders
+  useEffect(() => {
+    if (websiteOrders.length === 0 && storePickups.length > 0) {
+      setStorePickups([])
+    }
+  }, [websiteOrders.length, storePickups.length])
   const [thirdPartySummaries] = useState<ThirdPartyWeeklySummary[]>(SEED_THIRD_PARTY_SUMMARY)
 
   // Account / Role Management (RBAC)
@@ -2226,7 +2737,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
           const mockEmails = [
-            'ops-team@smokeyhut.com',
             'chef.amara@smokeyhut.com',
             'kemi.inv@smokeyhut.com',
             'babajide.dispatch@smokeyhut.com',
@@ -2242,47 +2752,31 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           })
           // Saved list is authoritative: never re-inject seeded APP_ACCOUNTS here,
           // otherwise removed members are resurrected on every reload.
-          if (filtered.length > 0) return filtered
+          if (filtered.length > 0) return filtered.map(normalizeAccountRecord)
         }
       } catch (e) {
         // fallback
       }
     }
     const deleted = new Set(readDeletedAccountEmails())
-    return APP_ACCOUNTS.filter(a => !deleted.has(a.email.toLowerCase()))
+    return APP_ACCOUNTS.filter(a => !deleted.has(a.email.toLowerCase())).map(normalizeAccountRecord)
   })
   // Prevents the persistence effect from overwriting the backend with local
-  // state before remote staff accounts have been hydrated on mount.
+  // state before remote staff accounts or fleet riders have been hydrated on mount.
   const accountsHydratedRef = useRef(false)
+  const ridersHydratedRef = useRef(false)
   const knownOrderRefsRef = useRef<Set<string>>(new Set())
   const notifiedOrderRefsRef = useRef<Set<string>>(new Set())
+  const ordersRefreshInFlightRef = useRef(false)
+  const lastOrdersRefreshAtRef = useRef<number>(0)
+  const isOrdersRealtimeConnectedRef = useRef(false)
+  const singleOrderFetchInFlightRef = useRef<Set<string>>(new Set())
+  const lastLifecycleFingerprintRef = useRef<Map<string, { hash: string; ts: number }>>(new Map())
 
   // Feedback: Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const lastToastMsgRef = useRef<string>('')
   const lastToastTimeRef = useRef<number>(0)
-
-  const showToast = React.useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
-    const now = Date.now()
-    if (message === lastToastMsgRef.current && now - lastToastTimeRef.current < 3000) {
-      return
-    }
-    lastToastMsgRef.current = message
-    lastToastTimeRef.current = now
-
-    const id = `toast-${now}-${Math.random().toString(36).substring(2, 6)}`
-    setToasts(prev => {
-      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev
-      return [...trimmed, { id, message, type, title }]
-    })
-
-    playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
-  }, [])
-
-  const dismissToast = React.useCallback((id: string) => {
-    stopOrderRingtone()
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
 
   const [activeAccountEmail, setActiveAccountEmail] = useState<string>(() => {
     try {
@@ -2312,6 +2806,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return false
     }
   })
+
+  const isAuthenticatedRef = useRef<boolean>(isAuthenticated)
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated
+    if (!isAuthenticated) {
+      stopOrderRingtone()
+      setToasts([])
+    }
+  }, [isAuthenticated])
+
+  const canShowOperationalAlerts = React.useCallback((): boolean => {
+    return isAuthenticatedRef.current && isUserSignedInAndOnDashboard()
+  }, [])
+
+  const showToast = React.useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
+    if (!canShowOperationalAlerts()) return
+
+    const now = Date.now()
+    if (message === lastToastMsgRef.current && now - lastToastTimeRef.current < 3000) {
+      return
+    }
+    lastToastMsgRef.current = message
+    lastToastTimeRef.current = now
+
+    const id = `toast-${now}-${Math.random().toString(36).substring(2, 6)}`
+    setToasts(prev => {
+      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev
+      return [...trimmed, { id, message, type, title }]
+    })
+
+    playAlertChime(type === 'error' ? 'warning' : type === 'info' ? 'info' : 'success')
+  }, [canShowOperationalAlerts])
+
+  const dismissToast = React.useCallback((id: string) => {
+    stopOrderRingtone()
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   const refreshLiveSalesProducts = React.useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsSalesProductsRefreshing(true)
@@ -2344,13 +2875,23 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (catalogRows.length > 0) {
         setSalesProducts(prev => {
-          const prevMap = new Map(prev.map(p => [p.id, p]))
+          const boot = getLiveBootstrap()
+          const cachedSales =
+            readLocalCache<SalesProduct[]>('smokey_live_cache_v4_inventory_sales') ||
+            readAppSettingCache<SalesProduct[]>('inventory_sales', []) ||
+            (Array.isArray(boot?.salesInventory) ? boot.salesInventory : [])
+          const fallbackMap = new Map<number, any>((cachedSales || []).map((sp: any) => [Number(sp.id), sp]))
+          const prevMap = new Map(prev.map(p => [Number(p.id), p]))
+
           const mapped = catalogRows.map(rawProd => {
-            const existing = prevMap.get(rawProd.id)
+            const id = Number(rawProd.id)
+            const inPrev = prevMap.get(id)
+            const inCache = fallbackMap.get(id)
+            const existing = (inPrev && inPrev.stock_qty > 0) ? inPrev : (inCache || inPrev)
             return mapSupabaseProductToSalesProduct(rawProd, existing)
           })
           setLiveSalesProducts(mapped)
-          writeLocalCache('smokey_live_cache_v3_inventory_sales', mapped)
+          writeLocalCache('smokey_live_cache_v4_inventory_sales', mapped)
           return mapped
         })
       }
@@ -2362,6 +2903,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const refreshWebsiteOrders = React.useCallback(async (showIndicator = false) => {
+    if (!showIndicator) {
+      if (ordersRefreshInFlightRef.current) return
+      if (Date.now() - lastOrdersRefreshAtRef.current < 3000) return
+    }
+    ordersRefreshInFlightRef.current = true
+    lastOrdersRefreshAtRef.current = Date.now()
     if (showIndicator) setIsOrdersRefreshing(true)
     try {
       let rawOrders: any[] = []
@@ -2386,7 +2933,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           .from('orders')
           .select('*, order_items(*)')
           .is('deleted_at', null)
+          .gte('created_at', OPS_FRESH_START_CUTOFF)
           .neq('status', 'pending_payment')
+          .neq('status', 'cancelled')
+          .neq('status', 'refunded')
           .order('created_at', { ascending: false })
           .limit(200)
 
@@ -2395,11 +2945,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       }
 
+      rawOrders = rawOrders.filter(isFreshOrder)
+
       if (rawOrders.length === 0) {
+        writeLocalCache('smokey_live_cache_v4_orders_raw', [])
+        writeLocalCache('smokey_live_cache_v4_website_orders', [])
+        writeLocalCache('smokey_live_cache_v4_packaging_queue', [])
+        writeLocalCache('smokey_live_cache_v4_scheduled_orders', [])
+        writeLocalCache('smokey_live_cache_v4_logistics_deliveries', [])
+        writeLocalCache('smokey_live_cache_v4_store_pickups', [])
+        setWebsiteOrders([])
+        setPackagingQueue([])
+        setScheduledOrders([])
+        setLogisticsDeliveries([])
+        setStorePickups([])
         return
       }
 
-      writeLocalCache('smokey_live_cache_v3_orders_raw', rawOrders)
+      writeLocalCache('smokey_live_cache_v4_orders_raw', rawOrders)
       const {
         websiteOrders: mappedOrders,
         newPackagingItems,
@@ -2409,7 +2972,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } = deriveQueuesFromRawOrders(rawOrders)
 
       // Alert staff with the 5-second ringtone when newly arriving orders are fetched
-      if (knownOrderRefsRef.current.size > 0) {
+      if (knownOrderRefsRef.current.size > 0 && canShowOperationalAlerts()) {
         const brandNewOrders = mappedOrders.filter(o => 
           !knownOrderRefsRef.current.has(o.order_ref) &&
           o.payment_status !== 'refunded'
@@ -2427,36 +2990,39 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       mappedOrders.forEach(o => knownOrderRefsRef.current.add(o.order_ref))
 
       setWebsiteOrders(mappedOrders)
-      writeLocalCache('smokey_live_cache_v3_website_orders', mappedOrders)
+      writeLocalCache('smokey_live_cache_v4_website_orders', mappedOrders)
 
-      // Update packagingQueue: merge and preserve in-memory user actions
+      // Update packagingQueue: merge and monotonically preserve highest stage so DB updates never regress to ready_for_fulfillment
       setPackagingQueue(prev => {
-        const prevMap = new Map(prev.map(p => [p.order_ref, p]))
+        const prevMap = new Map(prev.map(p => [getCanonicalOrderRef(p), p]))
         const merged = newPackagingItems.map(item => {
-          const existing = prevMap.get(item.order_ref)
+          const existing = prevMap.get(getCanonicalOrderRef(item))
           if (existing) {
+            const bestStatus = getOrderStatusRank(item.order_status) >= getOrderStatusRank(existing.order_status)
+              ? item.order_status
+              : existing.order_status
             return {
               ...item,
-              order_status: existing.order_status,
-              packaging_materials_picked: existing.packaging_materials_picked,
-              packaged_at: existing.packaged_at,
-              packaged_by_name: existing.packaged_by_name
+              order_status: bestStatus,
+              packaging_materials_picked: existing.packaging_materials_picked?.length
+                ? existing.packaging_materials_picked
+                : item.packaging_materials_picked,
+              packaged_at: item.packaged_at || existing.packaged_at,
+              packaged_by_name: item.packaged_by_name || existing.packaged_by_name
             }
           }
           return item
         })
-        const newRefs = new Set(newPackagingItems.map(i => i.order_ref))
-        const manualOrders = prev.filter(p => !newRefs.has(p.order_ref))
-        const nextQueue = [...merged, ...manualOrders]
-        writeLocalCache('smokey_live_cache_v3_packaging_queue', nextQueue)
+        const nextQueue = deduplicateByOrderRef(merged)
+        writeLocalCache('smokey_live_cache_v4_packaging_queue', nextQueue)
         return nextQueue
       })
 
       // Update scheduledOrders: merge and preserve in-memory status
       setScheduledOrders(prev => {
-        const prevMap = new Map(prev.map(s => [s.order_ref, s]))
-        const nextScheduled = newScheduledItems.map(item => {
-          const existing = prevMap.get(item.order_ref)
+        const prevMap = new Map(prev.map(s => [getCanonicalOrderRef(s), s]))
+        const nextScheduled = deduplicateByOrderRef(newScheduledItems.map(item => {
+          const existing = prevMap.get(getCanonicalOrderRef(item))
           if (existing) {
             return {
               ...item,
@@ -2465,16 +3031,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
           return item
-        })
-        writeLocalCache('smokey_live_cache_v3_scheduled_orders', nextScheduled)
+        }))
+        writeLocalCache('smokey_live_cache_v4_scheduled_orders', nextScheduled)
         return nextScheduled
       })
 
       // Update storePickups: merge and preserve in-memory collection handovers
       setStorePickups(prev => {
-        const prevMap = new Map(prev.map(p => [p.order_ref, p]))
-        const merged = newStorePickups.map(item => {
-          const existing = prevMap.get(item.order_ref)
+        const prevMap = new Map(prev.map(p => [getCanonicalOrderRef(p), p]))
+        const merged = deduplicateByOrderRef(newStorePickups.map(item => {
+          const existing = prevMap.get(getCanonicalOrderRef(item))
           if (existing) {
             return {
               ...item,
@@ -2486,52 +3052,91 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
           return item
-        })
-        const newRefs = new Set(newStorePickups.map(p => p.order_ref))
-        const manualPickups = prev.filter(p => !newRefs.has(p.order_ref))
-        return [...merged, ...manualPickups]
+        }))
+        writeLocalCache('smokey_live_cache_v4_store_pickups', merged)
+
+        // Ensure websiteOrders also reflects any collected store pickups preserved from memory
+        const collectedMap = new Map(
+          merged.filter(p => p.order_status === 'collected').map(p => [getCanonicalOrderRef(p), p])
+        )
+        if (collectedMap.size > 0) {
+          setWebsiteOrders(prevWeb => {
+            let changed = false
+            const nextWeb = prevWeb.map(w => {
+              const cPickup = collectedMap.get(getCanonicalOrderRef(w))
+              if (cPickup && w.fulfillment_status !== 'delivered') {
+                changed = true
+                return {
+                  ...w,
+                  fulfillment_status: 'delivered' as const,
+                  rider_name: cPickup.collected_by ? `Collected by ${cPickup.collected_by}` : 'Store Pickup — Collected'
+                }
+              }
+              return w
+            })
+            if (changed) writeLocalCache('smokey_live_cache_v4_website_orders', nextWeb)
+            return changed ? nextWeb : prevWeb
+          })
+        }
+
+        return merged
       })
 
-      // Update logisticsDeliveries: retain active dispatches and preserve receipt evidence/audit state
+      // Update logisticsDeliveries: reconcile authoritative DB deliveries with local state without letting stale local 'pending' block DB 'assigned'/'in_transit'/'delivered'
       setLogisticsDeliveries(prev => {
-        const prevMap = new Map(prev.map(d => [d.order_ref, d]))
-        const newlyDeliveredRefs = new Set(deliveredDeliveries.filter(d => d.status === 'delivered').map(d => d.order_ref))
-        const activeDispatches = prev.filter(
-          d =>
-            !newlyDeliveredRefs.has(d.order_ref) &&
-            (d.status === 'pending' || d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery')
+        const prevMap = new Map(prev.map(d => [getCanonicalOrderRef(d), d]))
+        const reconciledFromDb = deliveredDeliveries.map(d => {
+          const prevDel = prevMap.get(getCanonicalOrderRef(d))
+          if (!prevDel) return d
+
+          const dbRank = getDeliveryStatusRank(d.status)
+          const prevRank = getDeliveryStatusRank(prevDel.status)
+          const dbHasRider = Boolean(d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider !== 'Dispatched Courier')
+          const prevHasRider = Boolean(prevDel.assigned_rider && prevDel.assigned_rider !== 'Unassigned' && prevDel.assigned_rider !== 'Dispatched Courier')
+
+          const resolvedRider = dbHasRider
+            ? d.assigned_rider
+            : (prevHasRider ? prevDel.assigned_rider : 'Unassigned')
+
+          const resolvedRiderId = dbHasRider
+            ? (d.assigned_rider_id ?? prevDel.assigned_rider_id)
+            : (prevDel.assigned_rider_id ?? d.assigned_rider_id)
+
+          let resolvedStatus: LogisticsDelivery['status'] = dbRank >= prevRank ? d.status : prevDel.status
+          if (resolvedStatus !== 'delivered' && (!resolvedRider || resolvedRider === 'Unassigned')) {
+            resolvedStatus = 'pending'
+          }
+
+          return {
+            ...d,
+            status: resolvedStatus,
+            rider_type: dbHasRider ? d.rider_type : (prevDel.rider_type || d.rider_type),
+            assigned_rider: resolvedRider,
+            assigned_rider_id: resolvedRiderId,
+            third_party_provider: d.third_party_provider ?? prevDel.third_party_provider,
+            booked_fee: d.booked_fee ?? prevDel.booked_fee,
+            delivery_fee: d.delivery_fee || prevDel.delivery_fee,
+            pickup_at: d.pickup_at || prevDel.pickup_at,
+            delivered_at: d.delivered_at || prevDel.delivered_at,
+            fee_evidence_path: prevDel.fee_evidence_path || d.fee_evidence_path || null,
+            fee_verify_status: prevDel.fee_verify_status !== 'none' ? prevDel.fee_verify_status : d.fee_verify_status,
+            notes: prevDel.notes || d.notes,
+            decline_reason: prevDel.decline_reason || d.decline_reason
+          }
+        })
+
+        const dbRefs = new Set(reconciledFromDb.map(d => getCanonicalOrderRef(d)))
+        const optimisticLocalOnly = prev.filter(
+          d => !dbRefs.has(getCanonicalOrderRef(d)) && isFreshOrder({ created_at: d.dispatch_date ? `${d.dispatch_date}T12:00:00.000Z` : undefined, status: 'processing' })
         )
-        const existingRefs = new Set(activeDispatches.map(d => d.order_ref))
-        const nonDuplicateDelivered = deliveredDeliveries
-          .filter(d => !existingRefs.has(d.order_ref))
-          .map(d => {
-            const prevDel = prevMap.get(d.order_ref)
-            if (!prevDel) return d
-            return {
-              ...d,
-              rider_type: d.rider_type || prevDel.rider_type,
-              assigned_rider: d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider !== 'Dispatched Courier'
-                ? d.assigned_rider
-                : (prevDel.assigned_rider && prevDel.assigned_rider !== 'Dispatched Courier' ? prevDel.assigned_rider : 'Unassigned'),
-              assigned_rider_id: d.assigned_rider && d.assigned_rider !== 'Unassigned'
-                ? (d.assigned_rider_id ?? prevDel.assigned_rider_id)
-                : (prevDel.assigned_rider_id ?? d.assigned_rider_id),
-              third_party_provider: prevDel.third_party_provider ?? d.third_party_provider,
-              booked_fee: prevDel.booked_fee ?? d.booked_fee,
-              delivery_fee: prevDel.delivery_fee ?? d.delivery_fee,
-              fee_evidence_path: prevDel.fee_evidence_path || d.fee_evidence_path || null,
-              fee_verify_status: prevDel.fee_verify_status !== 'none' ? prevDel.fee_verify_status : d.fee_verify_status,
-              notes: prevDel.notes || d.notes,
-              decline_reason: prevDel.decline_reason || d.decline_reason
-            }
-          })
-        const nextDeliveries = [...activeDispatches, ...nonDuplicateDelivered]
-        writeLocalCache('smokey_live_cache_v3_logistics_deliveries', nextDeliveries)
+        const nextDeliveries = deduplicateByOrderRef([...reconciledFromDb, ...optimisticLocalOnly])
+        writeLocalCache('smokey_live_cache_v4_logistics_deliveries', nextDeliveries)
         return nextDeliveries
       })
     } catch (err) {
       console.error('Error syncing live website orders:', err)
     } finally {
+      ordersRefreshInFlightRef.current = false
       if (showIndicator) setIsOrdersRefreshing(false)
     }
   }, [])
@@ -2653,23 +3258,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Persist operational ledger arrays and core inventories whenever mutated
   useEffect(() => {
-    writeLocalCache('smokey_live_cache_v3_inventory_sales', salesProducts)
+    writeLocalCache('smokey_live_cache_v4_inventory_sales', salesProducts)
     persistAppSetting('inventory_sales', salesProducts)
   }, [salesProducts])
   useEffect(() => {
-    writeLocalCache('smokey_live_cache_v3_raw_products', rawProducts)
+    writeLocalCache('smokey_live_cache_v4_raw_products', rawProducts)
     persistAppSetting('inventory_raw', rawProducts)
   }, [rawProducts])
   useEffect(() => {
-    writeLocalCache('smokey_live_cache_v3_packaging_products', packagingProducts)
+    writeLocalCache('smokey_live_cache_v4_packaging_products', packagingProducts)
     persistAppSetting('inventory_packaging', packagingProducts)
   }, [packagingProducts])
   useEffect(() => {
-    writeLocalCache('smokey_live_cache_v3_suppliers', suppliers)
+    writeLocalCache('smokey_live_cache_v4_suppliers', suppliers)
     persistAppSetting('suppliers', suppliers)
   }, [suppliers])
   useEffect(() => {
-    writeLocalCache('smokey_live_cache_v3_riders', riders)
+    if (!ridersHydratedRef.current) return
+    writeLocalCache('smokey_live_cache_v4_riders', riders)
     persistAppSetting('fleet_riders', riders)
   }, [riders])
   useEffect(() => {
@@ -2692,15 +3298,23 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => { persistAppSetting('packaging_materials_daily', packagingMaterialsDaily) }, [packagingMaterialsDaily])
   useEffect(() => { persistAppSetting('kitchen_tasks', kitchenTasks) }, [kitchenTasks])
   useEffect(() => { persistAppSetting('rider_tasks', riderTasks) }, [riderTasks])
-  useEffect(() => { persistAppSetting('store_pickups', storePickups) }, [storePickups])
+  useEffect(() => {
+    if (websiteOrders.length === 0) {
+      if (storePickups.length > 0) setStorePickups([])
+      persistAppSetting('store_pickups', [])
+      return
+    }
+    persistAppSetting('store_pickups', storePickups)
+  }, [storePickups, websiteOrders.length])
 
   const handleIncomingNewOrder = React.useCallback((orderData: any) => {
     if (!orderData) return
+    if (!isFreshOrder(orderData)) return
     const ref = String(orderData.order_ref || orderData.id || '')
     if (!ref) return
 
-    // Deduplicate ringtone chime per order
-    if (!notifiedOrderRefsRef.current.has(ref)) {
+    // Deduplicate ringtone chime per order (only ring and notify when authenticated on the dashboard)
+    if (!notifiedOrderRefsRef.current.has(ref) && canShowOperationalAlerts()) {
       notifiedOrderRefsRef.current.add(ref)
       if (notifiedOrderRefsRef.current.size > 200) {
         const list = Array.from(notifiedOrderRefsRef.current)
@@ -2783,70 +3397,203 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     }
 
-    refreshWebsiteOrders(false)
-  }, [refreshWebsiteOrders, showToast])
+    // Reconcile ONLY this single order in the background (never re-download all 200 orders)
+    if (!singleOrderFetchInFlightRef.current.has(ref)) {
+      singleOrderFetchInFlightRef.current.add(ref)
+      ;(async () => {
+        try {
+          let fullOrder = orderData
+          if (!Array.isArray(orderData.order_items) || orderData.order_items.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 600))
+            const { data: singleRow } = await supabase
+              .from('orders')
+              .select('*, order_items(*)')
+              .eq('id', ref)
+              .maybeSingle()
+            if (singleRow) {
+              fullOrder = singleRow
+            }
+          }
+          if (!isFreshOrder(fullOrder)) return
+
+          const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw') || []
+          const filteredRaw = cachedRaw.filter(r => getCanonicalOrderRef(r) !== ref)
+          writeLocalCache('smokey_live_cache_v4_orders_raw', [fullOrder, ...filteredRaw].slice(0, 200))
+
+          const singleDerived = deriveQueuesFromRawOrders([fullOrder])
+          if (singleDerived.websiteOrders.length > 0) {
+            const newWebOrder = singleDerived.websiteOrders[0]
+            setWebsiteOrders(prev => {
+              const next = deduplicateByOrderRef([newWebOrder, ...prev.map(o => getCanonicalOrderRef(o) === ref ? newWebOrder : o)])
+              writeLocalCache('smokey_live_cache_v4_website_orders', next)
+              return next
+            })
+          }
+          if (singleDerived.newPackagingItems.length > 0) {
+            const newPkg = singleDerived.newPackagingItems[0]
+            setPackagingQueue(prev => {
+              const existing = prev.find(p => getCanonicalOrderRef(p) === ref)
+              const mergedPkg = existing
+                ? {
+                    ...newPkg,
+                    order_status: getOrderStatusRank(newPkg.order_status) >= getOrderStatusRank(existing.order_status) ? newPkg.order_status : existing.order_status,
+                    packaging_materials_picked: existing.packaging_materials_picked?.length ? existing.packaging_materials_picked : newPkg.packaging_materials_picked,
+                    packaged_at: newPkg.packaged_at || existing.packaged_at,
+                    packaged_by_name: newPkg.packaged_by_name || existing.packaged_by_name
+                  }
+                : newPkg
+              const next = deduplicateByOrderRef([mergedPkg, ...prev.filter(p => getCanonicalOrderRef(p) !== ref)])
+              writeLocalCache('smokey_live_cache_v4_packaging_queue', next)
+              return next
+            })
+          }
+          if (singleDerived.newScheduledItems.length > 0) {
+            const newSched = singleDerived.newScheduledItems[0]
+            setScheduledOrders(prev => {
+              const next = deduplicateByOrderRef([newSched, ...prev.filter(s => getCanonicalOrderRef(s) !== ref)])
+              writeLocalCache('smokey_live_cache_v4_scheduled_orders', next)
+              return next
+            })
+          }
+          if (singleDerived.newStorePickups.length > 0) {
+            const newPickup = singleDerived.newStorePickups[0]
+            setStorePickups(prev => {
+              const next = deduplicateByOrderRef([newPickup, ...prev.filter(p => getCanonicalOrderRef(p) !== ref)])
+              writeLocalCache('smokey_live_cache_v4_store_pickups', next)
+              return next
+            })
+          }
+        } catch {
+          // Ignore single-order background reconciliation errors
+        } finally {
+          singleOrderFetchInFlightRef.current.delete(ref)
+        }
+      })()
+    }
+  }, [showToast])
+
+  const broadcastChannelRef = useRef<any>(null)
+
+  const broadcastOrderLifecycleUpdate = useCallback((payload: Record<string, any>) => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'order_lifecycle_updated',
+          payload
+        })
+      }
+    } catch {
+      // Ignore broadcast errors
+    }
+  }, [])
 
   const handleOrderLifecycleChange = React.useCallback((updated: any) => {
     if (!updated) return
-    const ref = String(updated.order_ref || updated.id || '')
+    const ref = getCanonicalOrderRef(updated)
     if (!ref) return
 
+    // Deduplicate identical burst events arriving simultaneously from postgres_changes + DB trigger + self broadcast
+    const fingerprint = JSON.stringify([
+      updated.status,
+      updated.packaging_status,
+      updated.order_status,
+      updated.delivery_status,
+      updated.assigned_rider,
+      updated.rider_name,
+      updated.rider_id,
+      updated.assigned_rider_id,
+      updated.pickup_at,
+      updated.delivered_at,
+      updated.booked_fee,
+      updated.fee_verify_status,
+      updated.notes,
+      updated.scheduled_delivery_date
+    ])
+    const nowTs = Date.now()
+    const prevFp = lastLifecycleFingerprintRef.current.get(ref)
+    if (prevFp && prevFp.hash === fingerprint && nowTs - prevFp.ts < 1500) {
+      return
+    }
+    lastLifecycleFingerprintRef.current.set(ref, { hash: fingerprint, ts: nowTs })
+
     const rawRider = updated.assigned_rider || updated.rider_name
-    const hasRider = Boolean(rawRider && rawRider !== 'Unassigned' && rawRider !== 'Dispatched Courier' && rawRider.trim() !== '')
-    const riderName = hasRider ? rawRider : 'Unassigned'
+    const hasRider = Boolean(rawRider && rawRider !== 'Unassigned' && rawRider !== 'Dispatched Courier' && String(rawRider).trim() !== '')
+    const riderName = hasRider ? String(rawRider).trim() : 'Unassigned'
     const riderType = updated.rider_type || 'internal'
 
-    const normDeliv = String(updated.delivery_status || '').toLowerCase()
-    const normPkg = String(updated.packaging_status || '').toLowerCase()
-    const normStatus = String(updated.status || '').toLowerCase()
+    const normDeliv = String(updated.delivery_status || '').toLowerCase().trim().replace(/\s+/g, '_')
+    const normPkg = String(updated.packaging_status || updated.order_status || '').toLowerCase().trim()
+    const normStatus = String(updated.status || '').toLowerCase().trim()
 
     // 1. Update in-memory websiteOrders
-    setWebsiteOrders(prev => prev.map(o => {
-      if (o.order_ref === ref || String(o.id) === String(updated.id)) {
-        let fulfillStatus: WebsiteOrder['fulfillment_status'] = o.fulfillment_status
-        if (Boolean(updated.delivered_at) || normDeliv.includes('deliver')) fulfillStatus = 'delivered'
-        else if ((Boolean(updated.pickup_at) || normDeliv.includes('transit')) && hasRider) fulfillStatus = 'in_transit'
-        else if (normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || (normDeliv.includes('assigned') && hasRider)) fulfillStatus = 'ready_for_dispatch'
-        else if (normPkg === 'in_packaging') fulfillStatus = 'packaging'
+    setWebsiteOrders(prev => {
+      const next = prev.map(o => {
+        if (getCanonicalOrderRef(o) === ref) {
+          let fulfillStatus: WebsiteOrder['fulfillment_status'] = o.fulfillment_status
+          if (Boolean(updated.delivered_at) || normDeliv.includes('deliver')) fulfillStatus = 'delivered'
+          else if ((Boolean(updated.pickup_at) || normDeliv.includes('transit')) && hasRider) fulfillStatus = 'in_transit'
+          else if (normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || normDeliv.includes('assigned') || hasRider) fulfillStatus = 'ready_for_dispatch'
+          else if (normPkg === 'in_packaging') fulfillStatus = 'packaging'
 
-        let payStatus: WebsiteOrder['payment_status'] = o.payment_status
-        if (normStatus === 'cancelled') payStatus = 'refunded'
-        else if (normStatus === 'processing' || normStatus === 'completed' || normStatus === 'delivered' || normStatus === 'paid') payStatus = 'paid'
+          let payStatus: WebsiteOrder['payment_status'] = o.payment_status
+          if (normStatus === 'cancelled') payStatus = 'refunded'
+          else if (normStatus === 'processing' || normStatus === 'completed' || normStatus === 'delivered' || normStatus === 'paid') payStatus = 'paid'
 
-        return {
-          ...o,
-          payment_status: payStatus,
-          fulfillment_status: fulfillStatus,
-          scheduled_delivery_at: updated.scheduled_delivery_date || o.scheduled_delivery_at,
-          notes: updated.notes !== undefined ? updated.notes : o.notes,
-          rider_name: hasRider ? riderName : o.rider_name
+          return {
+            ...o,
+            payment_status: payStatus,
+            fulfillment_status: getFulfillmentStatusRank(fulfillStatus) >= getFulfillmentStatusRank(o.fulfillment_status) ? fulfillStatus : o.fulfillment_status,
+            scheduled_delivery_at: updated.scheduled_delivery_date || o.scheduled_delivery_at,
+            notes: updated.notes !== undefined ? updated.notes : o.notes,
+            rider_name: hasRider ? riderName : (updated.assigned_rider === 'Unassigned' ? 'Unassigned' : o.rider_name)
+          }
         }
-      }
-      return o
-    }))
+        return o
+      })
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
 
-    // 2. Update packagingQueue
-    setPackagingQueue(prev => prev.map(p => {
-      if (p.order_ref === ref || String(p.id) === String(updated.id)) {
-        const isPackaged = normPkg === 'packaged' || normDeliv === 'ready_for_dispatch' || normDeliv === 'packaged' || Boolean(updated.delivered_at) || (Boolean(updated.pickup_at) && hasRider)
-        return {
-          ...p,
-          order_status: isPackaged ? 'packaged' : (updated.order_status || (normPkg === 'in_packaging' ? 'in_packaging' : p.order_status)),
-          packaged_by_name: updated.packaged_by_name || updated.packaged_by || p.packaged_by_name,
-          packaged_at: updated.packaged_at || p.packaged_at
+    // 2. Update packagingQueue: Ensure any order that is packaged, ready for dispatch, assigned, in transit, or delivered is marked 'packaged'
+    setPackagingQueue(prev => {
+      const next = prev.map(p => {
+        if (getCanonicalOrderRef(p) === ref) {
+          const isPackaged =
+            normPkg === 'packaged' ||
+            normDeliv === 'ready_for_dispatch' ||
+            normDeliv === 'packaged' ||
+            normDeliv === 'assigned' ||
+            normDeliv.includes('transit') ||
+            normDeliv.includes('deliver') ||
+            hasRider ||
+            Boolean(updated.packaged_at) ||
+            Boolean(updated.delivered_at) ||
+            Boolean(updated.pickup_at)
+          const targetStatus: PackagingQueueOrder['order_status'] = isPackaged
+            ? 'packaged'
+            : (normPkg === 'in_packaging' ? 'in_packaging' : p.order_status)
+          return {
+            ...p,
+            order_status: getOrderStatusRank(targetStatus) >= getOrderStatusRank(p.order_status) ? targetStatus : p.order_status,
+            packaged_by_name: updated.packaged_by_name || updated.packaged_by || p.packaged_by_name,
+            packaged_at: updated.packaged_at || p.packaged_at
+          }
         }
-      }
-      return p
-    }))
+        return p
+      })
+      writeLocalCache('smokey_live_cache_v4_packaging_queue', next)
+      return next
+    })
 
     // 3. Update logisticsDeliveries (with dynamic ingestion if newly dispatched)
     setLogisticsDeliveries(prev => {
-      const exists = prev.some(d => d.order_ref === ref)
+      const exists = prev.some(d => getCanonicalOrderRef(d) === ref)
       const isDelivered = normDeliv.includes('deliver') || Boolean(updated.delivered_at)
       let delivStatus: LogisticsDelivery['status'] = 'pending'
-      if (normDeliv.includes('transit') && hasRider) delivStatus = 'in_transit'
-      else if (isDelivered) delivStatus = 'delivered'
-      else if (normDeliv.includes('assigned') && hasRider) delivStatus = 'assigned'
+      if (isDelivered) delivStatus = 'delivered'
+      else if ((normDeliv.includes('transit') || Boolean(updated.pickup_at)) && hasRider) delivStatus = 'in_transit'
+      else if ((normDeliv.includes('assigned') || hasRider) && hasRider) delivStatus = 'assigned'
 
       // Apply safety invariant: cannot be in_transit or assigned without a designated rider
       if (delivStatus !== 'delivered' && (!riderName || riderName === 'Unassigned')) {
@@ -2854,24 +3601,33 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       if (exists) {
-        return prev.map(d => {
-          if (d.order_ref === ref) {
+        const next = prev.map(d => {
+          if (getCanonicalOrderRef(d) === ref) {
+            const isIntentionalUnassign = updated.assigned_rider === 'Unassigned' || normDeliv === 'ready_for_dispatch'
+            const resolvedRider = isIntentionalUnassign && !hasRider
+              ? 'Unassigned'
+              : (riderName !== 'Unassigned' ? riderName : d.assigned_rider)
+            const resolvedStatus: LogisticsDelivery['status'] = isIntentionalUnassign && !hasRider
+              ? 'pending'
+              : (getDeliveryStatusRank(delivStatus) >= getDeliveryStatusRank(d.status) ? delivStatus : d.status)
             return {
               ...d,
-              status: delivStatus,
-              rider_type: riderType,
-              assigned_rider: riderName !== 'Unassigned' ? riderName : d.assigned_rider,
-              assigned_rider_id: updated.assigned_rider_id ?? d.assigned_rider_id,
+              status: resolvedStatus,
+              rider_type: riderType || d.rider_type,
+              assigned_rider: resolvedRider,
+              assigned_rider_id: updated.assigned_rider_id ?? updated.rider_id ?? (isIntentionalUnassign && !hasRider ? undefined : d.assigned_rider_id),
               third_party_provider: updated.third_party_provider ?? d.third_party_provider,
               booked_fee: updated.booked_fee ?? d.booked_fee,
               fee_evidence_path: updated.fee_evidence_path || d.fee_evidence_path,
               fee_verify_status: updated.fee_verify_status || d.fee_verify_status,
-              pickup_at: updated.pickup_at || d.pickup_at,
-              delivered_at: updated.delivered_at || d.delivered_at
+              pickup_at: updated.pickup_at !== undefined ? updated.pickup_at : d.pickup_at,
+              delivered_at: updated.delivered_at !== undefined ? updated.delivered_at : d.delivered_at
             }
           }
           return d
         })
+        writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+        return next
       }
 
       // If NOT yet in logisticsDeliveries, but ready for dispatch, dynamically construct and prepend!
@@ -2879,18 +3635,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         normPkg === 'packaged' ||
         normDeliv.includes('ready') ||
         normDeliv.includes('packaged') ||
-        (normDeliv.includes('assigned') && hasRider) ||
-        (normDeliv.includes('transit') && hasRider) ||
-        isDelivered
-        normDeliv.includes('packaged') ||
         normDeliv.includes('assigned') ||
         normDeliv.includes('transit') ||
+        hasRider ||
         isDelivered
 
       const isStorePickup = (updated.address || '').toLowerCase().includes('pickup') || (updated.delivery_zone || '').toLowerCase().includes('pickup')
 
       if (isDispatchReady && !isStorePickup) {
-        const numericId = parseInt(ref.replace(/\D/g, ''), 10) || Math.floor(Math.random() * 90000 + 10000)
+        const numericId = extractNumericOrderId(ref, Math.floor(Math.random() * 90000 + 10000))
         const newDelivery: LogisticsDelivery = {
           id: numericId,
           delivery_ref: `DEL-${numericId}`,
@@ -2904,7 +3657,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           booked_fee: updated.booked_fee ?? null,
           rider_type: riderType,
           assigned_rider: riderName,
-          assigned_rider_id: updated.assigned_rider_id,
+          assigned_rider_id: updated.assigned_rider_id ?? updated.rider_id,
           third_party_provider: updated.third_party_provider || null,
           status: delivStatus,
           dispatch_date: (updated.created_at || new Date().toISOString()).split('T')[0],
@@ -2915,26 +3668,54 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           items_summary: updated.items_summary || 'Assorted Smokey Delicacies',
           notes: updated.notes
         }
-        return [newDelivery, ...prev]
+        const next = deduplicateByOrderRef([newDelivery, ...prev])
+        writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+        return next
       }
       return prev
     })
 
     // 4. Update storePickups
-    setStorePickups(prev => prev.map(p => {
-      if (p.order_ref === ref) {
-        const isDelivered = updated.status === 'delivered' || updated.delivery_status === 'collected'
-        return {
-          ...p,
-          order_status: isDelivered ? 'collected' : p.order_status
+    setStorePickups(prev => {
+      const next = prev.map(p => {
+        if (getCanonicalOrderRef(p) === ref) {
+          const isDelivered =
+            normStatus === 'delivered' ||
+            normDeliv.includes('deliver') ||
+            normDeliv === 'collected' ||
+            Boolean(updated.delivered_at) ||
+            Boolean(updated.collected_at)
+          return {
+            ...p,
+            order_status: isDelivered ? ('collected' as const) : p.order_status,
+            collected_at: updated.collected_at || updated.delivered_at || p.collected_at,
+            collected_by: updated.collected_by || p.collected_by,
+            handover_staff: updated.handover_staff || p.handover_staff,
+            collector_phone: updated.collector_phone || p.collector_phone
+          }
         }
-      }
-      return p
-    }))
+        return p
+      })
+      writeLocalCache('smokey_live_cache_v4_store_pickups', next)
+      return next
+    })
 
-    // 5. Reconcile with latest database records in background
-    refreshWebsiteOrders(false)
-  }, [refreshWebsiteOrders])
+    // 5. Patch single order in raw localStorage cache in-place (zero full-table re-download)
+    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+    if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
+      let matched = false
+      const patchedRaw = cachedRaw.map(r => {
+        if (getCanonicalOrderRef(r) === ref) {
+          matched = true
+          return { ...r, ...updated }
+        }
+        return r
+      })
+      if (matched) {
+        writeLocalCache('smokey_live_cache_v4_orders_raw', patchedRaw)
+      }
+    }
+  }, [])
 
   // Synchronize live data from Supabase backend on mount (with direct Supabase fallback)
   React.useEffect(() => {
@@ -2969,111 +3750,157 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const allKeys = Array.from(new Set([...Object.keys(localState), ...Object.keys(remoteState)]))
       const merged: Record<string, OrderPipelineOverride> = {}
       for (const k of allKeys) {
-        merged[k] = {
-          ...(localState[k] || {}),
-          ...(remoteState[k] || {})
-        }
+        const canonicalKey = getCanonicalOrderRef(k) || k
+        if (!isFreshPipelineOrderKey(canonicalKey)) continue
+        const combined = mergeOrderPipelineEntry(localState[k] || {}, remoteState[k] || {})
+        merged[canonicalKey] = merged[canonicalKey]
+          ? mergeOrderPipelineEntry(merged[canonicalKey], combined)
+          : combined
       }
       if (Object.keys(merged).length > 0) {
-        localStorage.setItem('smokey_order_pipeline_state_v1', JSON.stringify(merged))
-        writeLocalCache('smokey_app_setting_order_pipeline_state', merged)
-        refreshWebsiteOrders(false)
+        localStorage.setItem('smokey_order_pipeline_state_v4', JSON.stringify(merged))
+        writeLocalCache('smokey_app_setting_v4_order_pipeline_state', merged)
+        // Re-apply pipeline overrides to cached raw orders in-memory without a redundant full DB download
+        const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+        if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
+          const derived = deriveQueuesFromRawOrders(cachedRaw)
+          setWebsiteOrders(derived.websiteOrders)
+          setPackagingQueue(derived.newPackagingItems)
+          setScheduledOrders(derived.newScheduledItems)
+          setLogisticsDeliveries(derived.deliveredDeliveries)
+          setStorePickups(derived.newStorePickups)
+        }
       }
     }
 
     syncPipelineState()
 
-    fetch('/api/raw-inventory')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = mapRawInventoryItems(json.data)
-          setRawProducts(mapped)
-          writeLocalCache('smokey_live_cache_v3_raw_products', mapped)
-        }
-      })
-      .catch(err => console.error('Error fetching live raw inventory:', err))
+    const isLocalDev = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 
-    fetch('/api/packaging-inventory')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = mapPackagingInventoryItems(json.data)
-          setPackagingProducts(mapped)
-          writeLocalCache('smokey_live_cache_v3_packaging_products', mapped)
-        }
-      })
-      .catch(err => console.error('Error fetching live packaging inventory:', err))
+    if (isLocalDev) {
+      fetch('/api/raw-inventory')
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = mapRawInventoryItems(json.data)
+            setRawProducts(mapped)
+            writeLocalCache('smokey_live_cache_v4_raw_products', mapped)
+          }
+        })
+        .catch(() => {})
 
-    fetch('/api/sales-inventory')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          setSalesProducts(json.data)
-          writeLocalCache('smokey_live_cache_v3_inventory_sales', json.data)
-        }
-      })
-      .catch(() => {
-        Promise.resolve(
-          supabase
-            .from('app_settings')
-            .select('value')
-            .eq('key', 'inventory_sales')
-            .single()
-        )
-          .then(({ data }) => {
-            if (data?.value && Array.isArray(data.value) && data.value.length > 0) {
-              setSalesProducts(data.value)
-              writeLocalCache('smokey_live_cache_v3_inventory_sales', data.value)
-            }
-          })
-          .catch(() => {})
-      })
+      fetch('/api/packaging-inventory')
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = mapPackagingInventoryItems(json.data)
+            setPackagingProducts(mapped)
+            writeLocalCache('smokey_live_cache_v4_packaging_products', mapped)
+          }
+        })
+        .catch(() => {})
 
-    fetch('/api/suppliers')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = mapSuppliersItems(json.data)
-          setSuppliers(mapped)
-          writeLocalCache('smokey_live_cache_v3_suppliers', mapped)
-        }
-      })
-      .catch(err => console.error('Error fetching live suppliers:', err))
-
-    fetch('/api/fleet-riders')
-      .then(res => res.json())
-      .then(json => {
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped = mapFleetRidersItems(json.data)
-          setRiders(prev => {
-            const prevById = new Map(prev.map(r => [Number(r.rider_user_id), r]))
-            const merged = mapped.map(m => {
-              const existing = prevById.get(Number(m.rider_user_id))
-              if (!existing) return m
-              return {
-                ...m,
-                ...existing,
-                // Ensure profile/KYC metadata from remote server is retained if updated remotely
-                vehicle_type: m.vehicle_type || existing.vehicle_type,
-                plate_number: m.plate_number || existing.plate_number,
-                operating_hub: m.operating_hub || existing.operating_hub,
-                license_number: m.license_number || existing.license_number,
-                license_expiry: m.license_expiry || existing.license_expiry,
-                emergency_contact: m.emergency_contact || existing.emergency_contact,
-                emergency_phone: m.emergency_phone || existing.emergency_phone,
-                national_id_nin: m.national_id_nin || existing.national_id_nin,
-              }
+      fetch('/api/sales-inventory')
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const remoteMap = new Map<number, any>(json.data.map((sp: any) => [Number(sp.id), sp]))
+            setSalesProducts(prev => {
+              const merged = prev.length > 0
+                ? prev.map(p => {
+                    const rem = remoteMap.get(Number(p.id))
+                    return rem ? mapSupabaseProductToSalesProduct(p, rem) : p
+                  })
+                : json.data.map((sp: any) => mapSupabaseProductToSalesProduct(sp, sp))
+              setLiveSalesProducts(merged)
+              writeLocalCache('smokey_live_cache_v4_inventory_sales', merged)
+              return merged
             })
-            writeLocalCache('smokey_live_cache_v3_riders', merged)
+          }
+        })
+        .catch(() => {})
+
+      fetch('/api/suppliers')
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = mapSuppliersItems(json.data)
+            setSuppliers(mapped)
+            writeLocalCache('smokey_live_cache_v4_suppliers', mapped)
+          }
+        })
+        .catch(() => {})
+
+      fetch('/api/fleet-riders')
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = mapFleetRidersItems(json.data)
+            setRiders(prev => {
+              const map = new Map<number, RiderPayout>()
+              prev.forEach(r => map.set(Number(r.rider_user_id), r))
+              mapped.forEach(m => {
+                const id = Number(m.rider_user_id)
+                const existing = map.get(id)
+                map.set(id, existing ? { ...existing, ...m } : m)
+              })
+              const merged = Array.from(map.values())
+              writeLocalCache('smokey_live_cache_v4_riders', merged)
+              return merged
+            })
+          }
+        })
+        .catch(() => {})
+    }
+
+    fetchAppSettings(['staff_accounts', 'deleted_staff_accounts', 'custom_scopes', 'fleet_riders', 'store_pickups'])
+      .then(settings => {
+        if (Array.isArray(settings.store_pickups) && settings.store_pickups.length > 0) {
+          const remotePickups = settings.store_pickups as StorePickupOrder[]
+          const remoteByRef = new Map<string, StorePickupOrder>()
+          remotePickups.forEach(p => {
+            const ref = getCanonicalOrderRef(p)
+            if (ref) remoteByRef.set(ref, p)
+          })
+          setStorePickups(prev => {
+            const merged = prev.map(p => {
+              const rem = remoteByRef.get(getCanonicalOrderRef(p))
+              if (rem && rem.order_status === 'collected') {
+                return {
+                  ...p,
+                  order_status: 'collected' as const,
+                  collected_at: p.collected_at || rem.collected_at,
+                  collected_by: p.collected_by || rem.collected_by,
+                  handover_staff: p.handover_staff || rem.handover_staff,
+                  collector_phone: p.collector_phone || rem.collector_phone
+                }
+              }
+              return p
+            })
+            writeLocalCache('smokey_live_cache_v4_store_pickups', merged)
+            writeLocalCache('smokey_app_setting_v4_store_pickups', merged)
             return merged
           })
+          setWebsiteOrders(prev => {
+            let changed = false
+            const next = prev.map(w => {
+              const rem = remoteByRef.get(getCanonicalOrderRef(w))
+              if (rem && rem.order_status === 'collected' && w.fulfillment_status !== 'delivered') {
+                changed = true
+                return {
+                  ...w,
+                  fulfillment_status: 'delivered' as const,
+                  rider_name: rem.collected_by ? `Collected by ${rem.collected_by}` : 'Store Pickup — Collected'
+                }
+              }
+              return w
+            })
+            if (changed) writeLocalCache('smokey_live_cache_v4_website_orders', next)
+            return changed ? next : prev
+          })
         }
-      })
-      .catch(err => console.error('Error fetching live fleet riders:', err))
 
-    fetchAppSettings(['staff_accounts', 'deleted_staff_accounts', 'custom_scopes'])
-      .then(settings => {
         // Deleted-account tombstones: union of backend + local so removals stick everywhere.
         const remoteDeleted = Array.isArray(settings.deleted_staff_accounts)
           ? settings.deleted_staff_accounts.map((e: any) => String(e).toLowerCase())
@@ -3082,12 +3909,66 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.setItem(DELETED_ACCOUNTS_STORAGE_KEY, JSON.stringify(Array.from(deletedSet)))
 
         if (Array.isArray(settings.custom_scopes) && settings.custom_scopes.length > 0) {
-          setCustomScopes(settings.custom_scopes as CustomRoleScope[])
-          localStorage.setItem('smokey_custom_scopes', JSON.stringify(settings.custom_scopes))
+          const normalizedScopes = (settings.custom_scopes as CustomRoleScope[]).map(s => ({
+            ...s,
+            permissions: normalizePermissionsList(s.permissions || [], s.baseRole || 'manager', true),
+          }))
+          setCustomScopes(normalizedScopes)
+          localStorage.setItem('smokey_custom_scopes', JSON.stringify(normalizedScopes))
         }
 
+        // Hydrate fleet riders from remote settings if available
+        const remoteRiders = Array.isArray(settings.fleet_riders)
+          ? (settings.fleet_riders as RiderPayout[])
+          : []
+
+        setRiders(prev => {
+          const map = new Map<number, RiderPayout>()
+          // 1. Keep local riders (created/onboarded on this device or cached)
+          prev.forEach(r => map.set(Number(r.rider_user_id), r))
+
+          // 2. Also inspect fresh localStorage
+          try {
+            const rawStored = localStorage.getItem('smokey_live_cache_v4_riders') || 
+                              localStorage.getItem('smokey_app_setting_v4_fleet_riders')
+            if (rawStored) {
+              const parsed = JSON.parse(rawStored)
+              if (Array.isArray(parsed)) {
+                parsed.forEach((r: any) => {
+                  if (r?.rider_user_id) {
+                    const id = Number(r.rider_user_id)
+                    if (!map.has(id)) map.set(id, r)
+                  }
+                })
+              }
+            }
+          } catch {}
+
+          // 3. Merge remote riders
+          remoteRiders.forEach(r => {
+            if (r?.rider_user_id) {
+              const id = Number(r.rider_user_id)
+              const local = map.get(id)
+              map.set(id, local ? { ...local, ...r } : r)
+            }
+          })
+
+          const merged = Array.from(map.values())
+          writeLocalCache('smokey_live_cache_v4_riders', merged)
+
+          // If local has riders that remote doesn't have yet, persist them to remote!
+          if (merged.length > remoteRiders.length) {
+            persistAppSetting('fleet_riders', merged)
+          }
+
+          return merged
+        })
+        ridersHydratedRef.current = true
+
         const remoteAccounts = Array.isArray(settings.staff_accounts)
-          ? (settings.staff_accounts as AppUserAccount[]).filter(a => a?.email && !deletedSet.has(a.email.toLowerCase()))
+          ? (settings.staff_accounts as AppUserAccount[])
+              .filter(a => a?.email && !deletedSet.has(a.email.toLowerCase()))
+              .map(normalizeAccountRecord)
           : []
 
         setAccounts(prev => {
@@ -3096,7 +3977,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           // 1. Keep valid locally cached accounts (created on this device)
           prev.forEach(acc => {
             if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
-              map.set(acc.email.toLowerCase(), acc)
+              map.set(acc.email.toLowerCase(), normalizeAccountRecord(acc))
             }
           })
 
@@ -3107,19 +3988,30 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               const parsed = JSON.parse(rawStored)
               if (Array.isArray(parsed)) {
                 parsed.forEach((acc: any) => {
-                  if (acc?.email && !deletedSet.has(acc.email.toLowerCase()) && !map.has(acc.email.toLowerCase())) {
-                    map.set(acc.email.toLowerCase(), acc)
+                  if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
+                    const existing = map.get(acc.email.toLowerCase())
+                    const normalized = normalizeAccountRecord(acc)
+                    if (
+                      !existing ||
+                      (normalized.updated_at_ms && (!existing.updated_at_ms || normalized.updated_at_ms > existing.updated_at_ms))
+                    ) {
+                      map.set(acc.email.toLowerCase(), normalized)
+                    }
                   }
                 })
               }
             }
           } catch {}
 
-          // 3. Merge remote accounts (remote values take precedence for existing, add new ones)
+          // 3. Merge remote accounts (respect newer updated_at_ms so a recent local save is never clobbered)
           remoteAccounts.forEach(acc => {
             if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
               const local = map.get(acc.email.toLowerCase())
-              map.set(acc.email.toLowerCase(), local ? { ...local, ...acc } : acc)
+              if (local?.updated_at_ms && (!acc.updated_at_ms || local.updated_at_ms > acc.updated_at_ms)) {
+                map.set(acc.email.toLowerCase(), normalizeAccountRecord({ ...acc, ...local }))
+              } else {
+                map.set(acc.email.toLowerCase(), normalizeAccountRecord(local ? { ...local, ...acc } : acc))
+              }
             }
           })
 
@@ -3141,8 +4033,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
       .catch(err => console.error('Error hydrating staff accounts:', err))
       .finally(() => {
-        // Allow subsequent account changes to persist to the backend.
-        setTimeout(() => { accountsHydratedRef.current = true }, 0)
+        // Allow subsequent account and rider changes to persist to the backend.
+        setTimeout(() => {
+          accountsHydratedRef.current = true
+          ridersHydratedRef.current = true
+        }, 0)
       })
 
     refreshLiveSalesProducts(false)
@@ -3157,12 +4052,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         (payload: any) => {
           if (payload?.eventType === 'INSERT') {
             const newOrder = payload.new
-            if (newOrder && newOrder.status !== 'pending_payment') {
-              handleIncomingNewOrder(newOrder)
+            if (!isFreshOrder(newOrder)) {
+              return
             }
+            handleIncomingNewOrder(newOrder)
           } else if (payload?.eventType === 'UPDATE') {
             const newOrder = payload.new
             const oldOrder = payload.old
+            if (!newOrder || !newOrder.created_at || newOrder.created_at < OPS_FRESH_START_CUTOFF) {
+              return
+            }
+            if (newOrder.deleted_at || newOrder.status === 'cancelled' || newOrder.status === 'refunded') {
+              const ref = String(newOrder.order_ref || newOrder.id || '')
+              if (ref) {
+                setWebsiteOrders(prev => prev.filter(o => o.order_ref !== ref && String(o.id) !== String(newOrder.id)))
+                setPackagingQueue(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(newOrder.id)))
+                setLogisticsDeliveries(prev => prev.filter(d => d.order_ref !== ref && String(d.id) !== String(newOrder.id)))
+                setScheduledOrders(prev => prev.filter(s => s.order_ref !== ref && String(s.id) !== String(newOrder.id)))
+                setStorePickups(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(newOrder.id)))
+              }
+              return
+            }
             if (oldOrder?.status === 'pending_payment' && newOrder?.status !== 'pending_payment') {
               handleIncomingNewOrder(newOrder)
             } else {
@@ -3173,7 +4083,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        isOrdersRealtimeConnectedRef.current = status === 'SUBSCRIBED'
+      })
 
     // 2. Products Realtime Channel
     const productsChannel = supabase
@@ -3187,39 +4099,35 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
       .subscribe()
 
-    // 3. App Settings Realtime Channel (Order Pipeline & Store Pickup State)
-    const settingsChannel = supabase
-      .channel('ops_context_settings_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_settings' },
-        (payload: any) => {
-          const setting = payload.new
-          if (setting?.key === 'order_pipeline_state') {
-            refreshWebsiteOrders(false)
-          } else if (setting?.key === 'store_pickups' && Array.isArray(setting.value)) {
-            setStorePickups(setting.value)
-          }
-        }
-      )
-      .subscribe()
-
-    // 4. Live Operational Alerts & Lifecycle Broadcast Channel
+    // 3. Live Operational Alerts & Lifecycle Broadcast Channel
     const alertsBroadcastChannel = supabase
       .channel('ops_context_system_broadcast', { config: { broadcast: { self: true } } })
       .on('broadcast', { event: 'new_order_alert' }, (payload: any) => {
         const orderData = payload.payload
-        if (orderData?.id) {
+        if (orderData?.id && isFreshOrder(orderData)) {
           handleIncomingNewOrder(orderData)
         }
       })
       .on('broadcast', { event: 'order_lifecycle_updated' }, (payload: any) => {
         const orderData = payload.payload
-        if (orderData?.id) {
+        if (orderData?.id && (!orderData.created_at || orderData.created_at >= OPS_FRESH_START_CUTOFF)) {
           handleOrderLifecycleChange(orderData)
         }
       })
+      .on('broadcast', { event: 'accounts_permissions_updated' }, (payload: any) => {
+        const data = payload?.payload
+        if (data?.accounts && Array.isArray(data.accounts)) {
+          const normalized = (data.accounts as AppUserAccount[]).map(normalizeAccountRecord)
+          setAccounts(normalized)
+          localStorage.setItem('smokey_accounts', JSON.stringify(normalized))
+        }
+        if (data?.customScopes && Array.isArray(data.customScopes)) {
+          setCustomScopes(data.customScopes)
+          localStorage.setItem('smokey_custom_scopes', JSON.stringify(data.customScopes))
+        }
+      })
       .on('broadcast', { event: 'low_stock_alert' }, (payload: any) => {
+        if (!canShowOperationalAlerts()) return
         const item = payload.payload
         if (item?.name) {
           playAlertChime('warning')
@@ -3231,26 +4139,58 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
       .subscribe()
 
+    broadcastChannelRef.current = alertsBroadcastChannel
+
     return () => {
+      isOrdersRealtimeConnectedRef.current = false
+      broadcastChannelRef.current = null
       supabase.removeChannel(ordersChannel)
       supabase.removeChannel(productsChannel)
-      supabase.removeChannel(settingsChannel)
       supabase.removeChannel(alertsBroadcastChannel)
     }
   }, [refreshLiveSalesProducts, refreshWebsiteOrders, handleIncomingNewOrder, handleOrderLifecycleChange])
 
-  // Continuous background sync poller (runs every 12 seconds to ensure fresh state across all tabs)
+  // Offline / sleep recovery fallback: only polls if Realtime WebSocket is disconnected,
+  // or reconciles once when a backgrounded tab returns after > 5 minutes.
   useEffect(() => {
     const poller = setInterval(() => {
-      refreshWebsiteOrders(false)
-    }, 12000)
-    return () => clearInterval(poller)
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible' &&
+        !isOrdersRealtimeConnectedRef.current
+      ) {
+        refreshWebsiteOrders(false)
+      }
+    }, 120000)
+
+    const handleVisibilityChange = () => {
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible' &&
+        (!isOrdersRealtimeConnectedRef.current || Date.now() - lastOrdersRefreshAtRef.current > 5 * 60 * 1000)
+      ) {
+        refreshWebsiteOrders(false)
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+    }
+    return () => {
+      clearInterval(poller)
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
+    }
   }, [refreshWebsiteOrders])
 
-  // Automated background scheduler: checks scheduledOrders every 10 seconds.
+  // Automated background scheduler: checks scheduledOrders every 10 seconds while signed in.
   // If an order's scheduled date/time has arrived, automatically sends it to packagingQueue without user action!
   useEffect(() => {
+    if (!isAuthenticated) return
+
     const checkDueScheduledOrders = () => {
+      if (!canShowOperationalAlerts()) return
       const now = Date.now()
       setScheduledOrders(prevSched => {
         let hasChanges = false
@@ -3297,7 +4237,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     checkDueScheduledOrders()
     const timer = setInterval(checkDueScheduledOrders, 10000)
     return () => clearInterval(timer)
-  }, [])
+  }, [isAuthenticated, canShowOperationalAlerts, showToast])
 
   // Cross-tab real-time accounts synchronization to ensure newly provisioned accounts
   // work across all open tabs, windows, and login screens without requiring a hard refresh
@@ -3308,7 +4248,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         try {
           const parsed = JSON.parse(e.newValue)
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setAccounts(parsed)
+            setAccounts(parsed.map(normalizeAccountRecord))
+          }
+        } catch {}
+      } else if (e.key === 'smokey_custom_scopes' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCustomScopes(parsed)
           }
         } catch {}
       }
@@ -3372,20 +4319,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (rawStored) {
         const parsed = JSON.parse(rawStored)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingEmails = new Set(candidateAccounts.map(a => (a.email || '').toLowerCase()))
+          const byEmail = new Map<string, AppUserAccount>()
+          candidateAccounts.forEach(a => {
+            if (a?.email) byEmail.set(a.email.toLowerCase(), normalizeAccountRecord(a))
+          })
           parsed.forEach((pa: any) => {
-            if (pa?.email && !existingEmails.has(pa.email.toLowerCase())) {
-              candidateAccounts.push(pa)
+            if (pa?.email) {
+              const key = pa.email.toLowerCase()
+              const existing = byEmail.get(key)
+              const norm = normalizeAccountRecord(pa)
+              if (!existing || (norm.updated_at_ms && (!existing.updated_at_ms || norm.updated_at_ms >= existing.updated_at_ms))) {
+                byEmail.set(key, norm)
+              }
             }
           })
-          if (candidateAccounts.length !== accounts.length) {
-            setAccounts(candidateAccounts)
-          }
+          candidateAccounts = Array.from(byEmail.values())
+          setAccounts(candidateAccounts)
         }
       }
     } catch {}
 
-    const matchedAccount = candidateAccounts.find(acc => {
+    const rawMatchedAccount = candidateAccounts.find(acc => {
       const emailLower = (acc.email || '').toLowerCase()
       const emailPrefix = emailLower.split('@')[0]
       const usernameLower = (acc.username || '').toLowerCase()
@@ -3393,11 +4347,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const nameLower = (acc.name || '').toLowerCase()
       const isSuperAdminAlias =
         emailLower === 'fivedigita@gmail.com' &&
-        (cleanId === 'ayodine47@gmail.com' ||
-          cleanId === 'ayodine47' ||
-          cleanId === 'ayobami' ||
-          cleanId === 'ayobami olowookere' ||
-          cleanId === 'admin' ||
+        (cleanId === 'admin' ||
           cleanId === 'superadmin' ||
           cleanId === 'super admin' ||
           cleanId === 'administrator')
@@ -3411,12 +4361,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       )
     })
 
-    if (!matchedAccount) {
+    if (!rawMatchedAccount) {
       return {
         success: false,
         error: 'Account not found. Only accounts provisioned by an Administrator can sign in.',
       }
     }
+
+    const matchedAccount = normalizeAccountRecord(rawMatchedAccount)
 
     if (matchedAccount.status === 'suspended') {
       return {
@@ -3499,13 +4451,47 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccounts(prev => {
       const updated = prev.map(a =>
         a.email.toLowerCase() === matchedAccount.email.toLowerCase()
-          ? { ...a, last_active: 'Active now' }
+          ? normalizeAccountRecord({ ...a, last_active: 'Active now' })
           : a
       )
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
       return updated
     })
+
+    // Background sync latest remote account permissions on sign-in
+    fetchAppSettings(['staff_accounts', 'custom_scopes'])
+      .then(settings => {
+        if (Array.isArray(settings.custom_scopes) && settings.custom_scopes.length > 0) {
+          const normalizedScopes = (settings.custom_scopes as CustomRoleScope[]).map(s => ({
+            ...s,
+            permissions: normalizePermissionsList(s.permissions || [], s.baseRole || 'manager', true),
+          }))
+          setCustomScopes(normalizedScopes)
+          localStorage.setItem('smokey_custom_scopes', JSON.stringify(normalizedScopes))
+        }
+        if (Array.isArray(settings.staff_accounts) && settings.staff_accounts.length > 0) {
+          setAccounts(prev => {
+            const map = new Map<string, AppUserAccount>()
+            prev.forEach(a => map.set(a.email.toLowerCase(), normalizeAccountRecord(a)))
+            ;(settings.staff_accounts as AppUserAccount[]).forEach(rem => {
+              if (!rem?.email) return
+              const key = rem.email.toLowerCase()
+              const loc = map.get(key)
+              const normRem = normalizeAccountRecord(rem)
+              if (loc?.updated_at_ms && (!normRem.updated_at_ms || loc.updated_at_ms > normRem.updated_at_ms)) {
+                map.set(key, loc)
+              } else {
+                map.set(key, normRem)
+              }
+            })
+            const merged = Array.from(map.values())
+            localStorage.setItem('smokey_accounts', JSON.stringify(merged))
+            return merged
+          })
+        }
+      })
+      .catch(() => {})
 
     return {
       success: true,
@@ -3514,8 +4500,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const logout = () => {
+    stopOrderRingtone()
+    setToasts([])
     sessionStorage.removeItem('smokey_auth_session_v1')
     localStorage.removeItem('smokey_auth_session_v1')
+    isAuthenticatedRef.current = false
     setIsAuthenticated(false)
   }
 
@@ -3558,7 +4547,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       date_joined: riderData.date_joined || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     }
 
-    setRiders(prev => [newRider, ...prev.filter(r => r.rider_user_id !== riderId)])
+    ridersHydratedRef.current = true
+    setRiders(prev => {
+      const next = [newRider, ...prev.filter(r => r.rider_user_id !== riderId)]
+      writeLocalCache('smokey_live_cache_v4_riders', next)
+      persistAppSetting('fleet_riders', next, true)
+      return next
+    })
 
     // Automatically sync / create an app user account for this driver
     const riderAccount: AppUserAccount = {
@@ -3576,7 +4571,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       vehicle_type: newRider.vehicle_type,
       plate_number: newRider.plate_number,
       license_number: newRider.license_number,
-      license_expiry: newRider.license_expiry,}
+      license_expiry: newRider.license_expiry,
+    }
 
     setAccounts(prev => {
       const exists = prev.some(a => a.email.toLowerCase() === riderAccount.email.toLowerCase())
@@ -3584,7 +4580,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ? prev.map(a => a.email.toLowerCase() === riderAccount.email.toLowerCase() ? { ...a, ...riderAccount } : a)
         : [...prev, riderAccount]
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
       return updated
     })
 
@@ -3597,6 +4593,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // If account role is rider, automatically provision/update their RiderPayout with KYC data
     if (newAcc.role === 'rider') {
+      ridersHydratedRef.current = true
       if (!riderUserId) {
         riderUserId = Date.now()
         newAcc.rider_user_id = riderUserId
@@ -3614,7 +4611,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         )
 
         if (existing) {
-          return prev.map(r => r.rider_user_id === existing.rider_user_id ? {
+          const next = prev.map(r => r.rider_user_id === existing.rider_user_id ? {
             ...r,
             phone: newAcc.phone || r.phone,
             vehicle_type: newAcc.vehicle_type || r.vehicle_type,
@@ -3626,6 +4623,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             emergency_phone: newAcc.emergency_phone || r.emergency_phone,
             staff_id: newAcc.staff_id || r.staff_id,
           } : r)
+          writeLocalCache('smokey_live_cache_v4_riders', next)
+          persistAppSetting('fleet_riders', next, true)
+          return next
         }
 
         const newRider: RiderPayout = {
@@ -3659,17 +4659,22 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           on_time_rate: 100,
           date_joined: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         }
-        return [newRider, ...prev]
+        const next = [newRider, ...prev]
+        writeLocalCache('smokey_live_cache_v4_riders', next)
+        persistAppSetting('fleet_riders', next, true)
+        return next
       })
     }
 
-    const accountWithPermissions: AppUserAccount = {
+    const accountWithPermissions: AppUserAccount = normalizeAccountRecord({
       ...newAcc,
       username: newAcc.username || newAcc.email.split('@')[0].toLowerCase(),
       password: newAcc.password || newAcc.temporary_password || 'Smokey@2026',
       temporary_password: newAcc.temporary_password || newAcc.password || 'Smokey@2026',
       permissions: newAcc.permissions || ROLE_DEFAULT_PERMISSIONS[newAcc.role] || [],
-    }
+      overview_granular_configured: true,
+      updated_at_ms: Date.now(),
+    })
 
     // Re-creating a previously removed email clears its tombstone.
     const deletedBefore = readDeletedAccountEmails()
@@ -3689,7 +4694,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updated = [...prev, accountWithPermissions]
       }
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'accounts_permissions_updated',
+          payload: { accounts: updated },
+        }).catch(() => {})
+      }
       return updated
     })
     showToast(`Created ${accountWithPermissions.roleLabel} account for ${accountWithPermissions.name || accountWithPermissions.email}`, 'success')
@@ -3700,9 +4712,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccounts(prev => {
       const updated = prev.map(a => {
         if (a.email.toLowerCase() === email.toLowerCase()) {
-          const merged = { ...a, ...updates }
+          const merged: AppUserAccount = { ...a, ...updates, updated_at_ms: Date.now() }
           if (updates.role && !updates.permissions && updates.role !== a.role) {
-            merged.permissions = ROLE_DEFAULT_PERMISSIONS[updates.role] || []
+            merged.permissions = normalizePermissionsList(ROLE_DEFAULT_PERMISSIONS[updates.role] || [], updates.role, true)
+            merged.overview_granular_configured = true
+          } else if (Array.isArray(updates.permissions)) {
+            merged.permissions = normalizePermissionsList(updates.permissions, merged.role, true)
+            merged.overview_granular_configured = true
           }
           if (updates.email && updates.email !== email) {
             merged.email = updates.email
@@ -3712,7 +4728,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return a
       })
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'accounts_permissions_updated',
+          payload: { accounts: updated },
+        }).catch(() => {})
+      }
       return updated
     })
 
@@ -3734,7 +4757,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccounts(prev => {
       const updated = prev.filter(a => a.email.toLowerCase() !== email.toLowerCase())
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
       return updated
     })
 
@@ -3765,11 +4788,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccounts(prev => {
       const updated = prev.map(a =>
         a.email.toLowerCase() === email.toLowerCase()
-          ? { ...a, password: clean, temporary_password: clean }
+          ? { ...a, password: clean, temporary_password: clean, updated_at_ms: Date.now() }
           : a
       )
       localStorage.setItem('smokey_accounts', JSON.stringify(updated))
-      persistAppSetting('staff_accounts', updated)
+      persistAppSetting('staff_accounts', updated, true)
       return updated
     })
     showToast(`Password successfully updated for ${email}`, 'success', 'Security Credentials')
@@ -3781,7 +4804,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const local = localStorage.getItem('smokey_custom_scopes')
       if (local) {
         const parsed = JSON.parse(local)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((s: CustomRoleScope) => ({
+            ...s,
+            permissions: normalizePermissionsList(s.permissions || [], s.baseRole || 'manager', true),
+          }))
+        }
       }
     } catch {}
     return INITIAL_CUSTOM_SCOPES
@@ -3799,11 +4827,18 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const resolvedLabel = PERMISSION_ID_TO_LABEL[cleanInput] || cleanInput
       const aliases = LEGACY_PERMISSION_ALIASES[cleanInput] || LEGACY_PERMISSION_ALIASES[resolvedId] || []
 
+      const overviewSubIds = new Set(
+        HOME_OVERVIEW_SUB_PERMISSIONS.map(label => PERMISSION_LABEL_TO_ID[label] || label)
+      )
+
       const matchesTarget = (p: string) => {
         if (!p) return false
         const pTrim = p.trim()
         const pId = PERMISSION_LABEL_TO_ID[pTrim] || pTrim
         const pLabel = PERMISSION_ID_TO_LABEL[pTrim] || pTrim
+        if (resolvedId === 'perm_overview_view' && overviewSubIds.has(pId)) {
+          return true
+        }
         return (
           pId === resolvedId ||
           pLabel === resolvedLabel ||
@@ -3815,7 +4850,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         )
       }
 
-      // 2. Check custom scope permissions if assigned
+      // 2. Check explicit user-level permissions FIRST (Authoritative when non-empty array is present)
+      if (Array.isArray(account.permissions) && account.permissions.length > 0) {
+        return account.permissions.some(matchesTarget)
+      }
+
+      // 3. Check custom scope permissions if assigned and no explicit user permissions override
       if (account.scope_id) {
         const customScope = customScopes.find(s => s.id === account.scope_id)
         if (customScope && Array.isArray(customScope.permissions)) {
@@ -3823,12 +4863,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       }
 
-      // 3. Check explicit custom user permissions (Authoritative when array is present)
+      // 4. If user permissions array was explicitly emptied ([]), deny unless admin
       if (Array.isArray(account.permissions)) {
-        return account.permissions.some(matchesTarget)
+        return false
       }
 
-      // 4. Fallback to role default permissions ONLY if no explicit permissions array was configured
+      // 5. Fallback to role default permissions ONLY if no explicit permissions array was configured
       const roleDefaults = ROLE_DEFAULT_PERMISSIONS[account.role] || []
       return roleDefaults.some(matchesTarget)
     },
@@ -3877,14 +4917,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return false
       }
 
-      // Check if account has custom scope with designated landing path
-      if (account.scope_id) {
-        const customScope = customScopes.find(s => s.id === account.scope_id)
-        if (customScope && customScope.defaultLandingPath === normalizedPath) {
-          return true
-        }
-      }
-
       const matchingRule = ROUTE_ACCESS_RULES
         .filter(rule => {
           if (rule.exact) return normalizedPath === rule.prefix
@@ -3896,12 +4928,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return normalizedPath === '/support' || normalizedPath === '/login' || normalizedPath === '/auth'
       }
 
-      // Super admin routes strictly require admin role
-      if (matchingRule.allowedRoles?.includes('admin') && matchingRule.allowedRoles.length === 1) {
-        return false
-      }
-
-      // Specific permission check takes precedence
+      // Specific permission check takes precedence over static role defaults so toggled permissions work for any staff
       if (matchingRule.requiredPermissions && matchingRule.requiredPermissions.length > 0) {
         return hasAnyPermission(matchingRule.requiredPermissions, account)
       }
@@ -3912,16 +4939,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       return true
     },
-    [currentAccount, hasAnyPermission, customScopes]
+    [currentAccount, hasAnyPermission]
   )
 
   const getRoleDefaultLandingPath = React.useCallback(
     (role?: UserRole, account?: AppUserAccount): string => {
       const active = account || currentAccount
-      // 1. If account has custom scope with designated workspace, use it
+      // 1. If account has custom scope with designated workspace and is allowed on that route, use it
       if (active?.scope_id) {
         const customScope = customScopes.find(s => s.id === active.scope_id)
-        if (customScope?.defaultLandingPath) {
+        if (customScope?.defaultLandingPath && isRouteAllowed(customScope.defaultLandingPath, active)) {
           return customScope.defaultLandingPath
         }
       }
@@ -3954,6 +4981,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const fallbackRoutes = [
+        '/overview',
         '/sales/orders',
         '/inventory/sales',
         '/production/packaging',
@@ -3968,7 +4996,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         '/logistics/riders',
         '/logistics/pickup',
         '/logistics/third-party',
-        '/overview',
+        '/accounts',
+        '/offices',
         '/support'
       ]
       const firstAllowed = fallbackRoutes.find(r => isRouteAllowed(r, active))
@@ -3998,15 +5027,21 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           '/logistics/pickup',
           '/logistics/third-party',
           '/accounts',
+          '/accounts/matrix',
           '/offices',
           '/support'
         ]
+      }
+      if (currentAccount && (!role || role === currentAccount.role)) {
+        return ROUTE_ACCESS_RULES
+          .filter(rule => isRouteAllowed(rule.prefix, currentAccount))
+          .map(rule => rule.prefix)
       }
       return ROUTE_ACCESS_RULES
         .filter(rule => !rule.allowedRoles || rule.allowedRoles.includes(targetRole))
         .map(rule => rule.prefix)
     },
-    [currentAccount?.role]
+    [currentAccount, isRouteAllowed]
   )
 
   // Success Modal
@@ -4046,8 +5081,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const createCustomScope = React.useCallback((scopeData: Omit<CustomRoleScope, 'id' | 'createdAt' | 'isCustom'>): CustomRoleScope => {
     const id = `scope_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+    const normalizedPerms = normalizePermissionsList(scopeData.permissions || [], scopeData.baseRole || 'manager', true)
     const newScope: CustomRoleScope = {
       ...scopeData,
+      permissions: normalizedPerms,
       id,
       createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       isCustom: true
@@ -4055,7 +5092,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setCustomScopes(prev => {
       const updated = [...prev, newScope]
       localStorage.setItem('smokey_custom_scopes', JSON.stringify(updated))
-      persistAppSetting('custom_scopes', updated)
+      persistAppSetting('custom_scopes', updated, true)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'accounts_permissions_updated',
+          payload: { customScopes: updated },
+        }).catch(() => {})
+      }
       return updated
     })
     showToast(`Custom scope "${newScope.label}" successfully created`, 'success')
@@ -4063,12 +5107,52 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [showToast])
 
   const updateCustomScope = React.useCallback((id: string, updates: Partial<CustomRoleScope>) => {
+    const normalizedUpdates = updates.permissions
+      ? { ...updates, permissions: normalizePermissionsList(updates.permissions, updates.baseRole || 'manager', true) }
+      : updates
     setCustomScopes(prev => {
-      const updated = prev.map(s => s.id === id ? { ...s, ...updates } : s)
+      const updated = prev.map(s => s.id === id ? { ...s, ...normalizedUpdates } : s)
       localStorage.setItem('smokey_custom_scopes', JSON.stringify(updated))
-      persistAppSetting('custom_scopes', updated)
+      persistAppSetting('custom_scopes', updated, true)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'accounts_permissions_updated',
+          payload: { customScopes: updated },
+        }).catch(() => {})
+      }
       return updated
     })
+    if (normalizedUpdates.permissions) {
+      accountsHydratedRef.current = true
+      setAccounts(prev => {
+        let changed = false
+        const updated = prev.map(a => {
+          if (a.scope_id === id) {
+            changed = true
+            return {
+              ...a,
+              permissions: normalizedUpdates.permissions,
+              overview_granular_configured: true,
+              updated_at_ms: Date.now(),
+            }
+          }
+          return a
+        })
+        if (changed) {
+          localStorage.setItem('smokey_accounts', JSON.stringify(updated))
+          persistAppSetting('staff_accounts', updated, true)
+          if (broadcastChannelRef.current) {
+            broadcastChannelRef.current.send({
+              type: 'broadcast',
+              event: 'accounts_permissions_updated',
+              payload: { accounts: updated },
+            }).catch(() => {})
+          }
+        }
+        return changed ? updated : prev
+      })
+    }
     showToast('Scope policies updated successfully', 'success')
   }, [showToast])
 
@@ -4252,19 +5336,24 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const costDelta = newWAC - Math.round(currentCost)
 
     // 1. Update product stock (maintain 3-state stock model: available = stock_qty - allocated - quarantine)
-    setRawProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p
-      const avail = Math.max(0, newQty - (p.qty_allocated || 0) - (p.qty_quarantine || 0))
-      return {
-        ...p,
-        stock_qty: newQty,
-        qty_available: avail,
-        unit_cost: newWAC,
-        last_purchase_cost: Math.round(unitCost),
-        cost_change_delta: costDelta,
-        inventory_value: newTotalValuation
-      }
-    }))
+    setRawProducts(prev => {
+      const next = prev.map(p => {
+        if (p.id !== productId) return p
+        const avail = Math.max(0, newQty - (p.qty_allocated || 0) - (p.qty_quarantine || 0))
+        return {
+          ...p,
+          stock_qty: newQty,
+          qty_available: avail,
+          unit_cost: newWAC,
+          last_purchase_cost: Math.round(unitCost),
+          cost_change_delta: costDelta,
+          inventory_value: newTotalValuation
+        }
+      })
+      writeLocalCache('smokey_live_cache_v4_raw_products', next)
+      persistAppSetting('inventory_raw', next, true)
+      return next
+    })
 
     // 2. Add delivery record (preserves original purchase price and records new Average Cost)
     const deliveryRef = invoiceRef?.trim() || `RCV-${String(rawDeliveries.length + 65).padStart(5, '0')}`
@@ -4383,7 +5472,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const deltaVal = Math.abs(delta) * product.unit_cost
     const avail = Math.max(0, newQty - (product.qty_allocated || 0) - (product.qty_quarantine || 0))
 
-    setRawProducts(prev => prev.map(p => p.id === productId ? { ...p, stock_qty: newQty, qty_available: avail, inventory_value: newQty * p.unit_cost } : p))
+    setRawProducts(prev => {
+      const next = prev.map(p => p.id === productId ? { ...p, stock_qty: newQty, qty_available: avail, inventory_value: newQty * p.unit_cost } : p)
+      writeLocalCache('smokey_live_cache_v4_raw_products', next)
+      persistAppSetting('inventory_raw', next, true)
+      return next
+    })
 
     const isWaste = delta < 0 && (
       reason.toLowerCase().includes('waste') || 
@@ -4583,13 +5677,54 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const saveRawProduct = (product: Partial<RawProduct> & { name: string; sku: string; unit: string; unit_cost: number; reorder_level: number; is_perishable?: boolean; expiry_date?: string }) => {
     if (product.id) {
-      setRawProducts(prev => prev.map(p => p.id === product.id ? {
-        ...p,
-        ...product,
-        inventory_value: p.stock_qty * product.unit_cost,
-        qty_available: Math.max(0, p.stock_qty - (p.qty_allocated || 0) - (p.qty_quarantine || 0))
-      } : p))
+      const existing = rawProducts.find(p => p.id === product.id)
+      const nextStockQty = product.stock_qty !== undefined && Number.isFinite(Number(product.stock_qty))
+        ? Math.max(0, Number(product.stock_qty))
+        : (existing?.stock_qty ?? 0)
+      const stockDelta = existing ? nextStockQty - existing.stock_qty : 0
+
+      setRawProducts(prev => {
+        const next = prev.map(p => {
+          if (p.id !== product.id) return p
+          const resolvedStock = product.stock_qty !== undefined && Number.isFinite(Number(product.stock_qty))
+            ? Math.max(0, Number(product.stock_qty))
+            : p.stock_qty
+          return {
+            ...p,
+            ...product,
+            stock_qty: resolvedStock,
+            inventory_value: resolvedStock * product.unit_cost,
+            qty_available: Math.max(0, resolvedStock - (p.qty_allocated || 0) - (p.qty_quarantine || 0))
+          }
+        })
+        writeLocalCache('smokey_live_cache_v4_raw_products', next)
+        persistAppSetting('inventory_raw', next, true)
+        return next
+      })
+
+      if (existing && stockDelta !== 0) {
+        const newMovement: RawMovement = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          product_id: existing.id,
+          product_name: product.name,
+          sku: product.sku,
+          unit: product.unit,
+          location: 'raw',
+          movement_type: 'adjustment',
+          quantity: stockDelta,
+          unit_cost: product.unit_cost,
+          value_amount: Math.abs(stockDelta) * product.unit_cost,
+          balance_after: nextStockQty,
+          notes: `Physical Count Correction: Updated stock from ${existing.stock_qty} to ${nextStockQty} ${product.unit}`,
+          created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          user_name: currentAccount?.name || 'Inventory Staff'
+        }
+        setRawMovements(prev => [newMovement, ...prev])
+      }
     } else {
+      const initialStock = product.stock_qty !== undefined && Number.isFinite(Number(product.stock_qty))
+        ? Math.max(0, Number(product.stock_qty))
+        : 0
       const newProduct: RawProduct = {
         id: Date.now(),
         sku: product.sku,
@@ -4598,16 +5733,21 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         unit: product.unit,
         reorder_level: product.reorder_level,
         unit_cost: product.unit_cost,
-        stock_qty: 0,
+        stock_qty: initialStock,
         qty_allocated: 0,
-        qty_available: 0,
+        qty_available: initialStock,
         qty_quarantine: 0,
-        inventory_value: 0,
+        inventory_value: initialStock * product.unit_cost,
         is_active: 1,
         is_perishable: product.is_perishable || false,
         expiry_date: product.expiry_date
       }
-      setRawProducts(prev => [...prev, newProduct])
+      setRawProducts(prev => {
+        const next = [...prev, newProduct]
+        writeLocalCache('smokey_live_cache_v4_raw_products', next)
+        persistAppSetting('inventory_raw', next, true)
+        return next
+      })
     }
     showToast(`Raw material ${product.name} [${product.sku}] ${product.id ? 'updated' : 'created'} successfully`, 'success')
   }
@@ -5643,9 +6783,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       inventory_value: newQty * p.selling_price
     } : p
 
-    setSalesProducts(prev => prev.map(updateProd))
+    setSalesProducts(prev => {
+      const next = prev.map(updateProd)
+      writeLocalCache('smokey_live_cache_v4_inventory_sales', next)
+      persistAppSetting('inventory_sales', next, true)
+      return next
+    })
     setLiveSalesProducts(prev => prev.map(updateProd))
-    // Standalone ops sales inventory: persisted via useEffect to inventory_sales in app_settings without mutating products.stock
+    // Standalone ops sales inventory: persisted immediately to inventory_sales in app_settings without mutating products.stock
 
     const newMovement: SalesMovement = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -5668,13 +6813,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const saveSalesProduct = (product: Partial<SalesProduct> & { name: string; sku: string; unit: string; selling_price: number; unit_cost: number; reorder_level: number; stock_qty?: number; image?: string | null; category_name?: string }) => {
     if (product.id) {
-      setSalesProducts(prev => prev.map(p => p.id === product.id ? {
+      const updateExisting = (p: SalesProduct) => p.id === product.id ? {
         ...p,
         ...product,
         stock_qty: product.stock_qty !== undefined ? product.stock_qty : p.stock_qty,
         inventory_value: (product.stock_qty !== undefined ? product.stock_qty : p.stock_qty) * product.selling_price,
         qty_available: Math.max(0, (product.stock_qty !== undefined ? product.stock_qty : p.stock_qty) - (p.qty_allocated || 0))
-      } : p))
+      } : p
+      setSalesProducts(prev => {
+        const next = prev.map(updateExisting)
+        writeLocalCache('smokey_live_cache_v4_inventory_sales', next)
+        persistAppSetting('inventory_sales', next, true)
+        return next
+      })
+      setLiveSalesProducts(prev => prev.map(updateExisting))
     } else {
       const stock = product.stock_qty ?? 0
       const newProd: SalesProduct = {
@@ -5692,7 +6844,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         inventory_value: stock * product.selling_price,
         is_active: product.is_active !== undefined ? product.is_active : 1
       }
-      setSalesProducts(prev => [...prev, newProd])
+      setSalesProducts(prev => {
+        const next = [...prev, newProd]
+        writeLocalCache('smokey_live_cache_v4_inventory_sales', next)
+        persistAppSetting('inventory_sales', next, true)
+        return next
+      })
     }
   }
 
@@ -5763,9 +6920,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         : p
 
-    setSalesProducts(prev => prev.map(updateSource).map(updateDest))
+    setSalesProducts(prev => {
+      const next = prev.map(updateSource).map(updateDest)
+      writeLocalCache('smokey_live_cache_v4_inventory_sales', next)
+      persistAppSetting('inventory_sales', next, true)
+      return next
+    })
     setLiveSalesProducts(prev => prev.map(updateSource).map(updateDest))
-    // Standalone ops sales inventory: persisted via useEffect to inventory_sales in app_settings without mutating products.stock
+    // Standalone ops sales inventory: persisted immediately to inventory_sales in app_settings without mutating products.stock
 
     const repRef = `REP-${String(stockConversions.length + 1).padStart(5, '0')}`
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
@@ -7163,43 +8325,142 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const confirmPackagingOrder = (orderId: number, staffName?: string) => {
-    const order = packagingQueue.find(o => o.id === orderId)
+    const order = packagingQueue.find(o => o.id === orderId || extractNumericOrderId(o.order_ref) === orderId)
     if (!order) return
 
+    const canonicalRef = getCanonicalOrderRef(order)
     const resolvedStaff = staffName || currentAccount?.name || "Packaging Staff"
     const nowTimestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const wasAlreadyPackaged = order.order_status === 'packaged'
 
-    // 1. Mark as packaged in queue
-    setPackagingQueue(prev => prev.map(o => o.id === orderId ? {
-      ...o,
-      order_status: "packaged",
-      packaged_at: nowTimestamp,
-      packaged_by_name: resolvedStaff
-    } : o))
+    // 0. Deduct finished goods stock from the exact ordered variant in Sales Inventory (only once per order)
+    if (!wasAlreadyPackaged) {
+      const matchingWebOrder = websiteOrders.find(w => getCanonicalOrderRef(w) === canonicalRef)
+      const orderItemsToDeduct: any[] =
+        (Array.isArray(matchingWebOrder?.raw_items) && matchingWebOrder.raw_items.length > 0)
+          ? matchingWebOrder.raw_items
+          : (Array.isArray(order.items) ? order.items : [])
 
-    updateOrderPipelineState(order.order_ref, {
+      if (orderItemsToDeduct.length > 0) {
+        const deductionsByProductId = new Map<number, number>()
+        orderItemsToDeduct.forEach(item => {
+          const matchedProd = matchOrderItemToSalesProduct(item, salesProducts)
+          const qty = Math.max(1, Number(item.qty ?? item.quantity ?? 1))
+          if (matchedProd) {
+            deductionsByProductId.set(matchedProd.id, (deductionsByProductId.get(matchedProd.id) || 0) + qty)
+          }
+        })
+
+        if (deductionsByProductId.size > 0) {
+          const newSaleMovements: SalesMovement[] = []
+          const applyDeductions = (list: SalesProduct[]) =>
+            list.map(sp => {
+              const deductQty = deductionsByProductId.get(sp.id)
+              if (!deductQty) return sp
+              const newStock = Math.max(0, sp.stock_qty - deductQty)
+              return {
+                ...sp,
+                stock_qty: newStock,
+                qty_available: Math.max(0, newStock - (sp.qty_allocated || 0)),
+                inventory_value: newStock * sp.selling_price,
+              }
+            })
+
+          salesProducts.forEach(sp => {
+            const deductQty = deductionsByProductId.get(sp.id)
+            if (!deductQty) return
+            const newStock = Math.max(0, sp.stock_qty - deductQty)
+            newSaleMovements.push({
+              id: Date.now() + Math.floor(Math.random() * 10000),
+              product_id: sp.id,
+              product_name: sp.name,
+              sku: sp.sku,
+              unit: sp.unit,
+              location: 'sales',
+              movement_type: 'sale',
+              quantity: -deductQty,
+              unit_cost: sp.unit_cost,
+              value_amount: deductQty * sp.selling_price,
+              balance_after: newStock,
+              notes: `Order #${canonicalRef} packaged (${order.customer_name || 'Customer'})`,
+              created_at: nowTimestamp,
+              user_name: resolvedStaff,
+            })
+          })
+
+          setSalesProducts(prev => {
+            const next = applyDeductions(prev)
+            writeLocalCache('smokey_live_cache_v4_inventory_sales', next)
+            persistAppSetting('inventory_sales', next, true)
+            return next
+          })
+          setLiveSalesProducts(prev => applyDeductions(prev) as LiveSalesProduct[])
+          if (newSaleMovements.length > 0) {
+            setSalesMovements(prev => [...newSaleMovements, ...prev])
+          }
+        }
+      }
+    }
+
+    // 1. Mark as packaged in queue and persist to localStorage cache immediately
+    setPackagingQueue(prev => {
+      const next = prev.map(o => (o.id === orderId || getCanonicalOrderRef(o) === canonicalRef) ? {
+        ...o,
+        order_status: "packaged" as const,
+        packaged_at: nowTimestamp,
+        packaged_by_name: resolvedStaff
+      } : o)
+      writeLocalCache('smokey_live_cache_v4_packaging_queue', next)
+      return next
+    })
+
+    updateOrderPipelineState(canonicalRef, {
       order_status: "packaged",
       packaged_at: nowTimestamp,
       packaged_by_name: resolvedStaff,
       packaging_materials_picked: order.packaging_materials_picked,
       delivery_status: "pending"
     })
-    persistOrderUpdateToBackend(order.order_ref, {
+    persistOrderUpdateToBackend(canonicalRef, {
       delivery_status: "Ready for Dispatch",
       packaging_status: "packaged",
       packaged_at: nowTimestamp,
       packaged_by: resolvedStaff
+    }).then(ok => {
+      if (!ok) {
+        showToast(`Warning: Could not sync packaging completion for #${canonicalRef} to database`, 'error')
+      }
     })
-    setWebsiteOrders(prev => prev.map(w => w.order_ref === order.order_ref ? {
-      ...w,
-      fulfillment_status: "ready_for_dispatch"
-    } : w))
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: "packaged",
+      order_status: "packaged",
+      delivery_status: "Ready for Dispatch",
+      packaged_at: nowTimestamp,
+      packaged_by: resolvedStaff,
+      packaged_by_name: resolvedStaff,
+      customer_name: order.customer_name,
+      customer_phone: order.phone,
+      delivery_address: order.address,
+      total: order.total_amount,
+      delivery_fee: order.delivery_fee,
+      items_summary: order.items_summary
+    })
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: "ready_for_dispatch" as const
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
 
     // 2. If it's a store pickup, add to storePickups
     if (order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0) {
       const newPickup: StorePickupOrder = {
         id: order.id,
-        order_ref: order.order_ref,
+        order_ref: canonicalRef,
         customer_name: order.customer_name,
         phone: order.phone,
         address: order.address,
@@ -7212,15 +8473,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         handover_staff: null,
         items_summary: order.items_summary
       }
-      setStorePickups(prev => [newPickup, ...prev.filter(p => p.id !== order.id && p.order_ref !== order.order_ref)])
-      showToast(`Order #${order.order_ref} packaged and moved to Store Pickup Counter!`, 'success')
+      setStorePickups(prev => [newPickup, ...prev.filter(p => p.id !== order.id && getCanonicalOrderRef(p) !== canonicalRef)])
+      showToast(`Order #${canonicalRef} packaged and moved to Store Pickup Counter!`, 'success')
     } else {
       // 3. Otherwise, transfer into Logistics Dispatch Queue (Awaiting Assignment)!
       const newDelivery: LogisticsDelivery = {
         id: order.id,
-        delivery_ref: `DEL-${order.order_ref.replace(/\D/g, '') || order.id}`,
+        delivery_ref: `DEL-${canonicalRef.replace(/\D/g, '') || order.id}`,
         order_id: order.id,
-        order_ref: order.order_ref,
+        order_ref: canonicalRef,
         customer_name: order.customer_name,
         phone: order.phone,
         address: order.address,
@@ -7237,8 +8498,12 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         items_summary: order.items_summary,
         notes: `Packed by ${resolvedStaff}`
       }
-      setLogisticsDeliveries(prev => [newDelivery, ...prev.filter(d => d.order_ref !== order.order_ref && d.id !== order.id)])
-      showToast(`Order #${order.order_ref} packaged and sent to Dispatch Board (Awaiting Rider Assignment)!`, 'success')
+      setLogisticsDeliveries(prev => {
+        const next = [newDelivery, ...prev.filter(d => getCanonicalOrderRef(d) !== canonicalRef && d.id !== order.id)]
+        writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+        return next
+      })
+      showToast(`Order #${canonicalRef} packaged and sent to Dispatch Board (Awaiting Rider Assignment)!`, 'success')
     }
 
     // 4. Update daily materials consumed (accurately appending new SKUs if not previously logged)
@@ -7293,47 +8558,157 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     bookedFee?: number,
     feeEvidencePath?: string
   ) => {
-    const targetDel = logisticsDeliveries.find(d => d.id === deliveryId)
-    const numericRiderId = riderId !== undefined ? Number(riderId) : undefined
-
-    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
-      ...d,
-      rider_type: riderType,
-      assigned_rider: riderName,
-      assigned_rider_id: numericRiderId,
-      third_party_provider: riderType === 'third_party' ? riderName : null,
-      booked_fee: bookedFee || null,
-      fee_evidence_path: feeEvidencePath || d.fee_evidence_path || null,
-      fee_verify_status: riderType === 'third_party' ? 'pending' : 'none',
-      status: "assigned"
-    } : d))
-
-    if (targetDel) {
-      updateOrderPipelineState(targetDel.order_ref, {
-        delivery_status: "assigned",
-        rider_type: riderType,
-        assigned_rider: riderName,
-        assigned_rider_id: numericRiderId,
-        third_party_provider: riderType === 'third_party' ? riderName : null,
-        booked_fee: bookedFee || null,
-        fee_evidence_path: feeEvidencePath || targetDel.fee_evidence_path || null,
-        fee_verify_status: riderType === 'third_party' ? 'pending' : 'none'
-      })
-      persistOrderUpdateToBackend(targetDel.order_ref, {
-        delivery_status: "Assigned",
-        rider_name: riderName,
-        rider_id: numericRiderId,
-        rider_type: riderType,
-        third_party_provider: riderType === 'third_party' ? riderName : null,
-        booked_fee: bookedFee || null,
-        fee_evidence_path: feeEvidencePath || targetDel.fee_evidence_path || null,
-        fee_verify_status: riderType === 'third_party' ? 'pending' : 'none'
-      })
-      setWebsiteOrders(prev => prev.map(w => w.order_ref === targetDel.order_ref ? {
-        ...w,
-        rider_name: riderName
-      } : w))
+    const cleanRiderName = String(riderName || '').trim()
+    if (!cleanRiderName || cleanRiderName === 'Unassigned') {
+      showToast('Please select a valid rider or courier before assigning.', 'error', 'Invalid Rider')
+      return
     }
+
+    const numericRiderId = riderId !== undefined ? Number(riderId) : undefined
+    if (riderType === 'internal' && numericRiderId !== undefined) {
+      const targetRider = riders.find(r => Number(r.rider_user_id) === numericRiderId)
+      if (!targetRider || targetRider.status === 'offline') {
+        showToast('Selected in-house rider is currently unavailable or offline.', 'error', 'Rider Unavailable')
+        return
+      }
+    }
+
+    const targetDel = logisticsDeliveries.find(
+      d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId
+    )
+    const fallbackWebOrder = !targetDel
+      ? websiteOrders.find(w => w.id === deliveryId || extractNumericOrderId(w.order_ref) === deliveryId)
+      : undefined
+    const fallbackPkgOrder = !targetDel
+      ? packagingQueue.find(p => p.id === deliveryId || extractNumericOrderId(p.order_ref) === deliveryId)
+      : undefined
+
+    const canonicalRef = targetDel
+      ? getCanonicalOrderRef(targetDel)
+      : (fallbackWebOrder ? getCanonicalOrderRef(fallbackWebOrder) : (fallbackPkgOrder ? getCanonicalOrderRef(fallbackPkgOrder) : `SHD-${deliveryId}`))
+
+    // Guard against assigning a rider to an order that has not completed packaging yet
+    if (!targetDel && fallbackPkgOrder && fallbackPkgOrder.order_status !== 'packaged') {
+      showToast(`Order #${canonicalRef} must complete Packaging Execution before a rider can be assigned.`, 'error', 'Not Eligible for Dispatch')
+      return
+    }
+
+    setLogisticsDeliveries(prev => {
+      const exists = prev.some(d => d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef)
+      let next: LogisticsDelivery[]
+      if (exists) {
+        next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
+          ...d,
+          rider_type: riderType,
+          assigned_rider: cleanRiderName,
+          assigned_rider_id: numericRiderId,
+          third_party_provider: riderType === 'third_party' ? cleanRiderName : null,
+          booked_fee: bookedFee || null,
+          fee_evidence_path: feeEvidencePath || d.fee_evidence_path || null,
+          fee_verify_status: riderType === 'third_party' ? 'pending' : 'none',
+          status: d.status === 'delivered' ? 'delivered' : (d.status === 'in_transit' ? 'in_transit' : 'assigned')
+        } : d)
+      } else {
+        const numericOrderId = extractNumericOrderId(canonicalRef, deliveryId)
+        const synthesized: LogisticsDelivery = {
+          id: numericOrderId,
+          delivery_ref: `DEL-${numericOrderId}`,
+          order_id: numericOrderId,
+          order_ref: canonicalRef,
+          customer_name: fallbackWebOrder?.customer_name || fallbackPkgOrder?.customer_name || 'Storefront Customer',
+          phone: fallbackWebOrder?.phone || fallbackPkgOrder?.phone || 'N/A',
+          address: fallbackWebOrder?.address || fallbackPkgOrder?.address || 'Lagos Delivery',
+          total_amount: fallbackWebOrder?.total_amount || fallbackPkgOrder?.total_amount || 0,
+          delivery_fee: fallbackWebOrder?.delivery_fee || fallbackPkgOrder?.delivery_fee || 3000,
+          booked_fee: bookedFee || null,
+          rider_type: riderType,
+          assigned_rider: cleanRiderName,
+          assigned_rider_id: numericRiderId,
+          third_party_provider: riderType === 'third_party' ? cleanRiderName : null,
+          status: 'assigned',
+          dispatch_date: new Date().toISOString().split('T')[0],
+          pickup_at: null,
+          delivered_at: null,
+          fee_evidence_path: feeEvidencePath || null,
+          fee_verify_status: riderType === 'third_party' ? 'pending' : 'none',
+          items_summary: fallbackWebOrder?.items_summary || fallbackPkgOrder?.items_summary || 'Assorted Smokey Delicacies'
+        }
+        next = [synthesized, ...prev]
+      }
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
+
+    // Ensure packagingQueue never shows this order as ready_for_fulfillment or in_packaging
+    setPackagingQueue(prev => {
+      const next = prev.map(p => (p.id === deliveryId || getCanonicalOrderRef(p) === canonicalRef) ? {
+        ...p,
+        order_status: 'packaged' as const,
+        packaged_at: p.packaged_at || new Date().toISOString().replace('T', ' ').substring(0, 19)
+      } : p)
+      writeLocalCache('smokey_live_cache_v4_packaging_queue', next)
+      return next
+    })
+
+    const resolvedEvidencePath = feeEvidencePath || targetDel?.fee_evidence_path || null
+    const resolvedVerifyStatus = riderType === 'third_party' ? 'pending' : 'none'
+
+    updateOrderPipelineState(canonicalRef, {
+      order_status: "packaged",
+      delivery_status: "assigned",
+      rider_type: riderType,
+      assigned_rider: cleanRiderName,
+      assigned_rider_id: numericRiderId,
+      third_party_provider: riderType === 'third_party' ? cleanRiderName : null,
+      booked_fee: bookedFee || null,
+      fee_evidence_path: resolvedEvidencePath,
+      fee_verify_status: resolvedVerifyStatus
+    })
+
+    persistOrderUpdateToBackend(canonicalRef, {
+      packaging_status: "packaged",
+      delivery_status: "Assigned",
+      rider_name: cleanRiderName,
+      rider_id: numericRiderId ?? null,
+      rider_type: riderType,
+      third_party_provider: riderType === 'third_party' ? cleanRiderName : null,
+      booked_fee: bookedFee || null,
+      fee_evidence_path: resolvedEvidencePath,
+      fee_verify_status: resolvedVerifyStatus
+    }).then(ok => {
+      if (!ok) {
+        showToast(`Failed to persist rider assignment for #${canonicalRef} to database.`, 'error', 'Assignment Sync Error')
+      }
+    })
+
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: "packaged",
+      order_status: "packaged",
+      delivery_status: "Assigned",
+      rider_name: cleanRiderName,
+      assigned_rider: cleanRiderName,
+      rider_id: numericRiderId,
+      assigned_rider_id: numericRiderId,
+      rider_type: riderType,
+      third_party_provider: riderType === 'third_party' ? cleanRiderName : null,
+      booked_fee: bookedFee || null,
+      fee_evidence_path: resolvedEvidencePath,
+      fee_verify_status: resolvedVerifyStatus
+    })
+
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: getFulfillmentStatusRank(w.fulfillment_status) >= getFulfillmentStatusRank('ready_for_dispatch')
+          ? w.fulfillment_status
+          : ('ready_for_dispatch' as const),
+        rider_name: cleanRiderName
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
 
     // Increment active assignment count for internal rider
     if (riderType === 'internal' && numericRiderId) {
@@ -7342,7 +8717,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const confirmRiderCollect = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
     if (!delivery) return
 
     // STRICT INVARIANT GUARD: Must have a designated driver or courier!
@@ -7351,83 +8726,147 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return
     }
 
+    const canonicalRef = getCanonicalOrderRef(delivery)
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
-      ...d,
-      status: "in_transit",
+    setLogisticsDeliveries(prev => {
+      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
+        ...d,
+        status: "in_transit" as const,
+        pickup_at: nowTime
+      } : d)
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
+    updateOrderPipelineState(canonicalRef, {
+      order_status: "packaged",
+      delivery_status: "in_transit",
       pickup_at: nowTime
-    } : d))
-    if (delivery) {
-      updateOrderPipelineState(delivery.order_ref, {
-        delivery_status: "in_transit",
-        pickup_at: nowTime
-      })
-      persistOrderUpdateToBackend(delivery.order_ref, {
-        delivery_status: "In Transit",
-        pickup_at: nowTime
-      })
-      setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
+    })
+    persistOrderUpdateToBackend(canonicalRef, {
+      packaging_status: "packaged",
+      delivery_status: "In Transit",
+      pickup_at: nowTime
+    })
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: "packaged",
+      order_status: "packaged",
+      delivery_status: "In Transit",
+      rider_name: delivery.assigned_rider,
+      assigned_rider: delivery.assigned_rider,
+      assigned_rider_id: delivery.assigned_rider_id,
+      rider_type: delivery.rider_type,
+      pickup_at: nowTime
+    })
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
         ...w,
-        fulfillment_status: "in_transit"
-      } : w))
-    }
+        fulfillment_status: "in_transit" as const
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
   }
 
   const acceptDelivery = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
+    const canonicalRef = delivery ? getCanonicalOrderRef(delivery) : `SHD-${deliveryId}`
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
-      ...d,
-      status: "in_transit",
-      pickup_at: nowTime
-    } : d))
+    setLogisticsDeliveries(prev => {
+      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
+        ...d,
+        status: "in_transit" as const,
+        pickup_at: nowTime
+      } : d)
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
     if (delivery) {
-      updateOrderPipelineState(delivery.order_ref, {
+      updateOrderPipelineState(canonicalRef, {
+        order_status: "packaged",
         delivery_status: "in_transit",
         pickup_at: nowTime
       })
-      persistOrderUpdateToBackend(delivery.order_ref, {
+      persistOrderUpdateToBackend(canonicalRef, {
+        packaging_status: "packaged",
         delivery_status: "In Transit",
         pickup_at: nowTime
       })
-      setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
-        ...w,
-        fulfillment_status: "in_transit"
-      } : w))
+      broadcastOrderLifecycleUpdate({
+        id: canonicalRef,
+        order_ref: canonicalRef,
+        packaging_status: "packaged",
+        order_status: "packaged",
+        delivery_status: "In Transit",
+        rider_name: delivery.assigned_rider,
+        assigned_rider: delivery.assigned_rider,
+        assigned_rider_id: delivery.assigned_rider_id,
+        rider_type: delivery.rider_type,
+        pickup_at: nowTime
+      })
+      setWebsiteOrders(prev => {
+        const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+          ...w,
+          fulfillment_status: "in_transit" as const
+        } : w)
+        writeLocalCache('smokey_live_cache_v4_website_orders', next)
+        return next
+      })
     }
-    showToast(`Order #${delivery?.order_ref || deliveryId} accepted — moved to In-Transit`, 'success')
+    showToast(`Order #${canonicalRef} accepted — moved to In-Transit`, 'success')
   }
 
   const markDelivered = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
     if (!delivery) return
 
+    const canonicalRef = getCanonicalOrderRef(delivery)
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
 
-    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
-      ...d,
-      status: "delivered",
-      delivered_at: nowTime
-    } : d))
+    setLogisticsDeliveries(prev => {
+      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
+        ...d,
+        status: "delivered" as const,
+        delivered_at: nowTime
+      } : d)
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
 
-    updateOrderPipelineState(delivery.order_ref, {
+    updateOrderPipelineState(canonicalRef, {
+      order_status: "packaged",
       delivery_status: "delivered",
       delivered_at: nowTime
     })
-    persistOrderUpdateToBackend(delivery.order_ref, {
+    persistOrderUpdateToBackend(canonicalRef, {
       status: "delivered",
+      packaging_status: "packaged",
       delivery_status: "Delivered",
       delivered_at: nowTime
     })
-    persistOrderUpdateToBackend(delivery.order_ref, {
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      status: "delivered",
+      packaging_status: "packaged",
+      order_status: "packaged",
       delivery_status: "Delivered",
-      status: "Delivered"
-    })
-    setWebsiteOrders(prev => prev.map(w => w.order_ref === delivery.order_ref ? {
-      ...w,
-      fulfillment_status: "delivered",
+      rider_name: delivery.assigned_rider,
+      assigned_rider: delivery.assigned_rider,
+      assigned_rider_id: delivery.assigned_rider_id,
+      rider_type: delivery.rider_type,
       delivered_at: nowTime
-    } : w))
+    })
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: "delivered" as const,
+        delivered_at: nowTime
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
 
     // Show confirmation toast for internal rider credit (reconcileLedger automatically calculates ledger from logisticsDeliveries)
     if (delivery.rider_type === 'internal' && (delivery.assigned_rider_id || delivery.assigned_rider)) {
@@ -7437,29 +8876,59 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const declineDelivery = (deliveryId: number, reason: string) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId)
+    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
     if (!delivery) return
 
+    const canonicalRef = getCanonicalOrderRef(delivery)
     const prevRiderId = delivery.assigned_rider_id
 
-    setLogisticsDeliveries(prev => prev.map(d => d.id === deliveryId ? {
-      ...d,
-      assigned_rider: "Unassigned",
-      assigned_rider_id: undefined,
-      status: "pending",
-      pickup_at: null,
-      decline_reason: reason
-    } : d))
+    setLogisticsDeliveries(prev => {
+      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
+        ...d,
+        assigned_rider: "Unassigned",
+        assigned_rider_id: undefined,
+        status: "pending" as const,
+        pickup_at: null,
+        decline_reason: reason
+      } : d)
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
 
-    updateOrderPipelineState(delivery.order_ref, {
+    updateOrderPipelineState(canonicalRef, {
+      order_status: "packaged",
       delivery_status: "pending",
       assigned_rider: "Unassigned",
       assigned_rider_id: undefined,
       pickup_at: null,
       decline_reason: reason
     })
-    persistOrderUpdateToBackend(delivery.order_ref, {
-      delivery_status: "Ready for Dispatch"
+    persistOrderUpdateToBackend(canonicalRef, {
+      packaging_status: "packaged",
+      delivery_status: "Ready for Dispatch",
+      rider_name: null,
+      rider_id: null,
+      pickup_at: null
+    })
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: "packaged",
+      order_status: "packaged",
+      delivery_status: "Ready for Dispatch",
+      rider_name: null,
+      assigned_rider: "Unassigned",
+      assigned_rider_id: undefined,
+      pickup_at: null
+    })
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: "ready_for_dispatch" as const,
+        rider_name: "Unassigned"
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
     })
 
     if (prevRiderId) {
@@ -7480,7 +8949,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }))
     }
 
-    showToast(`Order #${delivery.order_ref} returned to dispatch board`, 'info')
+    showToast(`Order #${canonicalRef} returned to dispatch board`, 'info')
   }
 
   const updateRiderTask = (taskId: number, status: 'pending' | 'in_progress' | 'done') => {
@@ -7558,8 +9027,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const timePart = scheduledTime ? scheduledTime : opening.timeStr
       const cleanDatePart = scheduledDate.split('T')[0].split(' ')[0]
       const fullSchedStr = `${cleanDatePart} ${timePart}`
-      const auditLog = `[Scheduled Delivery: ${fullSchedStr}] [Rescheduled]`
       const staffName = currentAccount?.name || 'Operations Staff'
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const auditLog = `[Scheduled Delivery: ${fullSchedStr}] [Rescheduled by ${staffName} at ${timeStr}]`
 
       // 1. Update Supabase orders table & backend API
       persistOrderUpdateToBackend(orderRef, {
@@ -7663,34 +9133,81 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   const markPickupCollected = (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => {
-    const targetPickup = storePickups.find(p => p.id === orderId)
+    const cleanCollector = String(collectedBy || '').trim()
+    const cleanStaff = String(handoverStaff || '').trim()
+    if (!cleanStaff) {
+      showToast('Please enter the handover staff member name.', 'error')
+      return
+    }
+    const targetPickup = storePickups.find(
+      p => p.id === orderId || extractNumericOrderId(p.order_ref) === orderId
+    )
+    const canonicalRef = targetPickup ? getCanonicalOrderRef(targetPickup) : `SHD-${orderId}`
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
-    setStorePickups(prev => prev.map(p => p.id === orderId ? {
-      ...p,
-      order_status: "collected",
-      collected_at: nowTime,
-      collected_by: collectedBy,
-      handover_staff: handoverStaff,
-      collector_phone: collectorPhone || p.phone,
-    } : p))
+
+    setStorePickups(prev => {
+      const next = prev.map(p => (p.id === orderId || getCanonicalOrderRef(p) === canonicalRef) ? {
+        ...p,
+        order_status: "collected" as const,
+        collected_at: nowTime,
+        collected_by: cleanCollector,
+        handover_staff: cleanStaff,
+        collector_phone: collectorPhone || p.phone,
+      } : p)
+      writeLocalCache('smokey_live_cache_v4_store_pickups', next)
+      writeLocalCache('smokey_app_setting_v4_store_pickups', next)
+      return next
+    })
 
     if (targetPickup) {
-      updateOrderPipelineState(targetPickup.order_ref, {
+      updateOrderPipelineState(canonicalRef, {
+        order_status: "packaged",
         delivery_status: "delivered",
         delivered_at: nowTime,
-        collected_by: collectedBy,
-        handover_staff: handoverStaff,
+        collected_at: nowTime,
+        collected_by: cleanCollector,
+        handover_staff: cleanStaff,
         collector_phone: collectorPhone || targetPickup.phone
       })
-      persistOrderUpdateToBackend(targetPickup.order_ref, {
+      persistOrderUpdateToBackend(canonicalRef, {
+        packaging_status: "packaged",
         delivery_status: "Delivered",
-        status: "Delivered"
-      })
-      setWebsiteOrders(prev => prev.map(w => w.order_ref === targetPickup.order_ref ? {
-        ...w,
-        fulfillment_status: "delivered",
+        status: "delivered",
         delivered_at: nowTime
-      } : w))
+      })
+      broadcastOrderLifecycleUpdate({
+        id: canonicalRef,
+        order_ref: canonicalRef,
+        packaging_status: "packaged",
+        order_status: "packaged",
+        delivery_status: "Delivered",
+        status: "delivered",
+        delivered_at: nowTime,
+        collected_at: nowTime,
+        collected_by: cleanCollector,
+        handover_staff: cleanStaff,
+        collector_phone: collectorPhone || targetPickup.phone
+      })
+      setWebsiteOrders(prev => {
+        const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+          ...w,
+          fulfillment_status: "delivered" as const,
+          rider_name: cleanCollector ? `Collected by ${cleanCollector}` : "Store Pickup — Collected",
+          delivered_at: nowTime
+        } : w)
+        writeLocalCache('smokey_live_cache_v4_website_orders', next)
+        return next
+      })
+
+      const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+      if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
+        const patchedRaw = cachedRaw.map(r =>
+          getCanonicalOrderRef(r) === canonicalRef
+            ? { ...r, delivery_status: 'Delivered', status: 'delivered', delivered_at: nowTime }
+            : r
+        )
+        writeLocalCache('smokey_live_cache_v4_orders_raw', patchedRaw)
+      }
     }
 
     showToast(`Order handed over to ${collectedBy}${collectorPhone ? ` (${collectorPhone})` : ''}`, 'success')
@@ -7853,16 +9370,20 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }}
     >
       {children}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <SuccessModal
-        isOpen={successModal.isOpen}
-        onClose={closeSuccessModal}
-        title={successModal.title}
-        message={successModal.message}
-        details={successModal.details}
-        actionLabel={successModal.actionLabel}
-        onAction={successModal.onAction}
-      />
+      {isAuthenticated && (
+        <>
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+          <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={closeSuccessModal}
+            title={successModal.title}
+            message={successModal.message}
+            details={successModal.details}
+            actionLabel={successModal.actionLabel}
+            onAction={successModal.onAction}
+          />
+        </>
+      )}
     </SmokeyOpsContext.Provider>
   )
 }
