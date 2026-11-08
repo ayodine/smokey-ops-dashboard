@@ -96,6 +96,7 @@ export interface DataTableProps<T> {
   isRowExpandable?: (item: T) => boolean
   isRowExpanded?: (item: T) => boolean
   onToggleExpand?: (item: T) => void
+  getSubRows?: (item: T) => T[] | undefined
   renderExpandedSubTable?: (item: T) => React.ReactNode
 }
 
@@ -136,6 +137,7 @@ export function DataTable<T>({
   isRowExpandable,
   isRowExpanded,
   onToggleExpand,
+  getSubRows,
   renderExpandedSubTable,
 }: DataTableProps<T>) {
   const [mounted, setMounted] = useState(false)
@@ -786,7 +788,7 @@ export function DataTable<T>({
                 </div>
               )}
 
-              {renderExpandedSubTable && (
+              {(renderExpandedSubTable || getSubRows) && (
                 <div
                   className="flex items-center justify-center border-r border-border px-2.5 py-3 shrink-0"
                   style={{ width: 48 }}
@@ -912,8 +914,9 @@ export function DataTable<T>({
                   paginatedData.map(item => {
                     const id = keyExtractor(item)
                     const isSelected = selectedIds.has(id)
-                    const expandable = Boolean(renderExpandedSubTable && isRowExpandable?.(item))
+                    const expandable = Boolean((renderExpandedSubTable || getSubRows) && isRowExpandable?.(item))
                     const expanded = Boolean(expandable && isRowExpanded?.(item))
+                    const subRows = expanded && getSubRows ? getSubRows(item) : undefined
 
                     return (
                       <div
@@ -926,9 +929,7 @@ export function DataTable<T>({
                             'w-max min-w-full group relative transition-all duration-150 flex items-stretch',
                             isSelected 
                               ? 'bg-muted/30' 
-                              : expanded
-                                ? 'bg-background'
-                                : 'bg-muted/5 hover:bg-muted/20',
+                              : 'bg-muted/5 hover:bg-muted/20',
                             onRowClick && 'cursor-pointer'
                           )}
                         >
@@ -957,7 +958,7 @@ export function DataTable<T>({
                             </div>
                           )}
 
-                          {renderExpandedSubTable && (
+                          {(renderExpandedSubTable || getSubRows) && (
                             <div
                               className="flex items-center justify-center border-r border-border px-2.5 py-3 shrink-0"
                               style={{ width: 48 }}
@@ -1035,6 +1036,104 @@ export function DataTable<T>({
                           )}
                         </div>
 
+                        {subRows && subRows.map(subItem => {
+                          const subId = keyExtractor(subItem)
+                          const isSubSelected = selectedIds.has(subId)
+                          return (
+                            <div
+                              key={subId}
+                              onClick={() => onRowClick?.(subItem)}
+                              className={cn(
+                                'w-max min-w-full group relative transition-all duration-150 flex items-stretch border-t border-border',
+                                isSubSelected
+                                  ? 'bg-muted/30'
+                                  : 'bg-muted/5 hover:bg-muted/20',
+                                onRowClick && 'cursor-pointer'
+                              )}
+                            >
+                              {enableRowSelection && (
+                                <div
+                                  className="flex items-center justify-center border-r border-border px-3 py-3 shrink-0"
+                                  style={{ width: columnWidths.checkbox || 48 }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    role="checkbox"
+                                    aria-checked={isSubSelected}
+                                    onClick={() => handleToggleRow(subId)}
+                                    className={cn(
+                                      'w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer bg-white dark:bg-zinc-900',
+                                      isSubSelected
+                                        ? 'border-[#c0201f]'
+                                        : 'border-border/80 hover:border-kumo-line-strong'
+                                    )}
+                                  >
+                                    {isSubSelected && (
+                                      <Check className="w-3.5 h-3.5 text-[#c0201f] stroke-[2.5]" />
+                                    )}
+                                  </button>
+                                </div>
+                              )}
+
+                              {(renderExpandedSubTable || getSubRows) && (
+                                <div
+                                  className="flex items-center justify-center border-r border-border px-2.5 py-3 shrink-0"
+                                  style={{ width: 48 }}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              )}
+
+                              {columns.map((col, colIdx) => {
+                                const currentWidth = columnWidths[col.key] || 180
+                                return (
+                                  <div
+                                    key={col.key}
+                                    style={{ width: currentWidth, minWidth: currentWidth, flex: '1 1 0%' }}
+                                    className={cn(
+                                      'flex items-center border-r border-border py-3 min-w-0 text-xs text-foreground leading-normal font-sans',
+                                      colIdx === 0 ? 'pl-9 pr-4 font-medium' : 'px-4 font-normal',
+                                      col.key.toLowerCase().includes('action') ? 'overflow-visible' : 'overflow-hidden',
+                                      col.align === 'right' && 'justify-end text-right',
+                                      col.align === 'center' && 'justify-center text-center',
+                                      col.className
+                                    )}
+                                  >
+                                    <div className={cn(
+                                      'w-full max-w-full min-w-0 flex items-center',
+                                      col.key.toLowerCase().includes('action') ? 'overflow-visible' : 'overflow-hidden',
+                                      col.align === 'right' ? 'justify-end text-right' : col.align === 'center' ? 'justify-center text-center' : 'justify-start text-left',
+                                      '[&>[data-kumo-component="Badge"]]:w-auto [&>[data-kumo-component="Badge"]]:max-w-full [&>[data-kumo-component="Badge"]]:shrink-0 [&>[data-kumo-component="Badge"]]:whitespace-nowrap',
+                                      '[&>[data-badge]]:w-auto [&>[data-badge]]:max-w-full [&>[data-badge]]:shrink-0 [&>[data-badge]]:whitespace-nowrap',
+                                      '[&>div:has(button)]:w-auto [&>div:has(button)]:max-w-full [&>div:has(button)]:flex [&>div:has(button)]:items-center [&>div:has(button)]:gap-1.5 [&>div:has(button)]:shrink-0',
+                                      '[&>div:has([data-kumo-tooltip])]:w-auto [&>div:has([data-kumo-tooltip])]:max-w-full [&>div:has([data-kumo-tooltip])]:flex [&>div:has([data-kumo-tooltip])]:items-center [&>div:has([data-kumo-tooltip])]:gap-1.5 [&>div:has([data-kumo-tooltip])]:shrink-0',
+                                      '[&>div:has(button)>button]:w-auto [&>div:has(button)>button]:shrink-0 [&>div:has(button)>button]:flex-none [&>div:has(button)>button]:whitespace-nowrap',
+                                      '[&>div:has(button)>[data-kumo-tooltip]]:w-auto [&>div:has(button)>[data-kumo-tooltip]]:shrink-0 [&>div:has(button)>[data-kumo-tooltip]]:flex-none',
+                                      '[&_[data-kumo-tooltip]>button]:w-auto [&_[data-kumo-tooltip]>button]:shrink-0 [&_[data-kumo-tooltip]>button]:flex-none [&_[data-kumo-tooltip]>button]:whitespace-nowrap',
+                                      '[&_button]:whitespace-nowrap',
+                                      '[&>span[class*="rounded"]]:w-auto [&>span[class*="rounded"]]:max-w-full [&>span[class*="rounded"]]:shrink-0 [&>span[class*="rounded"]]:inline-flex [&>span[class*="rounded"]]:whitespace-nowrap',
+                                      '[&>span:not([class*="rounded"]):not([data-kumo-component])]:truncate [&>div]:min-w-0'
+                                    )}>
+                                      {col.accessor(subItem)}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+
+                              {hasRowAction && (
+                                <div
+                                  className="flex items-center justify-center px-3 py-3 border-r border-border shrink-0 text-xs"
+                                  style={{ width: columnWidths.actions || 240 }}
+                                >
+                                  <div className="w-full max-w-full min-w-0 flex items-center justify-center [&_button]:w-auto [&_button]:shrink-0 [&_button]:flex-none [&_button]:whitespace-nowrap gap-1.5">
+                                    {rowActions ? rowActions(subItem) : null}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+
                         {expanded && renderExpandedSubTable && (
                           <div
                             className="w-full bg-background pb-4 pr-4 pt-1"
@@ -1079,8 +1178,9 @@ export function DataTable<T>({
         ) : (
           paginatedData.map(item => {
             const id = keyExtractor(item)
-            const expandable = Boolean(renderExpandedSubTable && isRowExpandable?.(item))
+            const expandable = Boolean((renderExpandedSubTable || getSubRows) && isRowExpandable?.(item))
             const expanded = Boolean(expandable && isRowExpanded?.(item))
+            const subRows = expanded && getSubRows ? getSubRows(item) : undefined
             return (
               <div
                 key={id}
@@ -1125,6 +1225,29 @@ export function DataTable<T>({
                         </div>
                       ))}
                     </div>
+                    {subRows && subRows.length > 0 && (
+                      <div className="pt-2 border-t border-border/60 space-y-2 pl-4">
+                        {subRows.map(subItem => (
+                          <div key={keyExtractor(subItem)} className="border-t border-border/40 pt-2 first:border-t-0 first:pt-0 space-y-1.5">
+                            <div className="font-medium text-xs text-foreground">
+                              {columns[0]?.accessor(subItem)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {columns.slice(1).map(col => (
+                                <div key={col.key} className="space-y-0.5">
+                                  <span className="text-[10px] uppercase font-medium text-muted-foreground">
+                                    {col.header}
+                                  </span>
+                                  <div className="text-foreground">
+                                    {col.accessor(subItem)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {expanded && renderExpandedSubTable && (
                       <div className="pt-2 border-t border-border/60 overflow-x-auto">
                         {renderExpandedSubTable(item)}
