@@ -25,15 +25,17 @@ export const PARENT_PRODUCT_GROUPS: ParentProductGroupConfig[] = [
     parent_name: 'Smokey Guinea Fowl',
     category_id: 'guineafowl',
     unit: 'unit',
-    description: 'Whole / Standard, Chopped, and Extra Dry variants',
+    description: 'Whole, Chopped, and Extra Dry variants',
     variants: [
       {
         product_id: 7,
         sku: 'WEB-PROD-7',
-        variant_label: 'Whole / Standard',
+        variant_label: 'Whole',
         match_names: [
           'full smokey guineafowl',
           'full smokey guinea fowl',
+          'smokey guinea fowl — whole',
+          'smokey guinea fowl - whole',
           'smokey guinea fowl — whole / standard',
           'smokey guinea fowl - whole / standard',
         ],
