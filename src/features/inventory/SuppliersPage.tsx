@@ -174,8 +174,8 @@ export const SuppliersPage: React.FC = () => {
 
   const handleDeleteVendor = () => {
     if (!selectedSupplier) return
-    if (!hasRole('admin')) {
-      alert('Unauthorized: Deleting a vendor profile requires Administrator role.')
+    if (!hasRole(['admin', 'manager', 'inventory']) && !hasPermission('perm_invoices')) {
+      alert('Unauthorized: Deleting a vendor profile requires Administrator or Inventory Management permissions.')
       return
     }
     const success = deleteSupplier(selectedSupplier.id)
@@ -592,7 +592,7 @@ export const SuppliersPage: React.FC = () => {
                 </div>
 
                 {/* Danger Zone: Audit-Guarded Vendor Deletion (Admin Only) */}
-                {hasRole('admin') && (
+                {(hasRole(['admin', 'manager', 'inventory']) || hasPermission('perm_invoices')) && (
                   <div className="p-3 rounded-lg border border-rose-200 dark:border-rose-950/50 bg-rose-50/40 dark:bg-rose-950/10 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold text-xs">

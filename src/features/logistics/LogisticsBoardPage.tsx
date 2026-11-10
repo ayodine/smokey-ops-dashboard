@@ -184,15 +184,20 @@ export const LogisticsBoardPage: React.FC = () => {
     return logisticsDeliveries.filter(d => isWithinDateRange(d.dispatch_date || d.pickup_at || d.delivered_at, dateRange))
   }, [logisticsDeliveries, dateRange])
 
-  // A delivery is truly "unassigned" if its status is 'pending' OR if it has no designated driver yet
+  const hasValidAssignedRider = (riderName?: string | null) => {
+    const clean = (riderName || '').trim()
+    return Boolean(clean && clean.toLowerCase() !== 'unassigned')
+  }
+
+  // A delivery is truly "unassigned" if it has not been delivered and is pending or lacks a designated rider
   const unassignedDeliveries = useMemo(
-    () => activeDeliveriesForKPI.filter(d => d.status === 'pending' || !d.assigned_rider || d.assigned_rider === 'Unassigned'),
+    () => activeDeliveriesForKPI.filter(d => d.status !== 'delivered' && (d.status === 'pending' || !hasValidAssignedRider(d.assigned_rider))),
     [activeDeliveriesForKPI]
   )
 
-  // A delivery is in "assigned trips" ONLY if it has an actual driver/courier assigned!
+  // A delivery is in "assigned trips" ONLY if it is not pending AND has an actual driver/courier assigned!
   const activeDeliveries = useMemo(
-    () => activeDeliveriesForKPI.filter(d => d.status !== 'pending' && d.assigned_rider && d.assigned_rider !== 'Unassigned'),
+    () => activeDeliveriesForKPI.filter(d => d.status !== 'pending' && hasValidAssignedRider(d.assigned_rider)),
     [activeDeliveriesForKPI]
   )
   const inTransitCount = useMemo(

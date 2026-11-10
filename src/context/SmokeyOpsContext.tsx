@@ -21,6 +21,7 @@ import {
   LogisticsDelivery,
   ScheduledOrder,
   RiderPayout,
+  CompactRiderTrip,
   RiderTask,
   StorePickupOrder,
   ThirdPartyWeeklySummary,
@@ -563,6 +564,7 @@ export interface AppUserAccount {
   name: string
   role: UserRole
   roleLabel: string
+  custom_role_label?: string
   scope_id?: string
   /** 'team' = shared operational/department login (no personal KYC); 'staff' = individual with full KYC */
   account_type?: 'team' | 'staff'
@@ -1502,13 +1504,13 @@ const getLiveBootstrap = (): Record<string, any> | null => {
   return null
 }
 
-const readLocalCache = <T,>(key: string): T | null => {
+export const readLocalCache = <T,>(key: string): T | null => {
   if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as T) : null
+    return (parsed && typeof parsed === 'object') ? (parsed as T) : null
   } catch {
     return null
   }
@@ -1741,8 +1743,12 @@ const getFulfillmentStatusRank = (status?: WebsiteOrder['fulfillment_status']): 
 }
 
 const isFreshPipelineOrderKey = (key: string): boolean => {
-  const num = extractNumericOrderId(key, 0)
-  return num >= 11110
+  if (!key) return false
+  const clean = String(key).trim()
+  if (!clean) return false
+  const num = extractNumericOrderId(clean, 0)
+  if (num > 0) return num >= 11110
+  return true
 }
 
 const sanitizePipelineEntry = (entry: OrderPipelineOverride): OrderPipelineOverride => {
@@ -3141,17 +3147,70 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [])
 
-  // Automatically reconcile internal rider trip counts, completed trips, earnings, and pending payouts from logisticsDeliveries
+  // Automatically reconcile internal rider trip counts, completed trips, earnings, and pending payouts from combined ledger
   useEffect(() => {
-    if (!logisticsDeliveries || logisticsDeliveries.length === 0) return
     setRiders(prev => {
       let changed = false
+      const ledger = readLocalCache<Record<string, CompactRiderTrip>>('smokey_live_cache_v4_rider_trip_ledger') ||
+                     readAppSettingCache<Record<string, CompactRiderTrip>>('rider_trip_ledger', {}) || {}
+
+      // Build unified map of trips by canonical ref
+      const mergedTripsByRef = new Map<string, {
+        order_ref: string
+        rider_user_id?: number
+        rider_name: string
+        delivery_fee: number
+        status: string
+        pickup_at?: string | null
+        delivered_at?: string | null
+        dispatch_date?: string | null
+        notes?: string | null
+      }>()
+
+      Object.values(ledger).forEach((t: CompactRiderTrip) => {
+        if (t && t.order_ref) {
+          const ref = getCanonicalOrderRef(t.order_ref)
+          if (ref) mergedTripsByRef.set(ref, {
+            order_ref: ref,
+            rider_user_id: t.rider_user_id !== undefined ? Number(t.rider_user_id) : undefined,
+            rider_name: t.rider_name || 'Unassigned',
+            delivery_fee: Number(t.delivery_fee) || 0,
+            status: t.status || 'pending',
+            pickup_at: t.pickup_at,
+            delivered_at: t.delivered_at,
+            dispatch_date: t.dispatch_date,
+            notes: t.notes
+          })
+        }
+      })
+
+      // Overlay live deliveries (takes precedence for active delivery status updates)
+      if (Array.isArray(logisticsDeliveries)) {
+        logisticsDeliveries.forEach(d => {
+          const ref = getCanonicalOrderRef(d)
+          if (!ref || !d.assigned_rider || d.assigned_rider === 'Unassigned') return
+          mergedTripsByRef.set(ref, {
+            order_ref: ref,
+            rider_user_id: d.assigned_rider_id !== undefined ? Number(d.assigned_rider_id) : undefined,
+            rider_name: d.assigned_rider,
+            delivery_fee: Number(d.delivery_fee) || 0,
+            status: d.status,
+            pickup_at: d.pickup_at,
+            delivered_at: d.delivered_at,
+            dispatch_date: d.dispatch_date,
+            notes: d.notes
+          })
+        })
+      }
+
+      const allMergedTrips = Array.from(mergedTripsByRef.values())
+
       const next = prev.map(r => {
-        const riderDels = logisticsDeliveries.filter(
+        const normRiderName = (r.rider_name || '').toLowerCase().trim()
+        const riderDels = allMergedTrips.filter(
           d =>
-            d.rider_type === 'internal' &&
-            (Number(d.assigned_rider_id) === Number(r.rider_user_id) ||
-              (d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider.toLowerCase().trim() === r.rider_name.toLowerCase().trim()))
+            (d.rider_user_id !== undefined && Number(d.rider_user_id) === Number(r.rider_user_id)) ||
+            (d.rider_name && d.rider_name.toLowerCase().trim() === normRiderName)
         )
         const activeDels = riderDels.filter(
           d => d.status === 'assigned' || d.status === 'in_transit' || d.status === 'out_for_delivery'
@@ -3159,8 +3218,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const deliveredDels = riderDels.filter(d => d.status === 'delivered')
 
         const derivedActive = activeDels.length
-        const derivedCompleted = deliveredDels.length
-        const derivedFees = deliveredDels.reduce((sum, d) => sum + (Number(d.delivery_fee) || 0), 0)
+        const derivedCompleted = (r.archived_completed_count || 0) + deliveredDels.length
+        const derivedFees = (r.archived_lifetime_earnings || 0) + deliveredDels.reduce((sum, d) => sum + (Number(d.delivery_fee) || 0), 0)
 
         // SLA Option 1: Rating = 5.0 - (Delayed Deliveries * 0.2) - (Declined Dispatches * 0.1)
         const delayedDeliveries = riderDels.filter(d => {
@@ -3189,11 +3248,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const derivedTodayTrips = todayDels.length
         const derivedTodayFees = todayDels.reduce((sum, d) => sum + (Number(d.delivery_fee) || 0), 0)
 
-        // Strict Single Source of Truth:
-        // Lifetime earnings is the verified sum of delivered delivery fees for this rider
         const newLifetime = derivedFees
-        // Clamped paid_total: cannot exceed verified lifetime earnings (prevents phantom payments when deliveries are reassigned)
-        const validPaidTotal = Math.min(r.paid_total || 0, derivedFees)
+        // Preserved valid paid total: paid_total represents actual disbursements made to the rider
+        const validPaidTotal = r.paid_total || 0
         const newPendingPayout = Math.max(0, newLifetime - validPaidTotal)
         const newNetBalance = newPendingPayout
         const newTotalCompleted = derivedCompleted
@@ -3474,6 +3531,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const broadcastChannelRef = useRef<any>(null)
 
+  const patchCachedRawOrder = useCallback((orderRef: string, patch: Record<string, any>) => {
+    const canonicalRef = getCanonicalOrderRef(orderRef)
+    if (!canonicalRef) return
+    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+    if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
+      let matched = false
+      const patchedRaw = cachedRaw.map(r => {
+        if (getCanonicalOrderRef(r) === canonicalRef) {
+          matched = true
+          return { ...r, ...patch }
+        }
+        return r
+      })
+      if (matched) {
+        writeLocalCache('smokey_live_cache_v4_orders_raw', patchedRaw)
+      }
+    }
+  }, [])
+
+  const updateRiderTripLedger = useCallback((trip: CompactRiderTrip) => {
+    if (!trip || !trip.order_ref) return
+    const canonicalRef = getCanonicalOrderRef(trip.order_ref)
+    if (!canonicalRef) return
+    const current = readLocalCache<Record<string, CompactRiderTrip>>('smokey_live_cache_v4_rider_trip_ledger') ||
+                    readAppSettingCache<Record<string, CompactRiderTrip>>('rider_trip_ledger', {}) || {}
+    const next = {
+      ...current,
+      [canonicalRef]: {
+        ...current[canonicalRef],
+        ...trip,
+        order_ref: canonicalRef
+      }
+    }
+    writeLocalCache('smokey_live_cache_v4_rider_trip_ledger', next)
+    persistAppSetting('rider_trip_ledger', next, false)
+  }, [])
+
   const broadcastOrderLifecycleUpdate = useCallback((payload: Record<string, any>) => {
     try {
       if (broadcastChannelRef.current) {
@@ -3603,7 +3697,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (exists) {
         const next = prev.map(d => {
           if (getCanonicalOrderRef(d) === ref) {
-            const isIntentionalUnassign = updated.assigned_rider === 'Unassigned' || normDeliv === 'ready_for_dispatch'
+            const isIntentionalUnassign = (updated.assigned_rider === 'Unassigned' && (updated.intent === 'unassign' || normDeliv === 'pending')) || updated.action === 'decline'
             const resolvedRider = isIntentionalUnassign && !hasRider
               ? 'Unassigned'
               : (riderName !== 'Unassigned' ? riderName : d.assigned_rider)
@@ -3722,12 +3816,28 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const syncPipelineState = async () => {
       let remoteState: Record<string, OrderPipelineOverride> = {}
       try {
-        const res = await fetch('/api/app-settings?keys=order_pipeline_state')
+        const res = await fetch('/api/app-settings?keys=order_pipeline_state,rider_trip_ledger,fleet_riders,staff_accounts')
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           const json = await res.json()
-          const remoteRow = Array.isArray(json?.data) ? json.data.find((r: any) => r.key === 'order_pipeline_state') : null
+          const rows = Array.isArray(json?.data) ? json.data : []
+          const remoteRow = rows.find((r: any) => r.key === 'order_pipeline_state')
           if (remoteRow?.value && typeof remoteRow.value === 'object' && !Array.isArray(remoteRow.value)) {
             remoteState = remoteRow.value
+          }
+          const ledgerRow = rows.find((r: any) => r.key === 'rider_trip_ledger')
+          if (ledgerRow?.value && typeof ledgerRow.value === 'object') {
+            writeLocalCache('smokey_live_cache_v4_rider_trip_ledger', ledgerRow.value)
+            writeLocalCache('smokey_app_setting_v4_rider_trip_ledger', ledgerRow.value)
+          }
+          const fleetRow = rows.find((r: any) => r.key === 'fleet_riders')
+          if (Array.isArray(fleetRow?.value) && fleetRow.value.length > 0) {
+            setRiders(fleetRow.value)
+            writeLocalCache('smokey_live_cache_v4_riders', fleetRow.value)
+          }
+          const staffRow = rows.find((r: any) => r.key === 'staff_accounts')
+          if (Array.isArray(staffRow?.value) && staffRow.value.length > 0) {
+            setAccounts(staffRow.value)
+            localStorage.setItem('smokey_accounts', JSON.stringify(staffRow.value))
           }
         }
       } catch {
@@ -3737,9 +3847,25 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Direct Supabase query fallback (essential on static hosting like Cloudflare Pages)
       if (Object.keys(remoteState).length === 0) {
         try {
-          const { data } = await supabase.from('app_settings').select('*').eq('key', 'order_pipeline_state').single()
-          if (data?.value && typeof data.value === 'object' && !Array.isArray(data.value)) {
-            remoteState = data.value
+          const { data } = await supabase.from('app_settings').select('*').in('key', ['order_pipeline_state', 'rider_trip_ledger', 'fleet_riders', 'staff_accounts'])
+          if (Array.isArray(data)) {
+            const pipeRow = data.find(r => r.key === 'order_pipeline_state')
+            if (pipeRow?.value) remoteState = pipeRow.value
+            const ledgerRow = data.find(r => r.key === 'rider_trip_ledger')
+            if (ledgerRow?.value) {
+              writeLocalCache('smokey_live_cache_v4_rider_trip_ledger', ledgerRow.value)
+              writeLocalCache('smokey_app_setting_v4_rider_trip_ledger', ledgerRow.value)
+            }
+            const fleetRow = data.find(r => r.key === 'fleet_riders')
+            if (Array.isArray(fleetRow?.value) && fleetRow.value.length > 0) {
+              setRiders(fleetRow.value)
+              writeLocalCache('smokey_live_cache_v4_riders', fleetRow.value)
+            }
+            const staffRow = data.find(r => r.key === 'staff_accounts')
+            if (Array.isArray(staffRow?.value) && staffRow.value.length > 0) {
+              setAccounts(staffRow.value)
+              localStorage.setItem('smokey_accounts', JSON.stringify(staffRow.value))
+            }
           }
         } catch {
           // ignore
@@ -4607,10 +4733,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setRiders(prev => {
         const existing = prev.find(r => 
           (r.email && r.email.toLowerCase() === newAcc.email.toLowerCase()) || 
-          r.rider_user_id === riderUserId
+          r.rider_user_id === riderUserId ||
+          r.rider_name.toLowerCase().trim() === formattedName.toLowerCase().trim() ||
+          r.rider_name.toLowerCase().replace(/[^a-z0-9]/g, '') === rawName.toLowerCase().replace(/[^a-z0-9]/g, '')
         )
 
         if (existing) {
+          riderUserId = existing.rider_user_id
+          newAcc.rider_user_id = existing.rider_user_id
           const next = prev.map(r => r.rider_user_id === existing.rider_user_id ? {
             ...r,
             phone: newAcc.phone || r.phone,
@@ -7783,7 +7913,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ): boolean => {
     // Inventory role check: require inventory, admin, or manager role
     const role = currentAccount?.role
-    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager'
+    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager' || hasPermission('perm_intake')
     if (!hasInventoryRole) {
       showToast('Action restricted: Only Central Storekeeper or Inventory Manager accounts can disburse warehouse stock.', 'error')
       return false
@@ -7872,7 +8002,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     rejectionReason: string
   ): boolean => {
     const role = currentAccount?.role
-    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager'
+    const hasInventoryRole = role === 'inventory' || role === 'admin' || role === 'manager' || hasPermission('perm_intake')
     if (!hasInventoryRole) {
       showToast('Action restricted: Only Central Storekeeper or Inventory Manager accounts can review requisitions.', 'error')
       return false
@@ -8456,8 +8586,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next
     })
 
+    const isPickup = order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0
+    patchCachedRawOrder(canonicalRef, {
+      packaging_status: 'packaged',
+      delivery_status: isPickup ? 'Ready for Pickup' : 'Ready for Dispatch'
+    })
+
     // 2. If it's a store pickup, add to storePickups
-    if (order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0) {
+    if (isPickup) {
       const newPickup: StorePickupOrder = {
         id: order.id,
         order_ref: canonicalRef,
@@ -8665,6 +8801,23 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       fee_verify_status: resolvedVerifyStatus
     })
 
+    updateRiderTripLedger({
+      order_ref: canonicalRef,
+      rider_user_id: numericRiderId,
+      rider_name: cleanRiderName,
+      customer_name: fallbackWebOrder?.customer_name || fallbackPkgOrder?.customer_name || targetDel?.customer_name || 'Customer',
+      address: fallbackWebOrder?.address || fallbackPkgOrder?.address || targetDel?.address || 'Lagos Delivery',
+      delivery_fee: targetDel?.delivery_fee || fallbackWebOrder?.delivery_fee || 3000,
+      status: 'assigned',
+      dispatch_date: new Date().toISOString().split('T')[0]
+    })
+    patchCachedRawOrder(canonicalRef, {
+      delivery_status: 'Assigned',
+      rider_name: cleanRiderName,
+      rider_id: numericRiderId,
+      packaging_status: 'packaged'
+    })
+
     persistOrderUpdateToBackend(canonicalRef, {
       packaging_status: "packaged",
       delivery_status: "Assigned",
@@ -8742,6 +8895,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       delivery_status: "in_transit",
       pickup_at: nowTime
     })
+    updateRiderTripLedger({
+      order_ref: canonicalRef,
+      status: 'in_transit',
+      pickup_at: nowTime
+    })
+    patchCachedRawOrder(canonicalRef, {
+      packaging_status: 'packaged',
+      delivery_status: 'In Transit',
+      status: 'in_transit',
+      pickup_at: nowTime
+    })
     persistOrderUpdateToBackend(canonicalRef, {
       packaging_status: "packaged",
       delivery_status: "In Transit",
@@ -8786,6 +8950,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       updateOrderPipelineState(canonicalRef, {
         order_status: "packaged",
         delivery_status: "in_transit",
+        pickup_at: nowTime
+      })
+      updateRiderTripLedger({
+        order_ref: canonicalRef,
+        status: 'in_transit',
+        pickup_at: nowTime
+      })
+      patchCachedRawOrder(canonicalRef, {
+        packaging_status: 'packaged',
+        delivery_status: 'In Transit',
+        status: 'in_transit',
         pickup_at: nowTime
       })
       persistOrderUpdateToBackend(canonicalRef, {
@@ -8837,6 +9012,23 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateOrderPipelineState(canonicalRef, {
       order_status: "packaged",
       delivery_status: "delivered",
+      delivered_at: nowTime
+    })
+    updateRiderTripLedger({
+      order_ref: canonicalRef,
+      rider_user_id: delivery.assigned_rider_id !== undefined ? Number(delivery.assigned_rider_id) : undefined,
+      rider_name: delivery.assigned_rider || 'Rider',
+      customer_name: delivery.customer_name,
+      address: delivery.address,
+      delivery_fee: Number(delivery.delivery_fee) || 0,
+      status: 'delivered',
+      delivered_at: nowTime,
+      dispatch_date: delivery.dispatch_date || nowTime.split(' ')[0]
+    })
+    patchCachedRawOrder(canonicalRef, {
+      status: "delivered",
+      packaging_status: "packaged",
+      delivery_status: "Delivered",
       delivered_at: nowTime
     })
     persistOrderUpdateToBackend(canonicalRef, {
@@ -8902,6 +9094,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       assigned_rider_id: undefined,
       pickup_at: null,
       decline_reason: reason
+    })
+    updateRiderTripLedger({
+      order_ref: canonicalRef,
+      status: 'pending',
+      rider_name: 'Unassigned',
+      rider_user_id: undefined
+    })
+    patchCachedRawOrder(canonicalRef, {
+      delivery_status: 'Pending',
+      rider_name: null,
+      rider_id: null
     })
     persistOrderUpdateToBackend(canonicalRef, {
       packaging_status: "packaged",

@@ -94,11 +94,12 @@ export const ProductionBatchesPage: React.FC = () => {
     returnPrepToCentral,
     issueCompoundToBatch,
     returnCompoundSurplusFromBatch,
-    currentAccount
+    currentAccount,
+    hasPermission
   } = useSmokeyOps()
 
   const activeSalesProducts = liveSalesProducts.length > 0 ? liveSalesProducts : salesProducts
-  const hasInventoryRole = currentAccount?.role === 'inventory' || currentAccount?.role === 'admin' || currentAccount?.role === 'manager'
+  const hasInventoryRole = currentAccount?.role === 'inventory' || currentAccount?.role === 'admin' || currentAccount?.role === 'manager' || hasPermission('perm_intake')
 
   const [activeTab, setActiveTab] = useState<'all' | 'prep_queued' | 'cooking' | 'completed' | 'intermediate_preps'>('all')
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)

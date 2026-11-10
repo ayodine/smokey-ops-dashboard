@@ -1124,7 +1124,7 @@ export const RawInventoryPage: React.FC = () => {
                 Record Stock Count
               </Button>
             )}
-            {hasRole(['admin', 'manager']) && (
+            {(hasRole(['admin', 'manager', 'inventory']) || hasPermission('perm_cycle_counts') || hasPermission('perm_intake')) && (
               <Button
                 variant="outline"
                 size="sm"

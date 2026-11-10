@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSmokeyOps } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps, readLocalCache } from '@/context/SmokeyOpsContext'
 import { useWarehouse } from '@/context/WarehouseContext'
-import { RiderPayout, LogisticsDelivery } from '@/lib/smokeyData'
+import { RiderPayout, LogisticsDelivery, CompactRiderTrip } from '@/lib/smokeyData'
+import { getCanonicalOrderRef } from '@/lib/orderCanonical'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -38,7 +39,9 @@ import {
   Copy,
   ExternalLink,
   UserCheck,
-  Eye
+  Eye,
+  EyeOff,
+  RefreshCw
 } from 'lucide-react'
 
 export const DeliveryTeamPage: React.FC = () => {
@@ -61,19 +64,16 @@ export const DeliveryTeamPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'on_trip' | 'active' | 'pending_payout'>('all')
   const [modalTab, setModalTab] = useState<'ledger' | 'trips'>('ledger')
 
-  // Driver Onboarding KYC Form State
+  // Streamlined Driver Onboarding Form State
   const [newDriverForm, setNewDriverForm] = useState({
     rider_name: '',
+    username: '',
     phone: '',
     email: '',
-    vehicle_type: 'Bajaj Boxer 150 Motorcycle',
-    plate_number: '',
-    operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Lagos Mainland HQ',
-    license_number: '',
-    license_expiry: '',
-    emergency_contact: '',
-    emergency_phone: '',
-    national_id_nin: '',
+    password: `Smk@${Math.floor(1000 + Math.random() * 9000)}!`,
+    showPassword: false,
+    operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Main Smokey Hub (Ilupeju)',
+    shift_schedule: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)',
     status: 'active' as 'active' | 'on_trip' | 'offline'
   })
 
@@ -124,6 +124,16 @@ export const DeliveryTeamPage: React.FC = () => {
     } : null)
   }
 
+  const handleNameChange = (val: string) => {
+    const slug = val.toLowerCase().replace(/[^a-z0-9]/g, '')
+    setNewDriverForm(prev => ({
+      ...prev,
+      rider_name: val,
+      username: prev.username || (slug ? `rider.${slug}` : ''),
+      email: prev.email || (slug ? `rider.${slug}@smokeyhut.com` : '')
+    }))
+  }
+
   const handleOnboardDriver = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newDriverForm.rider_name || !newDriverForm.phone) return
@@ -142,14 +152,17 @@ export const DeliveryTeamPage: React.FC = () => {
     const formattedName = newDriverForm.rider_name.toUpperCase().startsWith('RIDER ')
       ? newDriverForm.rider_name.toUpperCase()
       : `RIDER ${newDriverForm.rider_name.toUpperCase()}`
-    const resolvedEmail = (newDriverForm.email || `${formattedName.toLowerCase().replace(/[^a-z0-9]/g, '')}@smokeyhut.com`).trim().toLowerCase()
+    const resolvedUsername = (newDriverForm.username || formattedName.toLowerCase().replace(/[^a-z0-9]/g, '')).trim().toLowerCase()
+    const resolvedEmail = (newDriverForm.email || `${resolvedUsername}@smokeyhut.com`).trim().toLowerCase()
+    const resolvedPassword = newDriverForm.password || `Smk@${Math.floor(1000 + Math.random() * 9000)}!`
 
     addRiderProfile({
-      ...newDriverForm,
-      email: resolvedEmail,
       rider_user_id: riderUserId,
       rider_name: formattedName,
+      phone: newDriverForm.phone.trim(),
+      email: resolvedEmail,
       staff_id: nextStaffId,
+      operating_hub: newDriverForm.operating_hub,
       date_joined: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       rating: 5.0,
       on_time_rate: 100,
@@ -165,49 +178,61 @@ export const DeliveryTeamPage: React.FC = () => {
 
     createAccount({
       email: resolvedEmail,
+      username: resolvedUsername,
+      password: resolvedPassword,
+      temporary_password: resolvedPassword,
       name: formattedName,
       role: 'rider',
-      roleLabel: 'Delivery Fleet Rider',
+      custom_role_label: 'RIDER',
+      roleLabel: 'Delivery Rider',
       rider_user_id: riderUserId,
       staff_id: nextStaffId,
       phone: newDriverForm.phone.trim(),
       assigned_hub: newDriverForm.operating_hub,
+      shift_schedule: newDriverForm.shift_schedule,
       department: 'Logistics',
-      vehicle_type: newDriverForm.vehicle_type,
-      plate_number: newDriverForm.plate_number || undefined,
-      license_number: newDriverForm.license_number || undefined,
-      license_expiry: newDriverForm.license_expiry || undefined,
-      national_id_nin: newDriverForm.national_id_nin || undefined,
-      emergency_contact: newDriverForm.emergency_contact || undefined,
-      emergency_phone: newDriverForm.emergency_phone || undefined,
       status: 'active',
+      permissions: ['perm_rider_portal'],
       last_active: 'Account registered just now',
     })
 
     setIsOnboardModalOpen(false)
     setNewDriverForm({
       rider_name: '',
+      username: '',
       phone: '',
       email: '',
-      vehicle_type: 'Bajaj Boxer 150 Motorcycle',
-      plate_number: '',
-      operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Lagos Mainland HQ',
-      license_number: '',
-      license_expiry: '',
-      emergency_contact: '',
-      emergency_phone: '',
-      national_id_nin: '',
+      password: `Smk@${Math.floor(1000 + Math.random() * 9000)}!`,
+      showPassword: false,
+      operating_hub: selectedWarehouse?.name || facilities[0]?.name || 'Main Smokey Hub (Ilupeju)',
+      shift_schedule: 'Day Delivery Dispatch (8:00 AM - 6:00 PM)',
       status: 'active'
     })
   }
 
-  // Get rider's trip history from logistics deliveries
-  const riderTrips = logisticsDeliveries.filter(
-    d =>
-      selectedRider &&
-      (Number(d.assigned_rider_id) === Number(selectedRider.rider_user_id) ||
-        (d.assigned_rider && d.assigned_rider !== 'Unassigned' && d.assigned_rider.toLowerCase().trim() === selectedRider.rider_name.toLowerCase().trim()))
-  )
+  // Get rider's complete trip history merged from persistent ledger and live deliveries
+  const riderTrips = useMemo(() => {
+    if (!selectedRider) return []
+    const normName = selectedRider.rider_name.toLowerCase().trim()
+    const ledger = readLocalCache<Record<string, CompactRiderTrip>>('smokey_live_cache_v4_rider_trip_ledger') || {}
+    const map = new Map<string, any>()
+    Object.values(ledger).forEach((t: CompactRiderTrip) => {
+      if (t && t.order_ref) {
+        if ((t.rider_user_id !== undefined && Number(t.rider_user_id) === Number(selectedRider.rider_user_id)) ||
+            (t.rider_name && t.rider_name.toLowerCase().trim() === normName)) {
+          map.set(getCanonicalOrderRef(t.order_ref), t)
+        }
+      }
+    })
+    logisticsDeliveries.forEach(d => {
+      if (!d.assigned_rider || d.assigned_rider === 'Unassigned') return
+      if ((d.assigned_rider_id !== undefined && Number(d.assigned_rider_id) === Number(selectedRider.rider_user_id)) ||
+          (d.assigned_rider && d.assigned_rider.toLowerCase().trim() === normName)) {
+        map.set(getCanonicalOrderRef(d), d)
+      }
+    })
+    return Array.from(map.values())
+  }, [selectedRider, logisticsDeliveries])
 
   const riderTripColumns: ColumnDef<LogisticsDelivery>[] = [
     {
@@ -453,12 +478,12 @@ export const DeliveryTeamPage: React.FC = () => {
         title="In-House Delivery Riders"
         subtitle="Manage in-house riders, active trip assignments, earnings audits, and payout disbursements."
         actions={
-          hasRole(['admin', 'manager', 'dispatcher']) ? (
+          (hasRole(['admin', 'manager', 'dispatcher']) || hasPermission('perm_rider_payout') || hasPermission('perm_shifts') || hasPermission('perm_users')) ? (
             <Button
               variant="primary"
-              size="sm"
               onClick={() => setIsOnboardModalOpen(true)}
               leftIcon={<UserPlus className="w-4 h-4" />}
+              className="h-10 px-4 text-[13px] font-semibold shadow-xs"
             >
               Onboard In-House Rider
             </Button>
@@ -732,40 +757,50 @@ export const DeliveryTeamPage: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* ONBOARD NEW FLEET DRIVER MODAL */}
+      {/* ONBOARD NEW FLEET RIDER MODAL — Streamlined Team Account Form (No KYC) */}
       <Dialog
         isOpen={isOnboardModalOpen}
         onClose={() => setIsOnboardModalOpen(false)}
         title="Onboard In-House Rider"
-        description="Provision in-house rider credentials, vehicle details, and emergency contact records."
-        maxWidth="lg"
+        description="Provision in-house rider portal access and dispatch assignment credentials."
+        maxWidth="md"
         footer={
           <div className="flex items-center justify-between w-full">
             <Button variant="secondary" size="md" type="button" onClick={() => setIsOnboardModalOpen(false)}>
               Close
             </Button>
             <Button variant="primary" size="md" type="submit" form="onboard-driver-form">
-              Save & Onboard Rider
+              Save &amp; Onboard Rider
             </Button>
           </div>
         }
       >
-        <form id="onboard-driver-form" onSubmit={handleOnboardDriver} className="space-y-4 font-sans">
+        <form id="onboard-driver-form" onSubmit={handleOnboardDriver} className="space-y-4 font-sans text-xs">
           <Input
-            label="Driver Full Name"
+            label="Rider Full Name"
             placeholder="e.g. Yusuf Alabi"
             value={newDriverForm.rider_name}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, rider_name: e.target.value })}
+            onChange={(e) => handleNameChange(e.target.value)}
             required
           />
 
-          <Input
-            label="Phone Number"
-            placeholder="08012345678"
-            value={newDriverForm.phone}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, phone: e.target.value })}
-            required
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Sign-in Username / Handle"
+              placeholder="e.g. rider.yusuf"
+              value={newDriverForm.username}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, username: e.target.value })}
+              required
+            />
+
+            <Input
+              label="Phone Number"
+              placeholder="08012345678"
+              value={newDriverForm.phone}
+              onChange={(e) => setNewDriverForm({ ...newDriverForm, phone: e.target.value })}
+              required
+            />
+          </div>
 
           <Input
             label="Email Address"
@@ -775,53 +810,71 @@ export const DeliveryTeamPage: React.FC = () => {
             onChange={(e) => setNewDriverForm({ ...newDriverForm, email: e.target.value })}
           />
 
-          <Input
-            label="Vehicle Model"
-            placeholder="e.g. Bajaj Boxer 150 Motorcycle"
-            value={newDriverForm.vehicle_type}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, vehicle_type: e.target.value })}
-            required
-          />
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-kumo-strong">Sign-in Password</label>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={newDriverForm.showPassword ? 'text' : 'password'}
+                  value={newDriverForm.password}
+                  onChange={(e) => setNewDriverForm({ ...newDriverForm, password: e.target.value })}
+                  required
+                  className="pr-10 font-mono text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewDriverForm(p => ({ ...p, showPassword: !p.showPassword }))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-strong transition-colors cursor-pointer"
+                  title={newDriverForm.showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {newDriverForm.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setNewDriverForm(p => ({ ...p, password: `Smk@${Math.floor(1000 + Math.random() * 9000)}!` }))}
+                className="shrink-0 h-9 px-3"
+                title="Generate new password"
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                <span>Generate</span>
+              </Button>
+            </div>
+          </div>
 
-          <Input
-            label="Vehicle Plate Number"
-            placeholder="e.g. LND-482-XA"
-            value={newDriverForm.plate_number}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, plate_number: e.target.value })}
-            required
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-kumo-strong">Operating Hub / Facility</label>
+              <select
+                value={newDriverForm.operating_hub}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, operating_hub: e.target.value })}
+                className="w-full h-9 rounded-lg border border-kumo-line bg-kumo-base px-3 text-xs text-kumo-strong focus:outline-hidden focus:ring-1 focus:ring-primary"
+              >
+                {facilities.map(f => (
+                  <option key={f.id} value={f.name}>{f.name}</option>
+                ))}
+                <option value="Main Smokey Hub (Ilupeju)">Main Smokey Hub (Ilupeju)</option>
+                <option value="Central Kitchen (Yaba)">Central Kitchen (Yaba)</option>
+                <option value="All Hubs (Global Dispatch)">All Hubs (Global Dispatch)</option>
+              </select>
+            </div>
 
-          <Input
-            label="Driver's License Number"
-            placeholder="e.g. DL-98234-LAG"
-            value={newDriverForm.license_number}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, license_number: e.target.value })}
-            required
-          />
-
-          <Input
-            label="National ID / NIN"
-            placeholder="e.g. 7829-4821-9921"
-            value={newDriverForm.national_id_nin}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, national_id_nin: e.target.value })}
-            required
-          />
-
-          <Input
-            label="Emergency Contact Name"
-            placeholder="e.g. Next of Kin / Brother"
-            value={newDriverForm.emergency_contact}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_contact: e.target.value })}
-            required
-          />
-
-          <Input
-            label="Emergency Phone"
-            placeholder="08098765432"
-            value={newDriverForm.emergency_phone}
-            onChange={(e) => setNewDriverForm({ ...newDriverForm, emergency_phone: e.target.value })}
-            required
-          />
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-kumo-strong">Shift Schedule</label>
+              <select
+                value={newDriverForm.shift_schedule}
+                onChange={(e) => setNewDriverForm({ ...newDriverForm, shift_schedule: e.target.value })}
+                className="w-full h-9 rounded-lg border border-kumo-line bg-kumo-base px-3 text-xs text-kumo-strong focus:outline-hidden focus:ring-1 focus:ring-primary"
+              >
+                <option value="Day Delivery Dispatch (8:00 AM - 6:00 PM)">Day Delivery Dispatch (8:00 AM - 6:00 PM)</option>
+                <option value="Morning Shift (6:00 AM - 2:00 PM)">Morning Shift (6:00 AM - 2:00 PM)</option>
+                <option value="Evening Smoke Shift (2:00 PM - 11:00 PM)">Evening Smoke Shift (2:00 PM - 11:00 PM)</option>
+                <option value="Full Day On-Call (8:00 AM - 9:00 PM)">Full Day On-Call (8:00 AM - 9:00 PM)</option>
+              </select>
+            </div>
+          </div>
         </form>
       </Dialog>
     </div>

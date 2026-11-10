@@ -64,7 +64,7 @@ const ProfileFieldRow: React.FC<ProfileFieldRowProps> = ({
 
 export const CreateAccountPage: React.FC = () => {
   const navigate = useNavigate()
-  const { currentAccount, createAccount, showToast, availableAccounts, customScopes } = useSmokeyOps()
+  const { currentAccount, createAccount, showToast, availableAccounts, customScopes, hasPermission } = useSmokeyOps()
   const { facilities, selectedWarehouse } = useWarehouse()
 
   // Account Type Switcher: Team Account (streamlined, no personal KYC) vs Staff Account (Full KYC)
@@ -392,7 +392,7 @@ export const CreateAccountPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2500)
   }
 
-  if (currentAccount.role !== 'admin') {
+  if (currentAccount.role !== 'admin' && !hasPermission('perm_users')) {
     return (
       <div className="max-w-xl mx-auto mt-12 p-8 rounded-2xl border border-kumo-line bg-kumo-base text-center space-y-4 shadow-xs font-sans">
         <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-950/30 text-[#c0201f] flex items-center justify-center mx-auto border border-red-200 dark:border-red-900">

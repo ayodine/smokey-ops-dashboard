@@ -47,8 +47,7 @@ export const PackagingExecutionPage: React.FC = () => {
     hasPermission
   } = useSmokeyOps()
 
-  const [activeTab, setActiveTab] = useState<'ready' | 'in_packaging' | 'daily' | 'history'>('ready')
-  const [isStartModalOpen, setIsStartModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'ready' | 'daily' | 'history'>('ready')
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   
@@ -69,7 +68,6 @@ export const PackagingExecutionPage: React.FC = () => {
   const [returnNotes, setReturnNotes] = useState<string>('EOD return of unused packaging materials')
   const [returnVerifiedBy, setReturnVerifiedBy] = useState<string>('')
 
-  const [selectedOrder, setSelectedOrder] = useState<PackagingQueueOrder | null>(null)
   const [selectedDetailsOrder, setSelectedDetailsOrder] = useState<PackagingQueueOrder | null>(null)
 
   const handleOpenDetails = (order: PackagingQueueOrder) => {
@@ -117,11 +115,7 @@ export const PackagingExecutionPage: React.FC = () => {
   const uniquePackagingQueue = useMemo(() => deduplicateByOrderRef(packagingQueue), [packagingQueue])
 
   const readyOrders = useMemo(
-    () => uniquePackagingQueue.filter(o => o.order_status === 'ready_for_fulfillment' && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
-    [uniquePackagingQueue, dispatchedOrPickupRefs]
-  )
-  const inPackagingOrders = useMemo(
-    () => uniquePackagingQueue.filter(o => o.order_status === 'in_packaging' && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
+    () => uniquePackagingQueue.filter(o => (o.order_status === 'ready_for_fulfillment' || o.order_status === 'in_packaging') && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
     [uniquePackagingQueue, dispatchedOrPickupRefs]
   )
   const historyOrders = useMemo(
@@ -131,18 +125,6 @@ export const PackagingExecutionPage: React.FC = () => {
 
   // KPIs
   const totalDailyMaterials = packagingMaterialsDaily.reduce((acc, m) => acc + m.total_consumed, 0)
-
-  const handleOpenStartModal = (order: PackagingQueueOrder) => {
-    setSelectedOrder(order)
-    setIsStartModalOpen(true)
-  }
-
-  const handleConfirmStart = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedOrder) return
-    startPackagingOrder(selectedOrder.id, [], true)
-    setIsStartModalOpen(false)
-  }
 
   const handleConfirmManualOrder = (e: React.FormEvent) => {
     e.preventDefault()
@@ -234,101 +216,19 @@ export const PackagingExecutionPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Action',
-      defaultWidth: 260,
+      defaultWidth: 180,
       accessor: (o) => {
         const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
         return (
           <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
             {hasPermission('perm_packout') ? (
-              <>
-                <Tooltip content={isPickup ? "Pack and transfer directly to Pickup Counter" : "Pack and transfer directly to Dispatch Board"}>
-                  <TableActionButton
-                    variant="primary"
-                    onClick={() => startPackagingOrder(o.id, [], true)}
-                    leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
-                  >
-                    {isPickup ? 'Pack to Pickup' : 'Pack & Dispatch'}
-                  </TableActionButton>
-                </Tooltip>
-                <Tooltip content="Review order details & start packaging workflow">
-                  <TableActionButton
-                    variant="outline"
-                    onClick={() => handleOpenStartModal(o)}
-                    leftIcon={<Package className="w-3.5 h-3.5" strokeWidth={2} />}
-                  >
-                    Start Packing
-                  </TableActionButton>
-                </Tooltip>
-              </>
-            ) : (
-              <TableActionButton
-                variant="outline"
-                onClick={() => handleOpenDetails(o)}
-                leftIcon={<Eye className="w-3.5 h-3.5" />}
-              >
-                Details
-              </TableActionButton>
-            )}
-          </div>
-        )
-      },
-    },
-  ]
-
-  // Column defs for In Packaging Table
-  const inPackagingColumns: ColumnDef<PackagingQueueOrder>[] = [
-    {
-      key: 'order_ref',
-      header: 'Order Ref',
-      accessor: (o) => <span className="font-medium text-xs text-kumo-strong font-sans">{o.order_ref}</span>,
-      sortValue: (o) => o.order_ref,
-    },
-    {
-      key: 'customer_name',
-      header: 'Customer',
-      accessor: (o) => <span className="font-medium text-kumo-strong font-sans">{o.customer_name}</span>,
-      sortValue: (o) => o.customer_name,
-    },
-    {
-      key: 'items_summary',
-      header: 'Ordered Meals',
-      accessor: (o) => <span className="text-xs text-kumo-default font-normal font-sans">{o.items_summary}</span>,
-    },
-    {
-      key: 'packaging_materials',
-      header: 'Picked Materials Deducted',
-      accessor: (o) => (
-        <div className="space-y-0.5">
-          {o.packaging_materials_picked?.map((p, i) => (
-            <span key={i} className="inline-block mr-1 px-1.5 py-0.5 rounded text-[11px] font-sans font-medium bg-kumo-surface text-kumo-strong border border-kumo-line whitespace-nowrap">
-              {p.packaging_name} × {p.quantity}
-            </span>
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Pack Status',
-      defaultWidth: 150,
-      accessor: () => <StatusBadge status="in-progress" label="in-progress" />,
-    },
-    {
-      key: 'actions',
-      header: 'Action',
-      defaultWidth: 190,
-      accessor: (o) => {
-        const isPickup = (o.address || '').toLowerCase().includes('pickup') || (o.address || '').toLowerCase().includes('counter') || o.delivery_fee === 0
-        return (
-          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-            {hasPermission('perm_packout') ? (
-              <Tooltip content={isPickup ? "Hand over to Store Pickup Counter" : "Hand over packed meal to dispatch board"}>
+              <Tooltip content={isPickup ? "Pack and transfer directly to Pickup Counter" : "Pack and transfer directly to Dispatch Board"}>
                 <TableActionButton
                   variant="primary"
-                  onClick={() => confirmPackagingOrder(o.id, currentAccount?.name || 'Packaging Staff')}
+                  onClick={() => startPackagingOrder(o.id, [], true)}
                   leftIcon={isPickup ? <ShoppingBag className="w-3.5 h-3.5" strokeWidth={2} /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
                 >
-                  {isPickup ? 'Send to Pickup' : 'Send to Dispatch'}
+                  {isPickup ? 'Pack to Pickup' : 'Pack & Dispatch'}
                 </TableActionButton>
               </Tooltip>
             ) : (
@@ -480,18 +380,12 @@ export const PackagingExecutionPage: React.FC = () => {
       />
 
       {/* KPI Stat Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <MetricCard
-          title="Ready for Packaging"
+          title="Orders to Pack"
           value={readyOrders.length}
           description="Paid orders awaiting pack-out"
           icon={<Package className="w-4 h-4 text-primary" />}
-        />
-        <MetricCard
-          title="Packing in Progress"
-          value={inPackagingOrders.length}
-          description="Being packed & sealed"
-          icon={<Clock className="w-4 h-4 text-amber-500" />}
         />
         <MetricCard
           title="Materials Used Today"
@@ -500,7 +394,7 @@ export const PackagingExecutionPage: React.FC = () => {
           icon={<ShoppingBag className="w-4 h-4 text-emerald-500" />}
         />
         <MetricCard
-          title="Packaged & Released"
+          title="Packed Orders"
           value={historyOrders.length}
           description="Handed over to dispatch queue"
           icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
@@ -514,7 +408,6 @@ export const PackagingExecutionPage: React.FC = () => {
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
             { id: 'ready', label: 'Orders to Pack', badge: readyOrders.length },
-            { id: 'in_packaging', label: 'Packing Now', badge: inPackagingOrders.length },
             { id: 'daily', label: 'Materials Used' },
             { id: 'history', label: 'Packed Orders', badge: historyOrders.length },
           ]}
@@ -534,20 +427,6 @@ export const PackagingExecutionPage: React.FC = () => {
             exportFilename="smokey-orders-ready-to-pack"
             onRowClick={(o) => handleOpenDetails(o)}
             emptyMessage="Fresh orders awaiting packing will appear here in real time as payments are verified."
-          />
-        )}
-
-        {activeTab === 'in_packaging' && (
-          <DataTable
-            data={inPackagingOrders}
-            keyExtractor={(o) => getCanonicalOrderRef(o)}
-            columns={inPackagingColumns}
-            searchable={true}
-            searchPlaceholder="Search packing orders..."
-            title="Order in Packaging"
-            exportFilename="smokey-orders-in-packaging"
-            onRowClick={(o) => handleOpenDetails(o)}
-            emptyMessage="Orders currently being packed will show here."
           />
         )}
 
@@ -575,67 +454,6 @@ export const PackagingExecutionPage: React.FC = () => {
           />
         )}
       </div>
-
-      {/* 1. START PACKAGING MODAL: Simple, clean, and straightforward */}
-      <Dialog
-        isOpen={isStartModalOpen}
-        onClose={() => setIsStartModalOpen(false)}
-        title={`Start Packaging: Order ${selectedOrder?.order_ref}`}
-        description="Verify the customer destination and ordered meal items before beginning kitchen pack-out."
-        maxWidth="md"
-        footer={
-          <div className="flex items-center justify-between w-full gap-2">
-            <Button variant="secondary" size="md" type="button" onClick={() => setIsStartModalOpen(false)}>
-              Close
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="md"
-                type="button"
-                onClick={() => {
-                  if (!selectedOrder) return
-                  startPackagingOrder(selectedOrder.id, [], false)
-                  setIsStartModalOpen(false)
-                  setActiveTab('in_packaging')
-                }}
-              >
-                Move to Packing Now
-              </Button>
-              <Button variant="primary" size="md" type="submit" form="start-packaging-form">
-                Pack &amp; Send to Dispatch
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <form id="start-packaging-form" onSubmit={handleConfirmStart} className="space-y-4">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs font-sans text-xs">
-            <div className="p-3.5 space-y-1">
-              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Customer Name &amp; Contact</span>
-              <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder?.customer_name} • {selectedOrder?.phone}</span>
-            </div>
-            <div className="p-3.5 space-y-1">
-              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Delivery Destination</span>
-              <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px]">{selectedOrder?.address || 'Lagos Delivery'}</span>
-            </div>
-            <div className="p-3.5 space-y-1">
-              <span className="block text-zinc-500 dark:text-zinc-400 font-normal">Meal Items to Pack</span>
-              <span className="block text-zinc-900 dark:text-zinc-100 font-medium text-[13px] leading-snug">{selectedOrder?.items_summary}</span>
-            </div>
-            {cleanOrderNotes(selectedOrder?.notes) && (
-              <div className="p-3.5 space-y-1 bg-amber-50/50 dark:bg-amber-950/20">
-                <span className="block text-amber-700 dark:text-amber-400 font-medium">Order Notes / Kitchen Instructions</span>
-                <span className="block text-zinc-800 dark:text-zinc-200 font-normal text-[12px]">{cleanOrderNotes(selectedOrder?.notes)}</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-600 dark:text-zinc-400 font-sans">
-            Packaging supplies are deducted directly from shift bench stock. Choose <strong>Pack &amp; Send to Dispatch</strong> to advance immediately to the dispatch board, or <strong>Move to Packing Now</strong> if the order takes extended assembly time.
-          </div>
-        </form>
-      </Dialog>
 
       {/* 2. REQUISITION MODAL: Single vs Multiple materials via KumoTabs */}
       <Dialog
@@ -1008,32 +826,18 @@ export const PackagingExecutionPage: React.FC = () => {
                 Close
               </Button>
               <div className="flex items-center gap-2">
-                {selectedDetailsOrder.order_status === 'ready_for_fulfillment' && (
+                {(selectedDetailsOrder.order_status === 'ready_for_fulfillment' || selectedDetailsOrder.order_status === 'in_packaging') && (
                   <Button
                     variant="primary"
                     size="md"
                     onClick={() => {
                       const o = selectedDetailsOrder
                       setIsDetailsModalOpen(false)
-                      handleOpenStartModal(o)
+                      startPackagingOrder(o.id, [], true)
                     }}
-                    leftIcon={<Package className="w-3.5 h-3.5" />}
+                    leftIcon={(selectedDetailsOrder.address || '').toLowerCase().includes('pickup') || (selectedDetailsOrder.address || '').toLowerCase().includes('counter') || selectedDetailsOrder.delivery_fee === 0 ? <ShoppingBag className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
                   >
-                    Start Packaging
-                  </Button>
-                )}
-                {selectedDetailsOrder.order_status === 'in_packaging' && (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      const o = selectedDetailsOrder
-                      setIsDetailsModalOpen(false)
-                      confirmPackagingOrder(o.id, 'Shift Packing Lead')
-                    }}
-                    leftIcon={<Check className="w-3.5 h-3.5" />}
-                  >
-                    Confirm Packaged
+                    {(selectedDetailsOrder.address || '').toLowerCase().includes('pickup') || (selectedDetailsOrder.address || '').toLowerCase().includes('counter') || selectedDetailsOrder.delivery_fee === 0 ? 'Pack to Pickup' : 'Pack & Dispatch'}
                   </Button>
                 )}
                 {selectedDetailsOrder.order_status === 'packaged' && (

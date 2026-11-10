@@ -525,6 +525,7 @@ export const ManageAccountsPage: React.FC = () => {
     createCustomScope,
     updateCustomScope,
     deleteCustomScope,
+    hasPermission,
   } = useSmokeyOps()
 
   const { facilities } = useWarehouse()
@@ -3525,7 +3526,7 @@ export const ManageAccountsPage: React.FC = () => {
             >
               Policy & Access
             </Button>
-            {currentAccount.role === 'admin' && (
+            {(currentAccount.role === 'admin' || hasPermission('perm_users')) && (
               <Button
                 variant="primary"
                 size="sm"

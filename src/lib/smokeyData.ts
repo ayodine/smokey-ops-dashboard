@@ -616,6 +616,22 @@ export interface RiderPayout {
   delayed_deliveries?: number
   declined_dispatches?: number
   date_joined?: string
+  archived_completed_count?: number
+  archived_lifetime_earnings?: number
+}
+
+export interface CompactRiderTrip {
+  order_ref: string
+  rider_user_id?: number
+  rider_name?: string
+  customer_name?: string
+  address?: string
+  delivery_fee?: number
+  status?: string
+  dispatch_date?: string
+  pickup_at?: string | null
+  delivered_at?: string | null
+  notes?: string | null
 }
 
 export interface RiderTask {
