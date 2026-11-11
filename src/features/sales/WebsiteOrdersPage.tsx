@@ -42,8 +42,7 @@ import {
   Package,
   Printer,
   Volume2,
-  VolumeX,
-  UserCheck
+  VolumeX
 } from 'lucide-react'
 import { playOrderRingtone5s, stopOrderRingtone, isOrderRingtonePlaying } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
@@ -169,7 +168,7 @@ const escapeReceiptHtml = (value: unknown): string =>
 
 // Build receipt line items from raw_items, falling back to parsing items_summary ("2x Item + 1x Other")
 const buildReceiptLineItems = (order: WebsiteOrder): Array<{ name: string; qty: number; amount: number | null }> => {
-  if (Array.isArray(order.raw_items) && order.raw_items.length > 0) {
+  if (Array.isArray(order.raw_items) && order.raw_items.length > 0 && !order.raw_items.some((i: any) => i.name === 'Walk-in Order' || i.name === 'Standard Order')) {
     return order.raw_items.map((item: any) => {
       const qty = Number(item.qty) || 1
       const price = Number(item.price)
@@ -181,7 +180,12 @@ const buildReceiptLineItems = (order: WebsiteOrder): Array<{ name: string; qty: 
     })
   }
 
-  const parts = (order.items_summary || '')
+  const rawSummary = (order.items_summary || '').trim()
+  const effectiveSummary = (rawSummary === 'Walk-in Order' || rawSummary === 'Standard Order' || !rawSummary)
+    ? resolveOrderItemsSummary(order)
+    : rawSummary
+
+  const parts = effectiveSummary
     .split(' + ')
     .map(p => p.trim())
     .filter(Boolean)
@@ -513,64 +517,14 @@ export const WebsiteOrdersPage: React.FC = () => {
     scheduledOrders,
     storePickups,
     rescheduleOrderDelivery,
-    riders,
-    assignRider,
-    unassignRider,
     hasPermission
   } = useSmokeyOps()
   const canViewKPIs = hasPermission('perm_orders_kpi_view')
   const [loading] = useState<boolean>(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'walkin_pos' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPlayingRingtone, setIsPlayingRingtone] = useState(false)
-
-  // Rider Assignment State
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
-  const [assignRiderType, setAssignRiderType] = useState<'internal' | 'third_party'>('internal')
-  const [selectedRiderId, setSelectedRiderId] = useState<number | undefined>(undefined)
-  const [customCourierName, setCustomCourierName] = useState('')
-  const [bookedFee, setBookedFee] = useState<number>(0)
-
-  const handleOpenAssignModal = (order: WebsiteOrder) => {
-    setSelectedOrder(order)
-    setAssignRiderType('internal')
-    if (riders.length > 0) {
-      setSelectedRiderId(riders[0].rider_user_id)
-    }
-    setBookedFee(order.delivery_fee || 0)
-    setCustomCourierName('')
-    setIsAssignModalOpen(true)
-  }
-
-  const handleConfirmAssign = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedOrder) return
-
-    let riderName = ''
-    let riderIdNum: number | undefined = undefined
-
-    if (assignRiderType === 'internal') {
-      const targetRider = riders.find(r => Number(r.rider_user_id) === Number(selectedRiderId))
-      if (!targetRider) return
-      riderName = targetRider.rider_name
-      riderIdNum = targetRider.rider_user_id
-    } else {
-      if (!customCourierName.trim()) return
-      riderName = customCourierName.trim()
-    }
-
-    const numericId = extractNumericOrderId(selectedOrder.order_ref, Number(selectedOrder.id) || 1)
-    assignRider(numericId, assignRiderType, riderName, riderIdNum, bookedFee)
-
-    setSelectedOrder(prev => prev ? {
-      ...prev,
-      rider_name: riderName,
-      fulfillment_status: prev.fulfillment_status === 'in_intake' ? 'ready_for_dispatch' : prev.fulfillment_status
-    } : null)
-
-    setIsAssignModalOpen(false)
-  }
 
   const handleToggleTestRingtone = () => {
     if (isPlayingRingtone) {
@@ -836,25 +790,34 @@ export const WebsiteOrdersPage: React.FC = () => {
     return enriched
   }, [orders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
 
+  // Walk-in POS helper
+  const isWalkInOrder = (o: WebsiteOrder) =>
+    o.channel === 'Walk-in POS' ||
+    Boolean(o.notes && o.notes.includes('[via Walk-in POS]')) ||
+    o.payment_method === 'pos'
+
   // KPIs
   const totalOrdersCount = displayOrders.length
   const totalGrossRevenue = displayOrders.reduce((sum, ord) => sum + ord.total_amount, 0)
-  const intakeCount = displayOrders.filter((o) => o.fulfillment_status === 'in_intake').length
+  const walkInCount = displayOrders.filter(isWalkInOrder).length
+  const intakeCount = displayOrders.filter((o) => o.fulfillment_status === 'in_intake' && !isWalkInOrder(o)).length
   const activeFulfillmentCount = displayOrders.filter(
-    (o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch'
+    (o) => (o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch') && !isWalkInOrder(o)
   ).length
-  const outForDeliveryCount = displayOrders.filter((o) => o.fulfillment_status === 'in_transit').length
+  const outForDeliveryCount = displayOrders.filter((o) => o.fulfillment_status === 'in_transit' && !isWalkInOrder(o)).length
   const deliveredCount = displayOrders.filter((o) => o.fulfillment_status === 'delivered').length
 
   // Filtered orders by tab
   const tabFilteredOrders = useMemo(() => {
     switch (activeTab) {
+      case 'walkin_pos':
+        return displayOrders.filter(isWalkInOrder)
       case 'intake':
-        return displayOrders.filter((o) => o.fulfillment_status === 'in_intake')
+        return displayOrders.filter((o) => o.fulfillment_status === 'in_intake' && !isWalkInOrder(o))
       case 'packaging':
-        return displayOrders.filter((o) => o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch')
+        return displayOrders.filter((o) => (o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch') && !isWalkInOrder(o))
       case 'transit':
-        return displayOrders.filter((o) => o.fulfillment_status === 'in_transit')
+        return displayOrders.filter((o) => o.fulfillment_status === 'in_transit' && !isWalkInOrder(o))
       case 'delivered':
         return displayOrders.filter((o) => o.fulfillment_status === 'delivered')
       default:
@@ -897,9 +860,30 @@ export const WebsiteOrdersPage: React.FC = () => {
     return Array.from(map.values())
   }, [tabFilteredOrders, searchQuery, backendSuggestions])
 
-  const handleOpenDetails = (order: WebsiteOrder) => {
+  const handleOpenDetails = async (order: WebsiteOrder) => {
     setSelectedOrder(order)
     setIsDetailsModalOpen(true)
+    const ref = order.order_ref || `SHD-${order.id}`
+    if (
+      !order.raw_items ||
+      order.raw_items.length === 0 ||
+      order.raw_items.some((i: any) => !i.name || i.name === 'Walk-in Order' || i.name === 'Standard Order' || i.name === 'Smokey Product')
+    ) {
+      try {
+        const { data, error } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', ref)
+        if (!error && Array.isArray(data) && data.length > 0) {
+          setSelectedOrder(prev => (prev && (prev.order_ref === ref || String(prev.id) === String(order.id))) ? {
+            ...prev,
+            raw_items: data
+          } : prev)
+        }
+      } catch (err) {
+        console.warn('Failed to fetch detailed order items on modal open:', err)
+      }
+    }
   }
 
   // Column definitions matching project DataTable standards
@@ -1067,8 +1051,8 @@ export const WebsiteOrdersPage: React.FC = () => {
     <div className="space-y-6 pb-12 font-sans">
       {/* 1. Page Header */}
       <PageHeader
-        title="Website Sales Orders"
-        subtitle="Manage customer orders originating directly from the website storefront, track payment confirmation, and monitor live kitchen-to-doorstep dispatch."
+        title="Orders"
+        subtitle="Manage all customer orders across Website Storefront and Walk-in POS, track payment confirmation, and monitor live kitchen-to-doorstep dispatch."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -1108,9 +1092,9 @@ export const WebsiteOrdersPage: React.FC = () => {
       {/* 2. KPI Stat Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          title="Total Web Orders"
+          title="Total Orders"
           value={loading ? '...' : totalOrdersCount}
-          description="Storefront customer intake"
+          description="Consolidated customer orders"
           icon={<ShoppingBag className="w-4 h-4 text-primary" />}
           isLocked={!canViewKPIs}
           lockedMessage="Restricted Metric"
@@ -1149,6 +1133,7 @@ export const WebsiteOrdersPage: React.FC = () => {
           onChange={(val) => setActiveTab(val as any)}
           tabs={[
             { id: 'all', label: 'All Orders', badge: totalOrdersCount },
+            { id: 'walkin_pos', label: 'Walk-in POS', badge: walkInCount },
             {
               id: 'intake',
               label: 'Order Intake',
@@ -1352,42 +1337,6 @@ export const WebsiteOrdersPage: React.FC = () => {
                     {selectedOrder.scheduled_delivery_at ? 'Reschedule Delivery' : 'Schedule for Later'}
                   </Button>
                 )}
-                {/* Rider Assignment & Unassignment Controls */}
-                {hasPermission('perm_orders_status') && selectedOrder.fulfillment_status !== 'delivered' && (
-                  <>
-                    {selectedOrder.rider_name && selectedOrder.rider_name !== 'Unassigned' && selectedOrder.rider_name !== 'Pending Rider' ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="md"
-                          onClick={() => handleOpenAssignModal(selectedOrder)}
-                        >
-                          Reassign Driver
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="md"
-                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          onClick={async () => {
-                            await unassignRider(selectedOrder.order_ref)
-                            setSelectedOrder(prev => prev ? { ...prev, rider_name: 'Unassigned' } : null)
-                          }}
-                        >
-                          Unassign Rider
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="md"
-                        onClick={() => handleOpenAssignModal(selectedOrder)}
-                        leftIcon={<UserCheck className="w-3.5 h-3.5 text-zinc-500" />}
-                      >
-                        Assign Driver
-                      </Button>
-                    )}
-                  </>
-                )}
                 <Button
                   variant="primary"
                   size="md"
@@ -1544,7 +1493,7 @@ export const WebsiteOrdersPage: React.FC = () => {
 
               {/* Section 3: Ordered Products */}
               {(() => {
-                const displayItems = (selectedOrder.raw_items && selectedOrder.raw_items.length > 0)
+                const displayItems = (selectedOrder.raw_items && selectedOrder.raw_items.length > 0 && !selectedOrder.raw_items.some((i: any) => i.name === 'Walk-in Order' || i.name === 'Standard Order'))
                   ? selectedOrder.raw_items
                   : buildReceiptLineItems(selectedOrder);
                 return (
@@ -1741,108 +1690,9 @@ export const WebsiteOrdersPage: React.FC = () => {
           </form>
         </Dialog>
       )}
-
-      {/* Assign / Reassign Driver Dialog */}
-      {selectedOrder && (
-        <Dialog
-          isOpen={isAssignModalOpen}
-          onClose={() => setIsAssignModalOpen(false)}
-          title={`Assign Delivery Driver: ${selectedOrder.order_ref}`}
-          description="Select an in-house fleet rider or enter a third-party courier service."
-          maxWidth="md"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <Button
-                variant="secondary"
-                size="md"
-                type="button"
-                onClick={() => setIsAssignModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                type="submit"
-                form="assign-driver-form"
-              >
-                Confirm Assignment
-              </Button>
-            </div>
-          }
-        >
-          <form id="assign-driver-form" onSubmit={handleConfirmAssign} className="space-y-4 font-sans text-xs">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
-              <div className="p-3.5 space-y-1">
-                <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Customer & Location</span>
-                <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder.customer_name}</span>
-                <span className="block text-zinc-600 dark:text-zinc-400 text-xs">{selectedOrder.address}</span>
-              </div>
-              <div className="p-3.5 flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">Customer Delivery Fee</span>
-                <span className="text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{formatNaira(selectedOrder.delivery_fee)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Courier Provider</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAssignRiderType('internal')}
-                  className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer ${
-                    assignRiderType === 'internal'
-                      ? 'border-primary bg-primary/10 text-primary font-semibold'
-                      : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  In-House Fleet Rider
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAssignRiderType('third_party')}
-                  className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer ${
-                    assignRiderType === 'third_party'
-                      ? 'border-primary bg-primary/10 text-primary font-semibold'
-                      : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  Third-Party Courier (3PL)
-                </button>
-              </div>
-            </div>
-
-            {assignRiderType === 'internal' ? (
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Select Available Rider</label>
-                <select
-                  value={selectedRiderId || ''}
-                  onChange={(e) => setSelectedRiderId(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {riders.map((r) => (
-                    <option key={r.rider_user_id} value={r.rider_user_id}>
-                      {r.rider_name} ({r.operating_hub || 'Hub'} · {r.active_assignments} active)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Courier Service / Rider Name</label>
-                <Input
-                  value={customCourierName}
-                  onChange={(e) => setCustomCourierName(e.target.value)}
-                  placeholder="e.g. Chowdeck Rider (Ibrahim), Kwik, Fez"
-                  required
-                />
-              </div>
-            )}
-          </form>
-        </Dialog>
-      )}
     </div>
   )
 }
 
+export const OrdersPage = WebsiteOrdersPage
 export default WebsiteOrdersPage

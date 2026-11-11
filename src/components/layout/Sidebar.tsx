@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile, o
         icon: ShoppingBag,
         defaultHref: '/sales/orders',
         items: [
-          { label: 'Website Orders', href: '/sales/orders', badge: activeOrdersCount !== undefined ? activeOrdersCount : undefined },
+          { label: 'Orders', href: '/sales/orders', badge: activeOrdersCount !== undefined ? activeOrdersCount : undefined },
           { label: 'Abandoned Carts', href: '/sales/abandoned-carts' },
           { label: 'Payments', href: '/sales/payments' },
           { label: 'Sales Inventory', href: '/inventory/sales', badge: salesBadgeCount },

@@ -157,6 +157,7 @@ export function resolveOrderItemsSummary(raw: any): string {
     if (total === 13000) return '1x Travel standard Dry Guineafowl'
     if (total === 12000) return '1x Full Smokey Chicken (chopped)'
     if (total === 17000) return '1x KING SIZE SMOKEY GUINEAFOWL + GIZZARD'
+    if (total === 34000) return '2x KING SIZE SMOKEY GUINEAFOWL + GIZZARD'
     if (total === 22500) return '1x THE DOUBLE DELIGHT'
     if (total === 33500) return '1x EMBER TRIO'
     if (total === 6000) return '1x Smokey Beef Jerky (kilishi) 125g'
@@ -164,17 +165,24 @@ export function resolveOrderItemsSummary(raw: any): string {
     return `1x Walk-in POS Selection (₦${total.toLocaleString()})`
   }
   if (isPos) {
-    return 'Walk-in Order'
+    return '1x Walk-in POS Item'
   }
   return 'Standard Order'
 }
 
 export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   if (raw && raw.order_ref && raw.items_summary && raw.fulfillment_status && !Array.isArray(raw.order_items)) {
-    return {
-      ...(raw as WebsiteOrder),
-      id: extractNumericOrderId(raw.id ?? raw.order_ref, 10000),
-      order_ref: getCanonicalOrderRef(raw)
+    const isGeneric = raw.items_summary === 'Walk-in Order' ||
+      raw.items_summary === 'Standard Order' ||
+      !raw.raw_items ||
+      raw.raw_items.length === 0 ||
+      raw.raw_items.some((i: any) => i.name === 'Walk-in Order' || i.name === 'Standard Order');
+    if (!isGeneric) {
+      return {
+        ...(raw as WebsiteOrder),
+        id: extractNumericOrderId(raw.id ?? raw.order_ref, 10000),
+        order_ref: getCanonicalOrderRef(raw)
+      }
     }
   }
   const delivStatus = String(raw.delivery_status || '').toLowerCase()
@@ -231,7 +239,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     items_summary: items,
     raw_items: (Array.isArray(raw.order_items) && raw.order_items.length > 0)
       ? raw.order_items
-      : (Array.isArray(raw.raw_items) && raw.raw_items.length > 0
+      : (Array.isArray(raw.raw_items) && raw.raw_items.length > 0 && !raw.raw_items.some((i: any) => i.name === 'Walk-in Order' || i.name === 'Standard Order')
           ? raw.raw_items
           : (items ? items.split(' + ').map((part: string) => {
               const m = part.match(/^(\d+)\s*x\s*(.+)$/i)
@@ -2463,6 +2471,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           } catch {}
         })
+
+        // Evict cached website orders if any item contains stale 'Walk-in Order'
+        const webOrdersCache = localStorage.getItem('smokey_live_cache_v4_website_orders')
+        if (webOrdersCache) {
+          try {
+            const parsed = JSON.parse(webOrdersCache)
+            if (Array.isArray(parsed) && parsed.some(o => o.items_summary === 'Walk-in Order' || !o.raw_items || o.raw_items.length === 0 || o.raw_items.some((i: any) => i.name === 'Walk-in Order'))) {
+              localStorage.removeItem('smokey_live_cache_v4_website_orders')
+            }
+          } catch {}
+        }
       } catch (err) {
         console.warn("Failed to clear legacy cache:", err)
       }
@@ -4097,10 +4116,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           ? (settings.fleet_riders as RiderPayout[])
           : []
 
+        const DUPLICATE_RIDER_IDS = new Set([1794241547262, 1794241664652, 514])
+        const DUPLICATE_STAFF_EMAILS = new Set(['usmanolagunju@smokeyhutdelight.com'])
+        const DUPLICATE_STAFF_IDS = new Set(['SHD-RDR-514', 'TEAM-RIDE-538', 'TEAM-RIDE-874'])
+
         setRiders(prev => {
           const map = new Map<number, RiderPayout>()
-          // 1. Keep local riders (created/onboarded on this device or cached)
-          prev.forEach(r => map.set(Number(r.rider_user_id), r))
+          // 1. Keep local riders (created/onboarded on this device or cached), ignoring legacy duplicate IDs
+          prev.forEach(r => {
+            const id = Number(r.rider_user_id)
+            if (!DUPLICATE_RIDER_IDS.has(id)) {
+              map.set(id, r)
+            }
+          })
 
           // 2. Also inspect fresh localStorage
           try {
@@ -4112,7 +4140,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 parsed.forEach((r: any) => {
                   if (r?.rider_user_id) {
                     const id = Number(r.rider_user_id)
-                    if (!map.has(id)) map.set(id, r)
+                    if (!DUPLICATE_RIDER_IDS.has(id) && !map.has(id)) {
+                      map.set(id, r)
+                    }
                   }
                 })
               }
@@ -4123,18 +4153,32 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           remoteRiders.forEach(r => {
             if (r?.rider_user_id) {
               const id = Number(r.rider_user_id)
-              const local = map.get(id)
-              map.set(id, local ? { ...local, ...r } : r)
+              if (!DUPLICATE_RIDER_IDS.has(id)) {
+                const local = map.get(id)
+                map.set(id, local ? { ...local, ...r } : r)
+              }
             }
           })
 
-          const merged = Array.from(map.values())
-          writeLocalCache('smokey_live_cache_v4_riders', merged)
-
-          // If local has riders that remote doesn't have yet, persist them to remote!
-          if (merged.length > remoteRiders.length) {
-            persistAppSetting('fleet_riders', merged)
+          // Deduplicate by normalized name (prefer canonical IDs 457, 517, 516)
+          const nameMap = new Map<string, RiderPayout>()
+          for (const rider of map.values()) {
+            const normName = rider.rider_name.toLowerCase().trim()
+            const existing = nameMap.get(normName)
+            if (!existing) {
+              nameMap.set(normName, rider)
+            } else {
+              // Prefer canonical numeric IDs (e.g. 457 over timestamp-based IDs)
+              const existingId = Number(existing.rider_user_id)
+              const currentId = Number(rider.rider_user_id)
+              if (currentId < existingId) {
+                nameMap.set(normName, rider)
+              }
+            }
           }
+
+          const merged = Array.from(nameMap.values())
+          writeLocalCache('smokey_live_cache_v4_riders', merged)
 
           return merged
         })
@@ -4142,7 +4186,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const remoteAccounts = Array.isArray(settings.staff_accounts)
           ? (settings.staff_accounts as AppUserAccount[])
-              .filter(a => a?.email && !deletedSet.has(a.email.toLowerCase()))
+              .filter(a => a?.email && !deletedSet.has(a.email.toLowerCase()) && !DUPLICATE_STAFF_EMAILS.has(a.email.toLowerCase()) && !(a.staff_id && DUPLICATE_STAFF_IDS.has(a.staff_id)))
               .map(normalizeAccountRecord)
           : []
 
@@ -4151,7 +4195,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
           // 1. Keep valid locally cached accounts (created on this device)
           prev.forEach(acc => {
-            if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
+            if (acc?.email && !deletedSet.has(acc.email.toLowerCase()) && !DUPLICATE_STAFF_EMAILS.has(acc.email.toLowerCase()) && !(acc.staff_id && DUPLICATE_STAFF_IDS.has(acc.staff_id))) {
               map.set(acc.email.toLowerCase(), normalizeAccountRecord(acc))
             }
           })
@@ -4163,7 +4207,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               const parsed = JSON.parse(rawStored)
               if (Array.isArray(parsed)) {
                 parsed.forEach((acc: any) => {
-                  if (acc?.email && !deletedSet.has(acc.email.toLowerCase())) {
+                  if (acc?.email && !deletedSet.has(acc.email.toLowerCase()) && !DUPLICATE_STAFF_EMAILS.has(acc.email.toLowerCase()) && !(acc.staff_id && DUPLICATE_STAFF_IDS.has(acc.staff_id))) {
                     const existing = map.get(acc.email.toLowerCase())
                     const normalized = normalizeAccountRecord(acc)
                     if (

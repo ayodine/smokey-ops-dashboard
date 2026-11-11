@@ -63,6 +63,7 @@ export function App() {
                 {/* 0. SALES DOMAIN */}
                 <Route path="sales" element={<Navigate to="/sales/orders" replace />} />
                 <Route path="sales/orders" element={<WebsiteOrdersPage />} />
+                <Route path="sales/website-orders" element={<Navigate to="/sales/orders" replace />} />
                 <Route path="sales/abandoned-carts" element={<AbandonedCartsPage />} />
                 <Route path="sales/payments" element={<PaymentsPage />} />
 
