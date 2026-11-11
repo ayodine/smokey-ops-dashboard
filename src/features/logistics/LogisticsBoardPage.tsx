@@ -46,6 +46,7 @@ export const LogisticsBoardPage: React.FC = () => {
     logisticsDeliveries,
     riders,
     assignRider,
+    unassignRider,
     confirmRiderCollect,
     markDelivered,
     hasPermission
@@ -785,7 +786,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 Close
               </Button>
               {selectedDetailsDelivery.status !== 'delivered' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {(!selectedDetailsDelivery.assigned_rider || selectedDetailsDelivery.assigned_rider === 'Unassigned' || selectedDetailsDelivery.status === 'pending') ? (
                     <Button
                       variant="primary"
@@ -797,29 +798,58 @@ export const LogisticsBoardPage: React.FC = () => {
                     >
                       Assign Driver
                     </Button>
-                  ) : selectedDetailsDelivery.status === 'assigned' ? (
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => {
-                        confirmRiderCollect(selectedDetailsDelivery.id)
-                        setIsDetailsModalOpen(false)
-                      }}
-                    >
-                      Driver Collect
-                    </Button>
-                  ) : (selectedDetailsDelivery.status === 'in_transit' || selectedDetailsDelivery.status === 'out_for_delivery') ? (
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => {
-                        markDelivered(selectedDetailsDelivery.id)
-                        setIsDetailsModalOpen(false)
-                      }}
-                    >
-                      Delivered
-                    </Button>
-                  ) : null}
+                  ) : (
+                    <>
+                      {hasPermission('perm_queue_assign') && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="md"
+                            onClick={() => {
+                              setIsDetailsModalOpen(false)
+                              handleOpenAssign(selectedDetailsDelivery)
+                            }}
+                          >
+                            Reassign Driver
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="md"
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                            onClick={async () => {
+                              await unassignRider(selectedDetailsDelivery.order_ref)
+                              setIsDetailsModalOpen(false)
+                            }}
+                          >
+                            Unassign Rider
+                          </Button>
+                        </>
+                      )}
+                      {selectedDetailsDelivery.status === 'assigned' ? (
+                        <Button
+                          variant="primary"
+                          size="md"
+                          onClick={() => {
+                            confirmRiderCollect(selectedDetailsDelivery.id)
+                            setIsDetailsModalOpen(false)
+                          }}
+                        >
+                          Driver Collect
+                        </Button>
+                      ) : (selectedDetailsDelivery.status === 'in_transit' || selectedDetailsDelivery.status === 'out_for_delivery') ? (
+                        <Button
+                          variant="primary"
+                          size="md"
+                          onClick={() => {
+                            markDelivered(selectedDetailsDelivery.id)
+                            setIsDetailsModalOpen(false)
+                          }}
+                        >
+                          Delivered
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               )}
             </div>

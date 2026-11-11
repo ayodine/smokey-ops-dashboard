@@ -25,7 +25,7 @@ import {
   Inbox
 } from 'lucide-react'
 import { Tooltip } from './Tooltip'
-import { DateRangePicker, type DateRange } from './DateRangePicker'
+import { DateRangePicker, type DateRange, formatLocalDateToYMD } from './DateRangePicker'
 
 export interface ColumnDef<T> {
   key: string
@@ -330,12 +330,18 @@ export function DataTable<T>({
         }
         if (dateFilterRange === 'custom') {
           if (customStartDate) {
-            const startLimit = new Date(`${customStartDate}T00:00:00`).getTime()
-            if (itemDate.getTime() < startLimit) return false
+            const [sy, sm, sd] = customStartDate.split('-').map(Number)
+            if (!isNaN(sy) && !isNaN(sm) && !isNaN(sd)) {
+              const startLimit = new Date(sy, sm - 1, sd, 0, 0, 0, 0).getTime()
+              if (itemDate.getTime() < startLimit) return false
+            }
           }
           if (customEndDate) {
-            const endLimit = new Date(`${customEndDate}T23:59:59.999`).getTime()
-            if (itemDate.getTime() > endLimit) return false
+            const [ey, em, ed] = customEndDate.split('-').map(Number)
+            if (!isNaN(ey) && !isNaN(em) && !isNaN(ed)) {
+              const endLimit = new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime()
+              if (itemDate.getTime() > endLimit) return false
+            }
           }
           return true
         }
@@ -574,8 +580,8 @@ export function DataTable<T>({
             <DateRangePicker
               onChange={(range) => {
                 if (range.start && range.end) {
-                  setCustomStartDate(range.start.toISOString().split('T')[0])
-                  setCustomEndDate(range.end.toISOString().split('T')[0])
+                  setCustomStartDate(formatLocalDateToYMD(range.start))
+                  setCustomEndDate(formatLocalDateToYMD(range.end))
                 }
                 if (range.presetKey && range.presetKey !== 'custom') {
                   setDateFilterRange(range.presetKey)

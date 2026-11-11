@@ -30,6 +30,8 @@ import { AccountHomePage } from '@/features/overview/AccountHomePage'
 
 // Sales Domain
 import { WebsiteOrdersPage } from '@/features/sales/WebsiteOrdersPage'
+import { AbandonedCartsPage } from '@/features/sales/AbandonedCartsPage'
+import { PaymentsPage } from '@/features/sales/PaymentsPage'
 
 // Admin Domain
 import { ManageAccountsPage } from '@/features/admin/ManageAccountsPage'
@@ -61,6 +63,8 @@ export function App() {
                 {/* 0. SALES DOMAIN */}
                 <Route path="sales" element={<Navigate to="/sales/orders" replace />} />
                 <Route path="sales/orders" element={<WebsiteOrdersPage />} />
+                <Route path="sales/abandoned-carts" element={<AbandonedCartsPage />} />
+                <Route path="sales/payments" element={<PaymentsPage />} />
 
                 {/* 1. INVENTORY DOMAIN */}
                 <Route path="inventory" element={<Navigate to="/inventory/raw" replace />} />

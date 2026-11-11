@@ -42,7 +42,8 @@ import {
   Package,
   Printer,
   Volume2,
-  VolumeX
+  VolumeX,
+  UserCheck
 } from 'lucide-react'
 import { playOrderRingtone5s, stopOrderRingtone, isOrderRingtonePlaying } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
@@ -512,6 +513,9 @@ export const WebsiteOrdersPage: React.FC = () => {
     scheduledOrders,
     storePickups,
     rescheduleOrderDelivery,
+    riders,
+    assignRider,
+    unassignRider,
     hasPermission
   } = useSmokeyOps()
   const canViewKPIs = hasPermission('perm_orders_kpi_view')
@@ -520,6 +524,53 @@ export const WebsiteOrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPlayingRingtone, setIsPlayingRingtone] = useState(false)
+
+  // Rider Assignment State
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [assignRiderType, setAssignRiderType] = useState<'internal' | 'third_party'>('internal')
+  const [selectedRiderId, setSelectedRiderId] = useState<number | undefined>(undefined)
+  const [customCourierName, setCustomCourierName] = useState('')
+  const [bookedFee, setBookedFee] = useState<number>(0)
+
+  const handleOpenAssignModal = (order: WebsiteOrder) => {
+    setSelectedOrder(order)
+    setAssignRiderType('internal')
+    if (riders.length > 0) {
+      setSelectedRiderId(riders[0].rider_user_id)
+    }
+    setBookedFee(order.delivery_fee || 0)
+    setCustomCourierName('')
+    setIsAssignModalOpen(true)
+  }
+
+  const handleConfirmAssign = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedOrder) return
+
+    let riderName = ''
+    let riderIdNum: number | undefined = undefined
+
+    if (assignRiderType === 'internal') {
+      const targetRider = riders.find(r => Number(r.rider_user_id) === Number(selectedRiderId))
+      if (!targetRider) return
+      riderName = targetRider.rider_name
+      riderIdNum = targetRider.rider_user_id
+    } else {
+      if (!customCourierName.trim()) return
+      riderName = customCourierName.trim()
+    }
+
+    const numericId = extractNumericOrderId(selectedOrder.order_ref, Number(selectedOrder.id) || 1)
+    assignRider(numericId, assignRiderType, riderName, riderIdNum, bookedFee)
+
+    setSelectedOrder(prev => prev ? {
+      ...prev,
+      rider_name: riderName,
+      fulfillment_status: prev.fulfillment_status === 'in_intake' ? 'ready_for_dispatch' : prev.fulfillment_status
+    } : null)
+
+    setIsAssignModalOpen(false)
+  }
 
   const handleToggleTestRingtone = () => {
     if (isPlayingRingtone) {
@@ -567,11 +618,18 @@ export const WebsiteOrdersPage: React.FC = () => {
           .from('orders')
           .select('*, order_items(*)')
           .is('deleted_at', null)
+          .neq('status', 'pending_payment')
+          .neq('status', 'cancelled')
+          .neq('status', 'refunded')
+          .not('paid_at', 'is', null)
           .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
           .order('created_at', { ascending: false })
           .limit(50)
         if (!error && Array.isArray(data)) {
-          setBackendSuggestions(data.map(mapSupabaseOrderToWebsiteOrder))
+          const paidOrders = data
+            .map(mapSupabaseOrderToWebsiteOrder)
+            .filter(o => o.payment_status === 'paid' && (o.channel !== 'Website Storefront' || Boolean(o.paid_at)))
+          setBackendSuggestions(paidOrders)
         }
       } catch (err) {
         console.warn('Historical search error:', err)
@@ -591,6 +649,10 @@ export const WebsiteOrdersPage: React.FC = () => {
     const map = new Map<string, { order: WebsiteOrder; matchType: string; matchedValue: string }>()
 
     const evaluateOrder = (o: WebsiteOrder) => {
+      // Invariant: Orders awaiting payment must never appear in website orders autocomplete suggestions
+      if (o.payment_status !== 'paid') return
+      if (o.channel === 'Website Storefront' && !o.paid_at) return
+
       const ref = getCanonicalOrderRef(o)
       if (!ref || map.has(ref)) return
       if (ref.toLowerCase().includes(q) || o.order_ref.toLowerCase().includes(q)) {
@@ -674,7 +736,14 @@ export const WebsiteOrdersPage: React.FC = () => {
 
     const uniqueOrders = deduplicateByOrderRef(orders)
 
-    const enriched = uniqueOrders.map(ord => {
+    // CRITICAL INVARIANT: Orders awaiting payment should never appear on Website Orders page or tabs
+    const confirmedPaidOrders = uniqueOrders.filter(ord => {
+      if (ord.payment_status !== 'paid') return false
+      if (ord.channel === 'Website Storefront' && !ord.paid_at) return false
+      return true
+    })
+
+    const enriched = confirmedPaidOrders.map(ord => {
       const ref = getCanonicalOrderRef(ord)
       const activeDelivery = deliveryMap.get(ref)
       const activePickup = pickupMap.get(ref)
@@ -738,8 +807,9 @@ export const WebsiteOrdersPage: React.FC = () => {
 
     const enrichedRefs = new Set(enriched.map(o => getCanonicalOrderRef(o)))
 
-    // Also include any scheduled pre-orders from scheduledOrders so they show under Order Intake
+    // Also include any confirmed scheduled pre-orders from scheduledOrders so they show under Order Intake
     scheduledOrders.forEach(so => {
+      if (so.payment_status !== 'paid' && so.order_status !== 'payment_confirmed') return
       const schedRef = getCanonicalOrderRef(so)
       if (schedRef && !enrichedRefs.has(schedRef)) {
         enrichedRefs.add(schedRef)
@@ -816,10 +886,10 @@ export const WebsiteOrdersPage: React.FC = () => {
       }
     })
 
-    // 2. Deep historical database matches (by Customer Name, Order ID, Phone, Address)
+    // 2. Deep historical database matches (by Customer Name, Order ID, Phone, Address) — strictly paid
     backendSuggestions.forEach((bo) => {
       const ref = getCanonicalOrderRef(bo)
-      if (ref && !map.has(ref)) {
+      if (ref && bo.payment_status === 'paid' && !map.has(ref)) {
         map.set(ref, bo)
       }
     })
@@ -1282,6 +1352,42 @@ export const WebsiteOrdersPage: React.FC = () => {
                     {selectedOrder.scheduled_delivery_at ? 'Reschedule Delivery' : 'Schedule for Later'}
                   </Button>
                 )}
+                {/* Rider Assignment & Unassignment Controls */}
+                {hasPermission('perm_orders_status') && selectedOrder.fulfillment_status !== 'delivered' && (
+                  <>
+                    {selectedOrder.rider_name && selectedOrder.rider_name !== 'Unassigned' && selectedOrder.rider_name !== 'Pending Rider' ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="md"
+                          onClick={() => handleOpenAssignModal(selectedOrder)}
+                        >
+                          Reassign Driver
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          onClick={async () => {
+                            await unassignRider(selectedOrder.order_ref)
+                            setSelectedOrder(prev => prev ? { ...prev, rider_name: 'Unassigned' } : null)
+                          }}
+                        >
+                          Unassign Rider
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="md"
+                        onClick={() => handleOpenAssignModal(selectedOrder)}
+                        leftIcon={<UserCheck className="w-3.5 h-3.5 text-zinc-500" />}
+                      >
+                        Assign Driver
+                      </Button>
+                    )}
+                  </>
+                )}
                 <Button
                   variant="primary"
                   size="md"
@@ -1632,6 +1738,106 @@ export const WebsiteOrdersPage: React.FC = () => {
               onChange={(e) => setRescheduleNotes(e.target.value)}
               placeholder="e.g. Deliver before 2pm for office party, ring doorbell on arrival."
             />
+          </form>
+        </Dialog>
+      )}
+
+      {/* Assign / Reassign Driver Dialog */}
+      {selectedOrder && (
+        <Dialog
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          title={`Assign Delivery Driver: ${selectedOrder.order_ref}`}
+          description="Select an in-house fleet rider or enter a third-party courier service."
+          maxWidth="md"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="md"
+                type="button"
+                onClick={() => setIsAssignModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+                form="assign-driver-form"
+              >
+                Confirm Assignment
+              </Button>
+            </div>
+          }
+        >
+          <form id="assign-driver-form" onSubmit={handleConfirmAssign} className="space-y-4 font-sans text-xs">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-800 shadow-2xs">
+              <div className="p-3.5 space-y-1">
+                <span className="block text-xs text-zinc-500 dark:text-zinc-400 font-normal">Customer & Location</span>
+                <span className="block text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{selectedOrder.customer_name}</span>
+                <span className="block text-zinc-600 dark:text-zinc-400 text-xs">{selectedOrder.address}</span>
+              </div>
+              <div className="p-3.5 flex items-center justify-between">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Customer Delivery Fee</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-semibold text-[13px]">{formatNaira(selectedOrder.delivery_fee)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Courier Provider</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAssignRiderType('internal')}
+                  className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer ${
+                    assignRiderType === 'internal'
+                      ? 'border-primary bg-primary/10 text-primary font-semibold'
+                      : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  In-House Fleet Rider
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssignRiderType('third_party')}
+                  className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer ${
+                    assignRiderType === 'third_party'
+                      ? 'border-primary bg-primary/10 text-primary font-semibold'
+                      : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  Third-Party Courier (3PL)
+                </button>
+              </div>
+            </div>
+
+            {assignRiderType === 'internal' ? (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Select Available Rider</label>
+                <select
+                  value={selectedRiderId || ''}
+                  onChange={(e) => setSelectedRiderId(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {riders.map((r) => (
+                    <option key={r.rider_user_id} value={r.rider_user_id}>
+                      {r.rider_name} ({r.operating_hub || 'Hub'} · {r.active_assignments} active)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">Courier Service / Rider Name</label>
+                <Input
+                  value={customCourierName}
+                  onChange={(e) => setCustomCourierName(e.target.value)}
+                  placeholder="e.g. Chowdeck Rider (Ibrahim), Kwik, Fez"
+                  required
+                />
+              </div>
+            )}
           </form>
         </Dialog>
       )}

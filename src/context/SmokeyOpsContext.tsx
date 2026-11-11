@@ -440,6 +440,7 @@ interface SmokeyOpsContextType {
     bookedFee?: number,
     feeEvidencePath?: string
   ) => void
+  unassignRider: (orderRefOrDeliveryId: string | number) => Promise<boolean>
   confirmRiderCollect: (deliveryId: number) => void
   acceptDelivery: (deliveryId: number) => void
   markDelivered: (deliveryId: number) => void
@@ -1194,6 +1195,8 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
 
   // 1. Sales domain
   { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders', 'View Order KPI Metric Cards & Analytics Graphs', 'Export Website Order & Revenue Reports'], title: 'Website Orders' },
+  { prefix: '/sales/abandoned-carts', requiredPermissions: ['perm_orders_view', 'perm_orders_kpi_view', 'View Website Orders Page', 'View Abandoned Carts'], title: 'Abandoned Carts' },
+  { prefix: '/sales/payments', requiredPermissions: ['perm_orders_view', 'perm_orders_kpi_view', 'View Website Orders Page', 'View Payments & Transactions'], title: 'Payments & Transactions' },
   { prefix: '/sales', exact: true, requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders'], title: 'Website Orders' },
   { prefix: '/inventory/sales', requiredPermissions: ['perm_sales_inventory_view', 'View Sales Inventory Page', 'perm_sales_catalog', 'Edit Sales Inventory, Pricing & Menu Catalog'], title: 'Sales Inventory' },
 
@@ -5189,6 +5192,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return [
           '/overview',
           '/sales/orders',
+          '/sales/abandoned-carts',
+          '/sales/payments',
           '/inventory/raw',
           '/inventory/packaging',
           '/inventory/sales',
@@ -9201,6 +9206,110 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Order #${canonicalRef} returned to dispatch board`, 'info')
   }
 
+  const unassignRider = async (orderRefOrDeliveryId: string | number): Promise<boolean> => {
+    let canonicalRef = ''
+    let prevRiderId: number | undefined = undefined
+
+    const numId = typeof orderRefOrDeliveryId === 'number' ? orderRefOrDeliveryId : extractNumericOrderId(orderRefOrDeliveryId)
+    const strRef = typeof orderRefOrDeliveryId === 'string' ? getCanonicalOrderRef(orderRefOrDeliveryId) : ''
+
+    const delivery = logisticsDeliveries.find(
+      d => (strRef && getCanonicalOrderRef(d) === strRef) || d.id === numId || extractNumericOrderId(d.order_ref) === numId
+    )
+    const webOrder = websiteOrders.find(
+      w => (strRef && getCanonicalOrderRef(w) === strRef) || w.id === numId || extractNumericOrderId(w.order_ref) === numId
+    )
+
+    canonicalRef = delivery ? getCanonicalOrderRef(delivery) : (webOrder ? getCanonicalOrderRef(webOrder) : (strRef || `SHD-${numId}`))
+    prevRiderId = delivery?.assigned_rider_id
+
+    // Update logistics deliveries state
+    setLogisticsDeliveries(prev => {
+      const next = prev.map(d => (getCanonicalOrderRef(d) === canonicalRef || d.id === numId) ? {
+        ...d,
+        assigned_rider: 'Unassigned',
+        assigned_rider_id: undefined,
+        status: 'pending' as const,
+        pickup_at: null,
+      } : d)
+      writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
+      return next
+    })
+
+    // Update order pipeline state with intentional unassign
+    updateOrderPipelineState(canonicalRef, {
+      order_status: 'packaged',
+      delivery_status: 'pending',
+      assigned_rider: 'Unassigned',
+      assigned_rider_id: undefined,
+      pickup_at: null,
+    })
+
+    // Update rider trip ledger
+    updateRiderTripLedger({
+      order_ref: canonicalRef,
+      status: 'pending',
+      rider_name: 'Unassigned',
+      rider_user_id: undefined
+    })
+
+    // Patch cached raw order
+    patchCachedRawOrder(canonicalRef, {
+      delivery_status: 'Pending',
+      rider_name: null,
+      rider_id: null
+    })
+
+    // Update Supabase
+    await persistOrderUpdateToBackend(canonicalRef, {
+      packaging_status: 'packaged',
+      delivery_status: 'Ready for Dispatch',
+      rider_name: null,
+      rider_id: null,
+      pickup_at: null
+    })
+
+    // Broadcast update across all sessions
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: 'packaged',
+      order_status: 'packaged',
+      delivery_status: 'Ready for Dispatch',
+      rider_name: null,
+      assigned_rider: 'Unassigned',
+      assigned_rider_id: undefined,
+      pickup_at: null
+    })
+
+    // Update website orders list
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: 'ready_for_dispatch' as const,
+        rider_name: 'Unassigned'
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
+
+    // If an in-house rider was assigned, decrement their active assignments
+    if (prevRiderId !== undefined) {
+      setRiders(prev => prev.map(r => {
+        if (Number(r.rider_user_id) !== Number(prevRiderId)) return r
+        const newActive = Math.max(0, r.active_assignments - 1)
+        return {
+          ...r,
+          active_assignments: newActive,
+          status: newActive > 0 ? 'on_trip' : (r.status === 'offline' ? 'offline' : 'active'),
+        }
+      }))
+    }
+
+    showToast(`Driver unassigned from order #${canonicalRef}`, 'success', 'Rider Unassigned')
+    return true
+  }
+
   const updateRiderTask = (taskId: number, status: 'pending' | 'in_progress' | 'done') => {
     setRiderTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
     showToast(`Task marked as ${status.replace('_', ' ')}`, 'info')
@@ -9574,6 +9683,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         storePickups,
         thirdPartySummaries,
         assignRider,
+        unassignRider,
         confirmRiderCollect,
         acceptDelivery,
         markDelivered,

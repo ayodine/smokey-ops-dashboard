@@ -15,22 +15,49 @@ export interface DateRange {
   presetKey?: string
 }
 
+export const formatLocalDateToYMD = (d: Date): string => {
+  if (!d || isNaN(d.getTime())) return ''
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export const isWithinDateRange = (
   rawDate: string | Date | null | undefined, 
   range: DateRange | null | undefined
 ): boolean => {
   if (!range) return true
-  if (!range.presetKey || range.presetKey === 'all') return true
   if (!rawDate) return true
   const itemDate = new Date(rawDate)
   const itemTime = itemDate.getTime()
   if (isNaN(itemTime)) return true
 
+  // If explicit start and/or end dates are provided (custom range or range bounds)
+  if (range.start || range.end) {
+    if (range.start) {
+      const s = new Date(range.start)
+      const startLimit = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0, 0).getTime()
+      if (itemTime < startLimit) return false
+    }
+    if (range.end) {
+      const e = new Date(range.end)
+      const endLimit = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999).getTime()
+      if (itemTime > endLimit) return false
+    }
+    return true
+  }
+
+  if (!range.presetKey || range.presetKey === 'all') return true
+
   const baseTime = new Date(2026, 9, 21, 23, 59, 59).getTime()
   const now = Math.max(baseTime, Date.now())
 
   if (range.presetKey === 'today') {
-    return itemDate.toDateString() === new Date(now).toDateString()
+    const today = new Date(now)
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0).getTime()
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
+    return itemTime >= todayStart && itemTime <= todayEnd
   }
   if (range.presetKey === '30m') {
     return itemTime >= now - 30 * 60 * 1000
@@ -52,11 +79,6 @@ export const isWithinDateRange = (
   }
   if (range.presetKey === '30d' || range.presetKey === '30days') {
     return itemTime >= now - 30 * 24 * 60 * 60 * 1000
-  }
-  if (range.start && range.end) {
-    const startLimit = new Date(range.start).setHours(0, 0, 0, 0)
-    const endLimit = new Date(range.end).setHours(23, 59, 59, 999)
-    return itemTime >= startLimit && itemTime <= endLimit
   }
   return true
 }
