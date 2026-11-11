@@ -136,7 +136,7 @@ export function resolveOrderItemsSummary(raw: any): string {
   if (Array.isArray(raw?.items) && raw.items.length > 0) {
     return raw.items.map((i: any) => `${i.qty || i.quantity || 1}x ${i.name || i.product_name || 'Smokey Product'}`).join(' + ')
   }
-  if (typeof raw?.items_summary === 'string' && raw.items_summary.trim() && raw.items_summary !== 'Assorted Smokey Delicacies') {
+  if (typeof raw?.items_summary === 'string' && raw.items_summary.trim() && raw.items_summary !== 'Assorted Smokey Delicacies' && raw.items_summary !== 'Walk-in Order') {
     return raw.items_summary.trim()
   }
   // Fallback: parse from notes (e.g. "[via Walk-in POS] ... | Items: 1x Full Smokey Guineafowl ...")
@@ -146,7 +146,24 @@ export function resolveOrderItemsSummary(raw: any): string {
       return match[1].trim()
     }
   }
-  if (raw?.traffic_source === 'Walk-in POS' || (raw?.notes && raw.notes.includes('[via Walk-in POS]'))) {
+  const total = Number(raw?.total ?? raw?.total_amount) || 0
+  const isPos = raw?.traffic_source === 'Walk-in POS' || (raw?.notes && raw.notes.includes('[via Walk-in POS]')) || raw?.payment_method === 'pos'
+  if (isPos && total > 0) {
+    if (total === 12500) return '1x Full Smokey Guineafowl'
+    if (total === 25000) return '2x Full Smokey Guineafowl'
+    if (total === 37500) return '3x Full Smokey Guineafowl'
+    if (total === 50000) return '4x Full Smokey Guineafowl'
+    if (total === 18000) return '1x Full Grill Rabbit'
+    if (total === 13000) return '1x Travel standard Dry Guineafowl'
+    if (total === 12000) return '1x Full Smokey Chicken (chopped)'
+    if (total === 17000) return '1x KING SIZE SMOKEY GUINEAFOWL + GIZZARD'
+    if (total === 22500) return '1x THE DOUBLE DELIGHT'
+    if (total === 33500) return '1x EMBER TRIO'
+    if (total === 6000) return '1x Smokey Beef Jerky (kilishi) 125g'
+    if (total === 2000) return '1x Undiluted Palmwine (50cl)'
+    return `1x Walk-in POS Selection (₦${total.toLocaleString()})`
+  }
+  if (isPos) {
     return 'Walk-in Order'
   }
   return 'Standard Order'
@@ -212,7 +229,17 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     phone: raw.customer_phone || raw.phone || 'N/A',
     address: raw.delivery_address || raw.address || 'Storefront Counter Pickup',
     items_summary: items,
-    raw_items: Array.isArray(raw.order_items) ? raw.order_items : (raw.raw_items || []),
+    raw_items: (Array.isArray(raw.order_items) && raw.order_items.length > 0)
+      ? raw.order_items
+      : (Array.isArray(raw.raw_items) && raw.raw_items.length > 0
+          ? raw.raw_items
+          : (items ? items.split(' + ').map((part: string) => {
+              const m = part.match(/^(\d+)\s*x\s*(.+)$/i)
+              const qty = m ? Number(m[1]) || 1 : 1
+              const name = m ? m[2].trim() : part.trim()
+              const total = Number(raw.total ?? raw.total_amount) || 0
+              return { name, qty, price: Math.round(total / qty) }
+            }) : [])),
     total_amount: Number(raw.total ?? raw.total_amount) || 0,
     delivery_fee: Number(raw.delivery_fee) || 0,
     channel,

@@ -1437,49 +1437,46 @@ export const WebsiteOrdersPage: React.FC = () => {
               </div>
 
               {/* Section 3: Ordered Products */}
-              <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                    Ordered Products
-                  </span>
-                  <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
-                    {selectedOrder.raw_items && selectedOrder.raw_items.length > 0
-                      ? `${selectedOrder.raw_items.length} item(s)`
-                      : 'Kitchen Pack'}
-                  </span>
-                </div>
+              {(() => {
+                const displayItems = (selectedOrder.raw_items && selectedOrder.raw_items.length > 0)
+                  ? selectedOrder.raw_items
+                  : buildReceiptLineItems(selectedOrder);
+                return (
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                        Ordered Products
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                        {displayItems.length} item(s)
+                      </span>
+                    </div>
 
-                <div className="pt-1">
-                  {selectedOrder.raw_items && selectedOrder.raw_items.length > 0 ? (
-                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                      {selectedOrder.raw_items.map((item: any, idx: number) => (
-                        <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                              {item.qty || 1}x
-                            </span>
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{item.name || 'Smokey Product'}</span>
-                          </div>
-                          {item.price && (
-                            <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                              {formatNaira((item.qty || 1) * item.price)}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                    <div className="pt-1">
+                      <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        {displayItems.map((item: any, idx: number) => {
+                          const itemPrice = item.price || item.amount;
+                          return (
+                            <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-[13px]">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300 font-mono text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                  {item.qty || 1}x
+                                </span>
+                                <span className="font-medium text-zinc-900 dark:text-zinc-100">{item.name || 'Smokey Product'}</span>
+                              </div>
+                              {itemPrice && (
+                                <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                  {formatNaira(item.price ? (item.qty || 1) * item.price : itemPrice)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {selectedOrder.items_summary.split(' + ').map((product, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-[13px] text-zinc-900 dark:text-zinc-100 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
-                          <span>{product.trim()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Section 4: Billing Breakdown */}
               <div className="p-4 space-y-3">
