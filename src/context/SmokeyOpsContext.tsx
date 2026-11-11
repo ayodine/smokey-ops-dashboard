@@ -129,6 +129,29 @@ export const mapSupabaseProductToSalesProduct = (p: any, existingOpsProduct?: an
   }
 }
 
+export function resolveOrderItemsSummary(raw: any): string {
+  if (Array.isArray(raw?.order_items) && raw.order_items.length > 0) {
+    return raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join(' + ')
+  }
+  if (Array.isArray(raw?.items) && raw.items.length > 0) {
+    return raw.items.map((i: any) => `${i.qty || i.quantity || 1}x ${i.name || i.product_name || 'Smokey Product'}`).join(' + ')
+  }
+  if (typeof raw?.items_summary === 'string' && raw.items_summary.trim() && raw.items_summary !== 'Assorted Smokey Delicacies') {
+    return raw.items_summary.trim()
+  }
+  // Fallback: parse from notes (e.g. "[via Walk-in POS] ... | Items: 1x Full Smokey Guineafowl ...")
+  if (typeof raw?.notes === 'string') {
+    const match = raw.notes.match(/Items:\s*([^|\]\n]+)/i)
+    if (match && match[1]) {
+      return match[1].trim()
+    }
+  }
+  if (raw?.traffic_source === 'Walk-in POS' || (raw?.notes && raw.notes.includes('[via Walk-in POS]'))) {
+    return 'Walk-in Order'
+  }
+  return 'Standard Order'
+}
+
 export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
   if (raw && raw.order_ref && raw.items_summary && raw.fulfillment_status && !Array.isArray(raw.order_items)) {
     return {
@@ -155,9 +178,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     fulfillment_status = 'in_intake'
   }
 
-  const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
-    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join(' + ')
-    : (raw.items_summary || 'Assorted Smokey Delicacies')
+  const items = resolveOrderItemsSummary(raw)
 
   let channel = raw.channel || 'Website Storefront'
   if (raw.traffic_source) {
@@ -2139,9 +2160,7 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
       override?.delivery_status === 'pending' ||
       override?.delivery_status === 'assigned'
 
-    const itemsList = Array.isArray(o.order_items) && o.order_items.length > 0
-      ? o.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join('; ')
-      : (o.items_summary || 'Assorted Smokey Delicacies')
+    const itemsList = resolveOrderItemsSummary(o)
 
     const typedItems = Array.isArray(o.order_items) && o.order_items.length > 0
       ? o.order_items.map((i: any) => ({
@@ -3409,7 +3428,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         customer_name: orderData.customer_name || 'Website Customer',
         phone: orderData.customer_phone || orderData.phone || 'N/A',
         address: orderData.delivery_address || orderData.address || 'Storefront Delivery',
-        items_summary: orderData.items_summary || (Array.isArray(orderData.order_items) ? orderData.order_items.map((i: any) => `${i.qty}x ${i.name}`).join('; ') : 'Assorted Smokey Delicacies'),
+        items_summary: resolveOrderItemsSummary(orderData),
         raw_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
         total_amount: Number(orderData.total || orderData.total_amount) || 0,
         delivery_fee: Number(orderData.delivery_fee) || 0,
@@ -3438,7 +3457,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           customer_name: orderData.customer_name || 'Website Customer',
           phone: orderData.customer_phone || orderData.phone || 'N/A',
           address: orderData.delivery_address || orderData.address || 'Storefront Delivery',
-          items_summary: orderData.items_summary || (Array.isArray(orderData.order_items) ? orderData.order_items.map((i: any) => `${i.qty}x ${i.name}`).join('; ') : 'Assorted Smokey Delicacies'),
+          items_summary: resolveOrderItemsSummary(orderData),
           items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
           total_amount: Number(orderData.total || orderData.total_amount) || 0,
           delivery_fee: Number(orderData.delivery_fee) || 0,
@@ -3759,7 +3778,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           delivered_at: updated.delivered_at || null,
           fee_evidence_path: updated.fee_evidence_path || null,
           fee_verify_status: updated.fee_verify_status || (riderType === 'third_party' ? 'pending' : 'none'),
-          items_summary: updated.items_summary || 'Assorted Smokey Delicacies',
+          items_summary: resolveOrderItemsSummary(updated),
           notes: updated.notes
         }
         const next = deduplicateByOrderRef([newDelivery, ...prev])
@@ -8767,7 +8786,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           delivered_at: null,
           fee_evidence_path: feeEvidencePath || null,
           fee_verify_status: riderType === 'third_party' ? 'pending' : 'none',
-          items_summary: fallbackWebOrder?.items_summary || fallbackPkgOrder?.items_summary || 'Assorted Smokey Delicacies'
+          items_summary: fallbackWebOrder?.items_summary || fallbackPkgOrder?.items_summary || resolveOrderItemsSummary(fallbackWebOrder || fallbackPkgOrder || {})
         }
         next = [synthesized, ...prev]
       }
@@ -9165,7 +9184,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!order) return
 
     const matchingWebOrder = websiteOrders.find(w => w.order_ref === order.order_ref)
-    const realItemsSummary = order.items_summary || matchingWebOrder?.items_summary || 'Assorted Smokey Delicacies'
+    const realItemsSummary = order.items_summary || matchingWebOrder?.items_summary || resolveOrderItemsSummary(order || matchingWebOrder || {})
     const realItems = order.items && order.items.length > 0
       ? order.items
       : (Array.isArray(matchingWebOrder?.raw_items) && matchingWebOrder.raw_items.length > 0
@@ -9294,7 +9313,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             order_status: 'payment_confirmed',
             notes: notes ? `${auditLog}\n${notes}` : auditLog,
             can_start_schedule: canStart,
-            items_summary: orderDetails?.items_summary || matchingWebOrder?.items_summary || 'Assorted Smokey Delicacies'
+            items_summary: orderDetails?.items_summary || matchingWebOrder?.items_summary || resolveOrderItemsSummary(orderDetails || matchingWebOrder || {})
           }, ...prev]
         }
       })

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { SingleDatePicker } from '@/components/ui/SingleDatePicker'
 import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
-import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
+import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF, resolveOrderItemsSummary } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cleanOrderNotes, parseOrderNotes, cn } from '@/lib/utils'
@@ -108,9 +108,7 @@ export const mapSupabaseOrderToWebsiteOrder = (raw: any): WebsiteOrder => {
     fulfillment_status = 'in_intake'
   }
 
-  const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
-    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Smokey Product'}`).join(' + ')
-    : 'Assorted Smokey Delicacies'
+  const items = resolveOrderItemsSummary(raw)
 
   let channel = 'Website Storefront'
   if (raw.traffic_source) {
