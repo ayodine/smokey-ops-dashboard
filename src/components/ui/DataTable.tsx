@@ -98,6 +98,14 @@ export interface DataTableProps<T> {
   onToggleExpand?: (item: T) => void
   getSubRows?: (item: T) => T[] | undefined
   renderExpandedSubTable?: (item: T) => React.ReactNode
+  /** Optional server-side pagination total count. When passed, enables controlled server pagination. */
+  serverTotalCount?: number
+  /** Controlled active page (1-based) */
+  currentPage?: number
+  /** Callback when page is changed */
+  onPageChange?: (page: number) => void
+  /** Callback when items per page limit changes */
+  onItemsPerPageChange?: (itemsPerPage: number) => void
 }
 
 export function DataTable<T>({
@@ -139,12 +147,26 @@ export function DataTable<T>({
   onToggleExpand,
   getSubRows,
   renderExpandedSubTable,
+  serverTotalCount,
+  currentPage: controlledCurrentPage,
+  onPageChange,
+  onItemsPerPageChange,
 }: DataTableProps<T>) {
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(initialSortDirection)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [localCurrentPage, setLocalCurrentPage] = useState(1)
+  const isServerPaginated = serverTotalCount !== undefined
+  const activeCurrentPage = controlledCurrentPage !== undefined ? controlledCurrentPage : localCurrentPage
+
+  const handlePageChange = (newPage: number) => {
+    if (onPageChange) {
+      onPageChange(newPage)
+    } else {
+      setLocalCurrentPage(newPage)
+    }
+  }
   const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageOptions[0] || 10)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showSortMenu, setShowSortMenu] = useState(false)
@@ -255,6 +277,35 @@ export function DataTable<T>({
 
   // Filter Data
   const filteredData = useMemo(() => {
+    if (isServerPaginated) {
+      let result = [...data]
+      if (sortKey) {
+        const col = columns.find(c => c.key === sortKey)
+        if (col && col.sortable !== false) {
+          result.sort((a, b) => {
+            let valA: any
+            let valB: any
+            if (col.sortValue) {
+              valA = col.sortValue(a)
+              valB = col.sortValue(b)
+            } else {
+              valA = (a as any)[col.key] ?? ''
+              valB = (b as any)[col.key] ?? ''
+            }
+            if (typeof valA === 'number' && typeof valB === 'number') {
+              return sortDirection === 'asc' ? valA - valB : valB - valA
+            }
+            const strA = String(valA).toLowerCase()
+            const strB = String(valB).toLowerCase()
+            if (strA < strB) return sortDirection === 'asc' ? -1 : 1
+            if (strA > strB) return sortDirection === 'asc' ? 1 : -1
+            return 0
+          })
+        }
+      }
+      return result
+    }
+
     let result = [...data]
 
     if (searchQuery.trim()) {
@@ -388,14 +439,18 @@ export function DataTable<T>({
     }
 
     return result
-  }, [data, searchQuery, searchFilter, sortKey, sortDirection, columns, dateFilterRange, customStartDate, customEndDate, dateField])
+  }, [isServerPaginated, data, searchQuery, searchFilter, sortKey, sortDirection, columns, dateFilterRange, customStartDate, customEndDate, dateField])
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1
+  const effectiveTotalCount = isServerPaginated ? (serverTotalCount ?? 0) : filteredData.length
+  const totalPages = Math.max(1, Math.ceil(effectiveTotalCount / itemsPerPage))
   const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage
+    if (isServerPaginated) {
+      return filteredData
+    }
+    const start = (activeCurrentPage - 1) * itemsPerPage
     return filteredData.slice(start, start + itemsPerPage)
-  }, [filteredData, currentPage, itemsPerPage])
+  }, [isServerPaginated, filteredData, activeCurrentPage, itemsPerPage])
 
   // Sorting Handler
   const handleSort = (key: string) => {
@@ -579,7 +634,7 @@ export function DataTable<T>({
                 onChange={e => {
                   const val = e.target.value
                   setSearchQuery(val)
-                  setCurrentPage(1)
+                  handlePageChange(1)
                   onSearchChange?.(val)
                 }}
                 placeholder={searchPlaceholder || searchablePlaceholder}
@@ -596,7 +651,7 @@ export function DataTable<T>({
                     value={cat.activeValue}
                     onValueChange={val => {
                       cat.onChange(String(val))
-                      setCurrentPage(1)
+                      handlePageChange(1)
                     }}
                     options={cat.options}
                     size="md"
@@ -630,7 +685,7 @@ export function DataTable<T>({
                   }
                   setDateFilterRange('custom')
                 }
-                setCurrentPage(1)
+                handlePageChange(1)
                 onDateRangeChange?.(range)
               }}
             />
@@ -1318,8 +1373,12 @@ export function DataTable<T>({
             <Select
               value={itemsPerPage}
               onValueChange={val => {
-                setItemsPerPage(Number(val))
-                setCurrentPage(1)
+                const nextLimit = Number(val)
+                setItemsPerPage(nextLimit)
+                if (onItemsPerPageChange) {
+                  onItemsPerPageChange(nextLimit)
+                }
+                handlePageChange(1)
               }}
               options={itemsPerPageOptions.map(opt => ({
                 value: opt,
@@ -1330,7 +1389,7 @@ export function DataTable<T>({
             />
           </div>
           <span className="ml-2 text-xs sm:text-[13px]">
-            Page {currentPage} of {totalPages} • {filteredData.length} records
+            Page {activeCurrentPage} of {totalPages} • {effectiveTotalCount.toLocaleString()} records
           </span>
         </div>
 
@@ -1338,20 +1397,20 @@ export function DataTable<T>({
           <Button
             size="xs"
             variant="secondary"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
+            onClick={() => handlePageChange(Math.max(1, activeCurrentPage - 1))}
+            disabled={activeCurrentPage <= 1 || isLoading}
             leftIcon={<ChevronLeft className="w-3.5 h-3.5" />}
           >
             Previous
           </Button>
           <span className="px-2 text-xs font-medium">
-            {currentPage} / {totalPages}
+            {activeCurrentPage} / {totalPages}
           </span>
           <Button
             size="xs"
             variant="secondary"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => handlePageChange(Math.min(totalPages, activeCurrentPage + 1))}
+            disabled={activeCurrentPage >= totalPages || isLoading}
             rightIcon={<ChevronRight className="w-3.5 h-3.5" />}
           >
             Next

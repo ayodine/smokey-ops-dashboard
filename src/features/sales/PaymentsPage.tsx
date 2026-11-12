@@ -373,6 +373,11 @@ export const PaymentsPage: React.FC = () => {
           setSearch(q)
           setPage(1)
         }}
+        serverTotalCount={totalCount}
+        currentPage={page}
+        onPageChange={setPage}
+        isLoading={loading || refreshing}
+        itemsPerPageOptions={[10, 25, 50, 100]}
         emptyMessage="No transaction records match the specified filters."
       />
 

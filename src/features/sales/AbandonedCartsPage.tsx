@@ -618,6 +618,11 @@ export const AbandonedCartsPage: React.FC = () => {
           setSearch(q)
           setPage(1)
         }}
+        serverTotalCount={totalCount}
+        currentPage={page}
+        onPageChange={setPage}
+        isLoading={loading || refreshing}
+        itemsPerPageOptions={[10, 25, 50, 100]}
         emptyMessage="No cart sessions match the current stage filter. As visitors browse and initiate checkouts, abandoned sessions stream here in real time."
       />
 

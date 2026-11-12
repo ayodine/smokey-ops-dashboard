@@ -3097,7 +3097,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           .neq('status', 'cancelled')
           .neq('status', 'refunded')
           .order('created_at', { ascending: false })
-          .limit(200)
+          .limit(1000)
 
         if (!error && Array.isArray(data) && data.length > 0) {
           rawOrders = data
@@ -3636,7 +3636,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
           const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw') || []
           const filteredRaw = cachedRaw.filter(r => getCanonicalOrderRef(r) !== ref)
-          writeLocalCache('smokey_live_cache_v4_orders_raw', [fullOrder, ...filteredRaw].slice(0, 200))
+          writeLocalCache('smokey_live_cache_v4_orders_raw', [fullOrder, ...filteredRaw].slice(0, 1000))
 
           const singleDerived = deriveQueuesFromRawOrders([fullOrder])
           if (singleDerived.websiteOrders.length > 0) {

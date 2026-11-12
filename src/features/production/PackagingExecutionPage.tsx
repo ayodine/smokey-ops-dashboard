@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { PackagingQueueOrder, PackagingMaterialDaily } from '@/lib/smokeyData'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
@@ -134,76 +134,50 @@ export const PackagingExecutionPage: React.FC = () => {
     payment_status: 'paid' as 'paid' | 'pending'
   })
 
-  // Cursor Pagination State for Historical Packaged Orders
-  const [paginatedHistory, setPaginatedHistory] = useState<PackagingQueueOrder[]>([])
-  const [historyCursor, setHistoryCursor] = useState<OrderCursor | null>(null)
-  const [hasMoreHistory, setHasMoreHistory] = useState<boolean>(true)
-  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState<boolean>(false)
+  // Server-side pagination for historical packaged orders
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyTotalCount, setHistoryTotalCount] = useState(0)
+  const [serverHistoryOrders, setServerHistoryOrders] = useState<PackagingQueueOrder[]>([])
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
 
-  const handleLoadMoreHistory = async () => {
-    if (isLoadingMoreHistory || !historyCursor) return
-    setIsLoadingMoreHistory(true)
+  const fetchHistoryPage = useCallback(async () => {
+    if (activeTab !== 'history') return
+    setIsHistoryLoading(true)
     try {
-      const res = await OrderQueries.getPackagingQueue({ tab: 'history' }, historyCursor, 50)
+      const res = await OrderQueries.getPackagedOrdersPage({
+        search: historySearch.trim() || undefined,
+        page: historyPage,
+        limit: 50
+      })
       const mapped = res.items.map(mapAuthoritativeToPackagingOrder)
-      setPaginatedHistory(prev => deduplicateByOrderRef([...prev, ...mapped]))
-      setHistoryCursor(res.nextCursor)
-      setHasMoreHistory(res.hasMore)
+      setServerHistoryOrders(mapped)
+      setHistoryTotalCount(res.totalCount)
     } catch (err) {
-      console.warn('Error loading more packaging history:', err)
+      console.warn('Error fetching packaged orders page:', err)
     } finally {
-      setIsLoadingMoreHistory(false)
+      setIsHistoryLoading(false)
     }
-  }
+  }, [activeTab, historySearch, historyPage])
 
   useEffect(() => {
-    if (activeTab === 'history' && paginatedHistory.length === 0) {
-      setIsLoadingMoreHistory(true)
-      OrderQueries.getPackagingQueue({ tab: 'history' }, undefined, 50).then(res => {
-        setPaginatedHistory(res.items.map(mapAuthoritativeToPackagingOrder))
-        setHistoryCursor(res.nextCursor)
-        setHasMoreHistory(res.hasMore)
-      }).catch(err => {
-        console.warn('Initial packaging history fetch error:', err)
-      }).finally(() => {
-        setIsLoadingMoreHistory(false)
-      })
-    }
-  }, [activeTab])
+    fetchHistoryPage()
+  }, [fetchHistoryPage])
 
-  // Real-time synchronization for paginated packaged history orders
+  // Real-time synchronization for packaged history orders
   useEffect(() => {
     const unsubscribe = OrderSyncManager.subscribe((event) => {
-      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
-        const data = event.data
-        if (!data) return
-        const ref = getCanonicalOrderRef(data)
-        if (!ref) return
-        const normPkg = String(data.packaging_status || data.order_status || '').toLowerCase()
-        const normDeliv = String(data.delivery_status || '').toLowerCase()
-        const isPackaged = normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || Boolean(data.packaged_at) || Boolean(data.delivered_at)
-
-        if (isPackaged) {
-          const mapped = mapAuthoritativeToPackagingOrder(data as AuthoritativeOrder)
-          setPaginatedHistory(prev => {
-            const exists = prev.some(p => getCanonicalOrderRef(p) === ref || String(p.id) === String(data.id))
-            if (exists) {
-              return prev.map(p => (getCanonicalOrderRef(p) === ref || String(p.id) === String(data.id)) ? { ...p, ...mapped, order_status: 'packaged' } : p)
-            }
-            return [mapped, ...prev]
-          })
-        } else {
-          setPaginatedHistory(prev => prev.filter(p => getCanonicalOrderRef(p) !== ref && String(p.id) !== String(data.id)))
-        }
-      } else if (event.event === 'order.deleted') {
-        const id = String(event.order_id || event.order_ref || '')
-        if (id) {
-          setPaginatedHistory(prev => prev.filter(p => getCanonicalOrderRef(p) !== id && String(p.id) !== id))
-        }
+      if (
+        event.event === 'order.updated' ||
+        event.event === 'order.lifecycle_transition' ||
+        event.event === 'order.created' ||
+        event.event === 'order.deleted'
+      ) {
+        fetchHistoryPage()
       }
     })
     return () => unsubscribe()
-  }, [])
+  }, [fetchHistoryPage])
 
   // Filter queues with defensive invariant: any order already packaged/dispatched on the Logistics Board or collected/ready at Store Pickup Counter cannot appear in Ready/In-Packaging
   const dispatchedOrPickupRefs = useMemo(() => {
@@ -234,13 +208,7 @@ export const PackagingExecutionPage: React.FC = () => {
     ),
     [uniquePackagingQueue, dispatchedOrPickupRefs]
   )
-  const historyOrders = useMemo(
-    () => {
-      const baseHistory = uniquePackagingQueue.filter(o => o.order_status === 'packaged' || dispatchedOrPickupRefs.has(getCanonicalOrderRef(o)))
-      return deduplicateByOrderRef([...baseHistory, ...paginatedHistory])
-    },
-    [uniquePackagingQueue, dispatchedOrPickupRefs, paginatedHistory]
-  )
+  const historyOrders = serverHistoryOrders
 
   // KPIs
   const totalDailyMaterials = packagingMaterialsDaily.reduce((acc, m) => acc + m.total_consumed, 0)
@@ -524,11 +492,14 @@ export const PackagingExecutionPage: React.FC = () => {
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
-          onChange={(val) => setActiveTab(val as any)}
+          onChange={(val) => {
+            setActiveTab(val as any)
+            if (val === 'history') setHistoryPage(1)
+          }}
           tabs={[
             { id: 'ready', label: 'Orders to Pack', badge: readyOrders.length },
             { id: 'daily', label: 'Materials Used' },
-            { id: 'history', label: 'Packed Orders', badge: historyOrders.length },
+            { id: 'history', label: 'Packed Orders', badge: historyTotalCount || historyOrders.length },
           ]}
         />
       </div>
@@ -570,20 +541,17 @@ export const PackagingExecutionPage: React.FC = () => {
               title="Packaged Order"
               exportFilename="smokey-packaging-history"
               onRowClick={(o) => handleOpenDetails(o)}
+              onSearchChange={(q) => {
+                setHistorySearch(q)
+                setHistoryPage(1)
+              }}
+              serverTotalCount={historyTotalCount}
+              currentPage={historyPage}
+              onPageChange={setHistoryPage}
+              isLoading={isHistoryLoading}
+              itemsPerPageOptions={[10, 25, 50, 100]}
               emptyMessage="Packaged orders handed over to dispatch will appear here."
             />
-            {hasMoreHistory && (
-              <div className="flex justify-center pt-3 pb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLoadMoreHistory}
-                  disabled={isLoadingMoreHistory}
-                >
-                  {isLoadingMoreHistory ? 'Loading older packouts...' : 'Load More Historical Packaged Orders'}
-                </Button>
-              </div>
-            )}
           </div>
         )}
       </div>

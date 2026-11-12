@@ -13,7 +13,7 @@ import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF, resolveOrderItemsSummary } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
-import { OrderQueries, OrderSyncManager, type OrderCursor } from '@/services/orders'
+import { OrderQueries, OrderSyncManager, type OrderCursor, type WebsiteOrdersKPISummary } from '@/services/orders'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cleanOrderNotes, parseOrderNotes, cn } from '@/lib/utils'
 import {
@@ -559,83 +559,79 @@ export const WebsiteOrdersPage: React.FC = () => {
   const searchContainerRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Cursor Pagination State for Website Orders
-  const [paginatedOrders, setPaginatedOrders] = useState<WebsiteOrder[]>([])
-  const [ordersCursor, setOrdersCursor] = useState<OrderCursor | null>(null)
-  const [hasMoreOrders, setHasMoreOrders] = useState<boolean>(true)
-  const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState<boolean>(false)
+  // Server-Side KPI & Pagination State (Authoritative across 11,000+ orders)
+  const [kpiSummary, setKpiSummary] = useState<WebsiteOrdersKPISummary>({
+    total_orders: 0,
+    total_revenue: 0,
+    walkin_count: 0,
+    intake_count: 0,
+    packaging_count: 0,
+    transit_count: 0,
+    delivered_count: 0
+  })
+  const [isKpiLoading, setIsKpiLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [serverOrders, setServerOrders] = useState<WebsiteOrder[]>([])
+  const [serverTotalCount, setServerTotalCount] = useState(0)
+  const [isPageLoading, setIsPageLoading] = useState(false)
 
-  const handleLoadMoreOrders = async () => {
-    if (isLoadingMoreOrders || !ordersCursor) return
-    setIsLoadingMoreOrders(true)
+  // Fetch Authoritative KPI Summary from fast Postgres RPC
+  const fetchKpis = React.useCallback(async () => {
+    setIsKpiLoading(true)
     try {
-      const res = await OrderQueries.getWebsiteOrders(
-        { search: searchQuery.trim() || undefined },
-        ordersCursor,
-        50
-      )
-      const mapped = res.items.map(mapSupabaseOrderToWebsiteOrder)
-      setPaginatedOrders(prev => deduplicateByOrderRef([...prev, ...mapped]))
-      setOrdersCursor(res.nextCursor)
-      setHasMoreOrders(res.hasMore)
+      const summary = await OrderQueries.getWebsiteOrdersKPIs()
+      setKpiSummary(summary)
     } catch (err) {
-      console.warn('Error loading more website orders:', err)
+      console.warn('Failed to fetch website orders KPIs:', err)
     } finally {
-      setIsLoadingMoreOrders(false)
-    }
-  }
-
-  // Initial load of first page of authoritative orders
-  useEffect(() => {
-    if (paginatedOrders.length === 0) {
-      OrderQueries.getWebsiteOrders(undefined, undefined, 50).then((res: any) => {
-        setPaginatedOrders(res.items.map(mapSupabaseOrderToWebsiteOrder))
-        setOrdersCursor(res.nextCursor)
-        setHasMoreOrders(res.hasMore)
-      }).catch((err: any) => {
-        console.warn('Initial website orders query error:', err)
-      })
+      setIsKpiLoading(false)
     }
   }, [])
 
-  // Real-time synchronization for local paginatedOrders slice
+  useEffect(() => {
+    fetchKpis()
+  }, [fetchKpis])
+
+  // Fetch Server-Paginated Orders matching activeTab, search, and page
+  const fetchPage = React.useCallback(async () => {
+    setIsPageLoading(true)
+    try {
+      const res = await OrderQueries.getWebsiteOrdersPage({
+        tab: activeTab,
+        search: searchQuery.trim() || undefined,
+        page: currentPage,
+        limit: itemsPerPage
+      })
+      const mapped = res.items.map(mapSupabaseOrderToWebsiteOrder)
+      setServerOrders(mapped)
+      setServerTotalCount(res.totalCount)
+    } catch (err) {
+      console.warn('Error fetching website orders page:', err)
+    } finally {
+      setIsPageLoading(false)
+    }
+  }, [activeTab, searchQuery, currentPage, itemsPerPage])
+
+  useEffect(() => {
+    fetchPage()
+  }, [fetchPage])
+
+  // Real-time synchronization: instantly refresh authoritative KPIs and page records
   useEffect(() => {
     const unsubscribe = OrderSyncManager.subscribe((event) => {
-      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
-        const data = event.data
-        if (!data) return
-        if (data.deleted_at || data.status === 'cancelled' || data.status === 'refunded') {
-          const ref = getCanonicalOrderRef(data) || String(data.id || '')
-          setPaginatedOrders(prev => prev.filter(o => getCanonicalOrderRef(o) !== ref && String(o.id) !== String(data.id)))
-          return
-        }
-        setPaginatedOrders(prev => {
-          const ref = getCanonicalOrderRef(data)
-          if (!ref) return prev
-          const exists = prev.some(o => getCanonicalOrderRef(o) === ref || String(o.id) === String(data.id))
-          if (!exists) return prev
-          return prev.map(o => {
-            if (getCanonicalOrderRef(o) === ref || String(o.id) === String(data.id)) {
-              const mapped = mapSupabaseOrderToWebsiteOrder(data)
-              return {
-                ...o,
-                ...mapped,
-                order_ref: o.order_ref || mapped.order_ref,
-                id: o.id
-              }
-            }
-            return o
-          })
-        })
-      } else if (event.event === 'order.deleted') {
-        const id = String(event.order_id || event.order_ref || '')
-        if (id) {
-          setPaginatedOrders(prev => prev.filter(o => getCanonicalOrderRef(o) !== id && String(o.id) !== id))
-        }
+      if (
+        event.event === 'order.updated' ||
+        event.event === 'order.lifecycle_transition' ||
+        event.event === 'order.created' ||
+        event.event === 'order.deleted'
+      ) {
+        fetchKpis()
+        fetchPage()
       }
     })
     return () => unsubscribe()
-  }, [])
+  }, [fetchKpis, fetchPage])
 
   // Debounced Historical Backend Search using OrderQueries
   useEffect(() => {
@@ -750,23 +746,14 @@ export const WebsiteOrdersPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Enrich orders with live operational workflow state from SmokeyOpsContext (logistics, store pickup, packaging, and scheduled pipeline)
+  // Enrich server-paginated orders with live operational workflow state from SmokeyOpsContext
   const displayOrders = useMemo(() => {
     const deliveryMap = new Map(logisticsDeliveries.map(d => [getCanonicalOrderRef(d), d]))
     const pickupMap = new Map(storePickups.map(p => [getCanonicalOrderRef(p), p]))
     const packagingMap = new Map(packagingQueue.map(p => [getCanonicalOrderRef(p), p]))
     const scheduledMap = new Map(scheduledOrders.map(s => [getCanonicalOrderRef(s), s]))
 
-    const uniqueOrders = deduplicateByOrderRef([...orders, ...paginatedOrders])
-
-    // CRITICAL INVARIANT: Orders awaiting payment should never appear on Website Orders page or tabs
-    const confirmedPaidOrders = uniqueOrders.filter(ord => {
-      if (ord.payment_status !== 'paid') return false
-      if (ord.channel === 'Website Storefront' && !ord.paid_at) return false
-      return true
-    })
-
-    const enriched = confirmedPaidOrders.map(ord => {
+    return serverOrders.map(ord => {
       const ref = getCanonicalOrderRef(ord)
       const activeDelivery = deliveryMap.get(ref)
       const activePickup = pickupMap.get(ref)
@@ -827,107 +814,16 @@ export const WebsiteOrdersPage: React.FC = () => {
         scheduled_delivery_at: activeSched?.scheduled_delivery_at || ord.scheduled_delivery_at
       }
     })
+  }, [serverOrders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
 
-    const enrichedRefs = new Set(enriched.map(o => getCanonicalOrderRef(o)))
-
-    // Also include any confirmed scheduled pre-orders from scheduledOrders so they show under Order Intake
-    scheduledOrders.forEach(so => {
-      if (so.payment_status !== 'paid' && so.order_status !== 'payment_confirmed') return
-      const schedRef = getCanonicalOrderRef(so)
-      if (schedRef && !enrichedRefs.has(schedRef)) {
-        enrichedRefs.add(schedRef)
-        enriched.push({
-          id: so.id,
-          order_ref: schedRef,
-          customer_name: so.customer_name,
-          phone: so.phone,
-          address: so.address,
-          items_summary: so.notes || 'Scheduled Pre-order Feast',
-          total_amount: so.total_amount,
-          delivery_fee: so.delivery_fee,
-          channel: 'Website Storefront',
-          payment_status: so.payment_status,
-          fulfillment_status: 'in_intake',
-          created_at: so.scheduled_delivery_at,
-          scheduled_delivery_at: so.scheduled_delivery_at,
-          rider_name: 'Scheduled Pre-order',
-          notes: so.notes
-        })
-      }
-    })
-
-    return enriched
-  }, [orders, paginatedOrders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
-
-  // Walk-in POS helper
-  const isWalkInOrder = (o: WebsiteOrder) =>
-    o.channel === 'Walk-in POS' ||
-    Boolean(o.notes && o.notes.includes('[via Walk-in POS]')) ||
-    o.payment_method === 'pos'
-
-  // KPIs
-  const totalOrdersCount = displayOrders.length
-  const totalGrossRevenue = displayOrders.reduce((sum, ord) => sum + ord.total_amount, 0)
-  const walkInCount = displayOrders.filter(isWalkInOrder).length
-  const intakeCount = displayOrders.filter((o) => o.fulfillment_status === 'in_intake' && !isWalkInOrder(o)).length
-  const activeFulfillmentCount = displayOrders.filter(
-    (o) => (o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch') && !isWalkInOrder(o)
-  ).length
-  const outForDeliveryCount = displayOrders.filter((o) => o.fulfillment_status === 'in_transit' && !isWalkInOrder(o)).length
-  const deliveredCount = displayOrders.filter((o) => o.fulfillment_status === 'delivered').length
-
-  // Filtered orders by tab
-  const tabFilteredOrders = useMemo(() => {
-    switch (activeTab) {
-      case 'walkin_pos':
-        return displayOrders.filter(isWalkInOrder)
-      case 'intake':
-        return displayOrders.filter((o) => o.fulfillment_status === 'in_intake' && !isWalkInOrder(o))
-      case 'packaging':
-        return displayOrders.filter((o) => (o.fulfillment_status === 'packaging' || o.fulfillment_status === 'ready_for_dispatch') && !isWalkInOrder(o))
-      case 'transit':
-        return displayOrders.filter((o) => o.fulfillment_status === 'in_transit' && !isWalkInOrder(o))
-      case 'delivered':
-        return displayOrders.filter((o) => o.fulfillment_status === 'delivered')
-      default:
-        return displayOrders
-    }
-  }, [displayOrders, activeTab])
-
-  // Combined searched orders matching search query (includes live queue and historical database matches)
-  const searchedOrders = useMemo(() => {
-    if (!searchQuery.trim()) return tabFilteredOrders
-    const q = searchQuery.toLowerCase().trim()
-    const map = new Map<string, WebsiteOrder>()
-
-    // 1. Live matching orders in active operational queues
-    tabFilteredOrders.forEach((o) => {
-      const ref = getCanonicalOrderRef(o)
-      if (!ref) return
-      if (
-        ref.toLowerCase().includes(q) ||
-        o.order_ref.toLowerCase().includes(q) ||
-        o.customer_name.toLowerCase().includes(q) ||
-        o.phone.toLowerCase().includes(q) ||
-        o.address.toLowerCase().includes(q) ||
-        o.items_summary.toLowerCase().includes(q) ||
-        o.channel.toLowerCase().includes(q) ||
-        o.notes.toLowerCase().includes(q)
-      ) {
-        map.set(ref, o)
-      }
-    })
-
-    // 2. Deep historical database matches (by Customer Name, Order ID, Phone, Address) — strictly paid
-    backendSuggestions.forEach((bo) => {
-      const ref = getCanonicalOrderRef(bo)
-      if (ref && bo.payment_status === 'paid' && !map.has(ref)) {
-        map.set(ref, bo)
-      }
-    })
-
-    return Array.from(map.values())
-  }, [tabFilteredOrders, searchQuery, backendSuggestions])
+  // KPIs powered authoritatively by PostgreSQL aggregate RPC across all 11,000+ orders
+  const totalOrdersCount = kpiSummary.total_orders
+  const totalGrossRevenue = kpiSummary.total_revenue
+  const walkInCount = kpiSummary.walkin_count
+  const intakeCount = kpiSummary.intake_count
+  const activeFulfillmentCount = kpiSummary.packaging_count
+  const outForDeliveryCount = kpiSummary.transit_count
+  const deliveredCount = kpiSummary.delivered_count
 
   const handleOpenDetails = async (order: WebsiteOrder) => {
     setSelectedOrder(order)
@@ -957,18 +853,8 @@ export const WebsiteOrdersPage: React.FC = () => {
 
   const handleRefreshAll = async () => {
     fetchLiveOrders(true)
-    try {
-      const res = await OrderQueries.getWebsiteOrders(
-        { search: searchQuery.trim() || undefined },
-        undefined,
-        50
-      )
-      setPaginatedOrders(res.items.map(mapSupabaseOrderToWebsiteOrder))
-      setOrdersCursor(res.nextCursor)
-      setHasMoreOrders(res.hasMore)
-    } catch (err) {
-      console.warn('Refresh paginated orders error:', err)
-    }
+    fetchKpis()
+    fetchPage()
   }
 
   // Column definitions matching project DataTable standards
@@ -1178,7 +1064,7 @@ export const WebsiteOrdersPage: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
           title="Total Orders"
-          value={loading ? '...' : totalOrdersCount}
+          value={loading || isKpiLoading ? '...' : totalOrdersCount.toLocaleString()}
           description="Consolidated customer orders"
           icon={<ShoppingBag className="w-4 h-4 text-primary" />}
           isLocked={!canViewKPIs}
@@ -1186,7 +1072,7 @@ export const WebsiteOrdersPage: React.FC = () => {
         />
         <MetricCard
           title="Total Gross Revenue"
-          value={loading ? '...' : formatNaira(totalGrossRevenue)}
+          value={loading || isKpiLoading ? '...' : formatNaira(totalGrossRevenue)}
           description="Customer payment settlement"
           icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
           isLocked={!canViewKPIs}
@@ -1194,7 +1080,7 @@ export const WebsiteOrdersPage: React.FC = () => {
         />
         <MetricCard
           title="Packaging Queue"
-          value={loading ? '...' : activeFulfillmentCount}
+          value={loading || isKpiLoading ? '...' : activeFulfillmentCount.toLocaleString()}
           description="Orders being packed from sales stock"
           icon={<Package className="w-4 h-4 text-amber-500" />}
           variant="default"
@@ -1203,7 +1089,7 @@ export const WebsiteOrdersPage: React.FC = () => {
         />
         <MetricCard
           title="Out for Delivery"
-          value={loading ? '...' : outForDeliveryCount}
+          value={loading || isKpiLoading ? '...' : outForDeliveryCount.toLocaleString()}
           description="Active riders on transit"
           icon={<Truck className="w-4 h-4 text-blue-500" />}
           isLocked={!canViewKPIs}
@@ -1215,7 +1101,10 @@ export const WebsiteOrdersPage: React.FC = () => {
       <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
         <KumoTabs
           activeTab={activeTab}
-          onChange={(val) => setActiveTab(val as any)}
+          onChange={(val) => {
+            setActiveTab(val as any)
+            setCurrentPage(1)
+          }}
           tabs={[
             { id: 'all', label: 'All Orders', badge: totalOrdersCount },
             { id: 'walkin_pos', label: 'Walk-in POS', badge: walkInCount },
@@ -1249,11 +1138,12 @@ export const WebsiteOrdersPage: React.FC = () => {
           <span className="flex items-center gap-1.5">
             <span>Showing results filtered across sales database for:</span>
             <strong className="underline underline-offset-2 font-semibold text-zinc-900 dark:text-zinc-100">"{searchQuery.trim()}"</strong>
-            <span className="text-[11px] text-zinc-500 font-mono">({searchedOrders.length} orders found)</span>
+            <span className="text-[11px] text-zinc-500 font-mono">({serverTotalCount.toLocaleString()} orders found)</span>
           </span>
           <button
             onClick={() => {
               setSearchQuery('')
+              setCurrentPage(1)
               setIsSearchOpen(false)
             }}
             className="text-xs font-semibold hover:underline flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -1265,12 +1155,21 @@ export const WebsiteOrdersPage: React.FC = () => {
 
       {/* 4. DataTable with Unified Search Slot, Category filters, and Full Order Data */}
       <DataTable
-        data={searchedOrders}
+        data={displayOrders}
         keyExtractor={(o) => getCanonicalOrderRef(o)}
         columns={columns}
         onRowClick={handleOpenDetails}
         tableId="website_orders_table"
         exportFilename="website_orders.csv"
+        serverTotalCount={serverTotalCount}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(limit) => {
+          setItemsPerPage(limit)
+          setCurrentPage(1)
+        }}
+        isLoading={isPageLoading}
+        itemsPerPageOptions={[10, 25, 50, 100]}
         emptyMessage={
           searchQuery.trim()
             ? `No orders found matching "${searchQuery}". Check spelling or search by Order ID (e.g. SHD-00002) or phone.`
@@ -1380,19 +1279,6 @@ export const WebsiteOrdersPage: React.FC = () => {
           </div>
         }
       />
-
-      {hasMoreOrders && (
-        <div className="flex justify-center pt-3 pb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadMoreOrders}
-            disabled={isLoadingMoreOrders}
-          >
-            {isLoadingMoreOrders ? 'Loading older orders...' : 'Load More Historical Orders'}
-          </Button>
-        </div>
-      )}
 
       {/* 5. Order Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
       {selectedOrder && (

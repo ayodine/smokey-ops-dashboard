@@ -107,6 +107,23 @@ export interface PackagingQueueFilters {
   search?: string
 }
 
+export interface WebsiteOrdersKPISummary {
+  total_orders: number
+  total_revenue: number
+  walkin_count: number
+  intake_count: number
+  packaging_count: number
+  transit_count: number
+  delivered_count: number
+}
+
+export interface ServerPaginatedResult<T> {
+  items: T[]
+  totalCount: number
+  page: number
+  totalPages: number
+}
+
 export interface CachedOrderRecord {
   id: string              // Canonical order reference or DB id (e.g. 'SHD-11383')
   order_ref: string       // Canonical reference

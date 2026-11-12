@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { LogisticsDelivery } from '@/lib/smokeyData'
@@ -149,91 +149,54 @@ export const LogisticsBoardPage: React.FC = () => {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Keyset cursor pagination for delivered deliveries
-  const [paginatedDelivered, setPaginatedDelivered] = useState<LogisticsDelivery[]>([])
-  const [deliveredCursor, setDeliveredCursor] = useState<OrderCursor | null>(null)
-  const [hasMoreDelivered, setHasMoreDelivered] = useState(false)
-  const [isLoadingMoreDelivered, setIsLoadingMoreDelivered] = useState(false)
+  // Server-side pagination for delivered deliveries
+  const [deliveredPage, setDeliveredPage] = useState(1)
+  const [deliveredTotalCount, setDeliveredTotalCount] = useState(0)
+  const [serverDeliveredOrders, setServerDeliveredOrders] = useState<LogisticsDelivery[]>([])
+  const [isDeliveredLoading, setIsDeliveredLoading] = useState(false)
 
-  const handleLoadMoreDelivered = async () => {
-    if (!deliveredCursor || isLoadingMoreDelivered) return
-    setIsLoadingMoreDelivered(true)
+  const fetchDeliveredPage = useCallback(async () => {
+    if (activeSubTab !== 'delivered') return
+    setIsDeliveredLoading(true)
     const dateRangeFilter = dateRange && (dateRange.start || dateRange.end) ? {
       from: dateRange.start ? formatLocalDateToYMD(dateRange.start) : undefined,
       to: dateRange.end ? formatLocalDateToYMD(dateRange.end) : undefined
     } : undefined
     try {
-      const res = await OrderQueries.getLogisticsQueue(
-        { tab: 'delivered', dateRange: dateRangeFilter },
-        deliveredCursor,
-        50
-      )
+      const res = await OrderQueries.getDeliveredOrdersPage({
+        search: searchQuery.trim() || undefined,
+        dateRange: dateRangeFilter,
+        page: deliveredPage,
+        limit: 50
+      })
       const mapped = res.items.map(mapAuthoritativeToLogisticsDelivery)
-      setPaginatedDelivered(prev => deduplicateByOrderRef([...prev, ...mapped]))
-      setDeliveredCursor(res.nextCursor)
-      setHasMoreDelivered(res.hasMore)
+      setServerDeliveredOrders(mapped)
+      setDeliveredTotalCount(res.totalCount)
     } catch (err) {
-      console.warn('Error loading more delivered orders:', err)
+      console.warn('Error fetching delivered orders page:', err)
     } finally {
-      setIsLoadingMoreDelivered(false)
+      setIsDeliveredLoading(false)
     }
-  }
+  }, [activeSubTab, dateRange, searchQuery, deliveredPage])
 
   useEffect(() => {
-    if (activeSubTab === 'delivered' && paginatedDelivered.length === 0) {
-      setIsLoadingMoreDelivered(true)
-      const dateRangeFilter = dateRange && (dateRange.start || dateRange.end) ? {
-        from: dateRange.start ? formatLocalDateToYMD(dateRange.start) : undefined,
-        to: dateRange.end ? formatLocalDateToYMD(dateRange.end) : undefined
-      } : undefined
-      OrderQueries.getLogisticsQueue(
-        { tab: 'delivered', dateRange: dateRangeFilter },
-        undefined,
-        50
-      ).then(res => {
-        setPaginatedDelivered(res.items.map(mapAuthoritativeToLogisticsDelivery))
-        setDeliveredCursor(res.nextCursor)
-        setHasMoreDelivered(res.hasMore)
-      }).catch(err => {
-        console.warn('Initial delivered fetch error:', err)
-      }).finally(() => {
-        setIsLoadingMoreDelivered(false)
-      })
-    }
-  }, [activeSubTab, dateRange])
+    fetchDeliveredPage()
+  }, [fetchDeliveredPage])
 
-  // Real-time synchronization for paginated delivered deliveries
+  // Real-time synchronization for delivered deliveries
   useEffect(() => {
     const unsubscribe = OrderSyncManager.subscribe((event) => {
-      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
-        const data = event.data
-        if (!data) return
-        const ref = getCanonicalOrderRef(data)
-        if (!ref) return
-        const st = String(data.delivery_status || data.status || '').toLowerCase()
-        const isDeliv = st.includes('deliver') || Boolean(data.delivered_at)
-
-        if (isDeliv) {
-          const mapped = mapAuthoritativeToLogisticsDelivery(data as AuthoritativeOrder)
-          setPaginatedDelivered(prev => {
-            const exists = prev.some(d => getCanonicalOrderRef(d) === ref || String(d.id) === String(data.id))
-            if (exists) {
-              return prev.map(d => (getCanonicalOrderRef(d) === ref || String(d.id) === String(data.id)) ? { ...d, ...mapped, status: 'delivered' } : d)
-            }
-            return [mapped, ...prev]
-          })
-        } else {
-          setPaginatedDelivered(prev => prev.filter(d => getCanonicalOrderRef(d) !== ref && String(d.id) !== String(data.id)))
-        }
-      } else if (event.event === 'order.deleted') {
-        const id = String(event.order_id || event.order_ref || '')
-        if (id) {
-          setPaginatedDelivered(prev => prev.filter(d => getCanonicalOrderRef(d) !== id && String(d.id) !== id))
-        }
+      if (
+        event.event === 'order.updated' ||
+        event.event === 'order.lifecycle_transition' ||
+        event.event === 'order.created' ||
+        event.event === 'order.deleted'
+      ) {
+        fetchDeliveredPage()
       }
     })
     return () => unsubscribe()
-  }, [])
+  }, [fetchDeliveredPage])
 
   // Dynamic KPIs and Tables reflecting custom date range
   const activeDeliveriesForKPI = useMemo(() => {
@@ -268,11 +231,10 @@ export const LogisticsBoardPage: React.FC = () => {
       return activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery')
     }
     if (activeSubTab === 'delivered') {
-      const baseDelivered = activeDeliveries.filter(d => d.status === 'delivered')
-      return deduplicateByOrderRef([...baseDelivered, ...paginatedDelivered])
+      return serverDeliveredOrders
     }
     return activeDeliveries
-  }, [activeDeliveries, activeSubTab, paginatedDelivered])
+  }, [activeDeliveries, activeSubTab, serverDeliveredOrders])
 
   // Merge client fresh orders with deep backend search results when operator searches
   const searchedUnassignedDeliveries = useMemo(() => {
@@ -305,6 +267,7 @@ export const LogisticsBoardPage: React.FC = () => {
   }, [unassignedDeliveries, activeDeliveries, searchQuery, backendDeliveries])
 
   const searchedActiveDeliveries = useMemo(() => {
+    if (activeSubTab === 'delivered') return filteredActiveDeliveries
     if (!searchQuery.trim()) return filteredActiveDeliveries
     const q = searchQuery.toLowerCase().trim()
     const map = new Map<string, LogisticsDelivery>()
@@ -329,7 +292,6 @@ export const LogisticsBoardPage: React.FC = () => {
       if (!ref || unassignedRefs.has(ref) || map.has(ref)) return
       if (d.status !== 'pending' && d.assigned_rider && d.assigned_rider !== 'Unassigned') {
         if (activeSubTab === 'in_transit' && d.status !== 'in_transit' && d.status !== 'out_for_delivery') return
-        if (activeSubTab === 'delivered' && d.status !== 'delivered') return
         map.set(ref, d)
       }
     })
@@ -667,11 +629,14 @@ export const LogisticsBoardPage: React.FC = () => {
             <div className="py-1 max-w-full overflow-x-auto [scrollbar-width:none]">
               <KumoTabs
                 activeTab={activeSubTab}
-                onChange={(val) => setActiveSubTab(val as any)}
+                onChange={(val) => {
+                  setActiveSubTab(val as any)
+                  if (val === 'delivered') setDeliveredPage(1)
+                }}
                 tabs={[
                   { id: 'all', label: 'All Active Trips', badge: activeDeliveries.length },
                   { id: 'in_transit', label: 'In Transit', badge: inTransitCount },
-                  { id: 'delivered', label: 'Delivered', badge: deliveredCount },
+                  { id: 'delivered', label: 'Delivered', badge: deliveredTotalCount || deliveredCount },
                 ]}
               />
             </div>
@@ -692,25 +657,21 @@ export const LogisticsBoardPage: React.FC = () => {
               }
               exportFilename={`smokey-active-deliveries-${activeSubTab}`}
               onDateRangeChange={setDateRange}
-              onSearchChange={setSearchQuery}
+              onSearchChange={(q) => {
+                setSearchQuery(q)
+                if (activeSubTab === 'delivered') setDeliveredPage(1)
+              }}
+              serverTotalCount={activeSubTab === 'delivered' ? deliveredTotalCount : undefined}
+              currentPage={activeSubTab === 'delivered' ? deliveredPage : undefined}
+              onPageChange={activeSubTab === 'delivered' ? setDeliveredPage : undefined}
+              isLoading={activeSubTab === 'delivered' ? isDeliveredLoading : false}
+              itemsPerPageOptions={[10, 25, 50, 100]}
               emptyMessage={
                 searchQuery.trim()
                   ? `No active trips found matching "${searchQuery}".`
                   : "Assigned deliveries will appear here as drivers are dispatched. Search by Customer Name, Order ID, or Rider to locate any record."
               }
             />
-            {activeSubTab === 'delivered' && hasMoreDelivered && (
-              <div className="flex justify-center pt-3 pb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLoadMoreDelivered}
-                  disabled={isLoadingMoreDelivered}
-                >
-                  {isLoadingMoreDelivered ? 'Loading older trips...' : 'Load More Historical Deliveries'}
-                </Button>
-              </div>
-            )}
           </div>
         )}
       </div>

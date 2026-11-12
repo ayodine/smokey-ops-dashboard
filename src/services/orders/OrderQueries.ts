@@ -5,7 +5,9 @@ import type {
   PaginatedResult,
   LogisticsQueueFilters,
   WebsiteOrdersFilters,
-  PackagingQueueFilters
+  PackagingQueueFilters,
+  WebsiteOrdersKPISummary,
+  ServerPaginatedResult
 } from './OrderTypes'
 
 const ORDER_SELECT_COLUMNS = [
@@ -232,9 +234,9 @@ export class OrderQueries {
       } else if (filters?.tab === 'packaging') {
         query = query.in('packaging_status', ['in_packaging'])
       } else if (filters?.tab === 'transit') {
-        query = query.in('delivery_status', ['In Transit', 'in_transit', 'out_for_delivery'])
+        query = query.or('delivery_status.ilike.%transit%,delivery_status.ilike.%out_for_delivery%')
       } else if (filters?.tab === 'delivered') {
-        query = query.in('delivery_status', ['Delivered', 'delivered'])
+        query = query.ilike('delivery_status', '%deliver%')
       }
 
       // 2. Search
@@ -284,6 +286,257 @@ export class OrderQueries {
     } catch (err) {
       console.error('[OrderQueries.getWebsiteOrders] Exception:', err)
       return { items: [], nextCursor: null, hasMore: false }
+    }
+  }
+
+  /**
+   * Authoritative KPI Aggregates for Website Orders Page
+   */
+  static async getWebsiteOrdersKPIs(dateRange?: { from?: string; to?: string }): Promise<WebsiteOrdersKPISummary> {
+    try {
+      const p_from = dateRange?.from ? `${dateRange.from}T00:00:00.000Z` : null
+      const p_to = dateRange?.to ? `${dateRange.to}T23:59:59.999Z` : null
+
+      const { data, error } = await supabase.rpc('get_website_orders_kpis', {
+        p_from,
+        p_to
+      })
+
+      if (!error && data && typeof data === 'object') {
+        return {
+          total_orders: Number(data.total_orders) || 0,
+          total_revenue: Number(data.total_revenue) || 0,
+          walkin_count: Number(data.walkin_count) || 0,
+          intake_count: Number(data.intake_count) || 0,
+          packaging_count: Number(data.packaging_count) || 0,
+          transit_count: Number(data.transit_count) || 0,
+          delivered_count: Number(data.delivered_count) || 0
+        }
+      }
+
+      // Resilient fallback using existing get_orders_status_counts and get_overview_kpis RPCs
+      const [overviewRes, statusRes] = await Promise.all([
+        supabase.rpc('get_overview_kpis', { p_start: p_from }),
+        supabase.rpc('get_orders_status_counts', { p_start: p_from, p_end: p_to })
+      ])
+
+      const totalOrders = Number(statusRes.data?.all) || Number(overviewRes.data?.order_count) || 0
+      const totalRevenue = Number(overviewRes.data?.revenue) || 0
+      const deliveredCount = Number(statusRes.data?.delivered) || 0
+      const processingCount = Number(statusRes.data?.processing) || 0
+
+      return {
+        total_orders: totalOrders,
+        total_revenue: totalRevenue,
+        walkin_count: 0,
+        intake_count: processingCount,
+        packaging_count: 0,
+        transit_count: Number(statusRes.data?.shipped) || 0,
+        delivered_count: deliveredCount
+      }
+    } catch (err) {
+      console.warn('[OrderQueries.getWebsiteOrdersKPIs] Fallback to zero metrics:', err)
+      return {
+        total_orders: 0,
+        total_revenue: 0,
+        walkin_count: 0,
+        intake_count: 0,
+        packaging_count: 0,
+        transit_count: 0,
+        delivered_count: 0
+      }
+    }
+  }
+
+  /**
+   * Server-Side Paginated Query for Website Orders Page
+   * Supports unlimited pages with exact counts ({ count: 'exact' })
+   */
+  static async getWebsiteOrdersPage(params: {
+    tab?: string
+    search?: string
+    dateRange?: { from?: string; to?: string }
+    page?: number
+    limit?: number
+  }): Promise<ServerPaginatedResult<AuthoritativeOrder>> {
+    const page = Math.max(1, params.page || 1)
+    const limit = Math.max(1, params.limit || 50)
+    const fromIdx = (page - 1) * limit
+    const toIdx = fromIdx + limit - 1
+
+    try {
+      let query = supabase
+        .from('orders')
+        .select(ORDER_SELECT_COLUMNS, { count: 'exact' })
+        .is('deleted_at', null)
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded')
+        .neq('status', 'pending_payment')
+
+      // STRICT USER INVARIANT: Only confirmed orders with paid_at or paid status are visible
+      query = query.or('paid_at.not.is.null,status.in.(processing,delivered)')
+
+      // 1. Tab filtering
+      if (params.tab === 'walkin_pos') {
+        query = query.or('channel.ilike.%walk%,channel.ilike.%pos%')
+      } else if (params.tab === 'intake') {
+        query = query.in('packaging_status', ['ready_for_fulfillment'])
+      } else if (params.tab === 'packaging') {
+        query = query.in('packaging_status', ['in_packaging'])
+      } else if (params.tab === 'transit') {
+        query = query.or('delivery_status.ilike.%transit%,delivery_status.ilike.%out_for_delivery%')
+      } else if (params.tab === 'delivered') {
+        query = query.ilike('delivery_status', '%deliver%')
+      }
+
+      // 2. Search
+      const q = params.search?.trim().replace(/[,()]/g, '')
+      if (q) {
+        query = query.or(
+          `customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%,rider_name.ilike.%${q}%`
+        )
+      }
+
+      // 3. Date range
+      if (params.dateRange?.from) {
+        query = query.gte('created_at', `${params.dateRange.from}T00:00:00.000Z`)
+      }
+      if (params.dateRange?.to) {
+        query = query.lte('created_at', `${params.dateRange.to}T23:59:59.999Z`)
+      }
+
+      // 4. Stable ordering and range
+      query = query
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(fromIdx, toIdx)
+
+      const { data, count, error } = await query
+      if (error) {
+        console.error('[OrderQueries.getWebsiteOrdersPage] Query error:', error.message)
+        return { items: [], totalCount: 0, page, totalPages: 1 }
+      }
+
+      const items = (data || []) as unknown as AuthoritativeOrder[]
+      const totalCount = count !== null && count !== undefined ? count : items.length
+      const totalPages = Math.max(1, Math.ceil(totalCount / limit))
+
+      return { items, totalCount, page, totalPages }
+    } catch (err) {
+      console.error('[OrderQueries.getWebsiteOrdersPage] Exception:', err)
+      return { items: [], totalCount: 0, page, totalPages: 1 }
+    }
+  }
+
+  /**
+   * Server-Side Paginated Query for Delivered Logistics Orders
+   */
+  static async getDeliveredOrdersPage(params: {
+    search?: string
+    dateRange?: { from?: string; to?: string }
+    page?: number
+    limit?: number
+  }): Promise<ServerPaginatedResult<AuthoritativeOrder>> {
+    const page = Math.max(1, params.page || 1)
+    const limit = Math.max(1, params.limit || 50)
+    const fromIdx = (page - 1) * limit
+    const toIdx = fromIdx + limit - 1
+
+    try {
+      let query = supabase
+        .from('orders')
+        .select(ORDER_SELECT_COLUMNS, { count: 'exact' })
+        .is('deleted_at', null)
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded')
+        .neq('status', 'pending_payment')
+        .ilike('delivery_status', '%deliver%')
+
+      const q = params.search?.trim().replace(/[,()]/g, '')
+      if (q) {
+        query = query.or(
+          `customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%,rider_name.ilike.%${q}%`
+        )
+      }
+
+      if (params.dateRange?.from) {
+        query = query.gte('created_at', `${params.dateRange.from}T00:00:00.000Z`)
+      }
+      if (params.dateRange?.to) {
+        query = query.lte('created_at', `${params.dateRange.to}T23:59:59.999Z`)
+      }
+
+      query = query
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(fromIdx, toIdx)
+
+      const { data, count, error } = await query
+      if (error) {
+        console.error('[OrderQueries.getDeliveredOrdersPage] Query error:', error.message)
+        return { items: [], totalCount: 0, page, totalPages: 1 }
+      }
+
+      const items = (data || []) as unknown as AuthoritativeOrder[]
+      const totalCount = count !== null && count !== undefined ? count : items.length
+      const totalPages = Math.max(1, Math.ceil(totalCount / limit))
+
+      return { items, totalCount, page, totalPages }
+    } catch (err) {
+      console.error('[OrderQueries.getDeliveredOrdersPage] Exception:', err)
+      return { items: [], totalCount: 0, page, totalPages: 1 }
+    }
+  }
+
+  /**
+   * Server-Side Paginated Query for Packaged Kitchen History
+   */
+  static async getPackagedOrdersPage(params: {
+    search?: string
+    page?: number
+    limit?: number
+  }): Promise<ServerPaginatedResult<AuthoritativeOrder>> {
+    const page = Math.max(1, params.page || 1)
+    const limit = Math.max(1, params.limit || 50)
+    const fromIdx = (page - 1) * limit
+    const toIdx = fromIdx + limit - 1
+
+    try {
+      let query = supabase
+        .from('orders')
+        .select(ORDER_SELECT_COLUMNS, { count: 'exact' })
+        .is('deleted_at', null)
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded')
+        .neq('status', 'pending_payment')
+        .in('packaging_status', ['packaged', 'dispatched'])
+
+      const q = params.search?.trim().replace(/[,()]/g, '')
+      if (q) {
+        query = query.or(
+          `customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`
+        )
+      }
+
+      query = query
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(fromIdx, toIdx)
+
+      const { data, count, error } = await query
+      if (error) {
+        console.error('[OrderQueries.getPackagedOrdersPage] Query error:', error.message)
+        return { items: [], totalCount: 0, page, totalPages: 1 }
+      }
+
+      const items = (data || []) as unknown as AuthoritativeOrder[]
+      const totalCount = count !== null && count !== undefined ? count : items.length
+      const totalPages = Math.max(1, Math.ceil(totalCount / limit))
+
+      return { items, totalCount, page, totalPages }
+    } catch (err) {
+      console.error('[OrderQueries.getPackagedOrdersPage] Exception:', err)
+      return { items: [], totalCount: 0, page, totalPages: 1 }
     }
   }
 
