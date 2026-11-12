@@ -282,11 +282,16 @@ export function DataTable<T>({
         item.delivered_at ||
         item.dispatch_date ||
         item.pickup_at ||
+        item.trip_date ||
         item.scheduled_delivery_date ||
         item.scheduled_delivery_at ||
         item.paid_at ||
         item.created_at ||
         item.date ||
+        item.order_date ||
+        item.last_active_at ||
+        item.completed_at ||
+        item.updated_at ||
         item.last_received ||
         item.packaged_at ||
         item.due_date ||
@@ -316,6 +321,10 @@ export function DataTable<T>({
 
         if (dateFilterRange === 'today') {
           return itemYMD === formatLocalDateToYMD(now)
+        }
+        if (dateFilterRange === 'yesterday') {
+          const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+          return itemYMD === formatLocalDateToYMD(yesterday)
         }
         if (dateFilterRange === '30m') {
           return itemDate.getTime() >= (now.getTime() - 30 * 60 * 1000)
@@ -522,6 +531,28 @@ export function DataTable<T>({
     }
   }
 
+  const currentDateRange: DateRange = useMemo(() => {
+    if (dateFilterRange === 'custom' && customStartDate && customEndDate) {
+      return {
+        start: new Date(customStartDate + 'T00:00:00'),
+        end: new Date(customEndDate + 'T23:59:59.999'),
+        presetKey: 'custom'
+      }
+    }
+    if (dateFilterRange !== 'all') {
+      return {
+        start: null,
+        end: null,
+        presetKey: dateFilterRange
+      }
+    }
+    return {
+      start: null,
+      end: null,
+      presetKey: 'all'
+    }
+  }, [dateFilterRange, customStartDate, customEndDate])
+
   return (
     <div className="space-y-3.5 select-none font-sans">
       {/* Section Title */}
@@ -582,16 +613,24 @@ export function DataTable<T>({
           {/* Custom Date Filter */}
           {enableDateFilter && (
             <DateRangePicker
+              value={currentDateRange}
               onChange={(range) => {
-                if (range.start && range.end) {
-                  setCustomStartDate(formatLocalDateToYMD(range.start))
-                  setCustomEndDate(formatLocalDateToYMD(range.end))
-                }
-                if (range.presetKey && range.presetKey !== 'custom') {
+                if (range.presetKey === 'all') {
+                  setCustomStartDate('')
+                  setCustomEndDate('')
+                  setDateFilterRange('all')
+                } else if (range.presetKey && range.presetKey !== 'custom') {
+                  setCustomStartDate(range.start ? formatLocalDateToYMD(range.start) : '')
+                  setCustomEndDate(range.end ? formatLocalDateToYMD(range.end) : '')
                   setDateFilterRange(range.presetKey)
                 } else {
+                  if (range.start && range.end) {
+                    setCustomStartDate(formatLocalDateToYMD(range.start))
+                    setCustomEndDate(formatLocalDateToYMD(range.end))
+                  }
                   setDateFilterRange('custom')
                 }
+                setCurrentPage(1)
                 onDateRangeChange?.(range)
               }}
             />

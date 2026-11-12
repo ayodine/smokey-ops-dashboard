@@ -71,6 +71,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { SuccessModal } from '@/components/ui/SuccessModal'
+import { formatLocalDateToYMD } from '@/components/ui/DateRangePicker'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
@@ -2288,11 +2289,27 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     }
 
     const schedTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : NaN
-    const isScheduledOrder = Boolean(
-      (schedDateStr && !isNaN(schedTime) && schedTime > now) ||
-      isExplicitScheduled
+    const todayYMD = formatLocalDateToYMD(new Date())
+    const cleanSchedDate = schedDateStr ? String(schedDateStr).slice(0, 10) : ''
+    const isSchedForTodayOrPast = Boolean(cleanSchedDate && cleanSchedDate <= todayYMD)
+    const isSchedTimePassedOrDueNow = !isNaN(schedTime) && schedTime <= (now + 30 * 60 * 1000)
+
+    // An order is genuinely an unreleased future scheduled order ONLY if it is scheduled for a future date,
+    // or scheduled for later today (more than 30 mins from now).
+    // If the scheduled date is today (or past) and store opening/scheduled time has arrived,
+    // or if the order was placed today without a future scheduled date, it belongs directly in active fulfillment.
+    const isFutureSchedule = Boolean(
+      (cleanSchedDate && cleanSchedDate > todayYMD) ||
+      (cleanSchedDate && cleanSchedDate === todayYMD && !isNaN(schedTime) && schedTime > (now + 30 * 60 * 1000))
     )
-    const isReleasedToPackaging = Boolean(override?.scheduled_released || isPackaged || isInTransit || isDelivered)
+    const isScheduledOrder = Boolean(isFutureSchedule || (isExplicitScheduled && !isSchedForTodayOrPast))
+    const isReleasedToPackaging = Boolean(
+      override?.scheduled_released ||
+      isPackaged ||
+      isInTransit ||
+      isDelivered ||
+      (isExplicitScheduled && isSchedForTodayOrPast && isSchedTimePassedOrDueNow)
+    )
 
     if (isScheduledOrder) {
       const effectiveTime = !isNaN(new Date(effectiveSched).getTime()) ? new Date(effectiveSched).getTime() : now + 3600000
@@ -2356,31 +2373,44 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
       )
 
       if (isPickupOrder) {
-        const isCollected =
-          isDelivered ||
-          override?.delivery_status === 'delivered' ||
-          Boolean(override?.collected_at) ||
-          Boolean(override?.collected_by) ||
-          cachedPickup?.order_status === 'collected' ||
-          normDelivStatus === 'collected' ||
-          normDelivStatus === 'delivered' ||
-          Boolean(o.delivered_at)
-        newStorePickups.push({
-          id: numericId,
-          order_ref: orderRef,
-          customer_name: customerName,
-          phone,
-          address,
-          total_amount: totalAmount,
-          payment_status: 'paid',
-          order_status: isCollected ? 'collected' : 'ready_for_pickup',
-          packaged_at: o.packaged_at || override?.packaged_at || cachedPickup?.packaged_at || createdAt,
-          collected_at: isCollected ? (o.delivered_at || override?.delivered_at || override?.collected_at || cachedPickup?.collected_at || createdAt) : null,
-          collected_by: override?.collected_by || cachedPickup?.collected_by || (isCollected ? customerName : null),
-          handover_staff: override?.handover_staff || cachedPickup?.handover_staff || null,
-          collector_phone: override?.collector_phone || cachedPickup?.collector_phone || phone,
-          items_summary: itemsList
-        })
+        const isPackagedPickup = Boolean(
+          isPackaged ||
+          o.packaged_at ||
+          override?.packaged_at ||
+          cachedPickup?.packaged_at ||
+          normPkgStatus === 'packaged' ||
+          override?.order_status === 'packaged' ||
+          normDelivStatus === 'ready_for_pickup' ||
+          isDelivered
+        )
+
+        if (isPackagedPickup || isDelivered) {
+          const isCollected =
+            isDelivered ||
+            override?.delivery_status === 'delivered' ||
+            Boolean(override?.collected_at) ||
+            Boolean(override?.collected_by) ||
+            cachedPickup?.order_status === 'collected' ||
+            normDelivStatus === 'collected' ||
+            normDelivStatus === 'delivered' ||
+            Boolean(o.delivered_at)
+          newStorePickups.push({
+            id: numericId,
+            order_ref: orderRef,
+            customer_name: customerName,
+            phone,
+            address,
+            total_amount: totalAmount,
+            payment_status: 'paid',
+            order_status: isCollected ? 'collected' : 'ready_for_pickup',
+            packaged_at: o.packaged_at || override?.packaged_at || cachedPickup?.packaged_at || createdAt,
+            collected_at: isCollected ? (o.delivered_at || override?.delivered_at || override?.collected_at || cachedPickup?.collected_at || createdAt) : null,
+            collected_by: override?.collected_by || cachedPickup?.collected_by || (isCollected ? customerName : null),
+            handover_staff: override?.handover_staff || cachedPickup?.handover_staff || null,
+            collector_phone: override?.collector_phone || cachedPickup?.collector_phone || phone,
+            items_summary: itemsList
+          })
+        }
       } else if (isDelivered || isInTransit || isPackaged) {
         let delivStatus: LogisticsDelivery['status'] = isDelivered
           ? 'delivered'
@@ -2900,6 +2930,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const isOrdersRealtimeConnectedRef = useRef(false)
   const singleOrderFetchInFlightRef = useRef<Set<string>>(new Set())
   const lastLifecycleFingerprintRef = useRef<Map<string, { hash: string; ts: number }>>(new Map())
+  const startScheduledOrderRef = useRef<((id: number) => void) | null>(null)
 
   // Feedback: Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -3140,6 +3171,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
           return item
+        })
+        // Retain any active items in prev that were manually released or queued and not yet packaged
+        const mergedRefs = new Set(merged.map(m => getCanonicalOrderRef(m)))
+        prev.forEach(p => {
+          const ref = getCanonicalOrderRef(p)
+          if (ref && !mergedRefs.has(ref) && (p.order_status === 'ready_for_fulfillment' || p.order_status === 'in_packaging')) {
+            merged.push(p)
+          }
         })
         const nextQueue = deduplicateByOrderRef(merged)
         writeLocalCache('smokey_live_cache_v4_packaging_queue', nextQueue)
@@ -4421,29 +4460,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           // If scheduled time has arrived and order is not yet in packaging queue
           if (schedTime <= now && order.order_status === 'payment_confirmed') {
             hasChanges = true
-            // Automatically push into packagingQueue as ready_for_fulfillment
-            setPackagingQueue(prevPkg => {
-              if (prevPkg.some(p => p.order_ref === order.order_ref || p.id === order.id)) {
-                return prevPkg
+            setTimeout(() => {
+              if (startScheduledOrderRef.current) {
+                startScheduledOrderRef.current(order.id)
               }
-              const newPkgOrder: PackagingQueueOrder = {
-                id: order.id,
-                order_ref: order.order_ref,
-                customer_name: order.customer_name,
-                phone: order.phone,
-                address: order.address,
-                total_amount: order.total_amount,
-                delivery_fee: order.delivery_fee,
-                delivery_mode: "scheduled",
-                payment_status: order.payment_status,
-                order_status: "ready_for_fulfillment",
-                items_summary: `Scheduled Delivery: ${order.notes}`,
-                items: [{ product_name: "Scheduled Pre-order Meal Pack", quantity: 1, unit_price: order.total_amount, line_total: order.total_amount }],
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-              }
-              return [newPkgOrder, ...prevPkg]
-            })
-            showToast(`Scheduled order #${order.order_ref} (${order.customer_name}) reached delivery time — automatically sent to Packaging Execution`, 'info')
+            }, 0)
             return {
               ...order,
               order_status: 'in_queue' as const,
@@ -9663,6 +9684,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setScheduledOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: "in_queue", can_start_schedule: true } : o))
     showToast(`Order #${order.order_ref} sent to packaging queue`, 'success')
   }
+  startScheduledOrderRef.current = startScheduledOrder
 
   const autoReleaseDuePreOrders = () => {
     let released = 0

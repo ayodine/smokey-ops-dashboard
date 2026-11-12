@@ -171,16 +171,21 @@ export const PackagingExecutionPage: React.FC = () => {
     }
   }, [activeTab])
 
-  // Filter queues with defensive invariant: any order already on the Dispatch Board or Store Pickup Counter cannot appear in Ready/In-Packaging
+  // Filter queues with defensive invariant: any order already packaged/dispatched on the Logistics Board or collected/ready at Store Pickup Counter cannot appear in Ready/In-Packaging
   const dispatchedOrPickupRefs = useMemo(() => {
     const refs = new Set<string>()
     logisticsDeliveries.forEach(d => {
-      const ref = getCanonicalOrderRef(d)
-      if (ref) refs.add(ref)
+      if (d.status === 'in_transit' || d.status === 'delivered' || d.status === 'assigned') {
+        const ref = getCanonicalOrderRef(d)
+        if (ref) refs.add(ref)
+      }
     })
     storePickups.forEach(p => {
-      const ref = getCanonicalOrderRef(p)
-      if (ref) refs.add(ref)
+      // ONLY exclude store pickups that have actually been packaged or collected
+      if (p.packaged_at || p.order_status === 'collected') {
+        const ref = getCanonicalOrderRef(p)
+        if (ref) refs.add(ref)
+      }
     })
     return refs
   }, [logisticsDeliveries, storePickups])
@@ -188,7 +193,11 @@ export const PackagingExecutionPage: React.FC = () => {
   const uniquePackagingQueue = useMemo(() => deduplicateByOrderRef(packagingQueue), [packagingQueue])
 
   const readyOrders = useMemo(
-    () => uniquePackagingQueue.filter(o => (o.order_status === 'ready_for_fulfillment' || o.order_status === 'in_packaging') && !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
+    () => uniquePackagingQueue.filter(o => 
+      (o.order_status === 'ready_for_fulfillment' || o.order_status === 'in_packaging') &&
+      !o.packaged_at &&
+      !dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))
+    ),
     [uniquePackagingQueue, dispatchedOrPickupRefs]
   )
   const historyOrders = useMemo(
