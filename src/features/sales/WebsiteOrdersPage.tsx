@@ -13,7 +13,7 @@ import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF, resolveOrderItemsSummary } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
-import { OrderQueries, type OrderCursor } from '@/services/orders'
+import { OrderQueries, OrderSyncManager, type OrderCursor } from '@/services/orders'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cleanOrderNotes, parseOrderNotes, cn } from '@/lib/utils'
 import {
@@ -598,6 +598,45 @@ export const WebsiteOrdersPage: React.FC = () => {
     }
   }, [])
 
+  // Real-time synchronization for local paginatedOrders slice
+  useEffect(() => {
+    const unsubscribe = OrderSyncManager.subscribe((event) => {
+      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
+        const data = event.data
+        if (!data) return
+        if (data.deleted_at || data.status === 'cancelled' || data.status === 'refunded') {
+          const ref = getCanonicalOrderRef(data) || String(data.id || '')
+          setPaginatedOrders(prev => prev.filter(o => getCanonicalOrderRef(o) !== ref && String(o.id) !== String(data.id)))
+          return
+        }
+        setPaginatedOrders(prev => {
+          const ref = getCanonicalOrderRef(data)
+          if (!ref) return prev
+          const exists = prev.some(o => getCanonicalOrderRef(o) === ref || String(o.id) === String(data.id))
+          if (!exists) return prev
+          return prev.map(o => {
+            if (getCanonicalOrderRef(o) === ref || String(o.id) === String(data.id)) {
+              const mapped = mapSupabaseOrderToWebsiteOrder(data)
+              return {
+                ...o,
+                ...mapped,
+                order_ref: o.order_ref || mapped.order_ref,
+                id: o.id
+              }
+            }
+            return o
+          })
+        })
+      } else if (event.event === 'order.deleted') {
+        const id = String(event.order_id || event.order_ref || '')
+        if (id) {
+          setPaginatedOrders(prev => prev.filter(o => getCanonicalOrderRef(o) !== id && String(o.id) !== id))
+        }
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
   // Debounced Historical Backend Search using OrderQueries
   useEffect(() => {
     const q = searchQuery.trim()
@@ -818,7 +857,7 @@ export const WebsiteOrdersPage: React.FC = () => {
     })
 
     return enriched
-  }, [orders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
+  }, [orders, paginatedOrders, logisticsDeliveries, storePickups, packagingQueue, scheduledOrders])
 
   // Walk-in POS helper
   const isWalkInOrder = (o: WebsiteOrder) =>
@@ -913,6 +952,22 @@ export const WebsiteOrdersPage: React.FC = () => {
       } catch (err) {
         console.warn('Failed to fetch detailed order items on modal open:', err)
       }
+    }
+  }
+
+  const handleRefreshAll = async () => {
+    fetchLiveOrders(true)
+    try {
+      const res = await OrderQueries.getWebsiteOrders(
+        { search: searchQuery.trim() || undefined },
+        undefined,
+        50
+      )
+      setPaginatedOrders(res.items.map(mapSupabaseOrderToWebsiteOrder))
+      setOrdersCursor(res.nextCursor)
+      setHasMoreOrders(res.hasMore)
+    } catch (err) {
+      console.warn('Refresh paginated orders error:', err)
     }
   }
 
@@ -1108,7 +1163,7 @@ export const WebsiteOrdersPage: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => fetchLiveOrders(true)}
+              onClick={handleRefreshAll}
               disabled={isRefreshing}
               leftIcon={<RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
               className="h-10 px-4 text-sm font-medium shadow-xs"

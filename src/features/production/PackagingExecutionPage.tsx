@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { PackagingQueueOrder, PackagingMaterialDaily } from '@/lib/smokeyData'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
-import { OrderQueries, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
+import { OrderQueries, OrderSyncManager, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -170,6 +170,40 @@ export const PackagingExecutionPage: React.FC = () => {
       })
     }
   }, [activeTab])
+
+  // Real-time synchronization for paginated packaged history orders
+  useEffect(() => {
+    const unsubscribe = OrderSyncManager.subscribe((event) => {
+      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
+        const data = event.data
+        if (!data) return
+        const ref = getCanonicalOrderRef(data)
+        if (!ref) return
+        const normPkg = String(data.packaging_status || data.order_status || '').toLowerCase()
+        const normDeliv = String(data.delivery_status || '').toLowerCase()
+        const isPackaged = normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || Boolean(data.packaged_at) || Boolean(data.delivered_at)
+
+        if (isPackaged) {
+          const mapped = mapAuthoritativeToPackagingOrder(data as AuthoritativeOrder)
+          setPaginatedHistory(prev => {
+            const exists = prev.some(p => getCanonicalOrderRef(p) === ref || String(p.id) === String(data.id))
+            if (exists) {
+              return prev.map(p => (getCanonicalOrderRef(p) === ref || String(p.id) === String(data.id)) ? { ...p, ...mapped, order_status: 'packaged' } : p)
+            }
+            return [mapped, ...prev]
+          })
+        } else {
+          setPaginatedHistory(prev => prev.filter(p => getCanonicalOrderRef(p) !== ref && String(p.id) !== String(data.id)))
+        }
+      } else if (event.event === 'order.deleted') {
+        const id = String(event.order_id || event.order_ref || '')
+        if (id) {
+          setPaginatedHistory(prev => prev.filter(p => getCanonicalOrderRef(p) !== id && String(p.id) !== id))
+        }
+      }
+    })
+    return () => unsubscribe()
+  }, [])
 
   // Filter queues with defensive invariant: any order already packaged/dispatched on the Logistics Board or collected/ready at Store Pickup Counter cannot appear in Ready/In-Packaging
   const dispatchedOrPickupRefs = useMemo(() => {

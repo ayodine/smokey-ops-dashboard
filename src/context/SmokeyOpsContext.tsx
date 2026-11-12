@@ -3775,15 +3775,19 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const normPkg = String(updated.packaging_status || updated.order_status || '').toLowerCase().trim()
     const normStatus = String(updated.status || '').toLowerCase().trim()
 
+    const isDeliveredSignal = normStatus === 'delivered' || normDeliv.includes('deliver') || Boolean(updated.delivered_at)
+    const isInTransitSignal = normStatus === 'shipped' || normDeliv.includes('transit') || Boolean(updated.pickup_at)
+    const isPackagedSignal = normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || normDeliv.includes('assigned') || isDeliveredSignal || isInTransitSignal
+
     // 1. Update in-memory websiteOrders
     setWebsiteOrders(prev => {
       const next = prev.map(o => {
         if (getCanonicalOrderRef(o) === ref) {
           let fulfillStatus: WebsiteOrder['fulfillment_status'] = o.fulfillment_status
-          if (Boolean(updated.delivered_at) || normDeliv.includes('deliver')) fulfillStatus = 'delivered'
-          else if ((Boolean(updated.pickup_at) || normDeliv.includes('transit')) && hasRider) fulfillStatus = 'in_transit'
-          else if (normPkg === 'packaged' || normDeliv.includes('packaged') || normDeliv.includes('ready') || normDeliv.includes('assigned') || hasRider) fulfillStatus = 'ready_for_dispatch'
-          else if (normPkg === 'in_packaging') fulfillStatus = 'packaging'
+          if (isDeliveredSignal) fulfillStatus = 'delivered'
+          else if (isInTransitSignal && hasRider) fulfillStatus = 'in_transit'
+          else if (isPackagedSignal || hasRider) fulfillStatus = 'ready_for_dispatch'
+          else if (normPkg === 'in_packaging' || normStatus === 'processing') fulfillStatus = 'packaging'
 
           let payStatus: WebsiteOrder['payment_status'] = o.payment_status
           if (normStatus === 'cancelled') payStatus = 'refunded'
@@ -3809,19 +3813,14 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const next = prev.map(p => {
         if (getCanonicalOrderRef(p) === ref) {
           const isPackaged =
-            normPkg === 'packaged' ||
-            normDeliv === 'ready_for_dispatch' ||
-            normDeliv === 'packaged' ||
-            normDeliv === 'assigned' ||
-            normDeliv.includes('transit') ||
-            normDeliv.includes('deliver') ||
+            isPackagedSignal ||
             hasRider ||
             Boolean(updated.packaged_at) ||
             Boolean(updated.delivered_at) ||
             Boolean(updated.pickup_at)
           const targetStatus: PackagingQueueOrder['order_status'] = isPackaged
             ? 'packaged'
-            : (normPkg === 'in_packaging' ? 'in_packaging' : p.order_status)
+            : (normPkg === 'in_packaging' || normStatus === 'processing' ? 'in_packaging' : p.order_status)
           return {
             ...p,
             order_status: getOrderStatusRank(targetStatus) >= getOrderStatusRank(p.order_status) ? targetStatus : p.order_status,
@@ -3838,10 +3837,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 3. Update logisticsDeliveries (with dynamic ingestion if newly dispatched)
     setLogisticsDeliveries(prev => {
       const exists = prev.some(d => getCanonicalOrderRef(d) === ref)
-      const isDelivered = normDeliv.includes('deliver') || Boolean(updated.delivered_at)
       let delivStatus: LogisticsDelivery['status'] = 'pending'
-      if (isDelivered) delivStatus = 'delivered'
-      else if ((normDeliv.includes('transit') || Boolean(updated.pickup_at)) && hasRider) delivStatus = 'in_transit'
+      if (isDeliveredSignal) delivStatus = 'delivered'
+      else if (isInTransitSignal && hasRider) delivStatus = 'in_transit'
       else if ((normDeliv.includes('assigned') || hasRider) && hasRider) delivStatus = 'assigned'
 
       // Apply safety invariant: cannot be in_transit or assigned without a designated rider
@@ -3887,7 +3885,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         normDeliv.includes('assigned') ||
         normDeliv.includes('transit') ||
         hasRider ||
-        isDelivered
+        isDeliveredSignal
 
       const isStorePickup = (updated.address || '').toLowerCase().includes('pickup') || (updated.delivery_zone || '').toLowerCase().includes('pickup')
 
@@ -4428,19 +4426,27 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (
         typeof document !== 'undefined' &&
         document.visibilityState === 'visible' &&
-        (!isOrdersRealtimeConnectedRef.current || Date.now() - lastOrdersRefreshAtRef.current > 5 * 60 * 1000)
+        (!isOrdersRealtimeConnectedRef.current || Date.now() - lastOrdersRefreshAtRef.current > 30 * 1000)
       ) {
+        refreshWebsiteOrders(false)
+      }
+    }
+
+    const handleWindowFocus = () => {
+      if (Date.now() - lastOrdersRefreshAtRef.current > 30 * 1000) {
         refreshWebsiteOrders(false)
       }
     }
 
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', handleVisibilityChange)
+      window.addEventListener('focus', handleWindowFocus)
     }
     return () => {
       clearInterval(poller)
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange)
+        window.removeEventListener('focus', handleWindowFocus)
       }
     }
   }, [refreshWebsiteOrders])

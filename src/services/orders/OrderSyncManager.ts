@@ -5,28 +5,48 @@ import { OrderCache } from './OrderCache'
 import type { OrderSyncEvent, OrderSyncListener, AuthoritativeOrder } from './OrderTypes'
 
 const CONSOLIDATED_CHANNEL_NAME = 'smokey_ops_realtime_v1'
+const DB_TRIGGER_CHANNEL_NAME = 'ops_context_system_broadcast'
+const LOCAL_TAB_BROADCAST_NAME = 'smokey_ops_tab_sync'
 
 /**
  * OrderSyncManager
- * Singleton manager consolidating all Realtime subscriptions into a single managed connection.
- * Guarantees monotonic ordering, lightweight change payloads, cache synchronization, and clean listener lifecycles.
+ * Singleton manager consolidating all Realtime subscriptions and cross-tab broadcasts.
+ * Guarantees zero-latency local dispatch, cross-tab synchronization, monotonic ordering,
+ * and resilient recovery.
  */
 export class OrderSyncManager {
   private static channel: RealtimeChannel | null = null
+  private static dbTriggerChannel: RealtimeChannel | null = null
+  private static localTabChannel: BroadcastChannel | null = null
   private static listeners = new Set<OrderSyncListener>()
   private static lastSeenUpdatedAt = new Map<string, string>()
   private static connectionStatus: 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED' = 'DISCONNECTED'
   private static wasDisconnected = false
 
   /**
-   * Initializes the consolidated Realtime channel.
-   * Safe to call multiple times; idempotently reuses existing channel.
+   * Initializes the consolidated Realtime channel and local cross-tab BroadcastChannel.
+   * Safe to call multiple times; idempotently reuses existing channels.
    */
   static init(): RealtimeChannel | null {
     if (this.channel) return this.channel
     if (typeof window === 'undefined') return null
 
     this.connectionStatus = 'CONNECTING'
+
+    // 0. Initialize native browser BroadcastChannel for 0ms cross-tab synchronization
+    if (!this.localTabChannel && 'BroadcastChannel' in window) {
+      try {
+        this.localTabChannel = new BroadcastChannel(LOCAL_TAB_BROADCAST_NAME)
+        this.localTabChannel.onmessage = (event: MessageEvent) => {
+          const syncEvent = event.data as OrderSyncEvent
+          if (syncEvent && syncEvent.event) {
+            this.notifyListeners(syncEvent, false) // Do not re-broadcast to avoid loop
+          }
+        }
+      } catch (err) {
+        console.warn('[OrderSyncManager] BroadcastChannel unsupported or failed:', err)
+      }
+    }
 
     try {
       const ch = supabase.channel(CONSOLIDATED_CHANNEL_NAME, {
@@ -56,15 +76,13 @@ export class OrderSyncManager {
         }
       )
 
-      // 3. Broadcast: order lifecycle update
-      ch.on('broadcast', { event: 'order_lifecycle_updated' }, (payload: any) => {
+      const handleLifecycleBroadcast = (payload: any) => {
         const data = payload?.payload
         if (!data) return
 
         const orderRef = getCanonicalOrderRef(data) || String(data.id || '')
         const now = data.updated_at || new Date().toISOString()
 
-        // Monotonic check
         if (this.isStaleEvent(orderRef, now)) return
         this.lastSeenUpdatedAt.set(orderRef, now)
 
@@ -75,10 +93,9 @@ export class OrderSyncManager {
           updated_at: now,
           data
         })
-      })
+      }
 
-      // 4. Broadcast: new order alert
-      ch.on('broadcast', { event: 'new_order_alert' }, (payload: any) => {
+      const handleNewOrderAlert = (payload: any) => {
         const data = payload?.payload
         if (!data) return
         const orderRef = getCanonicalOrderRef(data) || String(data.id || '')
@@ -89,7 +106,13 @@ export class OrderSyncManager {
           updated_at: data.created_at || new Date().toISOString(),
           data
         })
-      })
+      }
+
+      // 3. Broadcast: order lifecycle update
+      ch.on('broadcast', { event: 'order_lifecycle_updated' }, handleLifecycleBroadcast)
+
+      // 4. Broadcast: new order alert
+      ch.on('broadcast', { event: 'new_order_alert' }, handleNewOrderAlert)
 
       // 5. Broadcast: accounts / permissions updated
       ch.on('broadcast', { event: 'accounts_permissions_updated' }, (payload: any) => {
@@ -127,6 +150,17 @@ export class OrderSyncManager {
         }
       })
 
+      // 7. Also subscribe to DB Trigger channel to receive PostgreSQL trigger notifications
+      try {
+        const dbCh = supabase.channel(DB_TRIGGER_CHANNEL_NAME)
+        dbCh.on('broadcast', { event: 'order_lifecycle_updated' }, handleLifecycleBroadcast)
+        dbCh.on('broadcast', { event: 'new_order_alert' }, handleNewOrderAlert)
+        dbCh.subscribe()
+        this.dbTriggerChannel = dbCh
+      } catch (err) {
+        console.warn('[OrderSyncManager] Failed to subscribe to DB trigger channel:', err)
+      }
+
       this.channel = ch
       return ch
     } catch (err) {
@@ -158,9 +192,9 @@ export class OrderSyncManager {
       const newOrder = payload.new
       if (!newOrder) return
       const ref = getCanonicalOrderRef(newOrder) || String(newOrder.id || '')
-      const updatedAt = newOrder.updated_at || newOrder.created_at || new Date().toISOString()
+      const updatedAt = newOrder.updated_at || new Date().toISOString()
 
-      // Monotonic version/timestamp guard: reject stale or out-of-order event
+      // Monotonic guard with clock skew tolerance
       if (this.isStaleEvent(ref, updatedAt)) return
       this.lastSeenUpdatedAt.set(ref, updatedAt)
 
@@ -191,12 +225,14 @@ export class OrderSyncManager {
   }
 
   /**
-   * Check if incoming event is older or duplicate compared to last seen
+   * Check if incoming event is older or duplicate compared to last seen.
+   * Tolerates up to 10 seconds of clock skew between client and server.
    */
   private static isStaleEvent(orderRef: string, incomingUpdatedAt: string): boolean {
     const lastSeen = this.lastSeenUpdatedAt.get(orderRef)
     if (!lastSeen) return false
-    return new Date(incomingUpdatedAt).getTime() < new Date(lastSeen).getTime()
+    const diffMs = new Date(incomingUpdatedAt).getTime() - new Date(lastSeen).getTime()
+    return diffMs < -10000
   }
 
   /**
@@ -214,7 +250,8 @@ export class OrderSyncManager {
   }
 
   /**
-   * Broadcast a typed lifecycle change event to other connected clients.
+   * Broadcast a typed lifecycle change event to connected clients, open browser tabs,
+   * and in-process registered listeners with zero latency.
    */
   static async broadcastLifecycleUpdate(event: {
     id: string
@@ -225,7 +262,22 @@ export class OrderSyncManager {
     const updatedAt = event.updated_at || new Date().toISOString()
     this.lastSeenUpdatedAt.set(canonicalRef, updatedAt)
 
-    // Update local OrderCache immediately
+    const syncEvent: OrderSyncEvent = {
+      event: 'order.lifecycle_transition',
+      order_id: String(event.id || canonicalRef),
+      order_ref: canonicalRef,
+      updated_at: updatedAt,
+      data: {
+        ...event,
+        order_ref: canonicalRef,
+        updated_at: updatedAt
+      }
+    }
+
+    // 1. Optimistic synchronous in-process notification (0ms local UI reactivity)
+    this.notifyListeners(syncEvent, true)
+
+    // 2. Synchronize OrderCache immediately
     if (event.id) {
       OrderCache.getOrder(event.id).then((cached) => {
         if (cached?.record?.payload) {
@@ -247,6 +299,7 @@ export class OrderSyncManager {
       }).catch(() => {})
     }
 
+    // 3. Broadcast to Supabase Realtime websocket
     if (!this.channel) {
       this.init()
     }
@@ -269,9 +322,10 @@ export class OrderSyncManager {
   }
 
   /**
-   * Notify all registered in-process listeners.
+   * Notify all registered in-process listeners, and optionally post to local BroadcastChannel.
    */
-  private static notifyListeners(event: OrderSyncEvent): void {
+  private static notifyListeners(event: OrderSyncEvent, forwardToTabs = true): void {
+    // 1. Local in-process listeners
     this.listeners.forEach((listener) => {
       try {
         listener(event)
@@ -279,6 +333,43 @@ export class OrderSyncManager {
         console.error('[OrderSyncManager] Error in listener execution:', err)
       }
     })
+
+    // 2. Cross-tab BroadcastChannel
+    if (forwardToTabs && this.localTabChannel) {
+      try {
+        this.localTabChannel.postMessage(event)
+      } catch {
+        // Ignore channel closed errors
+      }
+    }
+  }
+
+  /**
+   * Helper utility to patch a list of order records in-place when a lifecycle event arrives.
+   */
+  static patchOrderInList<T extends Record<string, any>>(list: T[], updatedData: any): T[] {
+    if (!list || list.length === 0 || !updatedData) return list
+    const targetRef = getCanonicalOrderRef(updatedData)
+    const targetId = String(updatedData.id || '')
+    if (!targetRef && !targetId) return list
+
+    let hasChange = false
+    const patched = list.map(item => {
+      const itemRef = getCanonicalOrderRef(item)
+      const itemId = String(item.id || '')
+      if ((targetRef && itemRef === targetRef) || (targetId && itemId === targetId)) {
+        hasChange = true
+        return {
+          ...item,
+          ...updatedData,
+          order_ref: itemRef || item.order_ref,
+          id: item.id
+        }
+      }
+      return item
+    })
+
+    return hasChange ? patched : list
   }
 
   /**
@@ -295,6 +386,14 @@ export class OrderSyncManager {
     if (this.channel) {
       supabase.removeChannel(this.channel)
       this.channel = null
+    }
+    if (this.dbTriggerChannel) {
+      supabase.removeChannel(this.dbTriggerChannel)
+      this.dbTriggerChannel = null
+    }
+    if (this.localTabChannel) {
+      this.localTabChannel.close()
+      this.localTabChannel = null
     }
     this.listeners.clear()
     this.lastSeenUpdatedAt.clear()

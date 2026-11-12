@@ -40,7 +40,7 @@ import { openImageSafe, downloadImage } from '@/lib/imageUtils'
 import { cn } from '@/lib/utils'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
 import { OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
-import { OrderQueries, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
+import { OrderQueries, OrderSyncManager, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
 
 function mapAuthoritativeToLogisticsDelivery(raw: AuthoritativeOrder, idx = 0): LogisticsDelivery {
   const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
@@ -201,6 +201,39 @@ export const LogisticsBoardPage: React.FC = () => {
       })
     }
   }, [activeSubTab, dateRange])
+
+  // Real-time synchronization for paginated delivered deliveries
+  useEffect(() => {
+    const unsubscribe = OrderSyncManager.subscribe((event) => {
+      if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
+        const data = event.data
+        if (!data) return
+        const ref = getCanonicalOrderRef(data)
+        if (!ref) return
+        const st = String(data.delivery_status || data.status || '').toLowerCase()
+        const isDeliv = st.includes('deliver') || Boolean(data.delivered_at)
+
+        if (isDeliv) {
+          const mapped = mapAuthoritativeToLogisticsDelivery(data as AuthoritativeOrder)
+          setPaginatedDelivered(prev => {
+            const exists = prev.some(d => getCanonicalOrderRef(d) === ref || String(d.id) === String(data.id))
+            if (exists) {
+              return prev.map(d => (getCanonicalOrderRef(d) === ref || String(d.id) === String(data.id)) ? { ...d, ...mapped, status: 'delivered' } : d)
+            }
+            return [mapped, ...prev]
+          })
+        } else {
+          setPaginatedDelivered(prev => prev.filter(d => getCanonicalOrderRef(d) !== ref && String(d.id) !== String(data.id)))
+        }
+      } else if (event.event === 'order.deleted') {
+        const id = String(event.order_id || event.order_ref || '')
+        if (id) {
+          setPaginatedDelivered(prev => prev.filter(d => getCanonicalOrderRef(d) !== id && String(d.id) !== id))
+        }
+      }
+    })
+    return () => unsubscribe()
+  }, [])
 
   // Dynamic KPIs and Tables reflecting custom date range
   const activeDeliveriesForKPI = useMemo(() => {
