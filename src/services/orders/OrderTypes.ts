@@ -107,3 +107,19 @@ export interface PackagingQueueFilters {
   search?: string
 }
 
+export interface CachedOrderRecord {
+  id: string              // Canonical order reference or DB id (e.g. 'SHD-11383')
+  order_ref: string       // Canonical reference
+  payload: AuthoritativeOrder
+  updated_at: string      // Server-provided ISO timestamp
+  cached_at: number       // Client Date.now() timestamp when cached
+  ttl_ms: number          // Validity duration (default: 5 minutes)
+}
+
+export interface CachedQueryResult {
+  query_key: string
+  order_ids: string[]
+  cached_at: number
+  ttl_ms: number
+}
+

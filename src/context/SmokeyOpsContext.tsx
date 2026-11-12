@@ -74,7 +74,7 @@ import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
-import { OrderRepository } from '@/services/orders'
+import { OrderRepository, OrderCache } from '@/services/orders'
 import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -4491,6 +4491,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const switchAccount = (email: string) => {
     setActiveAccountEmail(email)
     localStorage.setItem('smokey_active_account', email)
+    OrderCache.clear().catch(() => {})
     const target = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
     try {
       const sessionRaw = sessionStorage.getItem('smokey_auth_session_v1') || localStorage.getItem('smokey_auth_session_v1')
@@ -4724,6 +4725,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setToasts([])
     sessionStorage.removeItem('smokey_auth_session_v1')
     localStorage.removeItem('smokey_auth_session_v1')
+    OrderCache.clear().catch(() => {})
     isAuthenticatedRef.current = false
     setIsAuthenticated(false)
   }

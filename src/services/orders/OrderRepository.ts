@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCanonicalOrderRef, extractNumericOrderId } from '@/lib/orderCanonical'
 import type { AuthoritativeOrder, OrderLifecycleUpdates } from './OrderTypes'
+import { OrderCache } from './OrderCache'
 
 const ORDER_SELECT_COLUMNS = [
   'id',
@@ -51,12 +52,22 @@ const ORDER_SELECT_COLUMNS = [
 export class OrderRepository {
   /**
    * Authoritative lookup by canonical order reference or database ID.
-   * Directly queries PostgreSQL when not present in memory.
+   * Checks structured OrderCache first, then directly queries PostgreSQL.
    */
   static async getOrderById(idOrRef: string | number): Promise<AuthoritativeOrder | null> {
     if (!idOrRef) return null
     const canonicalRef = getCanonicalOrderRef(idOrRef)
     const rawStr = String(idOrRef).trim()
+
+    // 0. Check structured IndexedDB cache first
+    try {
+      const cached = await OrderCache.getOrder(idOrRef)
+      if (cached && cached.isFresh) {
+        return cached.record.payload
+      }
+    } catch (err) {
+      console.warn('[OrderRepository] Cache check skipped:', err)
+    }
 
     try {
       // 1. Primary lookup by canonical order reference (e.g. "SHD-11383")
@@ -69,7 +80,9 @@ export class OrderRepository {
           .maybeSingle()
 
         if (!error && data) {
-          return data as unknown as AuthoritativeOrder
+          const authOrder = data as unknown as AuthoritativeOrder
+          OrderCache.putOrder(authOrder).catch(() => {})
+          return authOrder
         }
       }
 
@@ -83,7 +96,9 @@ export class OrderRepository {
           .maybeSingle()
 
         if (!error && data) {
-          return data as unknown as AuthoritativeOrder
+          const authOrder = data as unknown as AuthoritativeOrder
+          OrderCache.putOrder(authOrder).catch(() => {})
+          return authOrder
         }
       }
 
@@ -99,7 +114,9 @@ export class OrderRepository {
           .maybeSingle()
 
         if (!error && data) {
-          return data as unknown as AuthoritativeOrder
+          const authOrder = data as unknown as AuthoritativeOrder
+          OrderCache.putOrder(authOrder).catch(() => {})
+          return authOrder
         }
       }
 
@@ -131,7 +148,12 @@ export class OrderRepository {
         return []
       }
 
-      return (data || []) as unknown as AuthoritativeOrder[]
+      const orders = (data || []) as unknown as AuthoritativeOrder[]
+      if (orders.length > 0) {
+        OrderCache.putOrders(orders).catch(() => {})
+      }
+
+      return orders
     } catch (err) {
       console.error('[OrderRepository] Exception in searchOrders:', err)
       return []
@@ -139,7 +161,8 @@ export class OrderRepository {
   }
 
   /**
-   * Authoritative mutation: Persists changes directly to PostgreSQL orders table.
+   * Authoritative mutation: Persists changes directly to PostgreSQL orders table
+   * and updates OrderCache only with confirmed server data.
    */
   static async updateOrder(idOrRef: string | number, updates: OrderLifecycleUpdates): Promise<boolean> {
     if (!idOrRef) return false
@@ -154,14 +177,21 @@ export class OrderRepository {
 
     // 2. Authoritative database update in Supabase
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .update(updates)
         .eq('id', canonicalRef)
+        .select(ORDER_SELECT_COLUMNS)
+        .maybeSingle()
 
       if (error) {
         console.error(`[OrderRepository] Failed to update order ${canonicalRef}:`, error.message)
         return false
+      }
+
+      // Update OrderCache only from confirmed server result
+      if (data) {
+        OrderCache.putOrder(data as unknown as AuthoritativeOrder).catch(() => {})
       }
 
       return true
