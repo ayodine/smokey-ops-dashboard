@@ -74,6 +74,7 @@ import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { OrderRepository } from '@/services/orders'
 import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -449,10 +450,10 @@ interface SmokeyOpsContextType {
     feeEvidencePath?: string
   ) => void
   unassignRider: (orderRefOrDeliveryId: string | number) => Promise<boolean>
-  confirmRiderCollect: (deliveryId: number) => void
-  acceptDelivery: (deliveryId: number) => void
-  markDelivered: (deliveryId: number) => void
-  declineDelivery: (deliveryId: number, reason: string) => void
+  confirmRiderCollect: (deliveryIdOrRef: number | string, fallbackDelivery?: LogisticsDelivery) => Promise<boolean>
+  acceptDelivery: (deliveryIdOrRef: number | string, fallbackDelivery?: LogisticsDelivery) => Promise<boolean>
+  markDelivered: (deliveryIdOrRef: number | string, fallbackDelivery?: LogisticsDelivery) => Promise<boolean>
+  declineDelivery: (deliveryIdOrRef: number | string, reason: string, fallbackDelivery?: LogisticsDelivery) => Promise<boolean>
   updateRiderTask: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
   startScheduledOrder: (orderId: number) => void
   autoReleaseDuePreOrders: () => number
@@ -8964,27 +8965,189 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
-  const confirmRiderCollect = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
-    if (!delivery) return
+  const resolveDeliveryRecord = async (
+    deliveryIdOrRef: number | string,
+    fallbackDelivery?: LogisticsDelivery
+  ): Promise<LogisticsDelivery | null> => {
+    const numId = typeof deliveryIdOrRef === 'number' ? deliveryIdOrRef : extractNumericOrderId(deliveryIdOrRef)
+    const strRef = typeof deliveryIdOrRef === 'string' ? getCanonicalOrderRef(deliveryIdOrRef) : (numId ? `SHD-${numId}` : '')
+
+    // 1. In-memory check in logisticsDeliveries
+    const existing = logisticsDeliveries.find(
+      d => (strRef && getCanonicalOrderRef(d) === strRef) || d.id === numId || extractNumericOrderId(d.order_ref) === numId
+    )
+    if (existing) return existing
+
+    // 2. Use provided fallbackDelivery if it matches
+    if (fallbackDelivery) {
+      const fallbackRef = getCanonicalOrderRef(fallbackDelivery)
+      if (fallbackRef === strRef || fallbackDelivery.id === numId) {
+        return fallbackDelivery
+      }
+    }
+
+    // 3. In-memory check in websiteOrders
+    const webOrder = websiteOrders.find(
+      w => (strRef && getCanonicalOrderRef(w) === strRef) || w.id === numId || extractNumericOrderId(w.order_ref) === numId
+    )
+    if (webOrder) {
+      const canonical = getCanonicalOrderRef(webOrder)
+      const numeric = extractNumericOrderId(canonical, numId)
+      return {
+        id: numeric,
+        delivery_ref: `DEL-${numeric}`,
+        order_id: numeric,
+        order_ref: canonical,
+        customer_name: webOrder.customer_name,
+        phone: webOrder.phone,
+        address: webOrder.address,
+        delivery_fee: webOrder.delivery_fee || 3000,
+        total_amount: webOrder.total_amount,
+        booked_fee: null,
+        rider_type: 'internal',
+        assigned_rider: webOrder.rider_name || 'Unassigned',
+        assigned_rider_id: undefined,
+        status: webOrder.fulfillment_status === 'delivered' ? 'delivered' : (webOrder.fulfillment_status === 'in_transit' ? 'in_transit' : 'assigned'),
+        dispatch_date: (webOrder.created_at || new Date().toISOString()).split('T')[0],
+        pickup_at: null,
+        delivered_at: null,
+        fee_verify_status: 'none',
+        items_summary: webOrder.items_summary
+      }
+    }
+
+    // 4. Raw orders local cache check
+    const rawOrders = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw') || []
+    const rawMatch = rawOrders.find(
+      r => (strRef && getCanonicalOrderRef(r) === strRef) || r.id === numId || extractNumericOrderId(r.id) === numId
+    )
+    if (rawMatch) {
+      const canonical = getCanonicalOrderRef(rawMatch)
+      const numeric = extractNumericOrderId(canonical, numId)
+      const rawRider = rawMatch.rider_name && String(rawMatch.rider_name).trim() !== '' && rawMatch.rider_name !== 'Unassigned'
+        ? String(rawMatch.rider_name).trim()
+        : 'Unassigned'
+      let status: LogisticsDelivery['status'] = 'pending'
+      const st = String(rawMatch.delivery_status || rawMatch.status || '').toLowerCase()
+      if (st.includes('deliver') || Boolean(rawMatch.delivered_at)) status = 'delivered'
+      else if ((st.includes('transit') || st.includes('out_for_delivery') || Boolean(rawMatch.pickup_at)) && rawRider !== 'Unassigned') status = 'in_transit'
+      else if (rawRider !== 'Unassigned') status = 'assigned'
+
+      return {
+        id: numeric,
+        delivery_ref: `DEL-${numeric}`,
+        order_id: numeric,
+        order_ref: canonical,
+        customer_name: rawMatch.customer_name || 'Customer',
+        phone: rawMatch.customer_phone || 'N/A',
+        address: rawMatch.delivery_address || 'Lagos',
+        delivery_fee: Number(rawMatch.delivery_fee) || 3000,
+        total_amount: Number(rawMatch.total || rawMatch.total_amount) || 0,
+        booked_fee: rawMatch.booked_fee ? Number(rawMatch.booked_fee) : null,
+        rider_type: rawMatch.rider_type || 'internal',
+        assigned_rider: rawRider,
+        assigned_rider_id: rawMatch.rider_id ? Number(rawMatch.rider_id) : undefined,
+        third_party_provider: rawMatch.third_party_provider || null,
+        status,
+        dispatch_date: (rawMatch.created_at || new Date().toISOString()).split('T')[0],
+        pickup_at: rawMatch.pickup_at || null,
+        delivered_at: rawMatch.delivered_at || null,
+        fee_evidence_path: rawMatch.fee_evidence_path || null,
+        fee_verify_status: rawMatch.fee_verify_status || 'none',
+        items_summary: resolveOrderItemsSummary(rawMatch),
+        notes: rawMatch.notes || ''
+      }
+    }
+
+    // 5. Authoritative OrderRepository lookup (queries Supabase PostgreSQL orders table)
+    const authoritative = await OrderRepository.getOrderById(strRef || numId)
+    if (authoritative) {
+      const canonical = getCanonicalOrderRef(authoritative)
+      const numeric = extractNumericOrderId(canonical, numId)
+      const rawRider = authoritative.rider_name && String(authoritative.rider_name).trim() !== '' && authoritative.rider_name !== 'Unassigned'
+        ? String(authoritative.rider_name).trim()
+        : 'Unassigned'
+      let status: LogisticsDelivery['status'] = 'pending'
+      const st = String(authoritative.delivery_status || authoritative.status || '').toLowerCase()
+      if (st.includes('deliver') || Boolean(authoritative.delivered_at)) status = 'delivered'
+      else if ((st.includes('transit') || st.includes('out_for_delivery') || Boolean(authoritative.pickup_at)) && rawRider !== 'Unassigned') status = 'in_transit'
+      else if (rawRider !== 'Unassigned') status = 'assigned'
+
+      return {
+        id: numeric,
+        delivery_ref: `DEL-${numeric}`,
+        order_id: numeric,
+        order_ref: canonical,
+        customer_name: authoritative.customer_name || 'Customer',
+        phone: authoritative.customer_phone || 'N/A',
+        address: authoritative.delivery_address || 'Lagos',
+        delivery_fee: Number(authoritative.delivery_fee) || 3000,
+        total_amount: Number(authoritative.total) || 0,
+        booked_fee: authoritative.booked_fee ? Number(authoritative.booked_fee) : null,
+        rider_type: authoritative.rider_type || 'internal',
+        assigned_rider: rawRider,
+        assigned_rider_id: authoritative.rider_id ? Number(authoritative.rider_id) : undefined,
+        third_party_provider: authoritative.third_party_provider || null,
+        status,
+        dispatch_date: (authoritative.created_at || new Date().toISOString()).split('T')[0],
+        pickup_at: authoritative.pickup_at || null,
+        delivered_at: authoritative.delivered_at || null,
+        fee_evidence_path: authoritative.fee_evidence_path || null,
+        fee_verify_status: (authoritative.fee_verify_status === 'approved' || authoritative.fee_verify_status === 'verified'
+          ? 'approved'
+          : authoritative.fee_verify_status === 'flagged' || authoritative.fee_verify_status === 'rejected'
+          ? 'flagged'
+          : authoritative.fee_verify_status === 'pending'
+          ? 'pending'
+          : 'none') as LogisticsDelivery['fee_verify_status'],
+        items_summary: authoritative.order_items?.map((i: any) => `${i.qty}x ${i.name}`).join(', ') || '',
+        notes: authoritative.notes || ''
+      }
+    }
+
+    return null
+  }
+
+  const confirmRiderCollect = async (
+    deliveryIdOrRef: number | string,
+    fallbackDelivery?: LogisticsDelivery
+  ): Promise<boolean> => {
+    const delivery = await resolveDeliveryRecord(deliveryIdOrRef, fallbackDelivery)
+    if (!delivery) {
+      showToast('Cannot locate order to confirm collection', 'error')
+      return false
+    }
 
     // STRICT INVARIANT GUARD: Must have a designated driver or courier!
     if (!delivery.assigned_rider || delivery.assigned_rider === 'Unassigned') {
       showToast('Cannot dispatch order: You must assign an in-house driver or third-party courier first!', 'error', 'Driver Assignment Required')
-      return
+      return false
     }
 
     const canonicalRef = getCanonicalOrderRef(delivery)
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
     setLogisticsDeliveries(prev => {
-      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
-        ...d,
-        status: "in_transit" as const,
-        pickup_at: nowTime
-      } : d)
+      const exists = prev.some(d => d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef)
+      let next: LogisticsDelivery[]
+      if (exists) {
+        next = prev.map(d => (d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef) ? {
+          ...d,
+          status: "in_transit" as const,
+          pickup_at: nowTime
+        } : d)
+      } else {
+        const inTransitDel: LogisticsDelivery = {
+          ...delivery,
+          status: "in_transit",
+          pickup_at: nowTime
+        }
+        next = [inTransitDel, ...prev]
+      }
       writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
       return next
     })
+
     updateOrderPipelineState(canonicalRef, {
       order_status: "packaged",
       delivery_status: "in_transit",
@@ -9001,11 +9164,16 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: 'in_transit',
       pickup_at: nowTime
     })
-    persistOrderUpdateToBackend(canonicalRef, {
+
+    const ok = await OrderRepository.updateOrder(canonicalRef, {
       packaging_status: "packaged",
       delivery_status: "In Transit",
       pickup_at: nowTime
     })
+    if (!ok) {
+      showToast(`Warning: Failed to persist collection status for #${canonicalRef} to database.`, 'error', 'Persistence Error')
+    }
+
     broadcastOrderLifecycleUpdate({
       id: canonicalRef,
       order_ref: canonicalRef,
@@ -9026,22 +9194,43 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       writeLocalCache('smokey_live_cache_v4_website_orders', next)
       return next
     })
+
+    showToast(`Order #${canonicalRef} dispatched — Driver collected from kitchen`, 'success')
+    return true
   }
 
-  const acceptDelivery = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
-    const canonicalRef = delivery ? getCanonicalOrderRef(delivery) : `SHD-${deliveryId}`
+  const acceptDelivery = async (
+    deliveryIdOrRef: number | string,
+    fallbackDelivery?: LogisticsDelivery
+  ): Promise<boolean> => {
+    const delivery = await resolveDeliveryRecord(deliveryIdOrRef, fallbackDelivery)
+    const canonicalRef = delivery ? getCanonicalOrderRef(delivery) : getCanonicalOrderRef(deliveryIdOrRef)
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+
     setLogisticsDeliveries(prev => {
-      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
-        ...d,
-        status: "in_transit" as const,
-        pickup_at: nowTime
-      } : d)
+      const exists = prev.some(d => (delivery && d.id === delivery.id) || getCanonicalOrderRef(d) === canonicalRef)
+      let next: LogisticsDelivery[]
+      if (exists) {
+        next = prev.map(d => ((delivery && d.id === delivery.id) || getCanonicalOrderRef(d) === canonicalRef) ? {
+          ...d,
+          status: "in_transit" as const,
+          pickup_at: nowTime
+        } : d)
+      } else if (delivery) {
+        const inTransitDel: LogisticsDelivery = {
+          ...delivery,
+          status: "in_transit",
+          pickup_at: nowTime
+        }
+        next = [inTransitDel, ...prev]
+      } else {
+        next = prev
+      }
       writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
       return next
     })
-    if (delivery) {
+
+    if (canonicalRef) {
       updateOrderPipelineState(canonicalRef, {
         order_status: "packaged",
         delivery_status: "in_transit",
@@ -9058,23 +9247,25 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: 'in_transit',
         pickup_at: nowTime
       })
-      persistOrderUpdateToBackend(canonicalRef, {
+      await OrderRepository.updateOrder(canonicalRef, {
         packaging_status: "packaged",
         delivery_status: "In Transit",
         pickup_at: nowTime
       })
-      broadcastOrderLifecycleUpdate({
-        id: canonicalRef,
-        order_ref: canonicalRef,
-        packaging_status: "packaged",
-        order_status: "packaged",
-        delivery_status: "In Transit",
-        rider_name: delivery.assigned_rider,
-        assigned_rider: delivery.assigned_rider,
-        assigned_rider_id: delivery.assigned_rider_id,
-        rider_type: delivery.rider_type,
-        pickup_at: nowTime
-      })
+      if (delivery) {
+        broadcastOrderLifecycleUpdate({
+          id: canonicalRef,
+          order_ref: canonicalRef,
+          packaging_status: "packaged",
+          order_status: "packaged",
+          delivery_status: "In Transit",
+          rider_name: delivery.assigned_rider,
+          assigned_rider: delivery.assigned_rider,
+          assigned_rider_id: delivery.assigned_rider_id,
+          rider_type: delivery.rider_type,
+          pickup_at: nowTime
+        })
+      }
       setWebsiteOrders(prev => {
         const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
           ...w,
@@ -9085,21 +9276,39 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     }
     showToast(`Order #${canonicalRef} accepted — moved to In-Transit`, 'success')
+    return true
   }
 
-  const markDelivered = (deliveryId: number) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
-    if (!delivery) return
+  const markDelivered = async (
+    deliveryIdOrRef: number | string,
+    fallbackDelivery?: LogisticsDelivery
+  ): Promise<boolean> => {
+    const delivery = await resolveDeliveryRecord(deliveryIdOrRef, fallbackDelivery)
+    if (!delivery) {
+      showToast('Cannot locate order to confirm delivery', 'error')
+      return false
+    }
 
     const canonicalRef = getCanonicalOrderRef(delivery)
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
 
     setLogisticsDeliveries(prev => {
-      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
-        ...d,
-        status: "delivered" as const,
-        delivered_at: nowTime
-      } : d)
+      const exists = prev.some(d => d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef)
+      let next: LogisticsDelivery[]
+      if (exists) {
+        next = prev.map(d => (d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef) ? {
+          ...d,
+          status: "delivered" as const,
+          delivered_at: nowTime
+        } : d)
+      } else {
+        const deliveredDel: LogisticsDelivery = {
+          ...delivery,
+          status: "delivered",
+          delivered_at: nowTime
+        }
+        next = [deliveredDel, ...prev]
+      }
       writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
       return next
     })
@@ -9126,12 +9335,17 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       delivery_status: "Delivered",
       delivered_at: nowTime
     })
-    persistOrderUpdateToBackend(canonicalRef, {
+
+    const ok = await OrderRepository.updateOrder(canonicalRef, {
       status: "delivered",
       packaging_status: "packaged",
       delivery_status: "Delivered",
       delivered_at: nowTime
     })
+    if (!ok) {
+      showToast(`Warning: Failed to persist delivered status for #${canonicalRef} to database.`, 'error', 'Persistence Error')
+    }
+
     broadcastOrderLifecycleUpdate({
       id: canonicalRef,
       order_ref: canonicalRef,
@@ -9155,29 +9369,52 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next
     })
 
-    // Show confirmation toast for internal rider credit (reconcileLedger automatically calculates ledger from logisticsDeliveries)
+    // Show confirmation toast for internal rider credit
     if (delivery.rider_type === 'internal' && (delivery.assigned_rider_id || delivery.assigned_rider)) {
       const fee = delivery.delivery_fee
       showToast(`Delivery confirmed — ₦${fee.toLocaleString()} credited to rider pending payout`, 'success')
+    } else {
+      showToast(`Order #${canonicalRef} marked as delivered`, 'success')
     }
+    return true
   }
 
-  const declineDelivery = (deliveryId: number, reason: string) => {
-    const delivery = logisticsDeliveries.find(d => d.id === deliveryId || extractNumericOrderId(d.order_ref) === deliveryId)
-    if (!delivery) return
+  const declineDelivery = async (
+    deliveryIdOrRef: number | string,
+    reason: string,
+    fallbackDelivery?: LogisticsDelivery
+  ): Promise<boolean> => {
+    const delivery = await resolveDeliveryRecord(deliveryIdOrRef, fallbackDelivery)
+    if (!delivery) {
+      showToast('Cannot locate order to decline', 'error')
+      return false
+    }
 
     const canonicalRef = getCanonicalOrderRef(delivery)
-    const prevRiderId = delivery.assigned_rider_id
 
     setLogisticsDeliveries(prev => {
-      const next = prev.map(d => (d.id === deliveryId || getCanonicalOrderRef(d) === canonicalRef) ? {
-        ...d,
-        assigned_rider: "Unassigned",
-        assigned_rider_id: undefined,
-        status: "pending" as const,
-        pickup_at: null,
-        decline_reason: reason
-      } : d)
+      const exists = prev.some(d => d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef)
+      let next: LogisticsDelivery[]
+      if (exists) {
+        next = prev.map(d => (d.id === delivery.id || getCanonicalOrderRef(d) === canonicalRef) ? {
+          ...d,
+          assigned_rider: "Unassigned",
+          assigned_rider_id: undefined,
+          status: "pending" as const,
+          pickup_at: null,
+          decline_reason: reason
+        } : d)
+      } else {
+        const declinedDel: LogisticsDelivery = {
+          ...delivery,
+          assigned_rider: "Unassigned",
+          assigned_rider_id: undefined,
+          status: "pending",
+          pickup_at: null,
+          decline_reason: reason
+        }
+        next = [declinedDel, ...prev]
+      }
       writeLocalCache('smokey_live_cache_v4_logistics_deliveries', next)
       return next
     })
@@ -9201,9 +9438,8 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       rider_name: null,
       rider_id: null
     })
-    persistOrderUpdateToBackend(canonicalRef, {
-      packaging_status: "packaged",
-      delivery_status: "Ready for Dispatch",
+    await OrderRepository.updateOrder(canonicalRef, {
+      delivery_status: 'Ready for Dispatch',
       rider_name: null,
       rider_id: null,
       pickup_at: null
@@ -9229,6 +9465,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next
     })
 
+    const prevRiderId = delivery.assigned_rider_id
     if (prevRiderId) {
       setRiders(prev => prev.map(r => {
         if (Number(r.rider_user_id) !== Number(prevRiderId)) return r
@@ -9248,6 +9485,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     showToast(`Order #${canonicalRef} returned to dispatch board`, 'info')
+    return true
   }
 
   const unassignRider = async (orderRefOrDeliveryId: string | number): Promise<boolean> => {

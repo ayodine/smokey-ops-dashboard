@@ -144,7 +144,7 @@ export const RiderDashboardPage: React.FC = () => {
   const [isImageZoomed, setIsImageZoomed] = useState(false)
 
   const handleConfirmDelivered = (order: LogisticsDelivery) => {
-    markDelivered(order.id)
+    markDelivered(order.id, order)
     setConfirmDeliveryTarget(null)
   }
 
@@ -290,7 +290,7 @@ export const RiderDashboardPage: React.FC = () => {
                 variant="primary"
                 icon={<Check />}
                 iconStrokeWidth={2.5}
-                onClick={() => acceptDelivery(d.id)}
+                onClick={() => acceptDelivery(d.id, d)}
               >
                 Accept Order
               </TableActionButton>
@@ -813,7 +813,7 @@ export const RiderDashboardPage: React.FC = () => {
                     key={order.id}
                     order={order}
                     tab="assigned"
-                    onAccept={hasPermission('perm_delivery_transit') ? (orderId) => acceptDelivery(orderId) : undefined}
+                    onAccept={hasPermission('perm_delivery_transit') ? (orderId) => acceptDelivery(orderId, order) : undefined}
                     onDecline={hasPermission('perm_delivery_transit') ? (ord) => handleOpenDecline(ord) : undefined}
                     onViewDetails={(ord) => setPreviewOrder(ord)}
                   />
@@ -1111,7 +1111,7 @@ export const RiderDashboardPage: React.FC = () => {
                       onClick={() => {
                         const target = previewOrder
                         setPreviewOrder(null)
-                        acceptDelivery(target.id)
+                        acceptDelivery(target.id, target)
                       }}
                     >
                       Accept Order

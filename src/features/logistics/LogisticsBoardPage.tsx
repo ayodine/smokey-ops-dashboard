@@ -325,6 +325,26 @@ export const LogisticsBoardPage: React.FC = () => {
     setActiveTab('assigned')
   }
 
+  const handleDriverCollect = async (delivery: LogisticsDelivery) => {
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    setBackendDeliveries(prev => prev.map(item =>
+      (item.id === delivery.id || getCanonicalOrderRef(item) === getCanonicalOrderRef(delivery))
+        ? { ...item, status: 'in_transit', pickup_at: nowTime }
+        : item
+    ))
+    await confirmRiderCollect(delivery.id, delivery)
+  }
+
+  const handleMarkDelivered = async (delivery: LogisticsDelivery) => {
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    setBackendDeliveries(prev => prev.map(item =>
+      (item.id === delivery.id || getCanonicalOrderRef(item) === getCanonicalOrderRef(delivery))
+        ? { ...item, status: 'delivered', delivered_at: nowTime }
+        : item
+    ))
+    await markDelivered(delivery.id, delivery)
+  }
+
   const unassignedColumns: ColumnDef<LogisticsDelivery>[] = [
     {
       key: 'order_ref',
@@ -479,7 +499,7 @@ export const LogisticsBoardPage: React.FC = () => {
                 <Tooltip content="Confirm driver collected food from kitchen">
                   <TableActionButton
                     variant="outline"
-                    onClick={() => confirmRiderCollect(d.id)}
+                    onClick={() => handleDriverCollect(d)}
                   >
                     Driver Collect
                   </TableActionButton>
@@ -492,7 +512,7 @@ export const LogisticsBoardPage: React.FC = () => {
                     variant="primary"
                     icon={<CheckCircle2 />}
                     iconStrokeWidth={2}
-                    onClick={() => markDelivered(d.id)}
+                    onClick={() => handleMarkDelivered(d)}
                   >
                     Delivered
                   </TableActionButton>
@@ -830,7 +850,7 @@ export const LogisticsBoardPage: React.FC = () => {
                           variant="primary"
                           size="md"
                           onClick={() => {
-                            confirmRiderCollect(selectedDetailsDelivery.id)
+                            handleDriverCollect(selectedDetailsDelivery)
                             setIsDetailsModalOpen(false)
                           }}
                         >
@@ -841,7 +861,7 @@ export const LogisticsBoardPage: React.FC = () => {
                           variant="primary"
                           size="md"
                           onClick={() => {
-                            markDelivered(selectedDetailsDelivery.id)
+                            handleMarkDelivered(selectedDetailsDelivery)
                             setIsDetailsModalOpen(false)
                           }}
                         >
