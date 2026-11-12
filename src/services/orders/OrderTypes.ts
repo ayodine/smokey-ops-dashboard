@@ -123,3 +123,23 @@ export interface CachedQueryResult {
   ttl_ms: number
 }
 
+export type OrderSyncEventType =
+  | 'order.created'
+  | 'order.updated'
+  | 'order.deleted'
+  | 'order.lifecycle_transition'
+  | 'products.updated'
+  | 'system.low_stock'
+  | 'system.accounts_updated'
+
+export interface OrderSyncEvent {
+  event: OrderSyncEventType
+  order_id: string          // Canonical primary key, e.g. "SHD-11383"
+  order_ref: string         // Canonical order reference
+  updated_at: string        // Authoritative ISO timestamp
+  changed_fields?: string[] // Optional array of modified columns
+  data?: any
+}
+
+export type OrderSyncListener = (event: OrderSyncEvent) => void
+

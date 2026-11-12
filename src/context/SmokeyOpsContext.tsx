@@ -74,7 +74,7 @@ import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
-import { OrderRepository, OrderCache } from '@/services/orders'
+import { OrderRepository, OrderCache, OrderSyncManager } from '@/services/orders'
 import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -3639,13 +3639,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const broadcastOrderLifecycleUpdate = useCallback((payload: Record<string, any>) => {
     try {
-      if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.send({
-          type: 'broadcast',
-          event: 'order_lifecycle_updated',
-          payload
-        })
-      }
+      OrderSyncManager.broadcastLifecycleUpdate(payload as any).catch(() => {})
     } catch {
       // Ignore broadcast errors
     }
@@ -4263,79 +4257,41 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshLiveSalesProducts(false)
     refreshWebsiteOrders(false)
 
-    // 1. PostgreSQL Logical Replication Realtime Channel
-    const ordersChannel = supabase
-      .channel('ops_context_orders_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload: any) => {
-          if (payload?.eventType === 'INSERT') {
-            const newOrder = payload.new
-            if (!isFreshOrder(newOrder)) {
-              return
-            }
-            handleIncomingNewOrder(newOrder)
-          } else if (payload?.eventType === 'UPDATE') {
-            const newOrder = payload.new
-            const oldOrder = payload.old
-            if (!newOrder || !newOrder.created_at || newOrder.created_at < OPS_FRESH_START_CUTOFF) {
-              return
-            }
-            if (newOrder.deleted_at || newOrder.status === 'cancelled' || newOrder.status === 'refunded') {
-              const ref = String(newOrder.order_ref || newOrder.id || '')
-              if (ref) {
-                setWebsiteOrders(prev => prev.filter(o => o.order_ref !== ref && String(o.id) !== String(newOrder.id)))
-                setPackagingQueue(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(newOrder.id)))
-                setLogisticsDeliveries(prev => prev.filter(d => d.order_ref !== ref && String(d.id) !== String(newOrder.id)))
-                setScheduledOrders(prev => prev.filter(s => s.order_ref !== ref && String(s.id) !== String(newOrder.id)))
-                setStorePickups(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(newOrder.id)))
-              }
-              return
-            }
-            if (oldOrder?.status === 'pending_payment' && newOrder?.status !== 'pending_payment') {
-              handleIncomingNewOrder(newOrder)
-            } else {
-              handleOrderLifecycleChange(newOrder)
-            }
-          } else if (payload?.eventType === 'DELETE') {
-            refreshWebsiteOrders(false)
-          }
-        }
-      )
-      .subscribe((status) => {
-        isOrdersRealtimeConnectedRef.current = status === 'SUBSCRIBED'
-      })
+    // Consolidated OrderSyncManager subscription
+    OrderSyncManager.init()
 
-    // 2. Products Realtime Channel
-    const productsChannel = supabase
-      .channel('ops_context_products_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          refreshLiveSalesProducts(false)
-        }
-      )
-      .subscribe()
+    const unsubscribeSync = OrderSyncManager.subscribe((event) => {
+      isOrdersRealtimeConnectedRef.current = OrderSyncManager.isConnected()
 
-    // 3. Live Operational Alerts & Lifecycle Broadcast Channel
-    const alertsBroadcastChannel = supabase
-      .channel('ops_context_system_broadcast', { config: { broadcast: { self: true } } })
-      .on('broadcast', { event: 'new_order_alert' }, (payload: any) => {
-        const orderData = payload.payload
+      if (event.event === 'order.created') {
+        const orderData = event.data
         if (orderData?.id && isFreshOrder(orderData)) {
           handleIncomingNewOrder(orderData)
         }
-      })
-      .on('broadcast', { event: 'order_lifecycle_updated' }, (payload: any) => {
-        const orderData = payload.payload
-        if (orderData?.id && (!orderData.created_at || orderData.created_at >= OPS_FRESH_START_CUTOFF)) {
-          handleOrderLifecycleChange(orderData)
+      } else if (event.event === 'order.updated' || event.event === 'order.lifecycle_transition') {
+        const orderData = event.data
+        if (!orderData) return
+
+        if (orderData.deleted_at || orderData.status === 'cancelled' || orderData.status === 'refunded') {
+          const ref = String(orderData.order_ref || orderData.id || '')
+          if (ref) {
+            setWebsiteOrders(prev => prev.filter(o => o.order_ref !== ref && String(o.id) !== String(orderData.id)))
+            setPackagingQueue(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(orderData.id)))
+            setLogisticsDeliveries(prev => prev.filter(d => d.order_ref !== ref && String(d.id) !== String(orderData.id)))
+            setScheduledOrders(prev => prev.filter(s => s.order_ref !== ref && String(s.id) !== String(orderData.id)))
+            setStorePickups(prev => prev.filter(p => p.order_ref !== ref && String(p.id) !== String(orderData.id)))
+          }
+          return
         }
-      })
-      .on('broadcast', { event: 'accounts_permissions_updated' }, (payload: any) => {
-        const data = payload?.payload
+
+        // Authoritative lifecycle update without date cutoffs
+        handleOrderLifecycleChange(orderData)
+      } else if (event.event === 'order.deleted') {
+        refreshWebsiteOrders(false)
+      } else if (event.event === 'products.updated') {
+        refreshLiveSalesProducts(false)
+      } else if (event.event === 'system.accounts_updated') {
+        const data = event.data
         if (data?.accounts && Array.isArray(data.accounts)) {
           const normalized = (data.accounts as AppUserAccount[]).map(normalizeAccountRecord)
           setAccounts(normalized)
@@ -4345,10 +4301,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setCustomScopes(data.customScopes)
           localStorage.setItem('smokey_custom_scopes', JSON.stringify(data.customScopes))
         }
-      })
-      .on('broadcast', { event: 'low_stock_alert' }, (payload: any) => {
+      } else if (event.event === 'system.low_stock') {
         if (!canShowOperationalAlerts()) return
-        const item = payload.payload
+        const item = event.data
         if (item?.name) {
           playAlertChime('warning')
           showToast(`Critical Low Stock: ${item.name} (${item.qty} ${item.unit || 'units'} left)`, 'error', 'Stock Warning')
@@ -4356,17 +4311,11 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             body: `Current quantity: ${item.qty} ${item.unit || 'units'}. Reorder needed immediately.`,
           })
         }
-      })
-      .subscribe()
-
-    broadcastChannelRef.current = alertsBroadcastChannel
+      }
+    })
 
     return () => {
-      isOrdersRealtimeConnectedRef.current = false
-      broadcastChannelRef.current = null
-      supabase.removeChannel(ordersChannel)
-      supabase.removeChannel(productsChannel)
-      supabase.removeChannel(alertsBroadcastChannel)
+      unsubscribeSync()
     }
   }, [refreshLiveSalesProducts, refreshWebsiteOrders, handleIncomingNewOrder, handleOrderLifecycleChange])
 
