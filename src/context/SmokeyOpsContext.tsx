@@ -428,7 +428,7 @@ interface SmokeyOpsContextType {
   cancelBatch: (batchId: number) => void
   addPackagingQueueOrder: (order: { customer_name: string; phone: string; address: string; items_summary: string; total_amount: number; delivery_fee?: number; payment_status?: 'paid' | 'pending' }) => void
   startPackagingOrder: (orderId: number, materials: Array<{ packaging_name: string; quantity: number }>, autoDispatch?: boolean) => void
-  confirmPackagingOrder: (orderId: number, staffName?: string) => void
+  confirmPackagingOrder: (orderId: number, staffName?: string) => Promise<boolean>
   updateTaskStatus: (taskId: number, status: 'pending' | 'in_progress' | 'done') => void
   createKitchenTask: (task: Omit<KitchenTask, 'id' | 'task_ref'>) => void
 
@@ -465,7 +465,7 @@ interface SmokeyOpsContextType {
     orderDetails?: Partial<ScheduledOrder>
   ) => Promise<boolean>
   payAndResetRider: (riderId: number) => void
-  markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => void
+  markPickupCollected: (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => Promise<boolean>
   verifyThirdPartyFee: (deliveryId: number, status: 'approved' | 'flagged', note?: string) => void
 
   // Account Profile & RBAC
@@ -8527,7 +8527,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     })
 
     // If 1-click packout requested, immediately complete packaging & advance to dispatch!
-    if (autoDispatch && targetOrder) {
+    if (autoDispatch) {
       confirmPackagingOrder(orderId, resolvedStaff)
       return
     }
@@ -8539,20 +8539,52 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       packaging_materials_picked: materials
     } : o))
 
-    if (targetOrder) {
-      updateOrderPipelineState(targetOrder.order_ref, {
-        order_status: "in_packaging",
-        packaging_materials_picked: materials
-      })
-      persistOrderUpdateToBackend(targetOrder.order_ref, {
-        packaging_status: "in_packaging"
-      })
-    }
+    const orderRef = targetOrder?.order_ref || (typeof orderId === 'number' && orderId >= 10000 ? `SHD-${orderId}` : String(orderId))
+    updateOrderPipelineState(orderRef, {
+      order_status: "in_packaging",
+      packaging_materials_picked: materials
+    })
+    persistOrderUpdateToBackend(orderRef, {
+      packaging_status: "in_packaging"
+    })
   }
 
-  const confirmPackagingOrder = (orderId: number, staffName?: string) => {
-    const order = packagingQueue.find(o => o.id === orderId || extractNumericOrderId(o.order_ref) === orderId)
-    if (!order) return
+  const confirmPackagingOrder = async (orderId: number, staffName?: string): Promise<boolean> => {
+    let order = packagingQueue.find(o => o.id === orderId || extractNumericOrderId(o.order_ref) === orderId)
+    if (!order) {
+      const authOrder = await OrderRepository.getOrderById(orderId)
+      if (authOrder) {
+        const canonical = getCanonicalOrderRef(authOrder)
+        const numId = extractNumericOrderId(canonical, orderId)
+        order = {
+          id: numId,
+          order_ref: canonical,
+          customer_name: authOrder.customer_name,
+          phone: authOrder.customer_phone,
+          address: authOrder.delivery_address,
+          order_status: (authOrder.packaging_status as any) || 'ready_for_fulfillment',
+          payment_status: 'paid',
+          delivery_mode: (authOrder.scheduled_delivery_date || (authOrder.notes && authOrder.notes.includes('[Scheduled Delivery:'))) ? 'scheduled' : 'instant',
+          total_amount: Number(authOrder.total) || 0,
+          delivery_fee: Number(authOrder.delivery_fee) || 3000,
+          created_at: authOrder.created_at,
+          packaged_at: authOrder.packaged_at || undefined,
+          packaged_by_name: authOrder.packaged_by || undefined,
+          packaging_materials_picked: [],
+          items_summary: authOrder.order_items?.map((i: any) => `${i.qty}x ${i.name}`).join(', ') || '',
+          items: (authOrder.order_items || []).map((i: any) => ({
+            product_name: i.name || 'Meal Item',
+            quantity: Number(i.qty) || 1,
+            unit_price: Number(i.price) || 0,
+            line_total: (Number(i.price) || 0) * (Number(i.qty) || 1)
+          }))
+        }
+      }
+    }
+    if (!order) {
+      showToast('Could not locate order to confirm packaging', 'error')
+      return false
+    }
 
     const canonicalRef = getCanonicalOrderRef(order)
     const resolvedStaff = staffName || currentAccount?.name || "Packaging Staff"
@@ -8763,6 +8795,13 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         })
       })
     }
+
+    await OrderRepository.updateOrder(canonicalRef, {
+      packaging_status: 'packaged',
+      packaged_at: nowTimestamp,
+      packaged_by: resolvedStaff
+    })
+    return true
   }
 
   const updateTaskStatus = (taskId: number, status: 'pending' | 'in_progress' | 'done') => {
@@ -9772,16 +9811,39 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showToast(`Paid ${formatNaira(payoutAmount)} to ${rider.rider_name}`, 'success')
   }
 
-  const markPickupCollected = (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string) => {
+  const markPickupCollected = async (orderId: number, collectedBy: string, handoverStaff: string, collectorPhone?: string): Promise<boolean> => {
     const cleanCollector = String(collectedBy || '').trim()
     const cleanStaff = String(handoverStaff || '').trim()
     if (!cleanStaff) {
       showToast('Please enter the handover staff member name.', 'error')
-      return
+      return false
     }
-    const targetPickup = storePickups.find(
+    let targetPickup = storePickups.find(
       p => p.id === orderId || extractNumericOrderId(p.order_ref) === orderId
     )
+    if (!targetPickup) {
+      const authOrder = await OrderRepository.getOrderById(orderId)
+      if (authOrder) {
+        const canonical = getCanonicalOrderRef(authOrder)
+        const numId = extractNumericOrderId(canonical, orderId)
+        targetPickup = {
+          id: numId,
+          order_ref: canonical,
+          customer_name: authOrder.customer_name,
+          phone: authOrder.customer_phone,
+          address: authOrder.delivery_address || 'Smokey Hut Central Kitchen',
+          total_amount: Number(authOrder.total) || 0,
+          payment_status: 'paid',
+          order_status: 'ready_for_pickup',
+          packaged_at: authOrder.packaged_at || new Date().toISOString().replace('T', ' ').substring(0, 19),
+          collected_at: null,
+          collected_by: null,
+          handover_staff: null,
+          collector_phone: authOrder.customer_phone,
+          items_summary: authOrder.order_items?.map((i: any) => `${i.qty}x ${i.name}`).join(', ') || ''
+        }
+      }
+    }
     const canonicalRef = targetPickup ? getCanonicalOrderRef(targetPickup) : `SHD-${orderId}`
     const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
 
@@ -9799,58 +9861,58 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next
     })
 
-    if (targetPickup) {
-      updateOrderPipelineState(canonicalRef, {
-        order_status: "packaged",
-        delivery_status: "delivered",
-        delivered_at: nowTime,
-        collected_at: nowTime,
-        collected_by: cleanCollector,
-        handover_staff: cleanStaff,
-        collector_phone: collectorPhone || targetPickup.phone
-      })
-      persistOrderUpdateToBackend(canonicalRef, {
-        packaging_status: "packaged",
-        delivery_status: "Delivered",
-        status: "delivered",
+    updateOrderPipelineState(canonicalRef, {
+      order_status: "packaged",
+      delivery_status: "delivered",
+      delivered_at: nowTime,
+      collected_at: nowTime,
+      collected_by: cleanCollector,
+      handover_staff: cleanStaff,
+      collector_phone: collectorPhone || targetPickup?.phone
+    })
+    await OrderRepository.updateOrder(canonicalRef, {
+      packaging_status: "packaged",
+      delivery_status: "Delivered",
+      status: "delivered",
+      delivered_at: nowTime,
+      pickup_at: nowTime
+    })
+    broadcastOrderLifecycleUpdate({
+      id: canonicalRef,
+      order_ref: canonicalRef,
+      packaging_status: "packaged",
+      order_status: "packaged",
+      delivery_status: "Delivered",
+      status: "delivered",
+      delivered_at: nowTime,
+      collected_at: nowTime,
+      collected_by: cleanCollector,
+      handover_staff: cleanStaff,
+      collector_phone: collectorPhone || targetPickup?.phone
+    })
+    setWebsiteOrders(prev => {
+      const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
+        ...w,
+        fulfillment_status: "delivered" as const,
+        rider_name: cleanCollector ? `Collected by ${cleanCollector}` : "Store Pickup — Collected",
         delivered_at: nowTime
-      })
-      broadcastOrderLifecycleUpdate({
-        id: canonicalRef,
-        order_ref: canonicalRef,
-        packaging_status: "packaged",
-        order_status: "packaged",
-        delivery_status: "Delivered",
-        status: "delivered",
-        delivered_at: nowTime,
-        collected_at: nowTime,
-        collected_by: cleanCollector,
-        handover_staff: cleanStaff,
-        collector_phone: collectorPhone || targetPickup.phone
-      })
-      setWebsiteOrders(prev => {
-        const next = prev.map(w => getCanonicalOrderRef(w) === canonicalRef ? {
-          ...w,
-          fulfillment_status: "delivered" as const,
-          rider_name: cleanCollector ? `Collected by ${cleanCollector}` : "Store Pickup — Collected",
-          delivered_at: nowTime
-        } : w)
-        writeLocalCache('smokey_live_cache_v4_website_orders', next)
-        return next
-      })
+      } : w)
+      writeLocalCache('smokey_live_cache_v4_website_orders', next)
+      return next
+    })
 
-      const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
-      if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
-        const patchedRaw = cachedRaw.map(r =>
-          getCanonicalOrderRef(r) === canonicalRef
-            ? { ...r, delivery_status: 'Delivered', status: 'delivered', delivered_at: nowTime }
-            : r
-        )
-        writeLocalCache('smokey_live_cache_v4_orders_raw', patchedRaw)
-      }
+    const cachedRaw = readLocalCache<any[]>('smokey_live_cache_v4_orders_raw')
+    if (Array.isArray(cachedRaw) && cachedRaw.length > 0) {
+      const patchedRaw = cachedRaw.map(r =>
+        getCanonicalOrderRef(r) === canonicalRef
+          ? { ...r, delivery_status: 'Delivered', status: 'delivered', delivered_at: nowTime }
+          : r
+      )
+      writeLocalCache('smokey_live_cache_v4_orders_raw', patchedRaw)
     }
 
     showToast(`Order handed over to ${collectedBy}${collectorPhone ? ` (${collectorPhone})` : ''}`, 'success')
+    return true
   }
 
   const verifyThirdPartyFee = (deliveryId: number, status: 'approved' | 'flagged', note?: string) => {

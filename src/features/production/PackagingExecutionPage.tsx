@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { PackagingQueueOrder, PackagingMaterialDaily } from '@/lib/smokeyData'
-import { getCanonicalOrderRef, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { OrderQueries, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -30,6 +31,41 @@ import {
   ArrowRightLeft,
   RotateCcw
 } from 'lucide-react'
+
+const mapAuthoritativeToPackagingOrder = (raw: AuthoritativeOrder): PackagingQueueOrder => {
+  const canonicalRef = getCanonicalOrderRef(raw)
+  const numId = extractNumericOrderId(raw.id ?? canonicalRef, 10000)
+  const isScheduled = Boolean(raw.scheduled_delivery_date) || Boolean(raw.notes && raw.notes.includes('[Scheduled Delivery:'))
+  const items = Array.isArray(raw.order_items)
+    ? raw.order_items.map((i: any) => ({
+        product_name: i.name || 'Meal Item',
+        quantity: Number(i.qty) || 1,
+        unit_price: Number(i.price) || 0,
+        line_total: (Number(i.price) || 0) * (Number(i.qty) || 1)
+      }))
+    : []
+  const itemsSummary = items.map(i => `${i.quantity}x ${i.product_name}`).join(', ') || raw.notes || 'Packed Meal'
+
+  return {
+    id: numId,
+    order_ref: canonicalRef,
+    customer_name: raw.customer_name || 'Customer',
+    phone: raw.customer_phone || '',
+    address: raw.delivery_address || 'Store Pickup',
+    total_amount: Number(raw.total) || 0,
+    delivery_fee: Number(raw.delivery_fee) || 0,
+    delivery_mode: isScheduled ? 'scheduled' : 'instant',
+    payment_status: (raw.paid_at || raw.status === 'processing' || raw.status === 'delivered') ? 'paid' : 'pending',
+    order_status: (raw.packaging_status as any) || (raw.delivery_status === 'Delivered' ? 'packaged' : 'ready_for_fulfillment'),
+    items_summary: itemsSummary,
+    items,
+    packaging_materials_picked: [],
+    notes: raw.notes || '',
+    packaged_at: raw.packaged_at || null,
+    packaged_by_name: raw.packaged_by || 'Kitchen Staff',
+    created_at: raw.created_at || new Date().toISOString()
+  }
+}
 
 export const PackagingExecutionPage: React.FC = () => {
   const {
@@ -98,6 +134,43 @@ export const PackagingExecutionPage: React.FC = () => {
     payment_status: 'paid' as 'paid' | 'pending'
   })
 
+  // Cursor Pagination State for Historical Packaged Orders
+  const [paginatedHistory, setPaginatedHistory] = useState<PackagingQueueOrder[]>([])
+  const [historyCursor, setHistoryCursor] = useState<OrderCursor | null>(null)
+  const [hasMoreHistory, setHasMoreHistory] = useState<boolean>(true)
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState<boolean>(false)
+
+  const handleLoadMoreHistory = async () => {
+    if (isLoadingMoreHistory || !historyCursor) return
+    setIsLoadingMoreHistory(true)
+    try {
+      const res = await OrderQueries.getPackagingQueue({ tab: 'history' }, historyCursor, 50)
+      const mapped = res.items.map(mapAuthoritativeToPackagingOrder)
+      setPaginatedHistory(prev => deduplicateByOrderRef([...prev, ...mapped]))
+      setHistoryCursor(res.nextCursor)
+      setHasMoreHistory(res.hasMore)
+    } catch (err) {
+      console.warn('Error loading more packaging history:', err)
+    } finally {
+      setIsLoadingMoreHistory(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'history' && paginatedHistory.length === 0) {
+      setIsLoadingMoreHistory(true)
+      OrderQueries.getPackagingQueue({ tab: 'history' }, undefined, 50).then(res => {
+        setPaginatedHistory(res.items.map(mapAuthoritativeToPackagingOrder))
+        setHistoryCursor(res.nextCursor)
+        setHasMoreHistory(res.hasMore)
+      }).catch(err => {
+        console.warn('Initial packaging history fetch error:', err)
+      }).finally(() => {
+        setIsLoadingMoreHistory(false)
+      })
+    }
+  }, [activeTab])
+
   // Filter queues with defensive invariant: any order already on the Dispatch Board or Store Pickup Counter cannot appear in Ready/In-Packaging
   const dispatchedOrPickupRefs = useMemo(() => {
     const refs = new Set<string>()
@@ -119,8 +192,11 @@ export const PackagingExecutionPage: React.FC = () => {
     [uniquePackagingQueue, dispatchedOrPickupRefs]
   )
   const historyOrders = useMemo(
-    () => uniquePackagingQueue.filter(o => o.order_status === 'packaged' || dispatchedOrPickupRefs.has(getCanonicalOrderRef(o))),
-    [uniquePackagingQueue, dispatchedOrPickupRefs]
+    () => {
+      const baseHistory = uniquePackagingQueue.filter(o => o.order_status === 'packaged' || dispatchedOrPickupRefs.has(getCanonicalOrderRef(o)))
+      return deduplicateByOrderRef([...baseHistory, ...paginatedHistory])
+    },
+    [uniquePackagingQueue, dispatchedOrPickupRefs, paginatedHistory]
   )
 
   // KPIs
@@ -441,17 +517,31 @@ export const PackagingExecutionPage: React.FC = () => {
         )}
 
         {activeTab === 'history' && (
-          <DataTable
-            data={historyOrders}
-            keyExtractor={(o) => getCanonicalOrderRef(o)}
-            columns={historyColumns}
-            searchable={true}
-            searchPlaceholder="Search packaged audit..."
-            title="Packaged Order"
-            exportFilename="smokey-packaging-history"
-            onRowClick={(o) => handleOpenDetails(o)}
-            emptyMessage="Packaged orders handed over to dispatch will appear here."
-          />
+          <div>
+            <DataTable
+              data={historyOrders}
+              keyExtractor={(o) => getCanonicalOrderRef(o)}
+              columns={historyColumns}
+              searchable={true}
+              searchPlaceholder="Search packaged audit..."
+              title="Packaged Order"
+              exportFilename="smokey-packaging-history"
+              onRowClick={(o) => handleOpenDetails(o)}
+              emptyMessage="Packaged orders handed over to dispatch will appear here."
+            />
+            {hasMoreHistory && (
+              <div className="flex justify-center pt-3 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadMoreHistory}
+                  disabled={isLoadingMoreHistory}
+                >
+                  {isLoadingMoreHistory ? 'Loading older packouts...' : 'Load More Historical Packaged Orders'}
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

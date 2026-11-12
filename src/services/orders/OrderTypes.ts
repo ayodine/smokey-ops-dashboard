@@ -77,3 +77,33 @@ export interface OrderLifecycleUpdates {
   packaged_by?: string | null
   [key: string]: any
 }
+
+export interface OrderCursor {
+  createdAt: string
+  id: string
+}
+
+export interface PaginatedResult<T> {
+  items: T[]
+  nextCursor: OrderCursor | null
+  hasMore: boolean
+  totalCount?: number
+}
+
+export interface LogisticsQueueFilters {
+  tab?: 'all' | 'unassigned' | 'assigned' | 'in_transit' | 'delivered'
+  search?: string
+  dateRange?: { from?: string; to?: string }
+}
+
+export interface WebsiteOrdersFilters {
+  tab?: 'all' | 'walkin_pos' | 'intake' | 'packaging' | 'transit' | 'delivered'
+  search?: string
+  dateRange?: { from?: string; to?: string }
+}
+
+export interface PackagingQueueFilters {
+  tab?: 'ready' | 'history' | 'all'
+  search?: string
+}
+

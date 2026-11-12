@@ -13,6 +13,7 @@ import { DateTimePicker } from '@/components/ui/DateTimePicker'
 import { StatusBadge, BadgeStatus } from '@/components/ui/Badge'
 import { useSmokeyOps, getOfficeOpeningHourForDate, OPS_FRESH_START_CUTOFF, resolveOrderItemsSummary } from '@/context/SmokeyOpsContext'
 import { supabase } from '@/lib/supabase'
+import { OrderQueries, type OrderCursor } from '@/services/orders'
 import { SEED_WEBSITE_ORDERS } from '@/lib/smokeyData'
 import { formatNaira, formatDate, cleanOrderNotes, parseOrderNotes, cn } from '@/lib/utils'
 import {
@@ -556,7 +557,46 @@ export const WebsiteOrdersPage: React.FC = () => {
   const searchContainerRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Debounced Historical Backend Search (queries orders as far back as sales database inception)
+  // Cursor Pagination State for Website Orders
+  const [paginatedOrders, setPaginatedOrders] = useState<WebsiteOrder[]>([])
+  const [ordersCursor, setOrdersCursor] = useState<OrderCursor | null>(null)
+  const [hasMoreOrders, setHasMoreOrders] = useState<boolean>(true)
+  const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState<boolean>(false)
+
+  const handleLoadMoreOrders = async () => {
+    if (isLoadingMoreOrders || !ordersCursor) return
+    setIsLoadingMoreOrders(true)
+    try {
+      const res = await OrderQueries.getWebsiteOrders(
+        { search: searchQuery.trim() || undefined },
+        ordersCursor,
+        50
+      )
+      const mapped = res.items.map(mapSupabaseOrderToWebsiteOrder)
+      setPaginatedOrders(prev => deduplicateByOrderRef([...prev, ...mapped]))
+      setOrdersCursor(res.nextCursor)
+      setHasMoreOrders(res.hasMore)
+    } catch (err) {
+      console.warn('Error loading more website orders:', err)
+    } finally {
+      setIsLoadingMoreOrders(false)
+    }
+  }
+
+  // Initial load of first page of authoritative orders
+  useEffect(() => {
+    if (paginatedOrders.length === 0) {
+      OrderQueries.getWebsiteOrders(undefined, undefined, 50).then((res: any) => {
+        setPaginatedOrders(res.items.map(mapSupabaseOrderToWebsiteOrder))
+        setOrdersCursor(res.nextCursor)
+        setHasMoreOrders(res.hasMore)
+      }).catch((err: any) => {
+        console.warn('Initial website orders query error:', err)
+      })
+    }
+  }, [])
+
+  // Debounced Historical Backend Search using OrderQueries
   useEffect(() => {
     const q = searchQuery.trim()
     if (!q || q.length < 2) {
@@ -568,23 +608,11 @@ export const WebsiteOrdersPage: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSearchingBackend(true)
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, order_items(*)')
-          .is('deleted_at', null)
-          .neq('status', 'pending_payment')
-          .neq('status', 'cancelled')
-          .neq('status', 'refunded')
-          .not('paid_at', 'is', null)
-          .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
-          .order('created_at', { ascending: false })
-          .limit(50)
-        if (!error && Array.isArray(data)) {
-          const paidOrders = data
-            .map(mapSupabaseOrderToWebsiteOrder)
-            .filter(o => o.payment_status === 'paid' && (o.channel !== 'Website Storefront' || Boolean(o.paid_at)))
-          setBackendSuggestions(paidOrders)
-        }
+        const res = await OrderQueries.getWebsiteOrders({ search: q }, undefined, 50)
+        const paidOrders = res.items
+          .map(mapSupabaseOrderToWebsiteOrder)
+          .filter((o: WebsiteOrder) => o.payment_status === 'paid' && (o.channel !== 'Website Storefront' || Boolean(o.paid_at)))
+        setBackendSuggestions(paidOrders)
       } catch (err) {
         console.warn('Historical search error:', err)
       } finally {
@@ -688,7 +716,7 @@ export const WebsiteOrdersPage: React.FC = () => {
     const packagingMap = new Map(packagingQueue.map(p => [getCanonicalOrderRef(p), p]))
     const scheduledMap = new Map(scheduledOrders.map(s => [getCanonicalOrderRef(s), s]))
 
-    const uniqueOrders = deduplicateByOrderRef(orders)
+    const uniqueOrders = deduplicateByOrderRef([...orders, ...paginatedOrders])
 
     // CRITICAL INVARIANT: Orders awaiting payment should never appear on Website Orders page or tabs
     const confirmedPaidOrders = uniqueOrders.filter(ord => {
@@ -1295,6 +1323,19 @@ export const WebsiteOrdersPage: React.FC = () => {
           </div>
         }
       />
+
+      {hasMoreOrders && (
+        <div className="flex justify-center pt-3 pb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLoadMoreOrders}
+            disabled={isLoadingMoreOrders}
+          >
+            {isLoadingMoreOrders ? 'Loading older orders...' : 'Load More Historical Orders'}
+          </Button>
+        </div>
+      )}
 
       {/* 5. Order Details Modal — Desaturated Grey Layout with Clean Aligned Rows */}
       {selectedOrder && (

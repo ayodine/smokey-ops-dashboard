@@ -14,7 +14,7 @@ import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { FileUpload } from '@/components/ui/FileUpload'
-import { type DateRange, isWithinDateRange } from '@/components/ui/DateRangePicker'
+import { type DateRange, isWithinDateRange, formatLocalDateToYMD } from '@/components/ui/DateRangePicker'
 import { formatNaira, formatDate, parseOrderNotes } from '@/lib/utils'
 import { 
   Truck, 
@@ -38,8 +38,51 @@ import {
 } from 'lucide-react'
 import { openImageSafe, downloadImage } from '@/lib/imageUtils'
 import { cn } from '@/lib/utils'
-import { getCanonicalOrderRef, extractNumericOrderId } from '@/lib/orderCanonical'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
 import { OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
+import { OrderQueries, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
+
+function mapAuthoritativeToLogisticsDelivery(raw: AuthoritativeOrder, idx = 0): LogisticsDelivery {
+  const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
+    ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Item'}`).join(', ')
+    : (raw.notes || 'Assorted Items')
+  const st = String(raw.delivery_status || raw.status || '').toLowerCase()
+  const rawRider = raw.rider_name && String(raw.rider_name).trim() !== '' && raw.rider_name !== 'Unassigned'
+    ? String(raw.rider_name).trim()
+    : null
+  let status: LogisticsDelivery['status'] = 'pending'
+  if (st.includes('deliver') || Boolean(raw.delivered_at)) status = 'delivered'
+  else if ((st.includes('transit') || st.includes('out_for_delivery') || Boolean(raw.pickup_at)) && rawRider) status = 'in_transit'
+  else if ((st.includes('assigned') || rawRider) && rawRider) status = 'assigned'
+
+  const canonicalRef = getCanonicalOrderRef(raw)
+  const numericId = extractNumericOrderId(raw.id ?? canonicalRef, 10000 + idx)
+
+  return {
+    id: numericId,
+    delivery_ref: `DEL-${numericId}`,
+    order_id: numericId,
+    order_ref: canonicalRef,
+    customer_name: raw.customer_name || 'Customer',
+    phone: raw.customer_phone || 'N/A',
+    address: raw.delivery_address || 'Lagos',
+    assigned_rider: rawRider || 'Unassigned',
+    assigned_rider_id: raw.rider_id ? Number(raw.rider_id) : undefined,
+    rider_type: raw.rider_type || 'internal',
+    third_party_provider: raw.third_party_provider || null,
+    booked_fee: raw.booked_fee ? Number(raw.booked_fee) : null,
+    total_amount: Number(raw.total) || 0,
+    status,
+    delivery_fee: Number(raw.delivery_fee) || 0,
+    dispatch_date: (raw.created_at || new Date().toISOString()).split('T')[0],
+    pickup_at: raw.pickup_at || null,
+    delivered_at: raw.delivered_at || null,
+    fee_evidence_path: raw.fee_evidence_path || null,
+    fee_verify_status: (raw.fee_verify_status as any) || 'none',
+    items_summary: items,
+    notes: raw.notes || '',
+  }
+}
 
 export const LogisticsBoardPage: React.FC = () => {
   const {
@@ -93,81 +136,8 @@ export const LogisticsBoardPage: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSearchingBackend(true)
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, order_items(*)')
-          .is('deleted_at', null)
-          .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,delivery_address.ilike.%${q}%,id.ilike.%${q}%,notes.ilike.%${q}%`)
-          .order('created_at', { ascending: false })
-          .limit(50)
-        const rawOrders = (!error && Array.isArray(data)) ? data : []
-
-        const mapped: LogisticsDelivery[] = rawOrders
-          .filter(raw => {
-            const status = String(raw.status || '').toLowerCase()
-            if (status === 'pending_payment' || status === 'cancelled' || status === 'refunded') return false
-            // For fresh operational orders, only include orders that have completed packaging or entered dispatch
-            if (raw.created_at && raw.created_at >= OPS_FRESH_START_CUTOFF) {
-              const pkg = String(raw.packaging_status || '').toLowerCase()
-              const deliv = String(raw.delivery_status || '').toLowerCase()
-              const hasRider = Boolean(raw.rider_name && String(raw.rider_name).trim() !== '' && raw.rider_name !== 'Unassigned')
-              const isEligibleForDispatch =
-                pkg === 'packaged' ||
-                Boolean(raw.packaged_at) ||
-                Boolean(raw.pickup_at) ||
-                Boolean(raw.delivered_at) ||
-                hasRider ||
-                deliv.includes('ready') ||
-                deliv.includes('packaged') ||
-                deliv.includes('assigned') ||
-                deliv.includes('transit') ||
-                deliv.includes('deliver') ||
-                status === 'delivered'
-              return isEligibleForDispatch
-            }
-            return true
-          })
-          .map((raw, idx) => {
-            const items = Array.isArray(raw.order_items) && raw.order_items.length > 0
-              ? raw.order_items.map((i: any) => `${i.qty || 1}x ${i.name || 'Item'}`).join(', ')
-              : (raw.items_summary || 'Assorted Items')
-            const st = String(raw.delivery_status || raw.status || '').toLowerCase()
-            const rawRider = raw.rider_name && String(raw.rider_name).trim() !== '' && raw.rider_name !== 'Unassigned'
-              ? String(raw.rider_name).trim()
-              : null
-            let status: LogisticsDelivery['status'] = 'pending'
-            if (st.includes('deliver') || Boolean(raw.delivered_at)) status = 'delivered'
-            else if ((st.includes('transit') || st.includes('out_for_delivery') || Boolean(raw.pickup_at)) && rawRider) status = 'in_transit'
-            else if ((st.includes('assigned') || rawRider) && rawRider) status = 'assigned'
-
-            const canonicalRef = getCanonicalOrderRef(raw)
-            const numericId = extractNumericOrderId(raw.id ?? canonicalRef, 10000 + idx)
-
-            return {
-              id: numericId,
-              delivery_ref: `DEL-${numericId}`,
-              order_id: numericId,
-              order_ref: canonicalRef,
-              customer_name: raw.customer_name || 'Customer',
-              phone: raw.customer_phone || 'N/A',
-              address: raw.delivery_address || 'Lagos',
-              assigned_rider: rawRider || 'Unassigned',
-              assigned_rider_id: raw.rider_id ? Number(raw.rider_id) : undefined,
-              rider_type: raw.rider_type || 'internal',
-              third_party_provider: raw.third_party_provider || null,
-              booked_fee: raw.booked_fee ? Number(raw.booked_fee) : null,
-              total_amount: Number(raw.total ?? raw.total_amount) || 0,
-              status,
-              delivery_fee: Number(raw.delivery_fee) || 0,
-              dispatch_date: (raw.created_at || new Date().toISOString()).split('T')[0],
-              pickup_at: raw.pickup_at || null,
-              delivered_at: raw.delivered_at || null,
-              fee_evidence_path: raw.fee_evidence_path || null,
-              fee_verify_status: raw.fee_verify_status || 'none',
-              items_summary: items,
-              notes: raw.notes || '',
-            }
-          })
+        const result = await OrderQueries.getLogisticsQueue({ search: q }, undefined, 50)
+        const mapped = result.items.map(mapAuthoritativeToLogisticsDelivery)
         setBackendDeliveries(mapped)
       } catch (err) {
         console.warn('Backend search error in Logistics:', err)
@@ -178,6 +148,59 @@ export const LogisticsBoardPage: React.FC = () => {
 
     return () => clearTimeout(timer)
   }, [searchQuery])
+
+  // Keyset cursor pagination for delivered deliveries
+  const [paginatedDelivered, setPaginatedDelivered] = useState<LogisticsDelivery[]>([])
+  const [deliveredCursor, setDeliveredCursor] = useState<OrderCursor | null>(null)
+  const [hasMoreDelivered, setHasMoreDelivered] = useState(false)
+  const [isLoadingMoreDelivered, setIsLoadingMoreDelivered] = useState(false)
+
+  const handleLoadMoreDelivered = async () => {
+    if (!deliveredCursor || isLoadingMoreDelivered) return
+    setIsLoadingMoreDelivered(true)
+    const dateRangeFilter = dateRange && (dateRange.start || dateRange.end) ? {
+      from: dateRange.start ? formatLocalDateToYMD(dateRange.start) : undefined,
+      to: dateRange.end ? formatLocalDateToYMD(dateRange.end) : undefined
+    } : undefined
+    try {
+      const res = await OrderQueries.getLogisticsQueue(
+        { tab: 'delivered', dateRange: dateRangeFilter },
+        deliveredCursor,
+        50
+      )
+      const mapped = res.items.map(mapAuthoritativeToLogisticsDelivery)
+      setPaginatedDelivered(prev => deduplicateByOrderRef([...prev, ...mapped]))
+      setDeliveredCursor(res.nextCursor)
+      setHasMoreDelivered(res.hasMore)
+    } catch (err) {
+      console.warn('Error loading more delivered orders:', err)
+    } finally {
+      setIsLoadingMoreDelivered(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeSubTab === 'delivered' && paginatedDelivered.length === 0) {
+      setIsLoadingMoreDelivered(true)
+      const dateRangeFilter = dateRange && (dateRange.start || dateRange.end) ? {
+        from: dateRange.start ? formatLocalDateToYMD(dateRange.start) : undefined,
+        to: dateRange.end ? formatLocalDateToYMD(dateRange.end) : undefined
+      } : undefined
+      OrderQueries.getLogisticsQueue(
+        { tab: 'delivered', dateRange: dateRangeFilter },
+        undefined,
+        50
+      ).then(res => {
+        setPaginatedDelivered(res.items.map(mapAuthoritativeToLogisticsDelivery))
+        setDeliveredCursor(res.nextCursor)
+        setHasMoreDelivered(res.hasMore)
+      }).catch(err => {
+        console.warn('Initial delivered fetch error:', err)
+      }).finally(() => {
+        setIsLoadingMoreDelivered(false)
+      })
+    }
+  }, [activeSubTab, dateRange])
 
   // Dynamic KPIs and Tables reflecting custom date range
   const activeDeliveriesForKPI = useMemo(() => {
@@ -212,10 +235,11 @@ export const LogisticsBoardPage: React.FC = () => {
       return activeDeliveries.filter(d => d.status === 'in_transit' || d.status === 'out_for_delivery')
     }
     if (activeSubTab === 'delivered') {
-      return activeDeliveries.filter(d => d.status === 'delivered')
+      const baseDelivered = activeDeliveries.filter(d => d.status === 'delivered')
+      return deduplicateByOrderRef([...baseDelivered, ...paginatedDelivered])
     }
     return activeDeliveries
-  }, [activeDeliveries, activeSubTab])
+  }, [activeDeliveries, activeSubTab, paginatedDelivered])
 
   // Merge client fresh orders with deep backend search results when operator searches
   const searchedUnassignedDeliveries = useMemo(() => {
@@ -642,6 +666,18 @@ export const LogisticsBoardPage: React.FC = () => {
                   : "Assigned deliveries will appear here as drivers are dispatched. Search by Customer Name, Order ID, or Rider to locate any record."
               }
             />
+            {activeSubTab === 'delivered' && hasMoreDelivered && (
+              <div className="flex justify-center pt-3 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadMoreDelivered}
+                  disabled={isLoadingMoreDelivered}
+                >
+                  {isLoadingMoreDelivered ? 'Loading older trips...' : 'Load More Historical Deliveries'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
