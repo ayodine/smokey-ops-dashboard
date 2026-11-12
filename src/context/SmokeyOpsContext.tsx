@@ -74,7 +74,7 @@ import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
 import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
-import { OrderRepository, OrderCache, OrderSyncManager } from '@/services/orders'
+import { OrderRepository, OrderCache, OrderSyncManager, OrderLifecycleService } from '@/services/orders'
 import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
 export interface LiveSalesProduct extends SalesProduct {
@@ -8630,16 +8630,6 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       packaging_materials_picked: order.packaging_materials_picked,
       delivery_status: "pending"
     })
-    persistOrderUpdateToBackend(canonicalRef, {
-      delivery_status: "Ready for Dispatch",
-      packaging_status: "packaged",
-      packaged_at: nowTimestamp,
-      packaged_by: resolvedStaff
-    }).then(ok => {
-      if (!ok) {
-        showToast(`Warning: Could not sync packaging completion for #${canonicalRef} to database`, 'error')
-      }
-    })
     broadcastOrderLifecycleUpdate({
       id: canonicalRef,
       order_ref: canonicalRef,
@@ -8747,11 +8737,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     }
 
-    await OrderRepository.updateOrder(canonicalRef, {
-      packaging_status: 'packaged',
-      packaged_at: nowTimestamp,
-      packaged_by: resolvedStaff
-    })
+    const packResult = await OrderLifecycleService.confirmOrderPackaging(canonicalRef, resolvedStaff)
+    if (!packResult.success) {
+      showToast(`Warning: Could not sync packaging completion for #${canonicalRef} to database: ${packResult.message}`, 'error')
+    }
     return true
   }
 
@@ -9155,13 +9144,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       pickup_at: nowTime
     })
 
-    const ok = await OrderRepository.updateOrder(canonicalRef, {
-      packaging_status: "packaged",
-      delivery_status: "In Transit",
-      pickup_at: nowTime
-    })
-    if (!ok) {
-      showToast(`Warning: Failed to persist collection status for #${canonicalRef} to database.`, 'error', 'Persistence Error')
+    const collectResult = await OrderLifecycleService.confirmRiderCollection(canonicalRef)
+    if (!collectResult.success) {
+      showToast(`Warning: Failed to persist collection status for #${canonicalRef} to database: ${collectResult.message}`, 'error', 'Persistence Error')
     }
 
     broadcastOrderLifecycleUpdate({
@@ -9237,11 +9222,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: 'in_transit',
         pickup_at: nowTime
       })
-      await OrderRepository.updateOrder(canonicalRef, {
-        packaging_status: "packaged",
-        delivery_status: "In Transit",
-        pickup_at: nowTime
-      })
+      const acceptResult = await OrderLifecycleService.acceptOrderDelivery(canonicalRef)
+      if (!acceptResult.success) {
+        showToast(`Warning: Failed to accept delivery for #${canonicalRef} in database: ${acceptResult.message}`, 'error')
+      }
       if (delivery) {
         broadcastOrderLifecycleUpdate({
           id: canonicalRef,
@@ -9326,14 +9310,9 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       delivered_at: nowTime
     })
 
-    const ok = await OrderRepository.updateOrder(canonicalRef, {
-      status: "delivered",
-      packaging_status: "packaged",
-      delivery_status: "Delivered",
-      delivered_at: nowTime
-    })
-    if (!ok) {
-      showToast(`Warning: Failed to persist delivered status for #${canonicalRef} to database.`, 'error', 'Persistence Error')
+    const deliverResult = await OrderLifecycleService.markOrderDelivered(canonicalRef)
+    if (!deliverResult.success) {
+      showToast(`Warning: Failed to persist delivered status for #${canonicalRef} to database: ${deliverResult.message}`, 'error', 'Persistence Error')
     }
 
     broadcastOrderLifecycleUpdate({
@@ -9428,12 +9407,10 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       rider_name: null,
       rider_id: null
     })
-    await OrderRepository.updateOrder(canonicalRef, {
-      delivery_status: 'Ready for Dispatch',
-      rider_name: null,
-      rider_id: null,
-      pickup_at: null
-    })
+    const declineResult = await OrderLifecycleService.declineOrderDelivery(canonicalRef, reason)
+    if (!declineResult.success) {
+      showToast(`Warning: Failed to persist declined status for #${canonicalRef} to database: ${declineResult.message}`, 'error')
+    }
     broadcastOrderLifecycleUpdate({
       id: canonicalRef,
       order_ref: canonicalRef,
@@ -9821,13 +9798,15 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       handover_staff: cleanStaff,
       collector_phone: collectorPhone || targetPickup?.phone
     })
-    await OrderRepository.updateOrder(canonicalRef, {
-      packaging_status: "packaged",
-      delivery_status: "Delivered",
-      status: "delivered",
-      delivered_at: nowTime,
-      pickup_at: nowTime
-    })
+    const pickupResult = await OrderLifecycleService.markStorePickupCollected(
+      canonicalRef,
+      cleanCollector,
+      cleanStaff,
+      collectorPhone
+    )
+    if (!pickupResult.success) {
+      showToast(`Warning: Failed to persist store pickup collection for #${canonicalRef} to database: ${pickupResult.message}`, 'error')
+    }
     broadcastOrderLifecycleUpdate({
       id: canonicalRef,
       order_ref: canonicalRef,

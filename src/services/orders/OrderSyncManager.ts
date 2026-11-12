@@ -218,7 +218,7 @@ export class OrderSyncManager {
    */
   static async broadcastLifecycleUpdate(event: {
     id: string
-    order_ref: string
+    order_ref?: string
     [key: string]: any
   }): Promise<void> {
     const canonicalRef = getCanonicalOrderRef(event) || String(event.id || event.order_ref || '')
@@ -301,3 +301,4 @@ export class OrderSyncManager {
     this.connectionStatus = 'DISCONNECTED'
   }
 }
+
