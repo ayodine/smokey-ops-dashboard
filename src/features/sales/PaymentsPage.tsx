@@ -427,10 +427,21 @@ export const PaymentsPage: React.FC = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block text-[11px]">Payment Status</span>
-                    <span className="text-zinc-900 dark:text-zinc-100 font-semibold text-[13px] capitalize">
-                      {selectedPayment.paid_at ? 'Paid (Verified)' : selectedPayment.status}
-                    </span>
+                    <span className="text-zinc-500 block text-[11px] mb-1">Payment Status</span>
+                    {(() => {
+                      const isPaid = Boolean(selectedPayment.paid_at) || ['processing', 'shipped', 'delivered', 'paid'].includes(selectedPayment.status)
+                      const isCancelled = selectedPayment.status === 'cancelled'
+                      if (isCancelled) {
+                        return <StatusBadge status="FAILED" label="Cancelled" size="sm" />
+                      }
+                      if (selectedPayment.status === 'pending_payment') {
+                        return <StatusBadge status="PENDING" label="Unpaid" size="sm" />
+                      }
+                      if (isPaid) {
+                        return <StatusBadge status="PAID" label="Paid" size="sm" />
+                      }
+                      return <StatusBadge status="PENDING" label="Pending" size="sm" />
+                    })()}
                   </div>
                 </div>
               </div>

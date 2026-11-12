@@ -1366,20 +1366,25 @@ export const WebsiteOrdersPage: React.FC = () => {
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Payment Status</span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 capitalize">
-                      {selectedOrder.payment_status}
-                    </span>
+                    <StatusBadge
+                      status={selectedOrder.payment_status === 'paid' ? 'PAID' : selectedOrder.payment_status === 'refunded' ? 'REFUNDED' : 'PENDING'}
+                      label={selectedOrder.payment_status === 'paid' ? 'Paid' : selectedOrder.payment_status === 'refunded' ? 'Refunded' : 'Pending'}
+                      size="sm"
+                    />
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Fulfillment Stage</span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
-                      {
-                        selectedOrder.fulfillment_status === 'in_intake' ? 'Order Intake' :
-                        selectedOrder.fulfillment_status === 'packaging' ? 'Packaging' :
-                        selectedOrder.fulfillment_status === 'ready_for_dispatch' ? 'Ready for Dispatch' :
-                        selectedOrder.fulfillment_status === 'in_transit' ? 'In Transit' : 'Delivered'
+                    {(() => {
+                      const stageMap: Record<string, { status: BadgeStatus | string; label: string }> = {
+                        in_intake: { status: 'ORDER_INTAKE', label: 'Order Intake' },
+                        packaging: { status: 'PACKAGING', label: 'Packaging' },
+                        ready_for_dispatch: { status: 'IN_TRANSIT', label: 'Ready for Dispatch' },
+                        in_transit: { status: 'IN_TRANSIT', label: 'In Transit' },
+                        delivered: { status: 'DELIVERED', label: 'Delivered' }
                       }
-                    </span>
+                      const st = stageMap[selectedOrder.fulfillment_status] || { status: 'ORDER_INTAKE', label: 'Order Intake' }
+                      return <StatusBadge status={st.status} label={st.label} size="sm" />
+                    })()}
                   </div>
                   {selectedOrder.scheduled_delivery_at && (
                     <div className="flex items-start text-[13px]">
