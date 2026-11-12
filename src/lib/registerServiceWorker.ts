@@ -25,13 +25,33 @@ export function registerServiceWorker(): void {
     console.info('[PWA] SmokeyOps App installed successfully.');
   });
 
-  // Register service worker
+  // Register service worker with zero-hard-refresh auto-activation
   if ('serviceWorker' in navigator) {
+    let refreshing = false;
+
+    // When the active service worker changes (new version claimed clients), cleanly reload
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.info('[PWA] New service worker version activated. Auto-reloading...');
+        window.location.reload();
+      }
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
           console.info('[PWA] Service Worker registered with scope:', registration.scope);
+
+          // Proactively check for updates on window focus & tab visibility change
+          const triggerUpdate = () => {
+            registration.update().catch(() => {});
+          };
+          window.addEventListener('focus', triggerUpdate);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') triggerUpdate();
+          });
 
           // Check for background updates
           registration.onupdatefound = () => {
@@ -40,7 +60,8 @@ export function registerServiceWorker(): void {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
-                  console.info('[PWA] New version available! Reloading for updates.');
+                  console.info('[PWA] New version installed. Signaling immediate activation...');
+                  installingWorker.postMessage({ type: 'SKIP_WAITING' });
                 }
               }
             };

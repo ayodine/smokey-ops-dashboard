@@ -1,5 +1,5 @@
-// SmokeyOps Service Worker for Rider Mobile PWA & Offline Support
-const CACHE_NAME = 'smokeyops-v1-shell'
+// SmokeyOps Service Worker for Rider Mobile PWA & Auto-Activation
+const CACHE_NAME = 'smokeyops-shell-v20261112'
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -12,7 +12,7 @@ const PRECACHE_ASSETS = [
   '/icons/apple-touch-icon.png'
 ]
 
-// 1. Install event: Pre-cache core app shell
+// 1. Install event: Pre-cache core app shell and immediately skip waiting
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -21,13 +21,14 @@ self.addEventListener('install', (event) => {
   )
 })
 
-// 2. Activate event: Clean up previous cache versions & claim clients
+// 2. Activate event: Clean up previous cache versions & immediately claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
+            console.info('[SW] Evicting stale cache:', name)
             return caches.delete(name)
           }
         })
@@ -36,7 +37,18 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// 3. Fetch event: Stale-While-Revalidate for app shell & static assets, Network-First for API
+// 3. Message event: Allow programmatic skipWaiting or cache purge from client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  } else if (event.data && event.data.type === 'PURGE_CACHE') {
+    event.waitUntil(
+      caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n))))
+    )
+  }
+})
+
+// 4. Fetch event: Strict Network-First for HTML navigation; Network-first for API; Cache-aware for immutable assets
 self.addEventListener('fetch', (event) => {
   const request = event.request
 
@@ -45,8 +57,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
 
-  // A. Navigation requests (HTML pages): Network-First, fall back to cached index.html
-  if (request.mode === 'navigate') {
+  // A. Navigation requests (HTML pages): Strict Network-First
+  // Always fetch fresh HTML from network so bundle hashes are always current; fall back to cache only when offline
+  if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
       fetch(request)
         .then((networkResponse) => {
@@ -63,11 +76,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // B. Supabase / backend API requests: Network-first
-  if (url.hostname.includes('supabase.co') || url.pathname.startsWith('/api')) {
+  // B. Supabase / backend API requests: Direct network pass-through with offline fallback
+  if (url.hostname.includes('supabase.co') || url.pathname.startsWith('/api') || url.pathname.endsWith('/version.json')) {
     event.respondWith(
       fetch(request).catch(() => {
-        return new Response(JSON.stringify({ offline: true, error: 'Network unavailable on road' }), {
+        return new Response(JSON.stringify({ offline: true, error: 'Network unavailable' }), {
           headers: { 'Content-Type': 'application/json' }
         })
       })
@@ -75,7 +88,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // C. Static assets (JS, CSS, images, fonts): Stale-While-Revalidate
+  // C. Content-hashed static assets (JS, CSS, images, fonts): Cache-First / Stale-While-Revalidate
   const isStaticAsset =
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
@@ -106,4 +119,3 @@ self.addEventListener('fetch', (event) => {
   // Default: pass through to network
   event.respondWith(fetch(request))
 })
-
