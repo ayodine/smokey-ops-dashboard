@@ -279,6 +279,12 @@ export function DataTable<T>({
         if (d) return String(d)
       }
       return (
+        item.delivered_at ||
+        item.dispatch_date ||
+        item.pickup_at ||
+        item.scheduled_delivery_date ||
+        item.scheduled_delivery_at ||
+        item.paid_at ||
         item.created_at ||
         item.date ||
         item.last_received ||
@@ -291,58 +297,56 @@ export function DataTable<T>({
     }
 
     if (dateFilterRange !== 'all') {
-      const baseTime = new Date(2026, 9, 21, 23, 59, 59).getTime()
-      const now = new Date(Math.max(baseTime, Date.now()))
+      const now = new Date()
       result = result.filter(item => {
         const rawDate = getItemDate(item)
-        if (!rawDate) return true
+        if (!rawDate) return false
         const itemDate = new Date(rawDate)
-        if (isNaN(itemDate.getTime())) return true
+        const isStandardDateString = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawDate.trim())
+        if (isNaN(itemDate.getTime()) && !isStandardDateString) return false
+
+        let itemYMD = ''
+        if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) {
+          itemYMD = rawDate.trim()
+        } else if (!isNaN(itemDate.getTime())) {
+          itemYMD = formatLocalDateToYMD(itemDate)
+        } else if (isStandardDateString) {
+          itemYMD = String(rawDate).trim().substring(0, 10)
+        }
 
         if (dateFilterRange === 'today') {
-          return itemDate.toDateString() === now.toDateString()
+          return itemYMD === formatLocalDateToYMD(now)
         }
         if (dateFilterRange === '30m') {
-          return itemDate >= new Date(now.getTime() - 30 * 60 * 1000)
+          return itemDate.getTime() >= (now.getTime() - 30 * 60 * 1000)
         }
         if (dateFilterRange === '1h') {
-          return itemDate >= new Date(now.getTime() - 60 * 60 * 1000)
+          return itemDate.getTime() >= (now.getTime() - 60 * 60 * 1000)
         }
         if (dateFilterRange === '6h') {
-          return itemDate >= new Date(now.getTime() - 6 * 60 * 60 * 1000)
+          return itemDate.getTime() >= (now.getTime() - 6 * 60 * 60 * 1000)
         }
         if (dateFilterRange === '12h') {
-          return itemDate >= new Date(now.getTime() - 12 * 60 * 60 * 1000)
+          return itemDate.getTime() >= (now.getTime() - 12 * 60 * 60 * 1000)
         }
         if (dateFilterRange === '24h') {
-          return itemDate >= new Date(now.getTime() - 24 * 60 * 60 * 1000)
+          return itemDate.getTime() >= (now.getTime() - 24 * 60 * 60 * 1000)
         }
         if (dateFilterRange === '7d' || dateFilterRange === '7days') {
           const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-          return itemDate >= sevenDaysAgo
+          return itemDate.getTime() >= sevenDaysAgo.getTime()
         }
         if (dateFilterRange === '30d' || dateFilterRange === '30days') {
           const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-          return itemDate >= thirtyDaysAgo
+          return itemDate.getTime() >= thirtyDaysAgo.getTime()
         }
         if (dateFilterRange === 'month') {
           return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear()
         }
         if (dateFilterRange === 'custom') {
-          if (customStartDate) {
-            const [sy, sm, sd] = customStartDate.split('-').map(Number)
-            if (!isNaN(sy) && !isNaN(sm) && !isNaN(sd)) {
-              const startLimit = new Date(sy, sm - 1, sd, 0, 0, 0, 0).getTime()
-              if (itemDate.getTime() < startLimit) return false
-            }
-          }
-          if (customEndDate) {
-            const [ey, em, ed] = customEndDate.split('-').map(Number)
-            if (!isNaN(ey) && !isNaN(em) && !isNaN(ed)) {
-              const endLimit = new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime()
-              if (itemDate.getTime() > endLimit) return false
-            }
-          }
+          if (!itemYMD) return false
+          if (customStartDate && itemYMD < customStartDate) return false
+          if (customEndDate && itemYMD > customEndDate) return false
           return true
         }
         return true

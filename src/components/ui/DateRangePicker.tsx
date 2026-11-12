@@ -27,58 +27,64 @@ export const isWithinDateRange = (
   rawDate: string | Date | null | undefined, 
   range: DateRange | null | undefined
 ): boolean => {
-  if (!range) return true
-  if (!rawDate) return true
+  if (!range || !range.presetKey || range.presetKey === 'all') {
+    if (!range?.start && !range?.end) return true
+  }
+  if (!rawDate) return false
   const itemDate = new Date(rawDate)
-  const itemTime = itemDate.getTime()
-  if (isNaN(itemTime)) return true
+  const isStandardDateString = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawDate.trim())
+  if (isNaN(itemDate.getTime()) && !isStandardDateString) return false
+
+  let itemYMD = ''
+  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) {
+    itemYMD = rawDate.trim()
+  } else if (!isNaN(itemDate.getTime())) {
+    itemYMD = formatLocalDateToYMD(itemDate)
+  } else if (isStandardDateString) {
+    itemYMD = String(rawDate).trim().substring(0, 10)
+  }
 
   // If explicit start and/or end dates are provided (custom range or range bounds)
   if (range.start || range.end) {
+    if (!itemYMD) return false
     if (range.start) {
-      const s = new Date(range.start)
-      const startLimit = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0, 0).getTime()
-      if (itemTime < startLimit) return false
+      const startYMD = formatLocalDateToYMD(range.start)
+      if (itemYMD < startYMD) return false
     }
     if (range.end) {
-      const e = new Date(range.end)
-      const endLimit = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999).getTime()
-      if (itemTime > endLimit) return false
+      const endYMD = formatLocalDateToYMD(range.end)
+      if (itemYMD > endYMD) return false
     }
     return true
   }
 
-  if (!range.presetKey || range.presetKey === 'all') return true
-
-  const baseTime = new Date(2026, 9, 21, 23, 59, 59).getTime()
-  const now = Math.max(baseTime, Date.now())
+  const now = new Date()
+  const nowTime = now.getTime()
+  const itemTime = itemDate.getTime()
 
   if (range.presetKey === 'today') {
-    const today = new Date(now)
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0).getTime()
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
-    return itemTime >= todayStart && itemTime <= todayEnd
+    return itemYMD === formatLocalDateToYMD(now)
   }
   if (range.presetKey === '30m') {
-    return itemTime >= now - 30 * 60 * 1000
+    return itemTime >= nowTime - 30 * 60 * 1000
   }
   if (range.presetKey === '1h') {
-    return itemTime >= now - 60 * 60 * 1000
+    return itemTime >= nowTime - 60 * 60 * 1000
   }
   if (range.presetKey === '6h') {
-    return itemTime >= now - 6 * 60 * 60 * 1000
+    return itemTime >= nowTime - 6 * 60 * 60 * 1000
   }
   if (range.presetKey === '12h') {
-    return itemTime >= now - 12 * 60 * 60 * 1000
+    return itemTime >= nowTime - 12 * 60 * 60 * 1000
   }
   if (range.presetKey === '24h') {
-    return itemTime >= now - 24 * 60 * 60 * 1000
+    return itemTime >= nowTime - 24 * 60 * 60 * 1000
   }
   if (range.presetKey === '7d' || range.presetKey === '7days') {
-    return itemTime >= now - 7 * 24 * 60 * 60 * 1000
+    return itemTime >= nowTime - 7 * 24 * 60 * 60 * 1000
   }
   if (range.presetKey === '30d' || range.presetKey === '30days') {
-    return itemTime >= now - 30 * 24 * 60 * 60 * 1000
+    return itemTime >= nowTime - 30 * 24 * 60 * 60 * 1000
   }
   return true
 }
@@ -238,6 +244,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     if (presetId === 'all') {
       const start = new Date(2026, 0, 1, 0, 0, 0)
       const end = new Date(2026, 11, 31, 23, 59, 59)
+      setStartDate(start)
+      setEndDate(end)
+      return
+    }
+    if (presetId === 'today') {
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
       setStartDate(start)
       setEndDate(end)
       return

@@ -246,6 +246,29 @@ export const DeliveryTeamPage: React.FC = () => {
       ),
     },
     {
+      key: 'trip_date',
+      header: 'Trip Date',
+      defaultWidth: 140,
+      accessor: (t) => {
+        const raw = t.delivered_at || t.dispatch_date || t.pickup_at
+        if (!raw) return <span className="text-zinc-400 font-mono text-xs">—</span>
+        const d = new Date(raw)
+        const dateStr = !isNaN(d.getTime())
+          ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : String(raw).split('T')[0]
+        const timeStr = !isNaN(d.getTime()) && String(raw).includes('T')
+          ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          : null
+        return (
+          <div className="text-xs">
+            <div className="font-semibold text-kumo-strong">{dateStr}</div>
+            {timeStr && <div className="text-[11px] text-kumo-subtle font-mono mt-0.5">{timeStr}</div>}
+          </div>
+        )
+      },
+      sortValue: (t) => t.delivered_at || t.dispatch_date || t.pickup_at || ''
+    },
+    {
       key: 'customer',
       header: 'Customer & Address',
       defaultWidth: 240,
@@ -269,8 +292,8 @@ export const DeliveryTeamPage: React.FC = () => {
     },
     {
       key: 'sla_timing',
-      header: 'Delivery Time',
-      defaultWidth: 160,
+      header: 'SLA Status',
+      defaultWidth: 130,
       accessor: (t) => {
         const isLate = Boolean(
           (t.notes && /delayed|late/i.test(t.notes)) ||
@@ -283,11 +306,6 @@ export const DeliveryTeamPage: React.FC = () => {
             }`}>
               {isLate ? 'Late (>45m)' : 'On-Time'}
             </span>
-            {t.delivered_at && (
-              <div className="text-[11px] text-zinc-400 mt-0.5 font-mono">
-                {t.delivered_at.split(' ')[1] || t.delivered_at}
-              </div>
-            )}
           </div>
         )
       }
@@ -748,9 +766,11 @@ export const DeliveryTeamPage: React.FC = () => {
           {modalTab === 'trips' && (
             <div className="space-y-3 font-sans">
               <DataTable
+                tableId={`rider_trips_${selectedRider?.rider_user_id || 'table'}`}
                 data={riderTrips}
                 columns={riderTripColumns}
-                emptyMessage="No completed delivery trips recorded for this rider yet."
+                dateField={(t: any) => t.delivered_at || t.dispatch_date || t.pickup_at || t.created_at}
+                emptyMessage="No completed delivery trips recorded for this rider in the selected date range."
               />
             </div>
           )}
