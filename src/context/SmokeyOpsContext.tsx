@@ -724,6 +724,11 @@ export type PermissionId =
   | 'perm_orders_status'
   | 'perm_orders_kpi_view'
   | 'perm_orders_export'
+  | 'perm_pos_manage'
+  | 'perm_abandoned_carts_view'
+  | 'perm_abandoned_carts_recover'
+  | 'perm_payments_view'
+  | 'perm_payments_verify'
   | 'perm_sales_inventory_view'
   | 'perm_sales_catalog'
   // Packaging
@@ -768,6 +773,9 @@ export type PermissionId =
   | 'perm_shifts'
   // Finance
   | 'perm_finance'
+  // Support & Help Desk
+  | 'perm_support_view'
+  | 'perm_support_manage'
   // Overview & Administration
   | 'perm_overview_view'
   | 'perm_overview_kpis'
@@ -777,6 +785,7 @@ export type PermissionId =
   | 'perm_records'
   | 'perm_users'
   | 'perm_rbac'
+  | 'perm_offices_view'
   | 'perm_facility_config'
 
 export interface SystemPermissionDef {
@@ -794,6 +803,11 @@ export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> =
   perm_orders_status: { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
   perm_orders_kpi_view: { id: 'perm_orders_kpi_view', label: 'View Order KPI Metric Cards & Analytics Graphs', category: 'Sales', description: 'Inspect live KPI metric summary cards, revenue totals, order volume counters, and sparkline trend graphs on the Website Orders page.' },
   perm_orders_export: { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
+  perm_pos_manage: { id: 'perm_pos_manage', label: 'Manage Walk-in POS Orders & Counter Sales', category: 'Sales', description: 'Filter, review, and process in-person Walk-in POS customer orders and kitchen counter sales.' },
+  perm_abandoned_carts_view: { id: 'perm_abandoned_carts_view', label: 'View Abandoned Carts Page', category: 'Sales', pageRoute: '/sales/abandoned-carts', isPageView: true, description: 'Access /sales/abandoned-carts to monitor dropped customer carts, checkout funnels, and recovery history.' },
+  perm_abandoned_carts_recover: { id: 'perm_abandoned_carts_recover', label: 'Recover Abandoned Carts & Customer Outreach', category: 'Sales', description: 'Initiate customer recovery outreach via WhatsApp/SMS, copy recovery checkout links, and update recovery status.' },
+  perm_payments_view: { id: 'perm_payments_view', label: 'View Payments & Transactions Page', category: 'Sales', pageRoute: '/sales/payments', isPageView: true, description: 'Access /sales/payments to audit Paystack card/transfer transactions, USSD payments, and payment channel reconciliations.' },
+  perm_payments_verify: { id: 'perm_payments_verify', label: 'Verify Paystack Transactions & Audit Channel Logs', category: 'Sales', description: 'Audit transaction reference logs, verify Paystack payment settlements, and review refund histories.' },
   perm_sales_inventory_view: { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', isPageView: true, description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
   perm_sales_catalog: { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
 
@@ -853,7 +867,10 @@ export const PERMISSION_DEFINITIONS: Record<PermissionId, SystemPermissionDef> =
   perm_records: { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Master database records and operational raw data access.' },
   perm_users: { id: 'perm_users', label: 'Manage Staff Accounts & KYC Onboarding', category: 'Administration', pageRoute: '/accounts', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
   perm_rbac: { id: 'perm_rbac', label: 'Manage Role Scopes & Permission Policies', category: 'Administration', pageRoute: '/accounts/matrix', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
-  perm_facility_config: { id: 'perm_facility_config', label: 'Manage Operating Offices & Regional Hubs', category: 'Administration', pageRoute: '/offices', description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.' }
+  perm_offices_view: { id: 'perm_offices_view', label: 'View Operating Offices & Facilities Page', category: 'Administration', pageRoute: '/offices', isPageView: true, description: 'Access /offices to inspect operating kitchen facilities, regional distribution hubs, and storage bins.' },
+  perm_facility_config: { id: 'perm_facility_config', label: 'Manage Operating Offices & Regional Hubs', category: 'Administration', pageRoute: '/offices', description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.' },
+  perm_support_view: { id: 'perm_support_view', label: 'View Support & Help Desk Page', category: 'Administration', pageRoute: '/support', isPageView: true, description: 'Access /support to view support tickets, emergency operational escalations, and system incident logs.' },
+  perm_support_manage: { id: 'perm_support_manage', label: 'Resolve Support Tickets & Incident Escalations', category: 'Administration', description: 'Update ticket status, assign support agents, respond to operational incidents, and close help desk issues.' }
 }
 
 export const PERMISSION_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
@@ -879,6 +896,16 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'View Sales Inventory Page': ['Sales Inventory & Menu Availability', 'Manage Sales Menu & Finished Pricing'],
   perm_sales_catalog: ['Manage Sales Menu & Finished Pricing', 'Sales Inventory & Menu Availability'],
   'Edit Sales Inventory, Pricing & Menu Catalog': ['Manage Sales Menu & Finished Pricing', 'Sales Inventory & Menu Availability'],
+  perm_pos_manage: ['Manage Walk-in POS Orders', 'Walk-in POS', 'POS:manage'],
+  'Manage Walk-in POS Orders & Counter Sales': ['Manage Walk-in POS Orders', 'Walk-in POS', 'POS:manage'],
+  perm_abandoned_carts_view: ['View Abandoned Carts', 'Abandoned Carts:view', 'Abandoned Carts'],
+  'View Abandoned Carts Page': ['View Abandoned Carts', 'Abandoned Carts:view', 'Abandoned Carts'],
+  perm_abandoned_carts_recover: ['Recover Abandoned Carts', 'Abandoned Carts:recover'],
+  'Recover Abandoned Carts & Customer Outreach': ['Recover Abandoned Carts', 'Abandoned Carts:recover'],
+  perm_payments_view: ['View Payments & Transactions', 'Payments:view', 'Transactions:view'],
+  'View Payments & Transactions Page': ['View Payments & Transactions', 'Payments:view', 'Transactions:view'],
+  perm_payments_verify: ['Verify Payments', 'Payments:verify'],
+  'Verify Paystack Transactions & Audit Channel Logs': ['Verify Payments', 'Payments:verify'],
 
   // Packaging
   perm_packaging_exec_view: ['Portion Pack-out Logging'],
@@ -957,6 +984,12 @@ export const LEGACY_PERMISSION_ALIASES: Record<string, string[]> = {
   'Manage Role Scopes & Permission Policies': ['Role & Permission Management'],
   perm_facility_config: ['Office & Facility Settings'],
   'Manage Operating Offices & Regional Hubs': ['Office & Facility Settings'],
+  perm_offices_view: ['View Operating Offices', 'Offices:view', 'Facilities:view'],
+  'View Operating Offices & Facilities Page': ['View Operating Offices', 'Offices:view', 'Facilities:view'],
+  perm_support_view: ['View Support & Help Desk', 'Support:view', 'HelpDesk:view'],
+  'View Support & Help Desk Page': ['View Support & Help Desk', 'Support:view', 'HelpDesk:view'],
+  perm_support_manage: ['Manage Support Tickets', 'Support:manage', 'HelpDesk:manage'],
+  'Resolve Support Tickets & Incident Escalations': ['Manage Support Tickets', 'Support:manage', 'HelpDesk:manage'],
   perm_records: ['Full Database & Records Access'],
   'Full Database & Records Access': ['Full Database & Records Access']
 }
@@ -1014,7 +1047,16 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Book 3PL Couriers & Verify Surge Fee Evidence',
     'Logistics Dispatch Controls',
     'Staff Shift Assignments',
-    'Finance & Payout Remittances'
+    'Finance & Payout Remittances',
+    'Manage Walk-in POS Orders & Counter Sales',
+    'View Abandoned Carts Page',
+    'Recover Abandoned Carts & Customer Outreach',
+    'View Payments & Transactions Page',
+    'Verify Paystack Transactions & Audit Channel Logs',
+    'View Operating Offices & Facilities Page',
+    'Manage Operating Offices & Regional Hubs',
+    'View Support & Help Desk Page',
+    'Resolve Support Tickets & Incident Escalations'
   ],
   kitchen: [
     'View Production Batches Page',
@@ -1026,7 +1068,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Waste & Spoilage Incident Reports',
     'View Packaging Execution Page',
     'Execute Order Pack-out & Deduct Consumables',
-    'View Raw Inventory Page'
+    'View Raw Inventory Page',
+    'View Support & Help Desk Page'
   ],
   inventory: [
     'View Raw Inventory Page',
@@ -1039,7 +1082,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'View Packaging Materials Page',
     'Manage Packaging Stock, Receipts & Reconciliations',
     'Lot Expiry Monitoring',
-    'Inventory Threshold Overrides'
+    'Inventory Threshold Overrides',
+    'View Support & Help Desk Page'
   ],
   dispatcher: [
     'View Dispatch Board Page',
@@ -1053,27 +1097,36 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     'Book 3PL Couriers & Verify Surge Fee Evidence',
     'View Website Orders Page',
     'Edit & Reschedule Website Orders',
+    'Manage Walk-in POS Orders & Counter Sales',
     'View Packaging Execution Page',
     'Execute Order Pack-out & Deduct Consumables',
     'Logistics Dispatch Controls',
-    'Staff Shift Assignments'
+    'Staff Shift Assignments',
+    'View Support & Help Desk Page'
   ],
   rider: [
     'Access Mobile Rider Portal (My Trips)',
     'Rider: Accept Dispatches & Start Transit',
     'Rider: Confirm Customer Drop-off Handover',
-    'Rider: View Wallet & Earnings Ledger'
+    'Rider: View Wallet & Earnings Ledger',
+    'View Support & Help Desk Page'
   ],
   sales_manager: [
     'View Website Orders Page',
     'Edit & Reschedule Website Orders',
     'View Order KPI Metric Cards & Analytics Graphs',
     'Export Website Order & Revenue Reports',
+    'Manage Walk-in POS Orders & Counter Sales',
+    'View Abandoned Carts Page',
+    'Recover Abandoned Carts & Customer Outreach',
+    'View Payments & Transactions Page',
+    'Verify Paystack Transactions & Audit Channel Logs',
     'View Sales Inventory Page',
     'Edit Sales Inventory, Pricing & Menu Catalog',
     'View Store Pickup Counter Page',
     'Verify Collector & Complete Pickup Handover',
-    'Physical Stocktake Adjustments & Edit Raw Items'
+    'Physical Stocktake Adjustments & Edit Raw Items',
+    'View Support & Help Desk Page'
   ]
 }
 
@@ -1195,17 +1248,17 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { prefix: '/accounts/scopes', requiredPermissions: ['perm_rbac', 'perm_users', 'Manage Role Scopes & Permission Policies', 'Manage Staff Accounts & KYC Onboarding'], title: 'Role & Permission Matrix' },
   { prefix: '/accounts', requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
   { prefix: '/admin/accounts', requiredPermissions: ['perm_users', 'perm_rbac', 'Manage Staff Accounts & KYC Onboarding', 'Manage Role Scopes & Permission Policies'], title: 'Staff Account Management' },
-  { prefix: '/offices', requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
-  { prefix: '/admin/offices', requiredPermissions: ['perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
+  { prefix: '/offices', requiredPermissions: ['perm_offices_view', 'View Operating Offices & Facilities Page', 'perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
+  { prefix: '/admin/offices', requiredPermissions: ['perm_offices_view', 'View Operating Offices & Facilities Page', 'perm_facility_config', 'Manage Operating Offices & Regional Hubs'], title: 'Office & Regional Hub Management' },
 
   // Dedicated Rider Portal
   { prefix: '/logistics/rider-portal', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff', 'perm_wallet'], title: 'Rider Delivery Portal' },
   { prefix: '/rider', allowedRoles: ['rider'], requiredPermissions: ['perm_rider_portal_view', 'Access Mobile Rider Portal (My Trips)', 'perm_delivery_transit', 'perm_otp_dropoff', 'perm_wallet'], title: 'Rider Delivery Portal' },
 
   // 1. Sales domain
-  { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders', 'View Order KPI Metric Cards & Analytics Graphs', 'Export Website Order & Revenue Reports'], title: 'Website Orders' },
-  { prefix: '/sales/abandoned-carts', requiredPermissions: ['perm_orders_view', 'perm_orders_kpi_view', 'View Website Orders Page', 'View Abandoned Carts'], title: 'Abandoned Carts' },
-  { prefix: '/sales/payments', requiredPermissions: ['perm_orders_view', 'perm_orders_kpi_view', 'View Website Orders Page', 'View Payments & Transactions'], title: 'Payments & Transactions' },
+  { prefix: '/sales/orders', requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'perm_pos_manage', 'View Website Orders Page', 'Edit & Reschedule Website Orders', 'View Order KPI Metric Cards & Analytics Graphs', 'Export Website Order & Revenue Reports', 'Manage Walk-in POS Orders & Counter Sales'], title: 'Website Orders' },
+  { prefix: '/sales/abandoned-carts', requiredPermissions: ['perm_abandoned_carts_view', 'View Abandoned Carts Page', 'perm_abandoned_carts_recover', 'Recover Abandoned Carts & Customer Outreach'], title: 'Abandoned Carts' },
+  { prefix: '/sales/payments', requiredPermissions: ['perm_payments_view', 'View Payments & Transactions Page', 'perm_payments_verify', 'Verify Paystack Transactions & Audit Channel Logs'], title: 'Payments & Transactions' },
   { prefix: '/sales', exact: true, requiredPermissions: ['perm_orders_view', 'perm_orders_status', 'perm_orders_kpi_view', 'perm_orders_export', 'View Website Orders Page', 'Edit & Reschedule Website Orders'], title: 'Website Orders' },
   { prefix: '/inventory/sales', requiredPermissions: ['perm_sales_inventory_view', 'View Sales Inventory Page', 'perm_sales_catalog', 'Edit Sales Inventory, Pricing & Menu Catalog'], title: 'Sales Inventory' },
 
@@ -1251,8 +1304,8 @@ export const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
     title: 'Operations Overview'
   },
 
-  // Support Help Desk (Universal for all authenticated staff)
-  { prefix: '/support', title: 'Support & Help Desk' },
+  // Support Help Desk
+  { prefix: '/support', requiredPermissions: ['perm_support_view', 'View Support & Help Desk Page'], title: 'Support & Help Desk' },
 ]
 
 export const APP_ACCOUNTS: AppUserAccount[] = [

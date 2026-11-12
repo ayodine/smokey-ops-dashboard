@@ -68,6 +68,11 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   { id: 'perm_orders_status', label: 'Edit & Reschedule Website Orders', category: 'Sales', description: 'Update order fulfillment stages across intake, packaging, dispatch, and reschedule delivery dates/times.' },
   { id: 'perm_orders_kpi_view', label: 'View Order KPI Metric Cards & Analytics Graphs', category: 'Sales', description: 'Inspect live KPI metric summary cards, revenue totals, order volume counters, and sparkline trend graphs on the Website Orders page.' },
   { id: 'perm_orders_export', label: 'Export Website Order & Revenue Reports', category: 'Sales', description: 'Download CSV and Excel order manifests and financial audit reports.' },
+  { id: 'perm_pos_manage', label: 'Manage Walk-in POS Orders & Counter Sales', category: 'Sales', description: 'Filter, review, and process in-person Walk-in POS customer orders and kitchen counter sales.' },
+  { id: 'perm_abandoned_carts_view', label: 'View Abandoned Carts Page', category: 'Sales', pageRoute: '/sales/abandoned-carts', description: 'Access /sales/abandoned-carts to monitor dropped customer carts, checkout funnels, and recovery history.' },
+  { id: 'perm_abandoned_carts_recover', label: 'Recover Abandoned Carts & Customer Outreach', category: 'Sales', description: 'Initiate customer recovery outreach via WhatsApp/SMS, copy recovery checkout links, and update recovery status.' },
+  { id: 'perm_payments_view', label: 'View Payments & Transactions Page', category: 'Sales', pageRoute: '/sales/payments', description: 'Access /sales/payments to audit Paystack card/transfer transactions, USSD payments, and payment channel reconciliations.' },
+  { id: 'perm_payments_verify', label: 'Verify Paystack Transactions & Audit Channel Logs', category: 'Sales', description: 'Audit transaction reference logs, verify Paystack payment settlements, and review refund histories.' },
   { id: 'perm_sales_inventory_view', label: 'View Sales Inventory Page', category: 'Sales', pageRoute: '/inventory/sales', description: 'Access /inventory/sales to view finished smoked products stock, oven buffer, and sales breakdown.' },
   { id: 'perm_sales_catalog', label: 'Edit Sales Inventory, Pricing & Menu Catalog', category: 'Sales', description: 'Add new finished sales products, manually adjust finished stock, and configure menu selling prices.' },
 
@@ -126,7 +131,10 @@ export const ALL_SYSTEM_PERMISSIONS: SystemPermissionItem[] = [
   // Administration & Security
   { id: 'perm_users', label: 'Manage Staff Accounts & KYC Onboarding', category: 'Administration', pageRoute: '/accounts', description: 'Create, update credentials, deactivate and delete dashboard operator accounts.' },
   { id: 'perm_rbac', label: 'Manage Role Scopes & Permission Policies', category: 'Administration', pageRoute: '/accounts/matrix', description: 'Assign roles, adjust privilege scopes, and configure custom security grants.' },
+  { id: 'perm_offices_view', label: 'View Operating Offices & Facilities Page', category: 'Administration', pageRoute: '/offices', description: 'Access /offices to inspect operating kitchen facilities, regional distribution hubs, and storage bins.' },
   { id: 'perm_facility_config', label: 'Manage Operating Offices & Regional Hubs', category: 'Administration', pageRoute: '/offices', description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.' },
+  { id: 'perm_support_view', label: 'View Support & Help Desk Page', category: 'Administration', pageRoute: '/support', description: 'Access /support to view support tickets, emergency operational escalations, and system incident logs.' },
+  { id: 'perm_support_manage', label: 'Resolve Support Tickets & Incident Escalations', category: 'Administration', description: 'Update ticket status, assign support agents, respond to operational incidents, and close help desk issues.' },
   { id: 'perm_records', label: 'Full Database & Records Access', category: 'Administration', description: 'Access master database records, audit trails, and operational raw data tables.' }
 ]
 

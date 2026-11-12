@@ -44,8 +44,10 @@ export interface PaymentRecord {
 }
 
 export const PaymentsPage: React.FC = () => {
-  const { hasPermission, showToast } = useSmokeyOps()
+  const { hasPermission, showToast, currentAccount } = useSmokeyOps()
+  const isAdmin = currentAccount?.role === 'admin'
   const canViewKPIs = hasPermission('perm_orders_kpi_view')
+  const canVerifyPayments = isAdmin || hasPermission('perm_payments_verify') || hasPermission('perm_finance')
 
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [totalCount, setTotalCount] = useState(0)

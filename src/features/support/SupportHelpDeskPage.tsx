@@ -27,6 +27,7 @@ import { FileUpload, type FileUploadItem } from '@/components/ui/FileUpload'
 import { StatusBadge } from '@/components/ui/Badge'
 import { TableActionButton } from '@/components/ui/TableActionButton'
 import { useWarehouse } from '@/context/WarehouseContext'
+import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { cn } from '@/lib/utils'
 
 export type SupportModalType =
@@ -116,6 +117,8 @@ const FAQ_ITEMS: FaqItem[] = [
 
 export const SupportHelpDeskPage: React.FC = () => {
   const { selectedWarehouse, facilities } = useWarehouse()
+  const { currentAccount, hasPermission } = useSmokeyOps()
+  const canManageTickets = currentAccount?.role === 'admin' || hasPermission('perm_support_manage')
   const [activeModal, setActiveModal] = useState<SupportModalType>('none')
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1538,10 +1541,25 @@ export const SupportHelpDeskPage: React.FC = () => {
                   </div>
                   <div className="flex items-start text-[13px]">
                     <span className="w-36 sm:w-44 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal">Status</span>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       {selectedTicket.status === 'Resolved' && <StatusBadge status="RESOLVED" label="resolved" size="sm" />}
                       {selectedTicket.status === 'In Progress' && <StatusBadge status="IN_PROGRESS" label="in-progress" size="sm" />}
                       {selectedTicket.status === 'Under Review' && <StatusBadge status="UNDER_REVIEW" label="under-review" size="sm" />}
+                      {canManageTickets && (
+                        <select
+                          value={selectedTicket.status}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as SupportTicket['status']
+                            setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t))
+                            setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null)
+                          }}
+                          className="text-xs rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-0.5 text-zinc-700 dark:text-zinc-200"
+                        >
+                          <option value="Under Review">Under Review</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Resolved">Resolved</option>
+                        </select>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-start text-[13px]">

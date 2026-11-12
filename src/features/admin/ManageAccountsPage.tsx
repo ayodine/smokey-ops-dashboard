@@ -78,6 +78,9 @@ const ACTION_TO_PAGE_VIEW_PERMISSION: Record<string, string> = {
   'Edit & Reschedule Website Orders': 'View Website Orders Page',
   'View Order KPI Metric Cards & Analytics Graphs': 'View Website Orders Page',
   'Export Website Order & Revenue Reports': 'View Website Orders Page',
+  'Manage Walk-in POS Orders & Counter Sales': 'View Website Orders Page',
+  'Recover Abandoned Carts & Customer Outreach': 'View Abandoned Carts Page',
+  'Verify Paystack Transactions & Audit Channel Logs': 'View Payments & Transactions Page',
   'Edit Sales Inventory, Pricing & Menu Catalog': 'View Sales Inventory Page',
   // Packaging
   'Execute Order Pack-out & Deduct Consumables': 'View Packaging Execution Page',
@@ -111,6 +114,9 @@ const ACTION_TO_PAGE_VIEW_PERMISSION: Record<string, string> = {
   'Home Overview: View Quick Navigation & Action Links': 'View Executive Operations Overview',
   'Home Overview: View Live Order Flow Diagram': 'View Executive Operations Overview',
   'Home Overview: View Operational Analytics & Trend Charts': 'View Executive Operations Overview',
+  // Administration & Support
+  'Manage Operating Offices & Regional Hubs': 'View Operating Offices & Facilities Page',
+  'Resolve Support Tickets & Incident Escalations': 'View Support & Help Desk Page',
 }
 
 const applySmartPermissionToggle = (prev: string[], permLabel: string): string[] => {
@@ -1029,6 +1035,38 @@ export const ManageAccountsPage: React.FC = () => {
             description: 'Download CSV and Excel order manifests and financial audit reports.'
           },
           {
+            id: 'perm_pos_manage',
+            label: 'Manage Walk-in POS Orders & Counter Sales',
+            category: 'Sales',
+            description: 'Filter, review, and process in-person Walk-in POS customer orders and kitchen counter sales.'
+          },
+          {
+            id: 'perm_abandoned_carts_view',
+            label: 'View Abandoned Carts Page',
+            category: 'Sales',
+            pageRoute: '/sales/abandoned-carts',
+            description: 'Access /sales/abandoned-carts to monitor dropped customer carts, checkout funnels, and recovery history.'
+          },
+          {
+            id: 'perm_abandoned_carts_recover',
+            label: 'Recover Abandoned Carts & Customer Outreach',
+            category: 'Sales',
+            description: 'Initiate customer recovery outreach via WhatsApp/SMS, copy recovery checkout links, and update recovery status.'
+          },
+          {
+            id: 'perm_payments_view',
+            label: 'View Payments & Transactions Page',
+            category: 'Sales',
+            pageRoute: '/sales/payments',
+            description: 'Access /sales/payments to audit Paystack card/transfer transactions, USSD payments, and payment channel reconciliations.'
+          },
+          {
+            id: 'perm_payments_verify',
+            label: 'Verify Paystack Transactions & Audit Channel Logs',
+            category: 'Sales',
+            description: 'Audit transaction reference logs, verify Paystack payment settlements, and review refund histories.'
+          },
+          {
             id: 'perm_sales_inventory_view',
             label: 'View Sales Inventory Page',
             category: 'Sales',
@@ -1352,11 +1390,31 @@ export const ManageAccountsPage: React.FC = () => {
             description: 'Assign roles, adjust privilege scopes, and configure custom operational security grants.'
           },
           {
+            id: 'perm_offices_view',
+            label: 'View Operating Offices & Facilities Page',
+            category: 'Administration',
+            pageRoute: '/offices',
+            description: 'Access /offices to inspect operating kitchen facilities, regional distribution hubs, and storage bins.'
+          },
+          {
             id: 'perm_facility_config',
             label: 'Manage Operating Offices & Regional Hubs',
             category: 'Administration',
             pageRoute: '/offices',
             description: 'Configure kitchen operating facilities, bin allocations, hub geofences, and store pickup options.'
+          },
+          {
+            id: 'perm_support_view',
+            label: 'View Support & Help Desk Page',
+            category: 'Administration',
+            pageRoute: '/support',
+            description: 'Access /support to view support tickets, emergency operational escalations, and system incident logs.'
+          },
+          {
+            id: 'perm_support_manage',
+            label: 'Resolve Support Tickets & Incident Escalations',
+            category: 'Administration',
+            description: 'Update ticket status, assign support agents, respond to operational incidents, and close help desk issues.'
           },
           {
             id: 'perm_records',

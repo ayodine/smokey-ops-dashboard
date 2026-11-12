@@ -102,7 +102,7 @@ export const AbandonedCartsPage: React.FC = () => {
   const { hasPermission, showToast, currentAccount } = useSmokeyOps()
   const canViewKPIs = hasPermission('perm_orders_kpi_view')
   const isAdmin = currentAccount?.role === 'admin'
-  const canManage = isAdmin || hasPermission('perm_orders_status')
+  const canManage = isAdmin || hasPermission('perm_abandoned_carts_recover') || hasPermission('perm_orders_status')
 
   const [stats, setStats] = useState({
     total_sessions: 0,

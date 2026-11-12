@@ -518,9 +518,11 @@ export const WebsiteOrdersPage: React.FC = () => {
     scheduledOrders,
     storePickups,
     rescheduleOrderDelivery,
-    hasPermission
+    hasPermission,
+    currentAccount
   } = useSmokeyOps()
   const canViewKPIs = hasPermission('perm_orders_kpi_view')
+  const canManagePOS = currentAccount?.role === 'admin' || hasPermission('perm_pos_manage') || hasPermission('perm_orders_status')
   const [loading] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<'all' | 'walkin_pos' | 'intake' | 'packaging' | 'transit' | 'delivered'>('all')
   const [selectedOrder, setSelectedOrder] = useState<WebsiteOrder | null>(null)
