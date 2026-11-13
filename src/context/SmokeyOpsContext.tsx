@@ -1598,13 +1598,10 @@ const SmokeyOpsContext = createContext<SmokeyOpsContextType | undefined>(undefin
  */
 export const getOfficeOpeningHourForDate = (dateInput: string): { timeStr: string, label: string, fullDateTime: string } => {
   const cleanDate = (dateInput || '').split('T')[0].split(' ')[0]
-  const d = new Date(`${cleanDate}T00:00:00`)
-  const day = d.getDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const isWeekend = day === 6 || day === 0
-  const timeStr = isWeekend ? '10:00:00' : '08:00:00'
-  const label = isWeekend ? '10:00 AM' : '08:00 AM'
+  const timeStr = '08:00:00'
+  const label = '08:00 AM'
 
-  // If a specific time was already stored, retain it; otherwise format with opening hours
+  // If a specific time was already stored, retain it; otherwise default to 8:00 AM release time
   const hasCustomTime = dateInput.includes(':') && (dateInput.includes('T') || dateInput.includes(' '))
   const fullDateTime = hasCustomTime ? dateInput : `${cleanDate} ${timeStr}`
 
@@ -2292,15 +2289,14 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
     const todayYMD = formatLocalDateToYMD(new Date())
     const cleanSchedDate = schedDateStr ? String(schedDateStr).slice(0, 10) : ''
     const isSchedForTodayOrPast = Boolean(cleanSchedDate && cleanSchedDate <= todayYMD)
-    const isSchedTimePassedOrDueNow = !isNaN(schedTime) && schedTime <= (now + 30 * 60 * 1000)
+    const isSchedTimePassedOrDueNow = !isNaN(schedTime) && schedTime <= now
 
-    // An order is genuinely an unreleased future scheduled order ONLY if it is scheduled for a future date,
-    // or scheduled for later today (more than 30 mins from now).
-    // If the scheduled date is today (or past) and store opening/scheduled time has arrived,
-    // or if the order was placed today without a future scheduled date, it belongs directly in active fulfillment.
+    // An order is an unreleased future scheduled order if it is scheduled for a future date,
+    // or scheduled for today before 8:00 AM (or its custom scheduled time later today).
+    // Once 8:00 AM arrives on the scheduled day, it moves automatically into active packaging.
     const isFutureSchedule = Boolean(
       (cleanSchedDate && cleanSchedDate > todayYMD) ||
-      (cleanSchedDate && cleanSchedDate === todayYMD && !isNaN(schedTime) && schedTime > (now + 30 * 60 * 1000))
+      (cleanSchedDate && cleanSchedDate === todayYMD && !isNaN(schedTime) && schedTime > now)
     )
     const isScheduledOrder = Boolean(isFutureSchedule || (isExplicitScheduled && !isSchedForTodayOrPast))
     const isReleasedToPackaging = Boolean(

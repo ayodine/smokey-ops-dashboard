@@ -3,7 +3,6 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { KumoTabs } from '@/components/ui/KumoTabs'
 import { DataTable, ColumnDef } from '@/components/ui/DataTable'
-import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -16,17 +15,10 @@ import {
   Landmark,
   Banknote,
   CreditCard,
-  Search,
   RefreshCw,
-  Eye,
-  CheckCircle2,
   Clock,
-  Phone,
-  Receipt,
-  FileText
+  Phone
 } from 'lucide-react'
-
-const PER_PAGE = 50
 
 export interface PaymentRecord {
   id: string | number
@@ -51,11 +43,13 @@ export const PaymentsPage: React.FC = () => {
 
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [allTransactionsCount, setAllTransactionsCount] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeMethod, setActiveMethod] = useState<'all' | 'paystack' | 'bank_transfer' | 'cash' | 'pos'>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(50)
   const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(null)
 
   const [kpis, setKpis] = useState({
@@ -75,7 +69,7 @@ export const PaymentsPage: React.FC = () => {
         .select('id, customer_name, customer_email, customer_phone, paystack_ref, total, delivery_fee, payment_method, status, paid_at, created_at, notes', { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .range((page - 1) * PER_PAGE, page * PER_PAGE - 1)
+        .range((page - 1) * perPage, page * perPage - 1)
 
       if (activeMethod !== 'all') {
         if (activeMethod === 'paystack') {
@@ -99,6 +93,9 @@ export const PaymentsPage: React.FC = () => {
 
       setPayments(ordersRes.data || [])
       setTotalCount(ordersRes.count || 0)
+      if (activeMethod === 'all' && !search.trim()) {
+        setAllTransactionsCount(ordersRes.count || 0)
+      }
 
       if (canViewKPIs && kpisRes?.data) {
         setKpis(kpisRes.data)
@@ -128,7 +125,7 @@ export const PaymentsPage: React.FC = () => {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeMethod, search, page, canViewKPIs, showToast])
+  }, [activeMethod, search, page, perPage, canViewKPIs, showToast])
 
   useEffect(() => {
     fetchData()
@@ -265,22 +262,6 @@ export const PaymentsPage: React.FC = () => {
         }
         return <span className="text-zinc-400 text-xs">—</span>
       }
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      defaultWidth: 100,
-      accessor: (p) => (
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <TableActionButton
-            variant="outline"
-            onClick={() => setSelectedPayment(p)}
-            leftIcon={<Eye className="w-3.5 h-3.5" />}
-          >
-            Details
-          </TableActionButton>
-        </div>
-      )
     }
   ]
 
@@ -351,7 +332,7 @@ export const PaymentsPage: React.FC = () => {
             setPage(1)
           }}
           tabs={[
-            { id: 'all', label: 'All Transactions', badge: totalCount || undefined },
+            { id: 'all', label: 'All Transactions', badge: allTransactionsCount || undefined },
             { id: 'paystack', label: 'Paystack Online' },
             { id: 'bank_transfer', label: 'Bank Transfer' },
             { id: 'pos', label: 'POS Terminal' },
@@ -375,7 +356,12 @@ export const PaymentsPage: React.FC = () => {
         }}
         serverTotalCount={totalCount}
         currentPage={page}
+        itemsPerPage={perPage}
         onPageChange={setPage}
+        onItemsPerPageChange={(limit) => {
+          setPerPage(limit)
+          setPage(1)
+        }}
         isLoading={loading || refreshing}
         itemsPerPageOptions={[10, 25, 50, 100]}
         emptyMessage="No transaction records match the specified filters."

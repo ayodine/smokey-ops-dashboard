@@ -102,6 +102,8 @@ export interface DataTableProps<T> {
   serverTotalCount?: number
   /** Controlled active page (1-based) */
   currentPage?: number
+  /** Controlled items per page limit */
+  itemsPerPage?: number
   /** Callback when page is changed */
   onPageChange?: (page: number) => void
   /** Callback when items per page limit changes */
@@ -149,6 +151,7 @@ export function DataTable<T>({
   renderExpandedSubTable,
   serverTotalCount,
   currentPage: controlledCurrentPage,
+  itemsPerPage: controlledItemsPerPage,
   onPageChange,
   onItemsPerPageChange,
 }: DataTableProps<T>) {
@@ -167,7 +170,8 @@ export function DataTable<T>({
       setLocalCurrentPage(newPage)
     }
   }
-  const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageOptions[0] || 10)
+  const [localItemsPerPage, setLocalItemsPerPage] = useState(controlledItemsPerPage ?? itemsPerPageOptions[0] ?? 10)
+  const itemsPerPage = controlledItemsPerPage !== undefined ? controlledItemsPerPage : localItemsPerPage
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -1288,7 +1292,11 @@ export function DataTable<T>({
             return (
               <div
                 key={id}
-                className="bg-background border border-border/60 rounded-lg p-4 shadow-2xs space-y-2.5"
+                onClick={() => onRowClick?.(item)}
+                className={cn(
+                  'bg-background border border-border/60 rounded-lg p-4 shadow-2xs space-y-2.5',
+                  onRowClick && 'cursor-pointer hover:border-border transition-colors'
+                )}
               >
                 {mobileRender ? (
                   mobileRender(item)
@@ -1374,7 +1382,7 @@ export function DataTable<T>({
               value={itemsPerPage}
               onValueChange={val => {
                 const nextLimit = Number(val)
-                setItemsPerPage(nextLimit)
+                setLocalItemsPerPage(nextLimit)
                 if (onItemsPerPageChange) {
                   onItemsPerPageChange(nextLimit)
                 }

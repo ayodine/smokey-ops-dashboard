@@ -7,35 +7,20 @@ import { TableActionButton } from '@/components/ui/TableActionButton'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { StatusBadge } from '@/components/ui/Badge'
+import { TrafficSourceBadge } from '@/components/ui/TrafficSourceBadge'
 import { supabase } from '@/lib/supabase'
 import { useSmokeyOps } from '@/context/SmokeyOpsContext'
 import { formatNaira, formatDate } from '@/lib/utils'
-import { parseCartSessionAttribution, ParsedAttribution } from '@/lib/cartAttribution'
+import { parseCartSessionAttribution } from '@/lib/cartAttribution'
 import {
   ShoppingCart,
-  DollarSign,
   TrendingDown,
   CheckCircle2,
   Phone,
   MessageCircle,
-  Mail,
-  MapPin,
-  Clock,
-  Search,
   RefreshCw,
-  ExternalLink,
-  User,
-  AlertCircle,
-  Eye,
-  Trash2,
-  Check,
-  Globe,
-  Tag,
-  ArrowRight,
-  Filter
+  ExternalLink
 } from 'lucide-react'
-
-const PER_PAGE = 30
 
 export interface CartSession {
   session_id: string
@@ -121,13 +106,12 @@ export const AbandonedCartsPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'abandoned' | 'recoverable' | 'checkout' | 'contact_captured' | 'payment_pending' | 'recovered' | 'all'>('abandoned')
-  const [sourceFilter, setSourceFilter] = useState('all')
+  const [activeTab, setActiveTab] = useState<'abandoned' | 'recoverable' | 'payment_pending' | 'recovered' | 'all'>('abandoned')
+  const [sourceFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(25)
   const [selectedSession, setSelectedSession] = useState<CartSession | null>(null)
-  const [deletingSession, setDeletingSession] = useState<CartSession | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const fetchData = useCallback(async (isRefresh = false) => {
@@ -146,13 +130,13 @@ export const AbandonedCartsPage: React.FC = () => {
       }
 
       // 2. Fetch Paginated Records via RPC
-      const offset = (page - 1) * PER_PAGE
+      const offset = (page - 1) * perPage
       const { data: listData, error: listError } = await supabase.rpc('get_abandoned_cart_list', {
         p_start: null,
         p_end: null,
         p_filter: activeTab,
         p_search: search || null,
-        p_limit: PER_PAGE,
+        p_limit: perPage,
         p_offset: offset,
         p_source: sourceFilter,
       })
@@ -185,7 +169,7 @@ export const AbandonedCartsPage: React.FC = () => {
 
       query = query
         .order('last_active_at', { ascending: false })
-        .range(offset, offset + PER_PAGE - 1)
+        .range(offset, offset + perPage - 1)
 
       const { data: fallbackRows, count, error: fallbackError } = await query
 
@@ -204,7 +188,7 @@ export const AbandonedCartsPage: React.FC = () => {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeTab, sourceFilter, search, page, showToast])
+  }, [activeTab, sourceFilter, search, page, perPage, showToast])
 
   useEffect(() => {
     fetchData()
@@ -240,40 +224,6 @@ export const AbandonedCartsPage: React.FC = () => {
       showToast(err.message || 'Action failed', 'error', 'Recovery Update Error')
     } finally {
       setTogglingId(null)
-    }
-  }
-
-  const executeDelete = async () => {
-    if (!isAdmin) {
-      showToast('Only administrators can delete cart records.', 'error', 'Permission Denied')
-      return
-    }
-    if (!deletingSession) return
-    setIsDeleting(true)
-    try {
-      const { error: rpcError } = await supabase.rpc('delete_cart_session', {
-        p_session_id: deletingSession.session_id
-      })
-
-      if (rpcError) {
-        const { error: delError } = await supabase
-          .from('cart_sessions')
-          .delete()
-          .eq('session_id', deletingSession.session_id)
-        if (delError) throw delError
-      }
-
-      showToast('The cart session has been permanently removed.', 'success', 'Cart Deleted')
-      setRecords(prev => prev.filter(r => r.session_id !== deletingSession.session_id))
-      setTotalCount(prev => Math.max(0, prev - 1))
-      if (selectedSession?.session_id === deletingSession.session_id) {
-        setSelectedSession(null)
-      }
-      setDeletingSession(null)
-    } catch (err: any) {
-      showToast(err.message || 'Could not delete cart record.', 'error', 'Delete Failed')
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -405,17 +355,10 @@ export const AbandonedCartsPage: React.FC = () => {
     {
       key: 'source',
       header: 'Traffic Source',
-      defaultWidth: 150,
+      defaultWidth: 185,
       accessor: (r) => {
         const attr = parseCartSessionAttribution(r)
-        return (
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
-            style={{ backgroundColor: attr.bg, color: attr.color, border: `1px solid ${attr.border}` }}
-          >
-            {attr.badgeText}
-          </span>
-        )
+        return <TrafficSourceBadge attribution={attr} />
       }
     },
     {
@@ -450,35 +393,25 @@ export const AbandonedCartsPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      defaultWidth: 180,
+      defaultWidth: 140,
       accessor: (r) => (
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <TableActionButton
-            variant="outline"
-            onClick={() => setSelectedSession(r)}
-            leftIcon={<Eye className="w-3.5 h-3.5" />}
-          >
-            Details
-          </TableActionButton>
-          {r.customer_phone && (
+          {r.customer_phone ? (
             <TableActionButton
               variant="primary"
               onClick={(e) => openWhatsAppOutreach(r, e)}
               leftIcon={<MessageCircle className="w-3.5 h-3.5" />}
-              title="Open WhatsApp Outreach"
+              title="Open WhatsApp Outreach (External Link)"
             >
-              WhatsApp
+              <span className="inline-flex items-start">
+                <span>WhatsApp</span>
+                <sup className="ml-0.5 -mt-0.5 inline-flex items-center">
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </sup>
+              </span>
             </TableActionButton>
-          )}
-          {isAdmin && (
-            <TableActionButton
-              variant="outline"
-              onClick={() => setDeletingSession(r)}
-              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-              title="Delete Cart Session"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </TableActionButton>
+          ) : (
+            <span className="text-xs text-kumo-subtle">—</span>
           )}
         </div>
       )
@@ -543,44 +476,44 @@ export const AbandonedCartsPage: React.FC = () => {
         />
       </div>
 
-      {/* 3. Funnel Progression Overview */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5 shadow-2xs font-sans">
-        <div className="flex items-center justify-between mb-4">
+      {/* 3. Funnel Progression Overview (aligned with MetricCard Kumo styling) */}
+      <div className="rounded-lg bg-kumo-base ring ring-kumo-line p-3.5 sm:p-4 shadow-2xs font-sans select-none">
+        <div className="flex items-center justify-between mb-3.5">
           <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-              <span>Checkout Funnel Progression</span>
+            <h3 className="text-[13px] font-medium text-kumo-strong tracking-normal">
+              Checkout Funnel Progression
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-[11px] text-kumo-subtle/80">
               Visitor transition from cart initialization to verified storefront payment settlement.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-            <span className="block text-[11px] font-medium text-zinc-500 uppercase tracking-wider">1. Cart Started</span>
-            <span className="block text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-1 font-mono">{funnelCart}</span>
-            <span className="block text-[11px] text-zinc-400 mt-0.5">100% baseline</span>
+          <div className="flex flex-col justify-between rounded-lg bg-kumo-base ring ring-kumo-line p-3.5 shadow-2xs">
+            <span className="text-[13px] font-normal text-kumo-subtle truncate">1. Cart Started</span>
+            <span className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display mt-1">{funnelCart}</span>
+            <span className="text-[11px] text-kumo-subtle/80 truncate mt-1">100% baseline</span>
           </div>
-          <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-            <span className="block text-[11px] font-medium text-zinc-500 uppercase tracking-wider">2. Checkout</span>
-            <span className="block text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-1 font-mono">{funnelCheckout}</span>
-            <span className="block text-[11px] text-zinc-500 mt-0.5">{getPercent(funnelCheckout)}% reached</span>
+          <div className="flex flex-col justify-between rounded-lg bg-kumo-base ring ring-kumo-line p-3.5 shadow-2xs">
+            <span className="text-[13px] font-normal text-kumo-subtle truncate">2. Checkout</span>
+            <span className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display mt-1">{funnelCheckout}</span>
+            <span className="text-[11px] text-kumo-subtle/80 truncate mt-1">{getPercent(funnelCheckout)}% reached</span>
           </div>
-          <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-            <span className="block text-[11px] font-medium text-zinc-500 uppercase tracking-wider">3. Contact Lead</span>
-            <span className="block text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-1 font-mono">{funnelContact}</span>
-            <span className="block text-[11px] text-blue-600 dark:text-blue-400 font-medium mt-0.5">{getPercent(funnelContact)}% reachable</span>
+          <div className="flex flex-col justify-between rounded-lg bg-kumo-base ring ring-kumo-line p-3.5 shadow-2xs">
+            <span className="text-[13px] font-normal text-kumo-subtle truncate">3. Contact Lead</span>
+            <span className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display mt-1">{funnelContact}</span>
+            <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate mt-1">{getPercent(funnelContact)}% reachable</span>
           </div>
-          <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-            <span className="block text-[11px] font-medium text-zinc-500 uppercase tracking-wider">4. Paystack Start</span>
-            <span className="block text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-1 font-mono">{funnelPending}</span>
-            <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">{getPercent(funnelPending)}% initiated</span>
+          <div className="flex flex-col justify-between rounded-lg bg-kumo-base ring ring-kumo-line p-3.5 shadow-2xs">
+            <span className="text-[13px] font-normal text-kumo-subtle truncate">4. Paystack Start</span>
+            <span className="text-xl sm:text-2xl font-bold tracking-normal text-kumo-strong font-display mt-1">{funnelPending}</span>
+            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium truncate mt-1">{getPercent(funnelPending)}% initiated</span>
           </div>
-          <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
-            <span className="block text-[11px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">5. Converted</span>
-            <span className="block text-lg font-bold text-emerald-700 dark:text-emerald-300 mt-1 font-mono">{funnelConverted}</span>
-            <span className="block text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">{getPercent(funnelConverted)}% paid</span>
+          <div className="flex flex-col justify-between rounded-lg bg-emerald-50/40 dark:bg-emerald-950/20 ring ring-emerald-200 dark:ring-emerald-800/80 p-3.5 shadow-2xs">
+            <span className="text-[13px] font-normal text-emerald-700 dark:text-emerald-400 truncate">5. Converted</span>
+            <span className="text-xl sm:text-2xl font-bold tracking-normal text-emerald-700 dark:text-emerald-300 font-display mt-1">{funnelConverted}</span>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold truncate mt-1">{getPercent(funnelConverted)}% paid</span>
           </div>
         </div>
       </div>
@@ -596,8 +529,6 @@ export const AbandonedCartsPage: React.FC = () => {
           tabs={[
             { id: 'abandoned', label: 'All Abandoned', badge: stats.abandoned_sessions || undefined },
             { id: 'recoverable', label: 'Recoverable Leads', badge: stats.recoverable_count || undefined },
-            { id: 'checkout', label: 'Checkout Step', badge: stats.stages?.checkout || undefined },
-            { id: 'contact_captured', label: 'Contact Captured', badge: stats.stages?.contact_captured || undefined },
             { id: 'payment_pending', label: 'Payment Pending', badge: stats.stages?.payment_pending || undefined },
             { id: 'recovered', label: 'Recovered', badge: stats.recovered_count || undefined },
             { id: 'all', label: 'All Sessions', badge: stats.total_sessions || undefined }
@@ -620,7 +551,12 @@ export const AbandonedCartsPage: React.FC = () => {
         }}
         serverTotalCount={totalCount}
         currentPage={page}
+        itemsPerPage={perPage}
         onPageChange={setPage}
+        onItemsPerPageChange={(limit) => {
+          setPerPage(limit)
+          setPage(1)
+        }}
         isLoading={loading || refreshing}
         itemsPerPageOptions={[10, 25, 50, 100]}
         emptyMessage="No cart sessions match the current stage filter. As visitors browse and initiate checkouts, abandoned sessions stream here in real time."
@@ -651,7 +587,12 @@ export const AbandonedCartsPage: React.FC = () => {
                     onClick={(e) => openWhatsAppOutreach(selectedSession, e)}
                     leftIcon={<MessageCircle className="w-3.5 h-3.5" />}
                   >
-                    Send WhatsApp Outreach
+                    <span className="inline-flex items-start">
+                      <span>Send WhatsApp Outreach</span>
+                      <sup className="ml-0.5 -mt-0.5 inline-flex items-center">
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </sup>
+                    </span>
                   </Button>
                 )}
                 {canManage && (
@@ -714,10 +655,8 @@ export const AbandonedCartsPage: React.FC = () => {
                     </span>
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <div>
-                        <span className="text-zinc-500 block text-[11px]">Traffic Channel</span>
-                        <span className="text-zinc-900 dark:text-zinc-100 font-medium text-[13px]">
-                          {attr.badgeText}
-                        </span>
+                        <span className="text-zinc-500 block text-[11px] mb-1">Traffic Channel</span>
+                        <TrafficSourceBadge attribution={attr} />
                       </div>
                       <div>
                         <span className="text-zinc-500 block text-[11px]">Platform</span>
@@ -776,42 +715,6 @@ export const AbandonedCartsPage: React.FC = () => {
         </Dialog>
       )}
 
-      {/* 7. Delete Confirmation Modal */}
-      {deletingSession && (
-        <Dialog
-          isOpen={Boolean(deletingSession)}
-          onClose={() => setDeletingSession(null)}
-          title="Delete Abandoned Cart Record"
-          description="Are you sure you want to permanently delete this cart session? This action cannot be undone."
-          maxWidth="md"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setDeletingSession(null)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="md"
-                onClick={executeDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Cart'}
-              </Button>
-            </div>
-          }
-        >
-          <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-sans">
-            Session ID: <strong className="font-mono">{deletingSession.session_id}</strong>
-            <br />
-            Customer: <strong>{deletingSession.customer_name || 'Guest'}</strong> (Total: {formatNaira(deletingSession.cart_total)})
-          </div>
-        </Dialog>
-      )}
     </div>
   )
 }
