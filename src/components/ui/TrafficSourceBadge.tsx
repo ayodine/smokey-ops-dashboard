@@ -106,16 +106,10 @@ export const TrafficSourceIcon: React.FC<{ platform: string; className?: string 
 
 export const TrafficSourceBadge: React.FC<{ attribution: ParsedAttribution }> = ({ attribution }) => {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap"
-      style={{
-        backgroundColor: attribution.bg,
-        color: attribution.color,
-        border: `1px solid ${attribution.border}`,
-      }}
-    >
-      <TrafficSourceIcon platform={attribution.platform} className="w-3.5 h-3.5 shrink-0" />
+    <span className="inline-flex items-center gap-2 text-xs font-medium text-kumo-strong whitespace-nowrap">
+      <TrafficSourceIcon platform={attribution.platform} className="w-4 h-4 shrink-0" />
       <span>{attribution.badgeText}</span>
     </span>
   )
 }
+
