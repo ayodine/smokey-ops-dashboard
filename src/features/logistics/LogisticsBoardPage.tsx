@@ -38,7 +38,7 @@ import {
 } from 'lucide-react'
 import { openImageSafe, downloadImage } from '@/lib/imageUtils'
 import { cn } from '@/lib/utils'
-import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef, isStorePickupOrder } from '@/lib/orderCanonical'
 import { OPS_FRESH_START_CUTOFF } from '@/context/SmokeyOpsContext'
 import { OrderQueries, OrderSyncManager, type OrderCursor, type AuthoritativeOrder } from '@/services/orders'
 
@@ -137,7 +137,9 @@ export const LogisticsBoardPage: React.FC = () => {
       setIsSearchingBackend(true)
       try {
         const result = await OrderQueries.getLogisticsQueue({ search: q }, undefined, 50)
-        const mapped = result.items.map(mapAuthoritativeToLogisticsDelivery)
+        const mapped = result.items
+          .filter(o => !isStorePickupOrder(o))
+          .map(mapAuthoritativeToLogisticsDelivery)
         setBackendDeliveries(mapped)
       } catch (err) {
         console.warn('Backend search error in Logistics:', err)
@@ -169,7 +171,9 @@ export const LogisticsBoardPage: React.FC = () => {
         page: deliveredPage,
         limit: 50
       })
-      const mapped = res.items.map(mapAuthoritativeToLogisticsDelivery)
+      const mapped = res.items
+        .filter(o => !isStorePickupOrder(o))
+        .map(mapAuthoritativeToLogisticsDelivery)
       setServerDeliveredOrders(mapped)
       setDeliveredTotalCount(res.totalCount)
     } catch (err) {
@@ -198,10 +202,11 @@ export const LogisticsBoardPage: React.FC = () => {
     return () => unsubscribe()
   }, [fetchDeliveredPage])
 
-  // Dynamic KPIs and Tables reflecting custom date range
+  // Dynamic KPIs and Tables reflecting custom date range (strictly excluding Store Pickup orders)
   const activeDeliveriesForKPI = useMemo(() => {
-    if (!dateRange) return logisticsDeliveries
-    return logisticsDeliveries.filter(d => isWithinDateRange(d.dispatch_date || d.pickup_at || d.delivered_at, dateRange))
+    const dispatchable = logisticsDeliveries.filter(d => !isStorePickupOrder(d))
+    if (!dateRange) return dispatchable
+    return dispatchable.filter(d => isWithinDateRange(d.dispatch_date || d.pickup_at || d.delivered_at, dateRange))
   }, [logisticsDeliveries, dateRange])
 
   const hasValidAssignedRider = (riderName?: string | null) => {

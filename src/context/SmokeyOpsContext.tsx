@@ -74,7 +74,7 @@ import { SuccessModal } from '@/components/ui/SuccessModal'
 import { formatLocalDateToYMD } from '@/components/ui/DateRangePicker'
 import { formatNaira } from '@/lib/utils'
 import { playAlertChime, sendDesktopNotification, stopOrderRingtone, isUserSignedInAndOnDashboard } from '@/lib/notificationAudio'
-import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef } from '@/lib/orderCanonical'
+import { getCanonicalOrderRef, extractNumericOrderId, deduplicateByOrderRef, isStorePickupOrder } from '@/lib/orderCanonical'
 import { OrderRepository, OrderCache, OrderSyncManager, OrderLifecycleService } from '@/services/orders'
 import { resolveProductVariantMeta, matchOrderItemToSalesProduct } from '@/lib/productVariants'
 
@@ -2359,14 +2359,11 @@ const deriveQueuesFromRawOrders = (rawOrders: any[]) => {
         created_at: createdAt
       })
 
-      const isPickupOrder = Boolean(
-        (address && (address.toLowerCase().includes('pickup') || address.toLowerCase().includes('counter'))) ||
-        (o.delivery_zone && o.delivery_zone.toLowerCase().includes('pickup')) ||
-        (o.notes && o.notes.toLowerCase().includes('pickup') && !o.notes.toLowerCase().includes('not pickup')) ||
-        o.delivery_type === 'pickup' ||
-        o.fulfillment_type === 'pickup' ||
-        (deliveryFee === 0 && (address.toLowerCase().includes('store') || address.toLowerCase().includes('hq') || address.toLowerCase().includes('yaba')))
-      )
+      const isPickupOrder = isStorePickupOrder({
+        ...o,
+        address,
+        delivery_fee: deliveryFee
+      })
 
       if (isPickupOrder) {
         const isPackagedPickup = Boolean(
@@ -3290,7 +3287,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const dbRefs = new Set(reconciledFromDb.map(d => getCanonicalOrderRef(d)))
         const optimisticLocalOnly = prev.filter(
-          d => !dbRefs.has(getCanonicalOrderRef(d)) && isFreshOrder({ created_at: d.dispatch_date ? `${d.dispatch_date}T12:00:00.000Z` : undefined, status: 'processing' })
+          d => !isStorePickupOrder(d) && !dbRefs.has(getCanonicalOrderRef(d)) && isFreshOrder({ created_at: d.dispatch_date ? `${d.dispatch_date}T12:00:00.000Z` : undefined, status: 'processing' })
         )
         const nextDeliveries = deduplicateByOrderRef([...reconciledFromDb, ...optimisticLocalOnly])
         writeLocalCache('smokey_live_cache_v4_logistics_deliveries', nextDeliveries)
@@ -3883,7 +3880,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         hasRider ||
         isDeliveredSignal
 
-      const isStorePickup = (updated.address || '').toLowerCase().includes('pickup') || (updated.delivery_zone || '').toLowerCase().includes('pickup')
+      const isStorePickup = isStorePickupOrder(updated)
 
       if (isDispatchReady && !isStorePickup) {
         const numericId = extractNumericOrderId(ref, Math.floor(Math.random() * 90000 + 10000))
@@ -8593,7 +8590,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           payment_status: 'paid',
           delivery_mode: (authOrder.scheduled_delivery_date || (authOrder.notes && authOrder.notes.includes('[Scheduled Delivery:'))) ? 'scheduled' : 'instant',
           total_amount: Number(authOrder.total) || 0,
-          delivery_fee: Number(authOrder.delivery_fee) || 3000,
+          delivery_fee: authOrder.delivery_fee !== undefined && authOrder.delivery_fee !== null ? Number(authOrder.delivery_fee) : 3000,
           created_at: authOrder.created_at,
           packaged_at: authOrder.packaged_at || undefined,
           packaged_by_name: authOrder.packaged_by || undefined,
@@ -8731,7 +8728,7 @@ export const SmokeyOpsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next
     })
 
-    const isPickup = order.address.toLowerCase().includes('pickup') || order.address.toLowerCase().includes('counter') || order.delivery_fee === 0
+    const isPickup = isStorePickupOrder(order)
     patchCachedRawOrder(canonicalRef, {
       packaging_status: 'packaged',
       delivery_status: isPickup ? 'Ready for Pickup' : 'Ready for Dispatch'

@@ -45,3 +45,28 @@ export function deduplicateByOrderRef<T>(items: T[], preferHigherStage?: (a: T, 
   return Array.from(map.values())
 }
 
+/**
+ * Canonical classifier for Store Pickup / Counter Pickup orders.
+ * Ensures pickup orders never leak onto the Logistics Dispatch Board.
+ */
+export function isStorePickupOrder(order: any): boolean {
+  if (!order) return false
+  const address = String(order.delivery_address ?? order.address ?? '').toLowerCase()
+  const zone = String(order.delivery_zone ?? '').toLowerCase()
+  const notes = String(order.notes ?? '').toLowerCase()
+  const delivStatus = String(order.delivery_status ?? '').toLowerCase()
+  const deliveryType = String(order.delivery_type ?? order.fulfillment_type ?? '').toLowerCase()
+  const fee = order.delivery_fee !== undefined && order.delivery_fee !== null ? Number(order.delivery_fee) : null
+
+  return Boolean(
+    (address && (address.includes('pickup') || address.includes('counter'))) ||
+    (zone && zone.includes('pickup')) ||
+    (notes && notes.includes('pickup') && !notes.includes('not pickup')) ||
+    deliveryType === 'pickup' ||
+    delivStatus.includes('pickup') ||
+    delivStatus === 'collected' ||
+    (fee === 0 && (address.includes('store') || address.includes('hq') || address.includes('yaba')))
+  )
+}
+
+

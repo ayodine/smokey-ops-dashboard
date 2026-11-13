@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { isStorePickupOrder } from '@/lib/orderCanonical'
 import type {
   AuthoritativeOrder,
   OrderCursor,
@@ -74,7 +75,14 @@ export class OrderQueries {
         .neq('status', 'refunded')
         .neq('status', 'pending_payment')
 
-      // 1. Status/Tab Filter
+      // 1. Exclude Store Pickup orders from Dispatch Board queries (preserving NULL columns)
+      query = query
+        .or('delivery_zone.is.null,delivery_zone.not.ilike.%pickup%')
+        .or('delivery_address.is.null,delivery_address.not.ilike.%pickup%')
+        .or('delivery_address.is.null,delivery_address.not.ilike.%counter%')
+        .or('delivery_status.is.null,delivery_status.not.in.("Ready for Pickup",ready_for_pickup,Collected,collected)')
+
+      // 2. Status/Tab Filter
       if (filters?.tab === 'delivered') {
         query = query.eq('delivery_status', 'Delivered')
       } else if (filters?.tab === 'in_transit') {
@@ -87,7 +95,10 @@ export class OrderQueries {
       } else if (filters?.tab === 'unassigned') {
         query = query
           .neq('delivery_status', 'Delivered')
-          .or('delivery_status.in.(Ready for Dispatch,pending,assigned),rider_name.is.null,rider_name.eq.Unassigned')
+          .or('delivery_status.in.("Ready for Dispatch",pending,assigned),rider_name.is.null,rider_name.eq.Unassigned')
+      } else {
+        // Default / Search mode on Dispatch Board: only show orders that are packaged or already in dispatch/delivery
+        query = query.or('packaging_status.in.(packaged,dispatched),delivery_status.in.("Ready for Dispatch",Assigned,assigned,"In Transit",in_transit,out_for_delivery,Delivered,delivered)')
       }
 
       // 2. Search filter
@@ -127,8 +138,9 @@ export class OrderQueries {
 
       const rawItems = (data || []) as unknown as AuthoritativeOrder[]
       const hasMore = rawItems.length > limit
-      const items = hasMore ? rawItems.slice(0, limit) : rawItems
-      const lastItem = items[items.length - 1]
+      const sliced = hasMore ? rawItems.slice(0, limit) : rawItems
+      const items = sliced.filter(o => !isStorePickupOrder(o))
+      const lastItem = sliced[sliced.length - 1]
       const nextCursor: OrderCursor | null = hasMore && lastItem ? {
         createdAt: lastItem.created_at,
         id: lastItem.id
@@ -451,6 +463,9 @@ export class OrderQueries {
         .neq('status', 'refunded')
         .neq('status', 'pending_payment')
         .ilike('delivery_status', '%deliver%')
+        .or('delivery_zone.is.null,delivery_zone.not.ilike.%pickup%')
+        .or('delivery_address.is.null,delivery_address.not.ilike.%pickup%')
+        .or('delivery_address.is.null,delivery_address.not.ilike.%counter%')
 
       const q = params.search?.trim().replace(/[,()]/g, '')
       if (q) {
@@ -477,7 +492,8 @@ export class OrderQueries {
         return { items: [], totalCount: 0, page, totalPages: 1 }
       }
 
-      const items = (data || []) as unknown as AuthoritativeOrder[]
+      const rawItems = (data || []) as unknown as AuthoritativeOrder[]
+      const items = rawItems.filter(o => !isStorePickupOrder(o))
       const totalCount = count !== null && count !== undefined ? count : items.length
       const totalPages = Math.max(1, Math.ceil(totalCount / limit))
 
